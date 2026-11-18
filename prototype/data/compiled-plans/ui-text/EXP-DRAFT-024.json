@@ -4,35 +4,48 @@
   "title": "A saved eRFX draft: \"Edit Terms & Conditions\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:43:51.705Z",
+  "compiledAt": "2026-11-13T14:04:47.823Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 19,
   "stepNames": [
-   "open_prepared",
+   "open_create",
    "require_setting",
    "require_setting",
    "require_setting",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "expect_event_status",
+   "open_event",
    "do_on_screen",
-   "expect_visible"
+   "expect_visible",
+   "expect_event_status"
   ],
-  "ms": 15759
+  "ms": 11062
  },
  "plan": {
-  "title": "EXP-DRAFT-024 Cancel Terms & Conditions",
+  "title": "Cancel Terms and Conditions on eRFX Draft",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "open_create",
     "args": {
-     "screen": "draft"
+     "path": "erfx"
     },
-    "note": "Open the existing saved eRFX draft without creating or publishing a new event."
+    "note": "Start the eRFX draft creation flow."
    },
    {
     "step": "require_setting",
@@ -40,7 +53,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects for the draft scenario."
+    "note": "Enable eRFX projects for the draft creation flow."
    },
    {
     "step": "require_setting",
@@ -48,7 +61,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Apply the required vendor-lock configuration."
+    "note": "Apply the required tenant configuration that prevents vendor additions during event creation."
    },
    {
     "step": "require_setting",
@@ -56,23 +69,109 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the required stage-addition configuration."
+    "note": "Apply the specified stage configuration before creating the draft."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-024 Terms Cancel"
+    },
+    "note": "Give the draft a stable title so it can be reopened from Drafts."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create the RFQ-only eRFX stage required by the saved draft scenario."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the draft's required line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the draft can be saved."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule so the saved draft has event timing to remain unchanged."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the eRFX event as an unpublished draft."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the events list to access the saved draft."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Show saved drafts only."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {
+     "title": "EXP-DRAFT-024 Terms Cancel"
+    },
+    "note": "Verify the newly saved draft is present in the Drafts tab."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "title": "EXP-DRAFT-024 Terms Cancel",
+     "status": "Draft"
+    },
+    "note": "Establish that the event is still an unpublished draft before editing terms."
+   },
+   {
+    "step": "open_event",
+    "args": {
+     "title": "EXP-DRAFT-024 Terms Cancel"
+    },
+    "note": "Open the saved draft as the buyer."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "Open Terms & Conditions on the saved eRFX draft, cancel the Edit Terms & Conditions window, and verify on screen that the draft's status, times, vendors, bids, and other event values remain unchanged."
+     "goal": "click Terms & Conditions, open the Edit Terms & Conditions window, cancel it, and verify that the window closes without changing the draft's status, schedule, vendors, bids, or other event data"
     },
-    "note": "Perform and observe the buyer-side modal cancellation flow that has no dedicated catalog action."
+    "note": "Perform and verify the cancel interaction that no dedicated catalog step can directly express."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Edit Terms & Conditions",
+     "text": "Edit Terms & Conditions",
      "visible": false
     },
     "note": "Assert that the Edit Terms & Conditions window is closed after cancellation."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "title": "EXP-DRAFT-024 Terms Cancel",
+     "status": "Draft"
+    },
+    "note": "Confirm the draft status remains unchanged after cancelling."
    }
   ]
  }

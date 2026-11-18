@@ -4,7 +4,7 @@
   "title": "Single stage reverse auction, one clause Required: the vendor accepts only the Required clause",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:12:38.074Z",
+  "compiledAt": "2026-11-13T13:03:59.130Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -12,65 +12,81 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet"
   ],
   "source": "llm",
   "steps": 19,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_sheet_cell",
    "do_on_screen",
-   "set_schedule",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
-   "expect_text",
-   "toggle",
-   "toggle",
+   "do_on_screen",
    "vendor_bid",
    "expect_bid_submitted"
   ],
-  "ms": 17077
+  "ms": 20077
  },
  "plan": {
-  "title": "Single-stage reverse auction required T&C",
+  "title": "Single-stage reverse auction with one required T&C",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow."
+    "note": "Opens the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enables eRFX event creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allows the buyer to add the vendor during event creation."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction",
-     "auctionSubtype": "price",
-     "awarding": "lot"
+     "eventType": "auction"
     },
-    "note": "Configure the event as a price-based reverse auction awarded as a lot."
+    "note": "Sets the single-stage event type to Auction."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-TNC-018 Single Stage Reverse Auction"
+     "title": "SRC-TNC-018 Required Clause Auction"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provides the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first offered reverse-auction pricing template."
+    "note": "Applies the available reverse auction template so the pricing sheet can be configured."
    },
    {
     "step": "add_line_items",
@@ -79,101 +95,83 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product with quantity 10."
+    "note": "Adds the specified product with quantity 10."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Render and complete the auction pricing sheet for the line item."
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Sets the requested delivery location on the first line."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the buyer's single-stage create screen, set the first line item's delivery location to Plant Name (LOC-0001), open Terms & Conditions, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", set only \"Payment within 45 days\" to Required, leave \"Delivery within 7 days\" as None, click Done, and stop with the saved terms visible on the create screen"
+     "goal": "On the create screen, open Terms & Conditions, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", set only \"Payment within 45 days\" to Required, leave \"Delivery within 7 days\" as None, click Done, and stop on the event create screen."
     },
-    "note": "Configure the plant location and the required versus optional clauses, which have no dedicated catalog step."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit the 30-minute schedule with the event starting now."
+    "note": "Configures the event-wise terms with exactly one Required clause and one optional/None clause."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one QA test vendor for the vendor-side submission."
+    "note": "Adds one QA test vendor to the event."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commits a Start now schedule with a 30-minute duration."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured single-stage auction."
+    "note": "Publishes the configured auction."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a real published project page."
+    "note": "Confirms the event reached a published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the separate supplier portal session for the invited QA vendor."
+    "note": "Moves to the invited vendor's separate supplier portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing round in the vendor portal."
+    "note": "Opens the event's pricing round in the vendor portal."
    },
    {
-    "step": "expect_text",
+    "step": "do_on_screen",
     "args": {
-     "text": "Payment within 45 days",
-     "present": true
+     "goal": "In the vendor pricing screen, read the Terms & Conditions block, accept only the Required clause \"Payment within 45 days\", leave \"Delivery within 7 days\" visibly unaccepted, and stop with the bid form ready for submission."
     },
-    "note": "Verify the required clause is shown to the vendor."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Delivery within 7 days",
-     "present": true
-    },
-    "note": "Verify the optional clause is shown to the vendor."
-   },
-   {
-    "step": "toggle",
-    "args": {
-     "label": "Payment within 45 days",
-     "on": true
-    },
-    "note": "Accept only the required clause."
-   },
-   {
-    "step": "toggle",
-    "args": {
-     "label": "Delivery within 7 days",
-     "on": false
-    },
-    "note": "Keep the optional clause unaccepted."
+    "note": "Checks the vendor can leave the optional clause unaccepted without treating it as mandatory."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Quote 100 for every line and submit the vendor bid."
+    "note": "Quotes 100 for the line and submits the bid after accepting only the Required clause."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the vendor portal marks the bid as submitted, proving the optional clause did not block submission."
+    "note": "Verifies that the vendor bid was accepted and the round is Submitted."
    }
   ]
  }

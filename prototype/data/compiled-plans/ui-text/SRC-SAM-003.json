@@ -4,17 +4,19 @@
   "title": "Recreate Order is offered on a live RFQ where Vendor An and Vendor B have bid",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:53:30.411Z",
+  "compiledAt": "2026-11-13T12:45:53.155Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 8,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "place_surrogate_bid",
-   "go_to",
+   "require_setting",
    "expect_menu_item",
    "event_menu",
    "expect_visible",
@@ -23,72 +25,66 @@
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 9080
+  "ms": 11452
  },
  "plan": {
-  "title": "Recreate Order on Live RFQ",
+  "title": "Recreate Order available on live RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ event on the buyer side."
+    "note": "Open the prepared live RFQ with two bids instead of creating or searching for another event."
    },
    {
-    "step": "place_surrogate_bid",
-    "args": {},
-    "note": "Add the second bid required by the scenario without needing another vendor session."
-   },
-   {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Navigate to the live RFQ stage page where its Settings menu is available."
+    "note": "Ensure eRFX projects are enabled for the tenant as required by the setup."
    },
    {
     "step": "expect_menu_item",
     "args": {
      "item": "Recreate Order",
-     "stage": "rfq",
      "enabled": true
     },
-    "note": "Assert that Recreate Order is offered and clickable in the RFQ Settings menu."
+    "note": "Assert that the stage Settings menu offers Recreate Order and that it is clickable."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order",
-     "stage": "rfq"
+     "item": "Recreate Order"
     },
-    "note": "Select Recreate Order and leave its window open without confirming it."
+    "note": "Select Recreate Order to verify that its window opens without confirming any change."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
+     "name": "Recreate Order",
      "visible": true
     },
-    "note": "Assert that selecting Recreate Order opens a dialog/window."
+    "note": "Assert that the Recreate Order window is open."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Cancel",
-     "within": "dialog"
+     "name": "Cancel"
     },
-    "note": "Cancel the Recreate Order window so no event data changes."
+    "note": "Cancel the window so no order recreation is performed."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
+     "name": "Recreate Order",
      "visible": false
     },
-    "note": "Assert that the Recreate Order window closes after cancellation."
+    "note": "Assert that cancelling closes the Recreate Order window."
    }
   ]
  }

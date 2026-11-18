@@ -3,39 +3,77 @@
   "caseId": "PRD-RFQ-029",
   "title": "RFQ to Auction Conversion: not available on plans below Growth",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:30:43.270Z",
+  "compiledAt": "2026-11-13T14:51:59.652Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Identify or sign in to a tenant on a plan below Growth and a tenant on Growth without company IDs.",
-   "Verify that RFQ-to-Auction conversion is gated specifically by subscription plan across those two tenants.",
-   "Repeat the same conversion flow on both plan tiers and compare refusal or availability."
+   "Select or identify a tenant on a plan below Growth because no tenant or company ID is provided.",
+   "Select or identify a Growth tenant because no tenant or company ID is provided.",
+   "Compare RFQ-to-Auction availability across the two plan tiers using the same buyer and RFQ."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Identify or sign in to a tenant on a plan below Growth and a tenant on Growth without company IDs.; Verify that RFQ-to-Auction conversion is gated specifically by subscription plan across those two tenants.; Repeat the same conversion flow on both plan tiers and compare refusal or availability."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Select or identify a tenant on a plan below Growth because no tenant or company ID is provided.; Select or identify a Growth tenant because no tenant or company ID is provided.; Compare RFQ-to-Auction availability across the two plan tiers using the same buyer and RFQ."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 6,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "ask_tester",
+   "expect_menu_item",
    "expect_menu_item"
   ],
-  "ms": 9438
+  "ms": 22137
  },
  "plan": {
-  "title": "RFQ-to-Auction Plan Gating",
+  "title": "RFQ to Auction Availability by Plan",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open an existing event suitable for checking whether RFQ-to-Auction conversion is offered."
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    }
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide access or company IDs for one below-Growth tenant and one Growth tenant, then run the same published RFQ conversion availability check on both tenants"
+    },
+    "note": "Cross-tenant plan selection and comparison cannot be performed without the specified tenant identities or access."
    },
    {
     "step": "expect_menu_item",
     "args": {
-     "item": "Convert to Auction"
+     "item": "Convert to Auction",
+     "present": false
     },
-    "note": "Inspect whether the current tenant's RFQ Settings menu offers the conversion action; this is only a generic availability check, not proof of plan-based gating."
+    "note": "Closest available assertion for the below-Growth tenant: the conversion action should be absent, but it cannot run against the intended tenant until access is provided."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Convert to Auction",
+     "present": true
+    },
+    "note": "Closest available assertion for the Growth tenant: the conversion action should be offered, but the catalog cannot switch to the intended Growth tenant without its identity."
    }
   ]
  }

@@ -3,45 +3,62 @@
   "caseId": "PRD-RPT-003",
   "title": "NFA / NTD Generation: refused for a user without the Buyer role",
   "group": "PRD-RPT",
-  "compiledAt": "2026-11-10T06:59:37.449Z",
+  "compiledAt": "2026-11-13T15:49:24.146Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and as a Buyer in the same Enterprise tenant",
-   "Observe or invoke NFA/NTD Generation and verify generated ranks, comparison, and allocation documents",
-   "Verify the tenant's Enterprise plan and determine whether RBAC deliberately grants the capability to additional roles"
+   "Verify or establish that the tenant is on the Enterprise plan",
+   "Sign in as a user without the Buyer role and attempt NFA/NTD generation",
+   "Generate NFA/NTD documents containing ranks, comparison, and allocation",
+   "Repeat the action as a Buyer and compare availability"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer in the same Enterprise tenant; Observe or invoke NFA/NTD Generation and verify generated ranks, comparison, and allocation documents; Verify the tenant's Enterprise plan and determine whether RBAC deliberately grants the capability to additional roles"
+   "can only test part of this — no step for: Verify or establish that the tenant is on the Enterprise plan; Sign in as a user without the Buyer role and attempt NFA/NTD generation; Generate NFA/NTD documents containing ranks, comparison, and allocation; Repeat the action as a Buyer and compare availability"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "open_master_qcs",
+   "start_awarding",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_visible"
   ],
-  "ms": 10349
+  "ms": 18360
  },
  "plan": {
-  "title": "NFA/NTD Generation Buyer Role Access",
+  "title": "NFA/NTD Generation Role Access",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing event as the closest available starting point for the document-generation action."
+    "note": "Open an existing event with bids suitable for comparison and allocation."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Reach the closest available screen showing vendor comparison and ranks."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Reach the closest available allocation flow before the missing NFA/NTD permission test."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a non-Buyer and a Buyer in the same Enterprise tenant, attempt NFA/NTD Generation for an event, and report whether the action is absent or refused for the non-Buyer and available for the Buyer, including the generated ranks, comparison, and allocation documents"
+     "need": "verify the tenant is Enterprise, sign in as a user without the Buyer role and attempt NFA/NTD generation with ranks, comparison, and allocation, then repeat the same action as a Buyer and report whether it is refused or available"
     },
-    "note": "The catalog cannot switch to role-specific users, inspect tenant RBAC or Enterprise plan configuration, or perform NFA/NTD Generation."
+    "note": "The catalog has no NFA/NTD generation action or role-specific login comparison."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the current screen has no crash or server error after the tester's requested comparison."
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal",
+     "visible": true
+    },
+    "note": "Assert that the closest allocation flow remains rendered after the tester's role-access investigation."
    }
   ]
  }

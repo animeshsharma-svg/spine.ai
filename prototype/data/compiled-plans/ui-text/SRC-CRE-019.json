@@ -4,7 +4,7 @@
   "title": "Reverse auction: Quantity Requested = letters \"abc\"",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:30:08.991Z",
+  "compiledAt": "2026-11-13T11:50:21.364Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,7 +17,7 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 7,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -25,21 +25,19 @@
    "set_title",
    "select_template",
    "add_line_items",
-   "set_sheet_cell",
-   "set_sheet_cell",
-   "expect_sheet_cell"
+   "expect_error"
   ],
-  "ms": 9995
+  "ms": 17703
  },
  "plan": {
-  "title": "Reverse auction rejects letters in Quantity Requested",
+  "title": "Single-stage reverse auction rejects letters in quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Opens the Single Stage event creation screen."
+    "note": "Open the Single Stage event creation screen."
    },
    {
     "step": "require_setting",
@@ -47,7 +45,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allows vendors to be added during event creation as required by the case."
+    "note": "Ensure vendors can be added during event creation as required by the case configuration."
    },
    {
     "step": "configure_single_stage",
@@ -56,54 +54,33 @@
      "auctionSubtype": "rank",
      "awarding": "lot"
     },
-    "note": "Configures the event as a reverse auction."
+    "note": "Set the event type to an auction with the standard reverse-auction ranking configuration."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "Reverse Auction Quantity Letters"
-    },
-    "note": "Provides the mandatory event title."
+    "args": {},
+    "note": "Provide the mandatory event title required for a create test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Applies the first available auction pricing template so the sheet can be populated."
+    "note": "Apply the first available auction pricing template so the product sheet is available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB"
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "abc"
     },
-    "note": "Adds the specified product as the first line item."
+    "note": "Add the specified product and enter the invalid letters value in its quantity field."
    },
    {
-    "step": "set_sheet_cell",
+    "step": "expect_error",
     "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "value": "Plant Name (LOC-0001)"
+     "contains": "Quantity"
     },
-    "note": "Sets the requested delivery location for the line item."
-   },
-   {
-    "step": "set_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "value": "abc"
-    },
-    "note": "Types the invalid letters into the Quantity Requested cell and presses Tab to trigger validation."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "refused": true
-    },
-    "note": "Verifies that the cell does not keep the non-numeric value."
+    "note": "Assert that the quantity field rejects the non-numeric value immediately after the Tab/entry validation."
    }
   ]
  }

@@ -4,35 +4,27 @@
   "title": "Unlocking bids or sending best offer when no vendor bids exist is handled correctly",
   "group": "DRV-RFQ",
   "sheet": "derived-buyer-can-create-a-request-for-best-offe",
-  "compiledAt": "2026-11-09T23:11:02.209Z",
+  "compiledAt": "2026-11-13T13:41:30.054Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Guaranteeing that the opened RFQ is published and has zero vendor bids before checking Request for Best Offer"
+  ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen"
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Guaranteeing that the opened RFQ is published and has zero vendor bids before checking Request for Best Offer"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 2,
   "stepNames": [
    "open_prepared",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "attempt"
+   "expect_menu_item"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 9768
+  "ms": 10431
  },
  "plan": {
   "title": "RFQ Best Offer With No Bids",
@@ -45,61 +37,12 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "compose_stages",
+    "step": "expect_menu_item",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "item": "Request Best Offers",
+     "enabled": false
     },
-    "note": "Configure the event as an RFQ rather than the default auction."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the RFQ pricing template."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the required RFQ line item."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet so the event can be published."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a valid event schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Add a participant while deliberately leaving the event with zero bids."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the RFQ without submitting any vendor bids."
-   },
-   {
-    "step": "attempt",
-    "args": {
-     "step": "event_menu",
-     "args": {
-      "item": "Request Best Offers",
-      "stage": "rfq"
-     },
-     "expect": "refused"
-    },
-    "note": "Attempt the Request Best Offers action and require Procol to show that it is disabled or refuses because no vendor bids exist."
+    "note": "Check whether Request for Best Offer is disabled when the selected event has no eligible bids."
    }
   ]
  }

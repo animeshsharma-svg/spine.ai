@@ -4,29 +4,36 @@
   "title": "Manage Line Items: Save fails when Quantity is left empty",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:45:02.669Z",
+  "compiledAt": "2026-11-13T14:07:05.434Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused"
+  ],
   "source": "llm",
   "steps": 13,
   "stepNames": [
    "open_create",
+   "compose_stages",
    "set_title",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "save_draft",
-   "expect_no_error",
-   "open_events_list",
-   "filter_events",
-   "expect_event_in_list",
-   "open_event",
-   "do_on_screen",
-   "expect_toast"
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "open_first_event",
+   "click",
+   "select",
+   "fill",
+   "fill",
+   "click",
+   "expect_error"
   ],
-  "ms": 13071
+  "ms": 20985
  },
  "plan": {
   "title": "Draft line item save rejects empty quantity",
@@ -35,77 +42,96 @@
     "step": "open_create",
     "args": {
      "path": "erfx"
-    },
-    "note": "Create the saved eRFX draft used as the test fixture."
+    }
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "A title is required before the draft can be saved."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply a pricing template before adding the line item."
-   },
-   {
-    "step": "add_line_items",
+    "step": "compose_stages",
     "args": {
-     "count": 1
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Create the single line item needed for the Manage Line Items drawer."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the initial pricing sheet so the draft can be saved with a valid baseline item."
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-addition configuration before opening the draft."
    },
    {
-    "step": "save_draft",
-    "args": {},
-    "note": "Persist the eRFX draft before reopening it from Drafts."
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the third configuration required by the case."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the draft setup completed without an application error."
-   },
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Navigate to Events to access the saved draft."
-   },
-   {
-    "step": "filter_events",
+    "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab specified by the case."
+    "note": "Open the first saved draft from the Drafts tab."
    },
    {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Verify the draft created for this test is listed."
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Reopen this plan's saved draft so its Manage Line Items drawer can be tested."
-   },
-   {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "On this saved eRFX draft, open the Items 1 Manage Line Items window, select the existing product or a product from its dropdown, clear the Quantity field so it is blank, enter 1200 in the price field, click Save, and stop only when the screen proves that saving was refused."
+     "role": "button",
+     "name": "Items 1"
     },
-    "note": "Perform the exact drawer-level interactions that the catalog has no dedicated step for."
+    "note": "Open the Manage Line Items window for the draft."
    },
    {
-    "step": "expect_toast",
+    "step": "select",
     "args": {
-     "kind": "error",
-     "text": "Please fill valid quantity on every line item"
+     "label": "Product",
+     "option": "1100000401 | AAC BLOCKS"
     },
-    "note": "Assert the expected validation refusal when the blank quantity is saved."
+    "note": "Select the example product in the line-item editor."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Quantity",
+     "value": ""
+    },
+    "note": "Leave Quantity blank as the invalid input under test."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Price",
+     "value": "1200"
+    },
+    "note": "Enter the requested price while keeping Quantity empty."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save"
+    },
+    "note": "Attempt to save the edited line item."
+   },
+   {
+    "step": "expect_error",
+    "args": {
+     "contains": "Please fill valid quantity on every line item"
+    },
+    "note": "Verify that Procol refuses the save because the quantity is blank."
    }
   ]
  }

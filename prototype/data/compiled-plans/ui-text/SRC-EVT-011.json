@@ -4,22 +4,26 @@
   "title": "Download the report while bids are locked",
   "group": "SRC-EVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:24:59.118Z",
+  "compiledAt": "2026-11-13T12:07:37.680Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
    "click",
    "expect_toast"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 8074
+  "ms": 12072
  },
  "plan": {
   "title": "Download Report While Bids Are Locked",
@@ -29,7 +33,15 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared Tech+RFQ project's summary page."
+    "note": "Open the existing prepared Tech+RFQ project without creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "go_to",
@@ -37,7 +49,7 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage where bids are locked."
+    "note": "Navigate to the RFQ stage where the locked-bid report control is available."
    },
    {
     "step": "click",
@@ -45,7 +57,7 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Attempt to download the RFQ report."
+    "note": "Attempt to download the RFQ report while bids remain locked."
    },
    {
     "step": "expect_toast",
@@ -53,7 +65,7 @@
      "kind": "error",
      "text": "Unlock Bid to Download Report"
     },
-    "note": "Assert Procol refuses the download with the expected message."
+    "note": "Verify Procol refuses the download with the expected locked-bid message."
    }
   ]
  }

@@ -4,11 +4,11 @@
   "title": "All Vendors: Filters button opens filter options when clicked",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:39:11.139Z",
+  "compiledAt": "2026-11-13T14:02:23.700Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact text change from \"Filters\" to the active filter state and the specific filtering options offered are not specified with catalog-observable labels."
+   "Whether the button text changes from Filters to a specific active-filter state"
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -17,52 +17,82 @@
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: The exact text change from \"Filters\" to the active filter state and the specific filtering options offered are not specified with catalog-observable labels."
+   "resolved: “The exact vendor filter options offered after clicking Filters” — expect_options opens the list and reads what it offers, with greyed-out items",
+   "can only test part of this — no step for: Whether the button text changes from Filters to a specific active-filter state"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 13,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
+   "fill_sheet",
    "click",
-   "expect_visible",
    "click",
    "click",
-   "expect_visible"
+   "expect_options"
   ],
-  "ms": 8861
+  "ms": 20334
  },
  "plan": {
-  "title": "Single-Stage RFQ Vendor Filters",
+  "title": "Single-stage RFQ vendor filters",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Opens the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Enables the tenant configuration specified by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Applies the requested ceiling-price read-only configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Applies the requested terms-and-conditions configuration."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the single-stage event type to RFQ."
+    "note": "Sets the event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title so the create screen is valid."
+    "args": {
+     "title": "EXP-CREATESINGLE-026 Vendor Filters"
+    },
+    "note": "Provides the mandatory event title for a create flow."
    },
    {
     "step": "select_template",
     "args": {
-     "name": "Buy Template"
+     "name": "Buy"
     },
-    "note": "Choose the requested Buy Template before adding products."
+    "note": "Chooses the requested Buy template before adding products."
    },
    {
     "step": "add_line_items",
@@ -71,7 +101,12 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product with quantity 10."
+    "note": "Adds the specified product with quantity 10."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Completes the RFQ pricing sheet so the Participants control can be opened."
    },
    {
     "step": "click",
@@ -79,15 +114,7 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the Participants panel."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "All Vendors",
-     "visible": true
-    },
-    "note": "Verify the All Vendors view is available in the Participants panel."
+    "note": "Opens the Participants panel."
    },
    {
     "step": "click",
@@ -95,7 +122,7 @@
      "role": "button",
      "name": "All Vendors"
     },
-    "note": "Open the All Vendors window."
+    "note": "Opens the All Vendors view within Participants."
    },
    {
     "step": "click",
@@ -103,15 +130,15 @@
      "role": "button",
      "name": "Filters"
     },
-    "note": "Click the Filters control whose behavior is under test."
+    "note": "Activates the vendor filtering control under test."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_options",
     "args": {
-     "role": "dialog",
-     "visible": true
+     "role": "button",
+     "name": "Filters"
     },
-    "note": "Assert that a filter panel or dropdown appeared after clicking Filters."
+    "note": "Checks that clicking Filters exposes a selectable options list or filtering menu."
    }
   ]
  }

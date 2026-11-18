@@ -3,16 +3,17 @@
   "caseId": "PRD-PO-018",
   "title": "PO Short Close: refused for a user without the Buyer role",
   "group": "PRD-PO",
-  "compiledAt": "2026-11-10T06:30:35.920Z",
+  "compiledAt": "2026-11-13T15:26:28.539Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The PO Short Close control and its refusal or absence for a user without the Buyer role.",
-   "Repeating PO Short Close as a Buyer and comparing availability or successful execution in the same tenant.",
-   "Signing in as the specified non-Buyer and Buyer personas, because the catalog cannot authenticate as another user or inspect tenant RBAC configuration."
+   "Open and perform PO Short Close before the full quantity or value is consumed",
+   "Sign in as a user without the Buyer role and verify the action is refused or absent",
+   "Repeat the action as a Buyer and verify it is available",
+   "Compare the two role outcomes while accounting for tenant-specific RBAC configuration"
   ],
   "warnings": [
-   "can only test part of this — no step for: The PO Short Close control and its refusal or absence for a user without the Buyer role.; Repeating PO Short Close as a Buyer and comparing availability or successful execution in the same tenant.; Signing in as the specified non-Buyer and Buyer personas, because the catalog cannot authenticate as another user or inspect tenant RBAC configuration."
+   "can only test part of this — no step for: Open and perform PO Short Close before the full quantity or value is consumed; Sign in as a user without the Buyer role and verify the action is refused or absent; Repeat the action as a Buyer and verify it is available; Compare the two role outcomes while accounting for tenant-specific RBAC configuration"
   ],
   "source": "llm",
   "steps": 2,
@@ -20,22 +21,22 @@
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 69906
+  "ms": 16413
  },
  "plan": {
-  "title": "PO Short Close Buyer Role Authorization",
+  "title": "PO Short Close role restriction",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Buyer user, attempt PO Short Close before the full quantity or value is consumed, then repeat the same action as a Buyer in the same tenant and record whether the action is refused, absent, or available"
+     "need": "sign in as a non-Buyer and then as a Buyer on the same tenant, perform PO Short Close before full quantity or value is consumed, and compare whether the action is refused or absent for the non-Buyer but available to the Buyer"
     },
-    "note": "The catalog cannot reach a purchase-order Short Close screen or perform the required role comparison."
+    "note": "The catalog cannot navigate to purchase orders, perform PO Short Close, or switch between role-specific user sessions."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Final assertion that the tester's resulting screen has no crash or server error; this does not cover the PO Short Close authorization subject."
+    "note": "Confirm the session remains free of a crash or server error after the tester completes the role comparison."
    }
   ]
  }

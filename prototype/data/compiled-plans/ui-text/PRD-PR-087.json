@@ -3,38 +3,49 @@
   "caseId": "PRD-PR-087",
   "title": "PR Approval: step 2 not bypassed when \"vendor pre-approved\" does not hold",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:43:39.970Z",
+  "compiledAt": "2026-11-13T15:22:34.749Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Trigger an employee purchase requisition with vendor pre-approved false and verify step 2 Line Manager Approval is routed",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "Create or submit a purchase requisition for INR 10,000 with vendor pre-approved set to false.",
+   "Configure or trigger the PR approval bypass condition so only the vendor pre-approved predicate is false.",
+   "Verify that step 2 is required and routed to the Requestor's Line Manager, including the existence of a pending step-2 approval for that person.",
+   "Sign in as or otherwise access the Requestor's Line Manager's approval task."
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "can only test part of this — no step for: Create or submit a purchase requisition for INR 10,000 with vendor pre-approved set to false.; Configure or trigger the PR approval bypass condition so only the vendor pre-approved predicate is false.; Verify that step 2 is required and routed to the Requestor's Line Manager, including the existence of a pending step-2 approval for that person.; Sign in as or otherwise access the Requestor's Line Manager's approval task."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_purchase_requisitions",
-   "pr_tab"
+   "ask_tester",
+   "expect_text"
   ],
-  "ms": 265206
+  "ms": 16189
  },
  "plan": {
-  "title": "PR Approval step 2 not bypassed when vendor pre-approved does not hold",
+  "title": "PR Approval Step 2 Routing",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open purchase requisitions to inspect PR workflows"
+    "note": "Opens the closest available purchase requisitions screen before the missing PR submission and approval workflow actions."
    },
    {
-    "step": "pr_tab",
+    "step": "ask_tester",
     "args": {
-     "tab": "Open"
+     "need": "Create or submit the INR 10,000 purchase requisition with vendor pre-approved false, follow the approval workflow, and verify that the pending required step-2 Line Manager Approval is routed to the Requestor's Line Manager"
     },
-    "note": "Switch to Open tab"
+    "note": "The catalog has no step for submitting this PR, configuring the bypass predicates, or observing another user's pending approval routing."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Line Manager Approval",
+     "present": true
+    },
+    "note": "Checks for the named step-2 approval label if the tester leaves the browser on the relevant approval screen."
    }
   ]
  }

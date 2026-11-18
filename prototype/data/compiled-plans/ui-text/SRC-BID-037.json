@@ -4,55 +4,47 @@
   "title": "Vendor fills a date column \"Delivery by\": pick a date in the past",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:27:46.474Z",
+  "compiledAt": "2026-11-13T11:47:41.905Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Record an outcome-agnostic result for whether the past date is refused or accepted; the available assertions require a specific expected result."
+   "Conditionally verify that the date shown to the buyer equals the vendor's picked date when the past date is accepted."
   ],
   "warnings": [
-   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "can only test part of this — no step for: Record an outcome-agnostic result for whether the past date is refused or accepted; the available assertions require a specific expected result."
+   "can only test part of this — no step for: Conditionally verify that the date shown to the buyer equals the vendor's picked date when the past date is accepted."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 5,
   "stepNames": [
    "open_event",
    "switch_portal",
    "vendor_open_event",
    "pick_date",
-   "remember",
-   "click",
-   "expect_text",
-   "switch_portal",
-   "go_to",
-   "expect_remembered"
+   "attempt"
   ],
-  "ms": 14861
+  "ms": 16189
  },
  "plan": {
-  "title": "Vendor past date bid",
+  "title": "Vendor past Delivery by date",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open a suitable existing live RFQ while keeping the buyer session available."
+    "note": "Open an existing live RFQ suitable for the vendor-side bid test."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
+     "to": "vendor"
     },
-    "note": "Switch to the invited vendor's separate supplier-portal session."
+    "note": "Move to the invited vendor's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's RFQ bid sheet in the vendor portal."
+    "note": "Open the selected live RFQ's pricing sheet in the vendor portal."
    },
    {
     "step": "pick_date",
@@ -60,53 +52,18 @@
      "label": "Delivery by",
      "date": "1 January 2020"
     },
-    "note": "Choose a definitively past date in the vendor's Delivery by column."
+    "note": "Select a clearly past date in the buyer-added Delivery by column."
    },
    {
-    "step": "remember",
+    "step": "attempt",
     "args": {
-     "key": "delivery_by_date",
-     "label": "Delivery by"
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
     },
-    "note": "Capture the exact date displayed in the vendor portal for comparison with the buyer view."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Submit Quote"
-    },
-    "note": "Submit the completed vendor quote."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Submitted"
-    },
-    "note": "Assert the known vendor-portal submission confirmation on the acceptance path."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "buyer"
-    },
-    "note": "Return to the buyer session to inspect the submitted value."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "overview"
-    },
-    "note": "Open the event overview where the buyer can see the vendor's delivery date."
-   },
-   {
-    "step": "expect_remembered",
-    "args": {
-     "key": "delivery_by_date",
-     "label": "Delivery by",
-     "same": true
-    },
-    "note": "Assert that the buyer's Delivery by date matches the date selected by the vendor."
+    "note": "Submit the quote for 100 and assert positive evidence that Procol refuses the past date."
    }
   ]
  }

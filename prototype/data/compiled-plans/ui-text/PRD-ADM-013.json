@@ -3,39 +3,43 @@
   "caseId": "PRD-ADM-013",
   "title": "SSO Authentication: refused for a user without the Tenant Admin role",
   "group": "PRD-ADM",
-  "compiledAt": "2026-11-10T06:32:51.796Z",
+  "compiledAt": "2026-11-13T15:28:39.998Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Tenant Admin role and verify whether SSO Authentication is refused or absent",
+   "Sign in as a user without the Tenant Admin role on the specified Enterprise tenant",
+   "Attempt SSO Authentication and verify it is refused or not offered for the non-Tenant Admin",
    "Repeat the SSO Authentication attempt as a Tenant Admin and verify it is available",
-   "Compare the two role outcomes in the same Enterprise tenant"
+   "Compare the two role outcomes and record any deliberate RBAC grant to additional roles"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Tenant Admin role and verify whether SSO Authentication is refused or absent; Repeat the SSO Authentication attempt as a Tenant Admin and verify it is available; Compare the two role outcomes in the same Enterprise tenant"
+   "can only test part of this — no step for: Sign in as a user without the Tenant Admin role on the specified Enterprise tenant; Attempt SSO Authentication and verify it is refused or not offered for the non-Tenant Admin; Repeat the SSO Authentication attempt as a Tenant Admin and verify it is available; Compare the two role outcomes and record any deliberate RBAC grant to additional roles"
   ],
   "source": "llm",
   "steps": 2,
   "stepNames": [
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 8516
+  "ms": 11743
  },
  "plan": {
-  "title": "SSO Authentication RBAC Access",
+  "title": "SSO Authentication RBAC refusal",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Tenant Admin user and the Tenant Admin in the same Enterprise tenant, attempt SSO Authentication as each, and report whether it is refused, absent, or available"
+     "need": "sign in as the non-Tenant Admin and Tenant Admin users on the same Enterprise tenant, attempt SSO Authentication for each, and compare whether the action is refused or unavailable for the non-admin and available for the Tenant Admin"
     },
-    "note": "The catalog cannot authenticate as specified roles or operate and observe the SSO Authentication control."
+    "note": "The catalog cannot perform role-specific authentication or observe the SSO Authentication control and its RBAC outcome."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Ensure the resulting screen has no crash or server error after the tester's role comparison."
+    "step": "expect_text",
+    "args": {
+     "text": "SSO Authentication",
+     "present": true
+    },
+    "note": "Provides a final screen assertion if the tester leaves the SSO Authentication control or result visible, but does not establish the role-specific behavior."
    }
   ]
  }

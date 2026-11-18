@@ -4,15 +4,17 @@
   "title": "Order Activity records a vendor revising a bid",
   "group": "SRC-ACT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:12:03.499Z",
+  "compiledAt": "2026-11-13T11:34:35.387Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the new activity line names the vendor who revised the bid and includes the correct date and time.",
-   "Verify all earlier activity entries remain present and that the entries are in chronological order."
+   "Verify the revision entry identifies the exact vendor and actor who performed it.",
+   "Verify the revision entry contains the precise date and time.",
+   "Verify every activity line is in chronological order.",
+   "Verify that no earlier activity entries are missing."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify the new activity line names the vendor who revised the bid and includes the correct date and time.; Verify all earlier activity entries remain present and that the entries are in chronological order."
+   "can only test part of this — no step for: Verify the revision entry identifies the exact vendor and actor who performed it.; Verify the revision entry contains the precise date and time.; Verify every activity line is in chronological order.; Verify that no earlier activity entries are missing."
   ],
   "source": "llm",
   "steps": 18,
@@ -20,7 +22,6 @@
    "open_create",
    "set_title",
    "compose_stages",
-   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -34,9 +35,10 @@
    "expect_bid_submitted",
    "event_menu",
    "expect_text",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 17778
+  "ms": 26681
  },
  "plan": {
   "title": "Order Activity Records Bid Revision",
@@ -46,14 +48,14 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Start a new buyer-side eRFX event for the bid revision flow."
+    "note": "Create a test event so the bid revision and its activity are controlled within this plan."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Order Activity Bid Revision Test"
+     "title": "SRC-ACT-003 Bid Revision Activity"
     },
-    "note": "Provide the required event title so the event can be published."
+    "note": "A title is required to publish the event."
    },
    {
     "step": "compose_stages",
@@ -62,26 +64,19 @@
       "rfq"
      ]
     },
-    "note": "Configure the event with an RFQ pricing stage."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Work on the RFQ stage before configuring its template and sheet."
+    "note": "Use an RFQ stage because the case concerns a vendor revising a bid."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply the first available RFQ template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one line item for the vendor quote."
+    "note": "Add one product for the vendor to quote."
    },
    {
     "step": "fill_sheet",
@@ -93,14 +88,14 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a usable bidding schedule."
+    "note": "Commit a bidding schedule required for publication."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one QA vendor who will submit and revise the bid."
+    "note": "Invite one QA vendor to submit and revise a bid."
    },
    {
     "step": "publish",
@@ -110,7 +105,7 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a real published project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "place_bid",
@@ -118,7 +113,7 @@
      "vendor": 1,
      "price": 100
     },
-    "note": "Have the first QA vendor submit the initial bid."
+    "note": "Submit the vendor’s initial bid."
    },
    {
     "step": "expect_bid_submitted",
@@ -131,7 +126,7 @@
      "vendor": 1,
      "price": 90
     },
-    "note": "Have the same vendor revise its bid, which is the event action under test."
+    "note": "Submit a second bid from the same vendor to represent a bid revision."
    },
    {
     "step": "expect_bid_submitted",
@@ -144,23 +139,28 @@
      "item": "Order Activity",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage's Order Activity drawer."
+    "note": "Open the RFQ stage’s Order Activity drawer from Settings."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Activity",
-     "present": true
+     "text": "Order Activity"
     },
-    "note": "Confirm the Order Activity drawer is open and its activity content is visible."
+    "note": "Confirm the Order Activity drawer is open."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "revis",
-     "present": true
+     "text": "revis"
     },
-    "note": "Check for activity text indicating the bid revision, to the extent the rendered wording exposes it."
+    "note": "Check that the activity view contains revision-related text for the vendor’s revised bid."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "QA_Platform"
+    },
+    "note": "Check that the activity view identifies a QA vendor entry, although the exact vendor identity cannot be asserted dynamically."
    }
   ]
  }

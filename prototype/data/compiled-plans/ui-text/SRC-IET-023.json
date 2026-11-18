@@ -4,24 +4,25 @@
   "title": "Decrease the evaluation time by 10 minutes",
   "group": "SRC-IET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:29:01.555Z",
+  "compiledAt": "2026-11-13T12:11:08.810Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
    "extend_time"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 8179
+  "ms": 8200
  },
  "plan": {
   "title": "Decrease evaluation time by 10 minutes",
@@ -31,7 +32,23 @@
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared RFQ in evaluation without creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the test configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Reach the RFQ stage page where Edit Evaluation Time is available."
    },
    {
     "step": "extend_time",
@@ -43,7 +60,7 @@
      "direction": "decrease",
      "expect": "saved"
     },
-    "note": "Open Edit Evaluation Time, choose Decrease by, enter 10 minutes, and verify the evaluation end moves 10 minutes earlier while remaining valid."
+    "note": "Open Edit Evaluation Time, decrease the duration by 10 minutes, and verify the saved end time is the previous end minus 10 minutes and remains after now and bidding end."
    }
   ]
  }

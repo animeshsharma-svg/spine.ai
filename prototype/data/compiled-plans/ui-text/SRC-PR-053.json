@@ -4,26 +4,35 @@
   "title": "An event whose PR items were short-closed cannot be withdrawn",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:33:35.128Z",
+  "compiledAt": "2026-11-13T12:29:24.970Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Short-close the PR line with a reason before attempting withdrawal.",
+   "Verify that the selected existing event is specifically the PR-based RFQ whose line was short-closed."
+  ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state"
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Short-close the PR line with a reason before attempting withdrawal.; Verify that the selected existing event is specifically the PR-based RFQ whose line was short-closed."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "do_on_screen",
-   "attempt"
+   "require_setting",
+   "require_setting",
+   "withdraw_event",
+   "expect_toast",
+   "expect_visible"
   ],
   "state": "pr_rfq",
   "screen": "summary",
-  "ms": 18351
+  "ms": 21648
  },
  "plan": {
-  "title": "Block withdrawal after PR short-close",
+  "title": "Short-closed PR event withdrawal refusal",
   "steps": [
    {
     "step": "open_prepared",
@@ -33,23 +42,46 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "do_on_screen",
+    "step": "require_setting",
     "args": {
-     "goal": "short-close the PR line used in the PR-based RFQ with a reason, then open Events, find that PR-based RFQ, and stop on its project page"
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
     },
-    "note": "Performs the PR short-close prerequisite and reaches the associated event because no catalog step exposes PR line short-closing or this exact PR-to-event lookup."
+    "note": "Ensure the Withdraw action is exposed in event settings."
    },
    {
-    "step": "attempt",
+    "step": "require_setting",
     "args": {
-     "step": "withdraw_event",
-     "args": {
-      "scope": "project"
-     },
-     "because": "Cannot withdraw event with short closed purchase request items",
-     "expect": "refused"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Attempts the project withdrawal and requires Procol's business-rule refusal message."
+    "note": "Ensure eRFX event flows are enabled for the buyer tenant."
+   },
+   {
+    "step": "withdraw_event",
+    "args": {
+     "scope": "stage",
+     "stage": "rfq",
+     "reason": "Short-closed PR item withdrawal test"
+    },
+    "note": "Attempt the RFQ stage withdrawal with a reason; Procol should refuse because the linked PR item was short-closed."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "error",
+     "text": "Cannot withdraw event with short closed purchase request items"
+    },
+    "note": "Assert the required refusal message."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Settings",
+     "visible": true
+    },
+    "note": "Confirm the event page remains available after the refused withdrawal."
    }
   ]
  }

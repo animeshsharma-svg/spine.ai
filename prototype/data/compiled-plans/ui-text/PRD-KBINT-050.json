@@ -3,40 +3,42 @@
   "caseId": "PRD-KBINT-050",
   "title": "Change a question's field type in Table View",
   "group": "PRD-KBINT",
-  "compiledAt": "2026-11-10T02:27:57.802Z",
+  "compiledAt": "2026-11-13T15:06:19.490Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has"
+  ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
    "open_create",
-   "set_title",
    "compose_stages",
-   "switch_stage",
+   "set_title",
    "select_template",
+   "fill_questionnaires",
    "do_on_screen",
-   "expect_no_error"
+   "expect_screen_clean"
   ],
-  "ms": 9622
+  "ms": 15378
  },
  "plan": {
-  "title": "Change Question Field Type in Table View",
+  "title": "Change RFP Question Field Type in Table View",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage create flow for an RFP event."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "Field Type Change Test"
-    },
-    "note": "Provide the required event title."
+    "note": "Open the single-stage create screen for the technical RFP setup."
    },
    {
     "step": "compose_stages",
@@ -44,32 +46,36 @@
      "stages": [
       "rfp"
      ]
-    },
-    "note": "Configure the event with a Technical/RFP stage."
+    }
    },
    {
-    "step": "switch_stage",
+    "step": "set_title",
     "args": {
-     "stage": "rfp"
+     "title": "Field Type Change Test"
     },
-    "note": "Work on the RFP stage where the questionnaire is configured."
+    "note": "Provide the required event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an available RFP template containing questions."
+    "note": "Apply an available RFP template before working with its questions."
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Ensure the RFP questionnaire contains at least one question."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the RFP questionnaire in Table View, locate a question with a Vendor Response, open the Edit control next to its field type, verify the available types are exactly Short Text, Long Text, Single Select, Radio, Number, Attachment, and Date, choose a different field type, and stop with the question visibly showing the newly applied type."
+     "goal": "In the RFP questionnaire Table View, open the Edit control next to a Vendor Response field type, verify that the available types are exactly Short Text, Long Text, Single Select, Radio, Number, Attachment, and Date, choose a different type, and stop with the question showing the newly selected field type."
     },
-    "note": "Perform and verify the field-type edit interaction that no dedicated catalog step exposes."
+    "note": "Perform and verify the field-type edit interaction that no dedicated catalog step can express."
    },
    {
-    "step": "expect_no_error",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the field-type change completed without an application error."
+    "note": "Confirm the final questionnaire view has no visible application errors or rendering issues."
    }
   ]
  }

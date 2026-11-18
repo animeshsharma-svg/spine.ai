@@ -4,47 +4,47 @@
   "title": "Buyer edits a vendor's bid during evaluation",
   "group": "SRC-SEL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:14:57.200Z",
+  "compiledAt": "2026-11-13T12:53:44.315Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Assert the exact identity and wording of the Order Activity entry for the buyer’s edit.",
-   "unconfirmed label \"98\" (expect_text) — not among the labels known from the app nor in the case"
+   "Open Vendor A's Edit Bid control during evaluation and change the bid from 100 to 98 with a reason",
+   "Assert Vendor A's bid shows 98 as edited by the buyer",
+   "Assert Order Activity records the buyer's bid change and identity",
+   "Assert the vendor sees the buyer-edited bid"
   ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "coverage partial: unconfirmed label \"98\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Assert the exact identity and wording of the Order Activity entry for the buyer’s edit."
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "cannot test this case yet — no step can observe: Open Vendor A's Edit Bid control during evaluation and change the bid from 100 to 98 with a reason; Assert Vendor A's bid shows 98 as edited by the buyer; Assert Order Activity records the buyer's bid change and identity; Assert the vendor sees the buyer-edited bid"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
-   "do_on_screen",
-   "expect_text",
+   "go_to",
    "event_menu",
-   "expect_text",
    "expect_text",
    "switch_portal",
    "vendor_open_event",
-   "expect_text"
+   "expect_visible"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 32961
+  "ms": 12013
  },
  "plan": {
-  "title": "Buyer edits Vendor A bid during evaluation",
+  "title": "Buyer edits vendor bid during evaluation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared RFQ in evaluation without creating or searching for another event."
+    "note": "the API built this case's state"
    },
    {
     "step": "require_setting",
@@ -52,7 +52,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Enable buyer bid editing required by the case."
+    "note": "Enable the tenant setting required for buyer bid edits."
    },
    {
     "step": "require_setting",
@@ -60,64 +60,52 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure eRFX projects are enabled as required by the setup."
+    "note": "Enable eRFX projects as required by the setup."
    },
    {
-    "step": "do_on_screen",
+    "step": "go_to",
     "args": {
-     "goal": "On the buyer event page, open Vendor A's Edit Bid control, change the bid from 100 to 98, enter a reason, save the edit, and stop when the buyer screen shows the edited bid."
+     "screen": "stage",
+     "stage": "rfq"
     },
-    "note": "Execute the buyer-only edit flow that has no dedicated domain step."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "98"
-    },
-    "note": "Confirm the buyer view shows Vendor A’s edited bid value."
+    "note": "Navigate to the pricing stage where the vendor bid would be edited."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Order Activity",
-     "stage": "rfq"
+     "item": "Order Activity"
     },
-    "note": "Open the RFQ Activity drawer to inspect the recorded bid-change activity."
+    "note": "Open the stage activity drawer as the closest available inspection of bid-change history."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Activity"
+     "text": "Activity",
+     "present": true
     },
-    "note": "Confirm the Order Activity drawer is open."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "98"
-    },
-    "note": "Confirm the activity view contains evidence of the edited value."
+    "note": "Confirm that the Order Activity drawer opened."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the supplier portal to verify the vendor-facing result."
+    "note": "Switch to the invited vendor portal to inspect the vendor-side pricing view."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared event’s pricing round as the invited vendor."
+    "note": "Open the event's pricing round in the vendor portal."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
-     "text": "98"
+     "text": "Price",
+     "visible": true
     },
-    "note": "Confirm the vendor portal shows the edited bid value."
+    "note": "Confirm the vendor pricing sheet is visible, although the catalog cannot assert the buyer edit."
    }
   ]
  }

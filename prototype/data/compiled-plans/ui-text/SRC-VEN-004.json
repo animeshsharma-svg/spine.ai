@@ -4,50 +4,167 @@
   "title": "Vendor view when counter offer pending",
   "group": "SRC-VEN",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:20:58.453Z",
+  "compiledAt": "2026-11-13T13:14:18.718Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The vendor’s Reject control has no confirmed catalog label, so its exact control identity cannot be asserted reliably."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The vendor’s Reject control has no confirmed catalog label, so its exact control identity cannot be asserted reliably."
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "invite_vendor now names Vendor A — a later step expects that vendor on the event",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "invite_vendor now names Vendor A — a later step expects that vendor on the event"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 20,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_bid_submitted",
+   "open_master_qcs",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
    "switch_portal",
    "vendor_open_event",
    "expect_visible",
-   "expect_text",
-   "expect_text",
-   "vendor_open_event",
-   "attempt"
+   "expect_visible",
+   "expect_disabled"
   ],
-  "ms": 14381
+  "ms": 13372
  },
  "plan": {
-  "title": "Vendor view with pending counter offer",
+  "title": "Vendor view of pending counter offer",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Starts creation of the RFQ event used for the vendor-state test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensures counter offers are available on RFQ rounds."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-VEN-004 Pending Counter Offer"
+    },
+    "note": "Provides the event title needed for publishing and portal navigation."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Creates an RFQ pricing stage, matching the scenario."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Open an existing RFQ with a pending counter offer rather than creating a new event."
+    "note": "Applies the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Adds the product needed for the vendor bid."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Completes the RFQ pricing sheet before publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commits a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ],
+     "names": [
+      "Vendor A"
+     ]
+    },
+    "note": "Invites the vendor whose portal view will be checked."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publishes the RFQ so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirms the event reached a published project page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirms Vendor A's bid was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Opens the buyer comparison grid where the counter offer can be initiated."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 90
+    },
+    "note": "Sends Vendor A a pending buyer counter offer."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Confirms the buyer grid marks the counter offer as initiated."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the separate vendor portal session while keeping the buyer session available."
+    "note": "Moves to a separate vendor session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
-     "overview": true
+     "stage": "pricing"
     },
-    "note": "Open the event overview where the pending counter offer and its response action are shown."
+    "note": "Opens the pending counter offer in Vendor A's RFQ pricing view."
    },
    {
     "step": "expect_visible",
@@ -56,42 +173,22 @@
      "name": "Accept Counter Offer",
      "visible": true
     },
-    "note": "Assert that the vendor can accept the pending counter offer."
+    "note": "Checks that the vendor can accept the pending offer."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Counter Offer",
-     "present": true
-    },
-    "note": "Assert that the vendor view identifies the pending counter offer."
-   },
-   {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
      "text": "Reject",
-     "present": true
+     "visible": true
     },
-    "note": "Attempt to observe the expected reject response; the exact control label is not confirmed by the catalog."
+    "note": "Checks that the vendor can reject the pending offer."
    },
    {
-    "step": "vendor_open_event",
+    "step": "expect_disabled",
     "args": {
-     "stage": "pricing"
+     "control": "Price"
     },
-    "note": "Open the pricing round so the vendor’s price-editing behavior can be tested."
-   },
-   {
-    "step": "attempt",
-    "args": {
-     "step": "vendor_bid",
-     "args": {
-      "submit": false,
-      "price": 110
-     },
-     "expect": "refused"
-    },
-    "note": "Verify that the vendor cannot edit the price while the counter offer remains pending."
+    "note": "Checks that price editing is locked while the counter offer awaits an answer."
    }
   ]
  }

@@ -4,64 +4,135 @@
   "title": "Approving after the requester withdrew the event bounces back",
   "group": "EMA-APR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:53:13.755Z",
+  "compiledAt": "2026-11-13T14:18:37.118Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create and submit an event into a two-step approval workflow with Ravi, Asha, and Bikram",
-   "Sign in as Asha and access her mailbox",
-   "Open the Procol approval email and send the unchanged Action:Approve email",
-   "Wait for Procol to process the approval email and observe the bounce-back message that the request is no longer waiting for approval",
-   "Verify the approval was rejected specifically because the requester withdrew the request"
+   "Submit the event into the configured email approval workflow and generate the approval request email",
+   "Log in to Asha's mailbox, open the Procol approval email, click Approve, and send the unchanged Action:Approve email",
+   "Wait for Procol to process the approval email and assert the bounce-back message that the request is no longer waiting for approval"
   ],
   "warnings": [
-   "can only test part of this — no step for: Create and submit an event into a two-step approval workflow with Ravi, Asha, and Bikram; Sign in as Asha and access her mailbox; Open the Procol approval email and send the unchanged Action:Approve email; Wait for Procol to process the approval email and observe the bounce-back message that the request is no longer waiting for approval; Verify the approval was rejected specifically because the requester withdrew the request"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Submit the event into the configured email approval workflow and generate the approval request email; Log in to Asha's mailbox, open the Procol approval email, click Approve, and send the unchanged Action:Approve email; Wait for Procol to process the approval email and assert the bounce-back message that the request is no longer waiting for approval"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 15,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
    "withdraw_event",
    "expect_withdrawn",
    "ask_tester",
    "expect_withdrawn"
   ],
-  "ms": 10509
+  "ms": 22797
  },
  "plan": {
-  "title": "EMA-APR-006 — Approval after withdrawal",
+  "title": "EMA-APR-006 Email Approval After Withdrawal",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the event creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company, with the company's approval mailbox connected to Procol",
+     "value": "On"
+    },
+    "note": "Configure the company prerequisite for email approvals."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Configure the approval workflow prerequisite."
+   },
+   {
+    "step": "set_title",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named event that is expected to be pending approval."
+    "note": "Create the event with the title specified by the case."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available template so the event can be completed."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item for the event."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet required for publication."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Add the product's available test vendor so publication can proceed."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event as the closest catalog action to submitting it for approval."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event was created and reached its project page."
    },
    {
     "step": "withdraw_event",
     "args": {
-     "scope": "project",
-     "reason": "Requester withdrew the event"
+     "scope": "project"
     },
-    "note": "Withdraw the event as the requester-side action required before attempting approval."
+    "note": "Withdraw the event as Ravi before the approver attempts to act."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Verify the event is recorded as withdrawn before the email approval attempt."
+    "note": "Verify the event is recorded as withdrawn before testing the unavailable mailbox flow."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Asha, open the approval request email for this event, send the unchanged Action:Approve email, wait for processing, and verify the bounce-back says the request is no longer waiting for approval and the approval was not applied"
+     "need": "open Asha's mailbox, open the Procol approval request, click Approve, send the unchanged Action:Approve email, and verify the bounce-back saying the request is no longer waiting for approval"
     },
-    "note": "Mailbox access, email sending, processing delay, and the bounce-back assertion are not available in the catalog."
+    "note": "The catalog cannot access or send mailbox email, nor observe the resulting bounce-back."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Reconfirm the event remains withdrawn after the attempted approval."
+    "note": "Reconfirm that the event remains withdrawn after the attempted approval."
    }
   ]
  }

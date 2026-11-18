@@ -3,45 +3,48 @@
   "caseId": "PRD-KBINT-026",
   "title": "Reorder fields with the 6-dots drag-and-drop",
   "group": "PRD-KBINT",
-  "compiledAt": "2026-11-10T02:11:52.137Z",
+  "compiledAt": "2026-11-13T15:05:01.912Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Drag specifically by the field's six-dots handle rather than by the field element text."
+   "Dragging specifically by the field's 6-dots handle",
+   "Ensuring the selected RFQ template is the setup template with at least two configurable fields"
   ],
   "warnings": [
-   "can only test part of this — no step for: Drag specifically by the field's six-dots handle rather than by the field element text."
+   "can only test part of this — no step for: Dragging specifically by the field's 6-dots handle; Ensuring the selected RFQ template is the setup template with at least two configurable fields"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 10,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "expect_sheet_columns",
    "drag",
    "expect_order"
   ],
-  "ms": 19845
+  "ms": 15379
  },
  "plan": {
-  "title": "Reorder pricing sheet fields",
+  "title": "Reorder sheet fields by drag and drop",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage create screen for an RFQ sheet."
+    "note": "Open the eRFX create screen for an RFQ template sheet."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Field Reorder QA"
+     "title": "Reorder Sheet Fields Test"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "compose_stages",
@@ -50,12 +53,19 @@
       "rfq"
      ]
     },
-    "note": "Configure the event with an RFQ pricing stage."
+    "note": "Configure the event with an RFQ stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage before configuring its template and sheet."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the sheet fields render."
+    "note": "Apply the first available RFQ template so its sheet fields render."
    },
    {
     "step": "add_line_items",
@@ -67,7 +77,18 @@
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Render and populate the sheet before reordering its fields."
+    "note": "Render and populate the template-backed sheet before reordering fields."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "Product",
+      "Quantity Requested",
+      "Price"
+     ]
+    },
+    "note": "Confirm that the sheet has multiple observable fields to reorder."
    },
    {
     "step": "drag",
@@ -76,7 +97,7 @@
      "to": "Product",
      "place": "before"
     },
-    "note": "Move the Price field before Product, representing the requested field reorder."
+    "note": "Reorder the Price field before Product using the available drag-and-drop operation."
    },
    {
     "step": "expect_order",
@@ -86,7 +107,7 @@
       "Product"
      ]
     },
-    "note": "Assert that the sheet's field order reflects the drop position."
+    "note": "Verify that the sheet header order reflects the drop position."
    }
   ]
  }

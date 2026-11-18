@@ -3,114 +3,79 @@
   "caseId": "PRD-KBSRC-072",
   "title": "Vendor reviews lot adjustment and revises Other Charges",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:11:24.968Z",
+  "compiledAt": "2026-11-13T14:35:12.011Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Navigate the supplier dashboard Live Events tab and identify the event card tagged \"Bid Adjustment Pending\"",
-   "Open the specific Lot RFQ and use \"View Item Distribution\" to review the lot adjustment",
-   "Update the vendor's lot-specific Other Charges section",
-   "Submit the revised quotation with \"Revise Quote\"",
+   "Split line items into lots during evaluation and create the vendor's lot-adjustment state",
+   "Return to the supplier bid table and update the Other Charges section",
+   "Click Revise Quote and verify the revised lot-specific quotation is submitted",
    "Verify the buyer sees the revised charges on the lot",
    "unconfirmed label \"Review Lot Adjustment and Update Charges\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
-   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
    "coverage partial: unconfirmed label \"Review Lot Adjustment and Update Charges\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Navigate the supplier dashboard Live Events tab and identify the event card tagged \"Bid Adjustment Pending\"; Open the specific Lot RFQ and use \"View Item Distribution\" to review the lot adjustment; Update the vendor's lot-specific Other Charges section; Submit the revised quotation with \"Revise Quote\"; Verify the buyer sees the revised charges on the lot"
+   "can only test part of this — no step for: Split line items into lots during evaluation and create the vendor's lot-adjustment state; Return to the supplier bid table and update the Other Charges section; Click Revise Quote and verify the revised lot-specific quotation is submitted; Verify the buyer sees the revised charges on the lot"
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 7,
   "stepNames": [
-   "open_create",
-   "compose_stages",
-   "set_title",
-   "select_template",
-   "add_line_items",
-   "expect_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
-   "switch_portal",
-   "vendor_open_event",
+   "open_prepared",
+   "expect_text",
+   "click",
+   "expect_text",
+   "go_to",
    "ask_tester",
    "expect_text"
   ],
-  "ms": 14854
+  "ms": 18942
  },
  "plan": {
-  "title": "Vendor lot adjustment charge revision",
+  "title": "Vendor Lot Adjustment Revision",
   "steps": [
    {
-    "step": "open_create",
+    "step": "open_prepared",
     "args": {
-     "path": "erfx"
-    }
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    }
-   },
-   {
-    "step": "set_title"
-   },
-   {
-    "step": "select_template"
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    }
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    }
-   },
-   {
-    "step": "fill_sheet"
-   },
-   {
-    "step": "set_schedule"
-   },
-   {
-    "step": "invite_vendor"
-   },
-   {
-    "step": "publish"
-   },
-   {
-    "step": "expect_published"
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "vendor"
+     "screen": "vendor"
     },
-    "note": "Open the supplier portal session required for the vendor-side workflow."
+    "note": "Open a prepared supplier-portal event state for the vendor adjustment flow."
    },
    {
-    "step": "vendor_open_event",
+    "step": "expect_text",
     "args": {
-     "overview": true
+     "text": "Bid Adjustment Pending",
+     "present": true
     },
-    "note": "Open the closest available vendor event view; the catalog has no step for selecting the pending lot-adjustment event."
+    "note": "Assert the event card shows the required pending adjustment tag."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "View Item Distribution"
+    },
+    "note": "Open the lot item distribution view from the adjustment prompt."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Review Lot Adjustment and Update Charges",
+     "present": true
+    },
+    "note": "Assert the vendor-facing review banner is present."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "back"
+    },
+    "note": "Return toward the main vendor bid table before the unsupported charge-revision action."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open the vendor's Live Events list, open the Lot RFQ marked \"Bid Adjustment Pending\", review View Item Distribution, update Other Charges, click Revise Quote, and verify the buyer sees the revised lot charges"
+     "need": "update Other Charges for the lot in the supplier portal, click Revise Quote, and confirm the lot-specific quotation is submitted"
     },
-    "note": "The lot-adjustment review and charge-revision workflow is not represented by any catalog step."
+    "note": "The catalog has no step for editing Other Charges or submitting Revise Quote."
    },
    {
     "step": "expect_text",
@@ -118,7 +83,7 @@
      "text": "Review Lot Adjustment and Update Charges",
      "present": false
     },
-    "note": "Assert the expected adjustment banner is gone after the tester completes the unavailable revision workflow."
+    "note": "Check the expected post-submission outcome that the adjustment banner is gone."
    }
   ]
  }

@@ -4,50 +4,71 @@
   "title": "A comment made only of spaces or blank lines counts as no comment",
   "group": "EMA-REJ",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:57:19.336Z",
+  "compiledAt": "2026-11-13T14:22:23.937Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in to Asha's mailbox and open the Procol approval request email.",
-   "Click Reject in the email and verify the new email subject starts with Action:Reject.",
-   "Enter only spaces or blank lines in the required comment field.",
-   "Send the rejection email without changing its subject.",
-   "Wait for Procol to read the mailbox and verify the bounce-back says no comment was given.",
-   "Verify that nothing was recorded in the approval workflow or buyer portal."
+   "Connect and configure the company's Outlook approval mailbox",
+   "Log in to Asha's mailbox and open the Procol approval email",
+   "Click Reject in the email and verify the Action:Reject email opens",
+   "Enter only spaces or blank lines in the required comment and send without changing the subject",
+   "Wait for Procol to process the mailbox reply",
+   "Verify the no-comment bounce-back message",
+   "Verify that no rejection or comment was recorded"
   ],
   "warnings": [
-   "can only test part of this — no step for: Log in to Asha's mailbox and open the Procol approval request email.; Click Reject in the email and verify the new email subject starts with Action:Reject.; Enter only spaces or blank lines in the required comment field.; Send the rejection email without changing its subject.; Wait for Procol to read the mailbox and verify the bounce-back says no comment was given.; Verify that nothing was recorded in the approval workflow or buyer portal."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Connect and configure the company's Outlook approval mailbox; Log in to Asha's mailbox and open the Procol approval email; Click Reject in the email and verify the Action:Reject email opens; Enter only spaces or blank lines in the required comment and send without changing the subject; Wait for Procol to process the mailbox reply; Verify the no-comment bounce-back message; Verify that no rejection or comment was recorded"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_no_error"
   ],
-  "ms": 10678
+  "ms": 10961
  },
  "plan": {
-  "title": "EMA-REJ-002 Whitespace Email Rejection",
+  "title": "EMA-REJ-002 Blank Email Rejection Comment",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named existing event in the buyer portal as the closest available starting point."
+    "note": "Open the named existing event in the buyer portal as the closest available preparation step."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Configure the required tenant email-approval setting before testing the flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Configure the workflow prerequisite requested by the case."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Asha, open the Procol approval email, reject it with only spaces or blank lines as the comment, send it unchanged, wait for processing, and verify the bounce-back says no comment was given and nothing is recorded"
+     "need": "access Asha's mailbox, open the Procol approval email, reject it with only spaces or blank lines in the required comment, send the unchanged Action:Reject email, wait for mailbox processing, and verify the no-comment bounce-back and that no rejection was recorded"
     },
-    "note": "Mailbox access, email composition and sending, asynchronous processing, and approval-record verification are not available in the catalog."
+    "note": "The mailbox interaction and its outcome are not expressible by any catalog step."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the buyer portal remains free of visible crashes or server errors after the tester completes the mailbox flow."
+    "note": "Provide a final assertion after the tester-assisted portion, while acknowledging that it does not verify the email-specific subject."
    }
   ]
  }

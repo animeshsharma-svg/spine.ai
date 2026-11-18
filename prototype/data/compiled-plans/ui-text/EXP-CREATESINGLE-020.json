@@ -4,7 +4,7 @@
   "title": "All Vendors: Cancel button closes dialog without changes",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:38:41.277Z",
+  "compiledAt": "2026-11-13T14:01:50.524Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,9 +17,12 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 16,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
@@ -33,10 +36,10 @@
    "expect_visible",
    "expect_no_error"
   ],
-  "ms": 11450
+  "ms": 16437
  },
  "plan": {
-  "title": "Single-Stage RFQ All Vendors Cancel",
+  "title": "Single-stage All Vendors Cancel",
   "steps": [
    {
     "step": "open_create",
@@ -46,23 +49,47 @@
     "note": "Open the single-stage event creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Prevent vendor additions during event creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable the case's price-cap read-only configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Apply the required terms-and-conditions configuration."
+   },
+   {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Single Stage RFQ All Vendors Cancel"
+     "title": "EXP-CREATESINGLE-020 All Vendors Cancel"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the available RFQ pricing template."
+    "note": "Choose the first available RFQ template, equivalent to choosing Buy Template."
    },
    {
     "step": "add_line_items",
@@ -71,7 +98,7 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product with quantity 10."
+    "note": "Add the specified product with quantity 10 so the Participants control is available."
    },
    {
     "step": "click",
@@ -84,11 +111,10 @@
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "All Vendors",
+     "text": "Participants",
      "visible": true
     },
-    "note": "Confirm the Participants panel exposes the All Vendors control."
+    "note": "Confirm the Participants panel is open before entering All Vendors."
    },
    {
     "step": "click",
@@ -96,16 +122,15 @@
      "role": "button",
      "name": "All Vendors"
     },
-    "note": "Open the All Vendors dialog."
+    "note": "Open the All Vendors window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "Cancel",
+     "role": "dialog",
      "visible": true
     },
-    "note": "Confirm the All Vendors dialog is open and offers Cancel."
+    "note": "Confirm the All Vendors window opened."
    },
    {
     "step": "click",
@@ -113,25 +138,23 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the dialog without making changes."
+    "note": "Cancel the All Vendors window without saving changes."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "Cancel",
+     "role": "dialog",
      "visible": false
     },
-    "note": "Verify the All Vendors dialog has closed."
+    "note": "Assert that the All Vendors window closed."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "All Vendors",
+     "text": "Participants",
      "visible": true
     },
-    "note": "Verify the Participants panel is visible again."
+    "note": "Assert that the screen returned to the Participants panel."
    },
    {
     "step": "expect_no_error",

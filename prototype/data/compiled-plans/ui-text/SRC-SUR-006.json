@@ -4,20 +4,26 @@
   "title": "Add a surrogate bid on a draft project",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:09:22.878Z",
+  "compiledAt": "2026-11-13T13:00:09.036Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "expect_count"
+   "require_setting",
+   "require_setting",
+   "expect_visible",
+   "expect_visible"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 8086
+  "ms": 6894
  },
  "plan": {
   "title": "No surrogate bid on draft project",
@@ -27,16 +33,40 @@
     "args": {
      "screen": "draft"
     },
-    "note": "Open the prepared draft project directly on its draft create screen."
+    "note": "Open the existing prepared draft project; this is the required starting state for a draft case."
    },
    {
-    "step": "expect_count",
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Use the required vendor-addition configuration."
+   },
+   {
+    "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Add Bid",
-     "count": 0
+     "visible": false
     },
-    "note": "Verify that draft projects do not offer an Add Bid control."
+    "note": "Verify that surrogate bidding is unavailable while the project is still a draft."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Add Price Cap",
+     "visible": false
+    },
+    "note": "Verify that price caps are also unavailable before the event is published."
    }
   ]
  }

@@ -4,45 +4,78 @@
   "title": "A second reply from the consultant bounces back",
   "group": "EMA-RPL",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:58:06.638Z",
+  "compiledAt": "2026-11-13T14:23:23.072Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Chetan's mailbox, send the second reply, wait for processing, and verify the exact bounce-back plus that only the first answer remains on the event."
+   "Access Chetan's mailbox and send the second reply, then wait for the connected Outlook mailbox to be processed by Procol.",
+   "Verify from the event's consultation thread that only the first answer is retained, because the catalog has no thread-message or answer-count assertion."
   ],
   "warnings": [
-   "can only test part of this — no step for: Access Chetan's mailbox, send the second reply, wait for processing, and verify the exact bounce-back plus that only the first answer remains on the event."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Access Chetan's mailbox and send the second reply, then wait for the connected Outlook mailbox to be processed by Procol.; Verify from the event's consultation thread that only the first answer is retained, because the catalog has no thread-message or answer-count assertion."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
+   "click",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 9989
+  "ms": 21201
  },
  "plan": {
-  "title": "EMA-RPL-003 Consultant Second Reply Bounce",
+  "title": "EMA-RPL-003 Consultant second reply bounce-back",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named approval event as the closest available route to inspect its thread state."
+    "note": "Open the existing event named in the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required company email-approval setting before opening the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Ensure the event approval workflow is configured for email approvals."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Messages"
+    },
+    "note": "Open the buyer-side consultation or messages area associated with the event."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open Chetan's mailbox, send the second reply \"One more thing\", wait for mailbox processing, and verify the exact bounce-back and that only the first answer remains on the event"
+     "need": "Access Chetan's mailbox, reply again to the existing approval request with \"One more thing\", send it, and wait 1-2 minutes for Procol to process the mailbox"
     },
-    "note": "Mailbox access, sending the reply, waiting, and verifying the bounce-back are not expressible by catalog steps."
+    "note": "The catalog cannot access an external consultant mailbox or trigger the email-processing wait."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Final assertion required by the plan format; this only checks the currently accessible screen is free of rendering and server errors, not the mailbox outcome."
+    "step": "expect_text",
+    "args": {
+     "text": "A response to request",
+     "present": true
+    },
+    "note": "Verify that the processed second reply produces the expected bounce-back notice."
    }
   ]
  }

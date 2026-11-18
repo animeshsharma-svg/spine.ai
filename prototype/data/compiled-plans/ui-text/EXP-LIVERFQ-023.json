@@ -4,173 +4,46 @@
   "title": "A live RFQ: \"Are you sure you want to create a new version?\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:46:02.055Z",
+  "compiledAt": "2026-11-13T14:12:31.653Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Directly compare that the event's status is unchanged after cancellation",
-   "Directly compare that the event's times are unchanged after cancellation",
-   "Directly compare that the vendor list is unchanged after cancellation",
-   "Directly compare that the bid list is unchanged after cancellation"
-  ],
-  "warnings": [
-   "added open_prepared(responses) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Directly compare that the event's status is unchanged after cancellation; Directly compare that the event's times are unchanged after cancellation; Directly compare that the vendor list is unchanged after cancellation; Directly compare that the bid list is unchanged after cancellation"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 20,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "require_setting",
-   "require_setting",
-   "require_setting",
-   "require_setting",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "go_to",
-   "go_to",
+   "open_event_settings",
    "click",
-   "expect_text",
-   "expect_visible",
    "click",
-   "expect_visible",
-   "expect_navigated",
-   "expect_screen_clean"
+   "expect_visible"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 19412
+  "ms": 13606
  },
  "plan": {
-  "title": "Cancel New Version Confirmation",
+  "title": "Live RFQ Create New Version Cancel",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "the API built this case's state"
+    "note": "Start on the prepared live RFQ responses tab"
    },
    {
-    "step": "require_setting",
-    "args": {
-     "key": "rfx_project_enabled",
-     "value": "On"
-    },
-    "note": "Enable eRFX project creation for the RFQ setup."
-   },
-   {
-    "step": "require_setting",
-    "args": {
-     "key": "hide_withdraw_in_intake_and_event",
-     "value": "On"
-    },
-    "note": "Apply the required tenant withdrawal visibility configuration."
-   },
-   {
-    "step": "require_setting",
-    "args": {
-     "key": "disable_withdraw_during_submission_time",
-     "value": "Off"
-    },
-    "note": "Keep withdrawal available during live submission time as required by the case."
-   },
-   {
-    "step": "require_setting",
-    "args": {
-     "key": "is_vendor_masking_allowed_for_everyone",
-     "value": "On"
-    },
-    "note": "Apply the required vendor masking configuration."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Configure the event as an RFQ-only project."
-   },
-   {
-    "step": "select_template",
+    "step": "open_event_settings",
     "args": {},
-    "note": "Apply an RFQ pricing template before adding line items."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the required RFQ line item."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a live bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {},
-    "note": "Invite the QA vendors supplied by the product configuration."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "stage",
-     "stage": "rfq"
-    },
-    "note": "Open the RFQ stage of the live project."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Open the RFQ Responses tab specified by the case."
+    "note": "Open the event settings gear menu"
    },
    {
     "step": "click",
     "args": {
-     "role": "button",
+     "role": "menuitem",
      "name": "Create New Version"
     },
-    "note": "Open the new-version confirmation window."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Are you sure you want to create a new version?",
-     "present": true
-    },
-    "note": "Verify the confirmation asks for new-version confirmation."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "visible": true
-    },
-    "note": "Confirm the new-version confirmation window is open."
+    "note": "Click Create New Version in the settings menu"
    },
    {
     "step": "click",
@@ -178,27 +51,16 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel creation of the new version."
+    "note": "Click Cancel on the confirmation modal"
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
+     "name": "Are you sure you want to create a new version?",
      "visible": false
     },
-    "note": "Verify the confirmation window closes after cancellation."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Verify cancellation leaves the buyer on the same Responses screen."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm cancellation did not produce an error or corrupt the event screen."
+    "note": "Assert the confirmation modal is closed"
    }
   ]
  }

@@ -4,16 +4,16 @@
   "title": "Approval chain: two approvers, the first rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:24:53.933Z",
+  "compiledAt": "2026-11-13T11:44:21.729Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as Approver 1, reject the submitted proposal with a remark, and verify that Approver 2 is not asked."
+   "Sign in as Approver 1, reject the submitted proposal with a remark, and verify that Approver 2 is never asked."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Sign in as Approver 1, reject the submitted proposal with a remark, and verify that Approver 2 is not asked."
+   "can only test part of this — no step for: Sign in as Approver 1, reject the submitted proposal with a remark, and verify that Approver 2 is never asked."
   ],
   "source": "llm",
   "steps": 6,
@@ -23,21 +23,21 @@
    "award_event",
    "expect_awarded",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 12247
+  "ms": 17400
  },
  "plan": {
-  "title": "First Approver Rejects Award",
+  "title": "Approval Chain: First Approver Rejects",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ with Vendor A and Vendor B bids in Master QCS."
+    "note": "Open the prepared closed RFQ directly on Master QCS."
    },
    {
     "step": "require_setting",
@@ -45,31 +45,34 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project configuration before accessing the prepared RFQ."
+    "note": "Enable the required eRFX project configuration before accessing the prepared closed RFQ."
    },
    {
     "step": "award_event",
     "args": {
      "vendor": "Vendor B"
     },
-    "note": "Allocate all available line items to Vendor B, create the proposal, and submit it into the approval flow."
+    "note": "Allocate all available line items to Vendor B and submit the award proposal."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Assert that the award proposal was created and submitted before the missing approval action."
+    "note": "Verify that the award proposal was created and submitted into the approval flow."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Approver 1, reject the submitted proposal with a remark, and verify that Approver 2 is not asked"
+     "need": "Sign in as Approver 1, reject the submitted proposal with a remark, and verify that Approver 2 is not asked."
     },
-    "note": "The catalog has no step for another approver's sign-in, rejection, or checking the subsequent approver state."
+    "note": "The catalog has no step for another approver's login, rejection action, or checking that the next approver is skipped."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert the resulting screen remains usable after the tester performs the unavailable approval-chain action."
+    "step": "expect_text",
+    "args": {
+     "text": "Rejected",
+     "present": true
+    },
+    "note": "Confirm the proposal screen shows the rejected outcome after the tester performs the approval action."
    }
   ]
  }

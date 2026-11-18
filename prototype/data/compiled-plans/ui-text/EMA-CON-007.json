@@ -4,48 +4,70 @@
   "title": "A non-approver cannot send a consultation from a forwarded email",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:26.430Z",
+  "compiledAt": "2026-11-13T14:19:45.139Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Forward the approval email and access it from Chetan's mailbox",
-   "Have Chetan click Consult and send the consultation to Bikram with a comment",
-   "Verify the non-approver bounce-back message",
+   "Switch to the specifically named DLF Hospitality UAT company without a company ID",
+   "Connect or verify the company's Outlook approval mailbox",
+   "Open Ravi's approval email and forward it to Chetan",
+   "As Chetan, click Consult and send the consultation to Bikram with a comment",
+   "Observe Chetan's non-approver bounce-back email",
    "Verify that no consultation was created"
   ],
   "warnings": [
-   "can only test part of this — no step for: Forward the approval email and access it from Chetan's mailbox; Have Chetan click Consult and send the consultation to Bikram with a comment; Verify the non-approver bounce-back message; Verify that no consultation was created"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Switch to the specifically named DLF Hospitality UAT company without a company ID; Connect or verify the company's Outlook approval mailbox; Open Ravi's approval email and forward it to Chetan; As Chetan, click Consult and send the consultation to Bikram with a comment; Observe Chetan's non-approver bounce-back email; Verify that no consultation was created"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_no_error"
+   "expect_screen_clean"
   ],
-  "ms": 9799
+  "ms": 17387
  },
  "plan": {
-  "title": "EMA-CON-007 Non-approver email consultation",
+  "title": "Non-approver email consultation refusal",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named approval event as the closest available context; this does not test the email consultation workflow."
+    "note": "Open the named existing event so the event context is available, although the mailbox consultation flow is outside the catalog."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Apply the required email-approval tenant configuration before the test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Apply the required approval-workflow configuration."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open the forwarded approval email as Chetan, send a consultation to Bikram with a comment, and verify the non-approver bounce-back and that no consultation is created"
+     "need": "access the approval mailbox as Chetan, forward the approval email, click Consult, send it to Bikram with a comment, and verify the non-approver bounce-back and that no consultation was created"
     },
-    "note": "The email mailbox workflow and its authorization outcome are not expressible by catalog steps."
+    "note": "A tester is required because the case's subject is an email and mailbox workflow unavailable to catalog steps."
    },
    {
-    "step": "expect_no_error",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the current Procol screen has no application error after the tester's action; this is only a generic assertion and does not cover the email outcome."
+    "note": "Terminal assertion required by the plan format; it does not assert the email refusal outcome."
    }
   ]
  }

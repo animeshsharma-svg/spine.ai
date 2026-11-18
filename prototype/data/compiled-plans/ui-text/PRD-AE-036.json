@@ -3,39 +3,40 @@
   "caseId": "PRD-AE-036",
   "title": "Reject & Send-Back Logging: refused for a user without the Approver role",
   "group": "PRD-AE",
-  "compiledAt": "2026-11-10T01:43:45.634Z",
+  "compiledAt": "2026-11-13T15:02:38.923Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as the non-Approver user and attempt Reject & Send-Back Logging with a reason, observing whether Procol refuses or omits the action",
-   "Sign in as the Approver user and repeat Reject & Send-Back Logging with a reason, observing whether the action is available and logged",
-   "Compare the two users' outcomes while accounting for tenant RBAC configuration"
+   "Signing in as a user without the Approver role and as an Approver, invoking Reject & Send-Back Logging, and verifying refusal or availability with logged reasons."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as the non-Approver user and attempt Reject & Send-Back Logging with a reason, observing whether Procol refuses or omits the action; Sign in as the Approver user and repeat Reject & Send-Back Logging with a reason, observing whether the action is available and logged; Compare the two users' outcomes while accounting for tenant RBAC configuration"
+   "can only test part of this — no step for: Signing in as a user without the Approver role and as an Approver, invoking Reject & Send-Back Logging, and verifying refusal or availability with logged reasons."
   ],
   "source": "llm",
   "steps": 2,
   "stepNames": [
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 10548
+  "ms": 13818
  },
  "plan": {
-  "title": "Reject and Send-Back RBAC Logging",
+  "title": "Reject & Send-Back Logging RBAC",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the user without the Approver role and then as the Approver in the same tenant, open Reject & Send-Back Logging, attempt rejects and send-backs with reasons for both users, and report whether the action is refused or absent for the first user and available and logged for the Approver"
+     "need": "sign in as the non-Approver user and then as an Approver in the same tenant, use Reject & Send-Back Logging with reject and send-back reasons, and record whether the action is refused or unavailable for the non-Approver and available with logging for the Approver"
     },
-    "note": "The catalog cannot sign in as these distinct role personas or reach and verify the Reject & Send-Back Logging workflow."
+    "note": "The catalog cannot access these role-specific accounts or observe the Reject & Send-Back Logging workflow."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Verify the session remains free of crashes or server errors after the tester's role-based checks."
+    "step": "expect_text",
+    "args": {
+     "text": "Continue with email",
+     "present": true
+    },
+    "note": "Confirms the browser is on the known sign-in surface after the tester handoff; it does not assert the missing RBAC behavior."
    }
   ]
  }

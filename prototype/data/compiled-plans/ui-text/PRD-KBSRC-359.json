@@ -3,43 +3,66 @@
   "caseId": "PRD-KBSRC-359",
   "title": "Submit Cost Breakdown locks item prices after confirmation",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:16:31.018Z",
+  "compiledAt": "2026-11-13T14:41:03.647Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Open the vendor's cost breakdown during CBD time and click Submit Cost Breakdown",
-   "Assert the confirmation dialog text: \"This is the final submission for item prices. Once submitted, you won't be able to change these item prices.\"",
-   "Click Yes, Submit and verify the cost breakdown was successfully submitted and justified",
-   "Verify that item prices are locked and no longer editable after submission",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "Verify that the submitted cost-breakdown item prices are no longer editable after confirmation."
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "can only test part of this — no step for: Verify that the submitted cost-breakdown item prices are no longer editable after confirmation."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "ask_tester"
+   "click",
+   "expect_text",
+   "click",
+   "expect_message"
   ],
-  "ms": 11424
+  "ms": 22277
  },
  "plan": {
-  "title": "Submit Cost Breakdown Locks Item Prices",
+  "title": "Submit Cost Breakdown Final Confirmation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "vendor"
     },
-    "note": "Open the prepared vendor-side event where the cost breakdown is expected to be available."
+    "note": "Open the prepared vendor-side event during the cost-breakdown flow."
    },
    {
-    "step": "ask_tester",
+    "step": "click",
     "args": {
-     "need": "open the vendor's cost breakdown during CBD time, submit it, confirm the final-submission dialog with Yes, Submit, and verify the success confirmation and that item prices are no longer editable"
+     "role": "button",
+     "name": "Submit Cost Breakdown"
     },
-    "note": "No catalog step can operate the Cost Breakdown flow or observe its locking behavior."
+    "note": "Open the final cost-breakdown submission confirmation."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "This is the final submission for item prices. Once submitted, you won't be able to change these item prices."
+    },
+    "note": "Verify the dialog warns that item prices cannot be changed after submission."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Yes, Submit"
+    },
+    "note": "Confirm the final cost-breakdown submission."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "success",
+     "text": "successfully submitted"
+    },
+    "note": "Verify the vendor receives a success confirmation after submission."
    }
   ]
  }

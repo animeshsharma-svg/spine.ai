@@ -4,42 +4,51 @@
   "title": "Recipient typed with a spelling mistake is refused",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:22.975Z",
+  "compiledAt": "2026-11-13T14:19:41.032Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open Asha's mailbox and the Procol approval request email",
-   "Click Consult to create a reply with an Action:Consult subject",
-   "Enter a comment and send the misspelled recipient chetan@dlf-hospitality.con without changing the subject",
-   "Wait for and observe the mailbox bounce-back stating that chetan@dlf-hospitality.con is not part of the organisation on Procol"
+   "Log in to Asha's mailbox and open the Procol approval request email",
+   "Click Consult, compose the comment and misspelled recipient, and send the reply without changing the subject",
+   "Wait for Procol to process the mailbox reply and verify the bounce-back email"
   ],
   "warnings": [
-   "can only test part of this — no step for: Open Asha's mailbox and the Procol approval request email; Click Consult to create a reply with an Action:Consult subject; Enter a comment and send the misspelled recipient chetan@dlf-hospitality.con without changing the subject; Wait for and observe the mailbox bounce-back stating that chetan@dlf-hospitality.con is not part of the organisation on Procol"
+   "can only test part of this — no step for: Log in to Asha's mailbox and open the Procol approval request email; Click Consult, compose the comment and misspelled recipient, and send the reply without changing the subject; Wait for Procol to process the mailbox reply and verify the bounce-back email"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
+   "require_setting",
    "ask_tester",
    "expect_text"
   ],
-  "ms": 11023
+  "ms": 15842
  },
  "plan": {
-  "title": "EMA-CON-006 Typo Recipient Refusal",
+  "title": "EMA-CON-006 Misspelled Consult Recipient",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals",
+     "value": "On"
+    },
+    "note": "Enable the required company configuration before attempting the email-approval scenario."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "log in to Asha's mailbox, open the Procol approval request, click Consult, enter a comment and chetan@dlf-hospitality.con without changing the subject, send it, wait for the bounce-back, and show the refusal message"
+     "need": "log in to Asha's mailbox, open the Procol approval request, use Consult to send a comment to chetan@dlf-hospitality.con without changing the subject, wait for processing, and show the bounce-back message"
     },
-    "note": "The email mailbox, composition, sending, waiting, and bounce-back are outside the catalog."
+    "note": "Mailbox access and sending the Consult reply are not available in the step catalog."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "chetan@dlf-hospitality.con is not part of your organisation on Procol"
+     "text": "chetan@dlf-hospitality.con is not part of your organisation on Procol",
+     "present": true
     },
-    "note": "Checks the expected refusal wording if the tester leaves the bounce-back visible in the active session."
+    "note": "Attempt to observe the expected bounce-back text if the tester leaves the processed message visible."
    }
   ]
  }

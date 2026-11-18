@@ -4,48 +4,64 @@
   "title": "Manage Line Items: Save line item with valid product, quantity and price",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:45:24.114Z",
+  "compiledAt": "2026-11-13T14:06:56.186Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The exact label or identity of the unnamed price number field is not specified; the plan uses the generic label \"Price\"."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "moved open_events_list to the front — the steps before it had no list on screen",
-   "moved open_events_list to the front — the steps before it had no list on screen",
-   "can only test part of this — no step for: The exact label or identity of the unnamed price number field is not specified; the plan uses the generic label \"Price\"."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused"
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 21,
   "stepNames": [
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "open_events_list",
-   "require_setting",
-   "require_setting",
-   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
+   "expect_line_items",
    "click",
-   "expect_visible",
+   "fill",
    "select",
    "fill",
-   "fill",
    "click",
-   "expect_visible",
+   "set_sheet_cell",
    "expect_sheet_cell",
    "expect_sheet_cell",
    "expect_sheet_cell",
    "expect_no_error"
   ],
-  "ms": 17149
+  "ms": 19792
  },
  "plan": {
-  "title": "Save Valid Draft Line Item",
+  "title": "EXP-DRAFT-047 Save Valid Line Item",
   "steps": [
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open the Events list to reach the saved draft."
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    }
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title"
    },
    {
     "step": "require_setting",
@@ -61,7 +77,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Apply the required vendor-lock configuration."
+    "note": "Apply the required vendor-addition configuration."
    },
    {
     "step": "require_setting",
@@ -69,12 +85,17 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the required stage-creation configuration."
+    "note": "Apply the required stage configuration."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open the Events list to reach the saved draft."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered without an error."
+    "note": "Confirm the events list rendered successfully."
    },
    {
     "step": "filter_events",
@@ -88,7 +109,14 @@
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first saved draft, which reopens its create screen."
+    "note": "Open the first available saved draft."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Confirm the draft starts with the expected single line item."
    },
    {
     "step": "click",
@@ -96,16 +124,15 @@
      "role": "button",
      "name": "Items 1"
     },
-    "note": "Open the Manage Line Items window for the draft's existing line item."
+    "note": "Open the Manage Line Items window."
    },
    {
-    "step": "expect_visible",
+    "step": "fill",
     "args": {
-     "role": "heading",
-     "name": "Manage Line Items",
-     "visible": true
+     "label": "Search and add line items using product name",
+     "value": "AAC BLOCKS"
     },
-    "note": "Confirm the line-item management window opened."
+    "note": "Search for the required product in the line-item selector."
    },
    {
     "step": "select",
@@ -113,7 +140,7 @@
      "label": "Search and add line items using product name",
      "option": "1100000401 | AAC BLOCKS"
     },
-    "note": "Select the required AAC BLOCKS product from the searchable product dropdown."
+    "note": "Select the AAC BLOCKS product identified by its product code."
    },
    {
     "step": "fill",
@@ -121,42 +148,33 @@
      "label": "Quantity",
      "value": "90"
     },
-    "note": "Set the line-item quantity to 90."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Price",
-     "value": "1200"
-    },
-    "note": "Set the positive price value to 1200 using the available price field."
+    "note": "Enter the valid quantity required by the case."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Save",
-     "within": "dialog"
+     "name": "Save"
     },
-    "note": "Save the valid line-item values."
+    "note": "Save the line-item changes and close the Manage Line Items window."
    },
    {
-    "step": "expect_visible",
+    "step": "set_sheet_cell",
     "args": {
-     "role": "heading",
-     "name": "Manage Line Items",
-     "visible": false
+     "row": 1,
+     "column": "Price",
+     "value": "1200"
     },
-    "note": "Verify that saving closes the Manage Line Items window."
+    "note": "Enter the valid positive price in the pricing sheet."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
      "column": "Product",
-     "contains": "AAC BLOCKS"
+     "equals": "AAC BLOCKS"
     },
-    "note": "Verify the saved product appears in the draft sheet."
+    "note": "Verify the saved product."
    },
    {
     "step": "expect_sheet_cell",
@@ -165,7 +183,7 @@
      "column": "Quantity Requested",
      "equals": "90"
     },
-    "note": "Verify the saved quantity is 90."
+    "note": "Verify the saved quantity."
    },
    {
     "step": "expect_sheet_cell",
@@ -174,12 +192,12 @@
      "column": "Price",
      "equals": "1200"
     },
-    "note": "Verify the saved price is 1200."
+    "note": "Verify the saved price."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm no application error is shown after saving."
+    "note": "Confirm no error message remains after saving."
    }
   ]
  }

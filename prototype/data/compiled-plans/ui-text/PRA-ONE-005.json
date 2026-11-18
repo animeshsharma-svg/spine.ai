@@ -4,34 +4,28 @@
   "title": "A user limited to another location is not shown",
   "group": "PRA-ONE",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-12T13:48:26.236Z",
+  "compiledAt": "2026-11-13T14:28:31.814Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Logging in specifically as the PR manager is not directly expressible by a catalog step.",
-   "unconfirmed label \"Food Buyer Gurgaon\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "unconfirmed label \"Food Buyer Gurgaon\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Food Buyer Gurgaon\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Logging in specifically as the PR manager is not directly expressible by a catalog step."
+   "coverage partial: unconfirmed label \"Food Buyer Gurgaon\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 4,
   "stepNames": [
    "require_setting",
-   "ask_tester",
    "open_purchase_requisitions",
-   "pr_tab",
-   "select_pr",
-   "click",
-   "expect_visible",
-   "fill",
-   "expect_visible"
+   "do_on_screen",
+   "expect_text"
   ],
-  "ms": 18086
+  "ms": 14105
  },
  "plan": {
-  "title": "Exclude User by PR Location",
+  "title": "Hide Location-Limited Assignee",
   "steps": [
    {
     "step": "require_setting",
@@ -39,65 +33,27 @@
      "key": "is_pr_teams_filtering_enabled",
      "value": "On"
     },
-    "note": "Enable the required PR team filtering configuration before navigating to the requisition."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "log in as the PR manager who can assign PRs"
-    },
-    "note": "The catalog cannot authenticate as another buyer account, so obtain the required PR manager session before continuing."
+    "note": "Enable the required PR teams filtering configuration for the case."
    },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen."
+    "note": "Open Purchase Requisitions as the starting screen for the PR assignment workflow."
    },
    {
-    "step": "pr_tab",
+    "step": "do_on_screen",
     "args": {
-     "tab": "Open"
+     "goal": "Open the Open tab, find PR-4 with its Mumbai delivery location, select its line item, click the Assign person icon next to Upload PRs, search for User E, and stop with the assignee results visible showing that User E / Food Buyer Gurgaon is not listed."
     },
-    "note": "Stay on the Open tab where PR-4 can be selected."
+    "note": "Perform the PR search, selection, assignment search, and location-based absence check that no dedicated catalog step can express."
    },
    {
-    "step": "select_pr",
-    "args": {
-     "pr": "PR-4"
-    },
-    "note": "Select the named PR-4 line item and enable its available actions."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Assign"
-    },
-    "note": "Open the assignee dialog for the selected PR line item."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "label": "Search a user",
-     "visible": true
-    },
-    "note": "Verify that the user search control opened."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Search a user",
-     "value": "User E"
-    },
-    "note": "Search for the location-limited user named in the case."
-   },
-   {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "Food Buyer Gurgaon",
-     "visible": false
+     "present": false
     },
-    "note": "Assert that User E, whose permitted location is Gurgaon, is not offered for the Mumbai PR."
+    "note": "Assert that the location-limited user is absent from the assignee search results."
    }
   ]
  }

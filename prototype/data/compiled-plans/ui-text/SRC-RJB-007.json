@@ -4,38 +4,52 @@
   "title": "Cancel the rejection pop-up",
   "group": "SRC-RJB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:13:16.357Z",
+  "compiledAt": "2026-11-13T12:42:37.663Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"Please enter reason…\" (fill) — not among the labels known from the app nor in the case"
+   "The rejection pop-up's exact reason-field label is not confirmed by the catalog.",
+   "The catalog has no dedicated assertion for a bid's active status after cancelling rejection; the plan verifies the response remains visible and the Reject control remains available."
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Please enter reason…\" (fill) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The rejection pop-up's exact reason-field label is not confirmed by the catalog.; The catalog has no dedicated assertion for a bid's active status after cancelling rejection; the plan verifies the response remains visible and the Reject control remains available."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "click",
+   "expect_visible",
    "fill",
    "click",
-   "expect_text"
+   "expect_visible",
+   "expect_responses",
+   "expect_visible"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 51164
+  "ms": 23191
  },
  "plan": {
-  "title": "Cancel the rejection pop-up",
+  "title": "Cancel Reject Bid Pop-up",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Start on the responses tab of the prepared event in evaluation"
+    "note": "Open the prepared RFQ's Responses tab, which is the required starting screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting before accessing the prepared RFQ."
    },
    {
     "step": "click",
@@ -43,15 +57,23 @@
      "role": "button",
      "name": "Reject"
     },
-    "note": "Click Reject Bid on the vendor's response"
+    "note": "Open the Reject Bid pop-up for the submitted response."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "visible": true
+    },
+    "note": "Confirm the rejection pop-up opened."
    },
    {
     "step": "fill",
     "args": {
-     "label": "Please enter reason…",
-     "value": "Not compliant"
+     "label": "Enter reason",
+     "value": "Test rejection reason"
     },
-    "note": "Type a reason in the rejection modal"
+    "note": "Enter the requested rejection reason; the exact field label is not confirmed by the catalog."
    },
    {
     "step": "click",
@@ -59,15 +81,32 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Click Cancel to close the rejection prompt"
+    "note": "Cancel the rejection instead of submitting it."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
-     "text": "Responses",
-     "present": true
+     "role": "dialog",
+     "visible": false
     },
-    "note": "Assert nothing changed and the bid remains active on the responses page"
+    "note": "Verify the rejection pop-up closed."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2,
+     "stage": "rfq"
+    },
+    "note": "Verify both submitted vendor responses remain visible after cancellation."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Reject",
+     "visible": true
+    },
+    "note": "Verify the Reject action remains available, indicating the bid was not rejected."
    }
   ]
  }

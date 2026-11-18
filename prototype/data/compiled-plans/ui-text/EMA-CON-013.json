@@ -4,39 +4,67 @@
   "title": "Only one recipient per consultation email",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:46.001Z",
+  "compiledAt": "2026-11-13T14:20:13.311Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in to Asha's mailbox and open the Procol approval request email",
-   "Click Consult, enter two comma-separated recipients, send without changing the Action:Consult subject, and wait for Procol to process the email",
-   "Verify whether only the first recipient receives the consultation or the email bounces, and verify that Asha's reply clearly states what happened"
+   "Connect to and access Asha's mailbox and the Procol approval request email",
+   "Click Consult, send a reply with two comma-separated recipients, and wait for mailbox processing",
+   "Verify whether Procol creates a consultation for only the first recipient or bounces the message and whether Asha receives a clear explanation"
   ],
   "warnings": [
-   "can only test part of this — no step for: Log in to Asha's mailbox and open the Procol approval request email; Click Consult, enter two comma-separated recipients, send without changing the Action:Consult subject, and wait for Procol to process the email; Verify whether only the first recipient receives the consultation or the email bounces, and verify that Asha's reply clearly states what happened"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Connect to and access Asha's mailbox and the Procol approval request email; Click Consult, send a reply with two comma-separated recipients, and wait for mailbox processing; Verify whether Procol creates a consultation for only the first recipient or bounces the message and whether Asha receives a clear explanation"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
+   "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 9529
+  "ms": 11209
  },
  "plan": {
   "title": "EMA-CON-013 — Single consultation recipient",
   "steps": [
    {
+    "step": "open_event",
+    "args": {
+     "title": "QA Email Approval - Office Chairs Nov"
+    },
+    "note": "Open the existing event that Ravi sent for approval before the mailbox-based consultation action."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the email approval capability required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow prerequisite for the named event."
+   },
+   {
     "step": "ask_tester",
     "args": {
-     "need": "log in to Asha's mailbox, open the Procol approval email, click Consult, send it to two comma-separated addresses without changing the Action:Consult subject, wait for processing, and verify the resulting recipient handling and explanatory reply"
+     "need": "log in to Asha's mailbox, open the Procol approval request, send a Consult reply with two comma-separated recipients without changing the subject, wait for processing, and verify the resulting consultation or bounce and Asha's explanatory reply"
     },
-    "note": "The mailbox and email-processing workflow is not available in the catalog."
+    "note": "Mailbox access, email composition, sending, waiting, and email-result verification are not available in the catalog."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the session remains free of a visible application crash or server error after the tester completes the missing workflow."
+    "note": "Assert that the buyer portal remains usable after the tester completes the external mailbox portion."
    }
   ]
  }

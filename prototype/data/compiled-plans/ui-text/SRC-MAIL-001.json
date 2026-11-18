@@ -4,21 +4,18 @@
   "title": "Vendor e-mail when the event is published",
   "group": "SRC-MAIL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:31:55.049Z",
+  "compiledAt": "2026-11-13T12:14:10.248Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Open the QA mailboxes of the concerned vendors",
-   "Verify each concerned vendor receives exactly one invitation email",
-   "Verify the email contains the event title, close time, and link",
-   "Verify no other vendor receives the email",
-   "Verify no email is sent to a real supplier"
+   "Open the QA mailboxes and verify that each concerned vendor receives exactly one invitation email containing the event title, close time, and event link.",
+   "Verify that no other vendor receives the email and that no real supplier receives it."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Open the QA mailboxes of the concerned vendors; Verify each concerned vendor receives exactly one invitation email; Verify the email contains the event title, close time, and link; Verify no other vendor receives the email; Verify no email is sent to a real supplier"
+   "can only test part of this — no step for: Open the QA mailboxes and verify that each concerned vendor receives exactly one invitation email containing the event title, close time, and event link.; Verify that no other vendor receives the email and that no real supplier receives it."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 11,
   "stepNames": [
    "open_create",
    "set_title",
@@ -28,31 +25,33 @@
    "set_schedule",
    "invite_vendor",
    "publish",
-   "expect_published"
+   "expect_published",
+   "ask_tester",
+   "expect_text"
   ],
-  "ms": 8255
+  "ms": 13363
  },
  "plan": {
-  "title": "Vendor email on publish",
+  "title": "Vendor publication email delivery",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create the test event that will be published."
+    "note": "Open the event creation flow for the test event."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-MAIL-001 Vendor Email Test"
+     "title": "SRC-MAIL-001 Vendor Invitation Test"
     },
-    "note": "Give the event a known title that the expected invitation would contain."
+    "note": "Give the event a known title that the tester can verify in the invitation email."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Configure the event's pricing template before adding items."
+    "note": "Apply the first available template so the event can be configured."
    },
    {
     "step": "add_line_items",
@@ -64,29 +63,44 @@
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet before scheduling and publishing."
+    "note": "Complete the pricing sheet before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Set a committed close time for the expected invitation."
+    "note": "Set and commit a close time that should appear in the invitation."
    },
    {
     "step": "invite_vendor",
     "args": {},
-    "note": "Invite the available QA test vendor audience for the published event."
+    "note": "Invite the QA test vendors available to the test company without inventing supplier names."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Trigger the publication and invitation-email event."
+    "note": "Trigger the vendor invitation process."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that the event was successfully published before the unavailable mailbox checks."
+    "note": "Confirm the event was actually published before checking mail delivery."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "open the QA mailboxes for the invited vendors and verify exactly one invitation email per concerned QA vendor with the event title, close time, and event link, while confirming no other vendor or real supplier received it"
+    },
+    "note": "Mailbox access and email delivery verification are not available in the catalog."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Event created successfully",
+     "present": true
+    },
+    "note": "Retain a final assertion on the buyer-side publication result after the mailbox check."
    }
   ]
  }

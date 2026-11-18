@@ -4,18 +4,19 @@
   "title": "Increase Event Time: Attempt to submit without selecting any radio option keeps window open with no error",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:46:27.934Z",
+  "compiledAt": "2026-11-13T14:14:57.354Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Explicitly deselecting any preselected radio option before pressing Ok",
-   "Asserting that no toast appeared when no toast text or absence assertion is available"
+   "A dedicated assertion that no toast appears after pressing Ok."
   ],
   "warnings": [
-   "can only test part of this — no step for: Explicitly deselecting any preselected radio option before pressing Ok; Asserting that no toast appeared when no toast text or absence assertion is available"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: A dedicated assertion that no toast appears after pressing Ok."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -23,24 +24,25 @@
    "require_setting",
    "require_setting",
    "go_to",
+   "go_to",
    "event_menu",
-   "click",
+   "do_on_screen",
    "expect_visible",
    "expect_screen_clean"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 19964
+  "ms": 19002
  },
  "plan": {
-  "title": "Live RFQ Extend Time Without Selection",
+  "title": "Increase Event Time Without a Selection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared live RFQ summary; prepared-state rules require this to be the first step."
+    "note": "Open the API-prepared live RFQ instead of creating or searching for an event."
    },
    {
     "step": "require_setting",
@@ -48,7 +50,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Apply the required eRFX project configuration for the case."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "require_setting",
@@ -56,7 +58,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "On"
     },
-    "note": "Apply the required withdrawal-visibility configuration."
+    "note": "Apply the required tenant configuration."
    },
    {
     "step": "require_setting",
@@ -64,7 +66,7 @@
      "key": "disable_withdraw_during_submission_time",
      "value": "Off"
     },
-    "note": "Apply the required live-submission withdrawal configuration."
+    "note": "Apply the required live-event withdrawal configuration."
    },
    {
     "step": "require_setting",
@@ -77,9 +79,17 @@
    {
     "step": "go_to",
     "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage page."
+   },
+   {
+    "step": "go_to",
+    "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses tab where the Settings menu is available."
+    "note": "Reach the Responses tab before opening Settings, matching the case flow."
    },
    {
     "step": "event_menu",
@@ -87,15 +97,14 @@
      "item": "Extend Submission Time",
      "stage": "rfq"
     },
-    "note": "Open the Increase Event Time dialog for the RFQ stage."
+    "note": "Open the Increase Event Time window from the RFQ Settings menu."
    },
    {
-    "step": "click",
+    "step": "do_on_screen",
     "args": {
-     "role": "button",
-     "name": "Ok"
+     "goal": "On the open Increase Event Time window, deselect any selected duration radio option, click Ok, and stop with the window still open while confirming that no error message is shown."
     },
-    "note": "Submit the dialog without changing or selecting a duration option."
+    "note": "Perform the exact no-selection submission interaction that no dedicated catalog step can express."
    },
    {
     "step": "expect_visible",
@@ -104,12 +113,12 @@
      "name": "Increase Event Time",
      "visible": true
     },
-    "note": "Verify the dialog remains open after the unselected submission."
+    "note": "Assert that the Increase Event Time window remains open after submitting without a selection."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Verify no visible error, server error, crash, or malformed content appeared."
+    "note": "Assert that the screen has no visible application error or crash after the attempted submission."
    }
   ]
  }

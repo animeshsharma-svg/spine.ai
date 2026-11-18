@@ -3,30 +3,29 @@
   "caseId": "PRD-RA-039",
   "title": "Serial / Sequential Lot Auctions: not available on the Growth plan",
   "group": "PRD-RA",
-  "compiledAt": "2026-11-10T01:38:19.613Z",
+  "compiledAt": "2026-11-13T14:58:59.850Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Inspect or change the tenant's Growth and Enterprise plan entitlement",
-   "Verify that the Serial / Sequential Lot Auctions capability is absent on Growth and available on Enterprise",
-   "Run the Serial / Sequential Lot Auctions workflow one lot at a time"
+   "Switching between Growth and Enterprise plan tenants when their tenant identifiers are not provided",
+   "Observing whether the Serial / Sequential Lot Auctions capability is absent or refused on Growth",
+   "Confirming that the same Serial / Sequential Lot Auctions workflow is available on Enterprise"
   ],
   "warnings": [
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
    "added set_title — publishing without a title is refused",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
    "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Inspect or change the tenant's Growth and Enterprise plan entitlement; Verify that the Serial / Sequential Lot Auctions capability is absent on Growth and available on Enterprise; Run the Serial / Sequential Lot Auctions workflow one lot at a time"
+   "can only test part of this — no step for: Switching between Growth and Enterprise plan tenants when their tenant identifiers are not provided; Observing whether the Serial / Sequential Lot Auctions capability is absent or refused on Growth; Confirming that the same Serial / Sequential Lot Auctions workflow is available on Enterprise"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_create",
    "set_title",
+   "inventory_screen",
    "ask_tester",
-   "expect_visible"
+   "expect_screen_clean"
   ],
-  "ms": 8042
+  "ms": 9415
  },
  "plan": {
   "title": "Serial Lot Auction Plan Availability",
@@ -36,25 +35,29 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Reach the single-stage auction configuration screen, the closest catalog screen to auction strategy availability."
+    "note": "Open the closest supported auction configuration screen where auction capabilities would be exposed."
    },
    {
     "step": "set_title"
    },
    {
-    "step": "ask_tester",
+    "step": "inventory_screen",
     "args": {
-     "need": "verify on a Growth-plan tenant that Serial / Sequential Lot Auctions is absent or refused, then repeat on an Enterprise-plan tenant and confirm the same workflow is available"
+     "label": "serial-lot-auction-configuration"
     },
-    "note": "Plan entitlement comparison and the serial/sequential lot workflow are not expressible by catalog steps."
+    "note": "Record the available auction configuration controls, although the catalog cannot assert the specific Serial / Sequential Lot Auctions capability."
    },
    {
-    "step": "expect_visible",
+    "step": "ask_tester",
     "args": {
-     "text": "Select Templates",
-     "visible": true
+     "need": "switch to the Growth-plan tenant and the Enterprise-plan tenant, then verify whether Serial / Sequential Lot Auctions is absent or refused on Growth and available for use on Enterprise"
     },
-    "note": "Confirm the auction create screen remains available after the unsupported entitlement check."
+    "note": "The plan-tier comparison and serial-lot capability check require access and observations that no catalog step can perform."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Ensure the final observed screen has no crash, server error, or malformed content after the tester's comparison."
    }
   ]
  }

@@ -4,39 +4,59 @@
   "title": "Recreate Order: Create Order after clearing all fields shows validation errors",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:47:21.436Z",
+  "compiledAt": "2026-11-13T14:13:54.466Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that every required field in the Recreate Order window shows an error when the complete set of required fields is not known to the catalog."
+   "The complete dynamic set of every required field in the Recreate Order dialog cannot be asserted because the catalog requires each field label to be named explicitly; the plan checks the known Product, Quantity Requested, Delivery location, and Price fields."
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert that every required field in the Recreate Order window shows an error when the complete set of required fields is not known to the catalog."
+   "can only test part of this — no step for: The complete dynamic set of every required field in the Recreate Order dialog cannot be asserted because the catalog requires each field label to be named explicitly; the plan checks the known Product, Quantity Requested, Delivery location, and Price fields."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "go_to",
+   "go_to",
    "event_menu",
+   "expect_visible",
    "click",
    "click",
+   "expect_field_error",
+   "expect_field_error",
    "expect_field_error",
    "expect_field_error",
    "expect_visible"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 69059
+  "ms": 19324
  },
  "plan": {
-  "title": "Recreate Order Validation After Clear",
+  "title": "Recreate Order validation after clearing fields",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary without creating or searching for another event."
+    "note": "Open the API-prepared live RFQ summary; this is the required starting state for prepared cases."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab where the Settings menu is available."
    },
    {
     "step": "event_menu",
@@ -44,7 +64,16 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and launch the Recreate Order window."
+    "note": "Open the Recreate Order window from the RFQ Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify that the Recreate Order window opened."
    },
    {
     "step": "click",
@@ -52,7 +81,7 @@
      "role": "button",
      "name": "Clear"
     },
-    "note": "Clear all values in the Recreate Order window."
+    "note": "Clear all populated order fields."
    },
    {
     "step": "click",
@@ -60,29 +89,48 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Submit the cleared form to trigger required-field validation."
+    "note": "Submit the now-empty form to trigger required-field validation."
    },
    {
     "step": "expect_field_error",
     "args": {
-     "field": "Product"
+     "field": "Product",
+     "message": "required"
     },
-    "note": "Verify the cleared Product field reports a field-level required error."
+    "note": "Assert the required Product field reports an error."
    },
    {
     "step": "expect_field_error",
     "args": {
-     "field": "Quantity Requested"
+     "field": "Quantity Requested",
+     "message": "required"
     },
-    "note": "Verify the cleared Quantity Requested field reports a field-level required error."
+    "note": "Assert the required Quantity Requested field reports an error."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Delivery location",
+     "message": "required"
+    },
+    "note": "Assert the required Delivery location field reports an error."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Price",
+     "message": "required"
+    },
+    "note": "Assert the required Price field reports an error."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
+     "name": "Recreate Order",
      "visible": true
     },
-    "note": "Verify the validation dialog remains open after the rejected submission."
+    "note": "Verify the validation errors leave the Recreate Order window open."
    }
   ]
  }

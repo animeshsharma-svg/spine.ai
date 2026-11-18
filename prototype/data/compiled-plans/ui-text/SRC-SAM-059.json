@@ -4,44 +4,60 @@
   "title": "Send Bulk Counter Offer is not offered on an RFQ that has been awarded",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:00:10.051Z",
+  "compiledAt": "2026-11-13T12:49:48.002Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
+   "require_setting",
+   "require_setting",
    "expect_menu_item"
   ],
   "state": "awarded",
   "screen": "responses",
-  "ms": 10269
+  "ms": 7454
  },
  "plan": {
-  "title": "Bulk Counter Offer absent after award",
+  "title": "Bulk Counter Offer absent on awarded RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared awarded RFQ on its Responses tab."
+    "note": "Open the prepared awarded RFQ event on the buyer's Responses screen."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the stage Settings menu on the awarded event."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure RFQ counter-offer actions are not hidden by tenant configuration."
    },
    {
     "step": "expect_menu_item",
     "args": {
      "item": "Send Bulk Counter Offer",
+     "stage": "rfq",
      "present": false
     },
-    "note": "Assert that Send Bulk Counter Offer is not offered after award."
+    "note": "Assert the RFQ Settings menu does not offer Send Bulk Counter Offer after award."
    }
   ]
  }

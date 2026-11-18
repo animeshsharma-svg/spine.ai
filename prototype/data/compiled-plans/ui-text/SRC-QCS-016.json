@@ -4,16 +4,19 @@
   "title": "Download Report matches the screen",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:09:16.858Z",
+  "compiledAt": "2026-11-13T12:34:24.483Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Prove that the report's event number, title, dates, invited-vendor count, and participated-vendor count exactly match the corresponding Master QCS or event-summary values dynamically."
+   "Exact equality between every Master QCS cell and the corresponding spreadsheet cell cannot be structurally compared by the catalog.",
+   "The report's event number and dates cannot be read and matched to the on-screen summary.",
+   "The report's invited and participated vendor summary cannot be asserted as exact values or compared with the screen.",
+   "The report title cannot be dynamically matched to the on-screen event title in expect_download."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Prove that the report's event number, title, dates, invited-vendor count, and participated-vendor count exactly match the corresponding Master QCS or event-summary values dynamically."
+   "can only test part of this — no step for: Exact equality between every Master QCS cell and the corresponding spreadsheet cell cannot be structurally compared by the catalog.; The report's event number and dates cannot be read and matched to the on-screen summary.; The report's invited and participated vendor summary cannot be asserted as exact values or compared with the screen.; The report title cannot be dynamically matched to the on-screen event title in expect_download."
   ],
   "source": "llm",
   "steps": 11,
@@ -32,17 +35,17 @@
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 11666
+  "ms": 17900
  },
  "plan": {
-  "title": "Master QCS Report Matches Screen",
+  "title": "Download Report matches Master QCS",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly on the buyer's Master QCS screen."
+    "note": "Open the prepared closed RFQ directly on its Master QCS screen."
    },
    {
     "step": "require_setting",
@@ -50,7 +53,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the eRFX project configuration required by the case."
+    "note": "Enable the required eRFX project configuration for the closed RFQ test state."
    },
    {
     "step": "expect_qcs_vendors",
@@ -62,7 +65,7 @@
      ],
      "realNames": true
     },
-    "note": "Verify the two expected vendor columns are present with real names."
+    "note": "Verify the Master QCS has the two real bidder columns expected in the report."
    },
    {
     "step": "expect_qcs_cell",
@@ -71,7 +74,7 @@
      "vendor": "Vendor A",
      "number": 2
     },
-    "note": "Verify Vendor A's displayed rank before downloading the report."
+    "note": "Verify Vendor A's displayed rank."
    },
    {
     "step": "expect_qcs_cell",
@@ -80,14 +83,14 @@
      "vendor": "Vendor B",
      "number": 1
     },
-    "note": "Verify Vendor B's displayed rank before downloading the report."
+    "note": "Verify Vendor B's displayed rank."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
      "vendor": "Vendor A",
-     "number": 100
+     "equals": "100"
     },
     "note": "Verify Vendor A's unit price on Master QCS."
    },
@@ -96,7 +99,7 @@
     "args": {
      "row": "RFQ Rate",
      "vendor": "Vendor B",
-     "number": 90
+     "equals": "90"
     },
     "note": "Verify Vendor B's unit price on Master QCS."
    },
@@ -120,7 +123,7 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Download the Master QCS comparison report."
+    "note": "Download the Master QCS report from the current project page."
    },
    {
     "step": "expect_download",
@@ -132,10 +135,9 @@
       "90",
       "1000",
       "900"
-     ],
-     "rows": 1
+     ]
     },
-    "note": "Check the downloaded report contains both vendors and the prepared-state prices and totals."
+    "note": "Verify the downloaded report contains both vendors and the key prices and totals shown in Master QCS."
    }
   ]
  }

@@ -4,50 +4,91 @@
   "title": "Try to purchase a line on hold",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:29:29.881Z",
+  "compiledAt": "2026-11-13T12:25:16.865Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Release the held PR line and verify the release flow requires entering a remark."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Release the held PR line and verify the release flow requires entering a remark."
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 8,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "do_on_screen",
-   "expect_message"
+   "select_pr",
+   "hover",
+   "expect_message",
+   "expect_disabled",
+   "attempt"
   ],
-  "ms": 16072
+  "ms": 13299
  },
  "plan": {
-  "title": "Purchase held PR line restriction",
+  "title": "Held PR line cannot be purchased",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_hold_enabled",
+     "value": "On"
+    },
+    "note": "Enable the hold-status behavior required by the case."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen as the buyer."
+    "note": "Open the Purchase Requisitions area."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Show open purchase requisitions, where purchasable PR lines are selected."
+    "note": "Use the Open tab where purchasable PRs are listed."
    },
    {
-    "step": "do_on_screen",
+    "step": "select_pr",
+    "args": {},
+    "note": "Select the prepared PR line that is on hold so Purchase Items can be inspected."
+   },
+   {
+    "step": "hover",
     "args": {
-     "goal": "select the PR line that is on hold with a remark, hover over Purchase Items and read why it is unavailable, then try to click Purchase Items; verify the held line cannot be purchased and that releasing it requires a remark"
+     "role": "button",
+     "name": "Purchase Items"
     },
-    "note": "No catalog domain step can identify a line by its hold state or perform the exact hover-and-click interaction, so execute this buyer-side screen task directly."
+    "note": "Reveal the product's explanation for why the held line cannot be purchased."
    },
    {
     "step": "expect_message",
     "args": {
-     "kind": "any",
+     "kind": "tooltip",
      "text": "Please fill the remarks to continue!"
     },
-    "note": "Assert the displayed refusal states that a remark is required before the held line can be released or purchased."
+    "note": "Assert the required-remark message shown for the blocked held-line action."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Purchase Items"
+    },
+    "note": "Assert that the held line disables purchasing."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Purchase Items"
+     },
+     "expect": "refused"
+    },
+    "note": "Try the blocked action and require evidence that it cannot be clicked."
    }
   ]
  }

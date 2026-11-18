@@ -3,19 +3,23 @@
   "caseId": "PRD-KBVON-050",
   "title": "Send the scored vendor for approval",
   "group": "PRD-KBVON",
-  "compiledAt": "2026-11-10T04:18:55.806Z",
+  "compiledAt": "2026-11-13T15:17:59.883Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
+   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "go_to",
    "do_on_screen",
    "expect_text"
   ],
-  "ms": 12309
+  "ms": 9821
  },
  "plan": {
   "title": "Send Scored Vendor for Approval",
@@ -23,23 +27,32 @@
    {
     "step": "open_prepared",
     "args": {
-     "screen": "proposal"
+     "screen": "master_qcs"
     },
-    "note": "Open the prepared scored vendor proposal where the approval action is available."
+    "note": "the API builds the proposal event this case starts from"
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfp"
+    },
+    "note": "Navigate to the technical stage where the completed scoring and Approve action are available."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "click Approve at the bottom, complete the Send for Approval side panel by adding Category and Location if needed, click Next, review the approval workflow, add remarks, select an approver, click Continue, and stop when the vendor is shown as pending approval"
+     "goal": "On the completed scored vendor evaluation, click Approve; in the Send for Approval side panel add Category and Location if needed, click Next, review the approval workflow, add remarks, select an approver, click Continue, and stop when the vendor is shown as pending with the selected approver."
     },
-    "note": "Execute the buyer-side approval submission workflow and verify the screen proves the vendor was sent for approval."
+    "note": "Perform the approval submission flow that has no dedicated catalog step."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Approval in Progress"
+     "text": "Pending",
+     "present": true
     },
-    "note": "Assert that the proposal now shows the expected pending approval state."
+    "note": "Verify the submitted vendor is shown as pending after being sent for approval."
    }
   ]
  }

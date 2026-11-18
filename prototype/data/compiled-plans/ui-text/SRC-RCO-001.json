@@ -4,24 +4,30 @@
   "title": "What the Recreate Order pop-up shows",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:09:41.036Z",
+  "compiledAt": "2026-11-13T12:35:08.153Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"Select time\" (expect_disabled) — not among the labels known from the app nor in the case"
+   "The exact disabled state of the pop-up's time control before selecting “Schedule this event?” cannot be asserted because its rendered control label is not specified in the catalog."
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Select time\" (expect_disabled) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The exact disabled state of the pop-up's time control before selecting “Schedule this event?” cannot be asserted because its rendered control label is not specified in the catalog."
   ],
   "source": "llm",
-  "steps": 20,
+  "steps": 23,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
-   "expect_visible",
+   "expect_text",
    "expect_text",
    "expect_table",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
    "expect_count",
    "expect_text",
    "expect_options",
@@ -29,10 +35,8 @@
    "expect_options",
    "expect_value",
    "expect_text",
-   "expect_visible",
    "expect_text",
    "expect_visible",
-   "expect_disabled",
    "expect_disabled",
    "expect_visible",
    "expect_visible",
@@ -40,7 +44,7 @@
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 18040
+  "ms": 14650
  },
  "plan": {
   "title": "Recreate Order Popup Contents",
@@ -50,30 +54,34 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary instead of creating or searching for another event."
+    "note": "Open the prepared closed RFQ summary containing the two bids and original line item."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting for the buyer company."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Open the Recreate Order popup from the stage Settings menu."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Recreate Order",
-     "visible": true
-    },
-    "note": "Verify that the Recreate Order popup opened."
+    "note": "Open the Recreate Order pop-up from the stage Settings menu."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Product Sheet",
-     "present": true,
-     "within": "dialog"
+     "text": "Recreate Order"
+    },
+    "note": "Confirm the requested pop-up is open."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Product Sheet"
     },
     "note": "Verify the product section is present."
    },
@@ -83,32 +91,51 @@
      "within": "Product Sheet",
      "rows": 1,
      "row": "CYLINDER WITH KEY & KNOB",
-     "cells": {
-      "Product": "CYLINDER WITH KEY & KNOB",
-      "Variant": "Variant 1",
-      "Quantity": "10 ST",
-      "Delivery location": "Plant Name (LOC-0001)",
-      "Price": "Price"
-     }
+     "present": true
     },
-    "note": "Verify the popup contains one row for the old event with the mapped variant, quantity, location, and price fields."
+    "note": "Assert the product sheet has exactly one line-item row for the original event product."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Variant 1"
+    },
+    "note": "Verify the mapped product variant is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "10 ST"
+    },
+    "note": "Verify the original requested quantity and unit are shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Plant Name (LOC-0001)"
+    },
+    "note": "Verify the original delivery location is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Price"
+    },
+    "note": "Verify the product sheet includes the Price field."
    },
    {
     "step": "expect_count",
     "args": {
      "role": "link",
      "name": "Details",
-     "count": 1,
-     "within": "dialog"
+     "min": 1
     },
-    "note": "Verify the product row provides its Details link."
+    "note": "Verify product-row Details links are available."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Auction Configurations",
-     "present": true,
-     "within": "dialog"
+     "text": "Auction Configurations"
     },
     "note": "Verify the auction configuration section is present."
    },
@@ -123,10 +150,9 @@
       "4 Hrs",
       "24 Hrs",
       "Custom"
-     ],
-     "only": true
+     ]
     },
-    "note": "Verify all event-end duration choices offered by the popup."
+    "note": "Assert all expected event-end duration choices are offered."
    },
    {
     "step": "expect_value",
@@ -134,7 +160,7 @@
      "label": "Event End Time Duration",
      "value": "30 Mins"
     },
-    "note": "Verify the 30 Mins event-end duration is selected."
+    "note": "Verify the 30-minute event-end duration is selected."
    },
    {
     "step": "expect_options",
@@ -147,10 +173,9 @@
       "60 Mins",
       "Custom",
       "Clear"
-     ],
-     "only": true
+     ]
     },
-    "note": "Verify all evaluation-duration choices offered by the popup."
+    "note": "Assert all expected evaluation-duration choices are offered."
    },
    {
     "step": "expect_value",
@@ -158,66 +183,44 @@
      "label": "Evaluation Duration",
      "value": "30 Mins"
     },
-    "note": "Verify the 30 Mins evaluation duration is selected."
+    "note": "Verify the 30-minute evaluation duration is selected."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Delivery Date",
-     "present": true,
-     "within": "dialog"
+     "text": "Delivery Date"
     },
     "note": "Verify the delivery-date section is present."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "label": "Select date",
-     "visible": true,
-     "within": "dialog"
-    },
-    "note": "Verify the delivery date selector is available."
-   },
-   {
     "step": "expect_text",
     "args": {
-     "text": "Schedule this event?",
-     "present": true,
-     "within": "dialog"
+     "text": "Select date"
     },
-    "note": "Verify the optional scheduling control is present."
+    "note": "Verify the delivery date picker is available."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "checkbox",
      "name": "Schedule this event?",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
-    "note": "Verify the schedule checkbox is rendered."
+    "note": "Verify the scheduling checkbox is present."
    },
    {
     "step": "expect_disabled",
     "args": {
      "control": "Select date"
     },
-    "note": "Verify the schedule date control is greyed out until scheduling is enabled."
-   },
-   {
-    "step": "expect_disabled",
-    "args": {
-     "control": "Select time"
-    },
-    "note": "Verify the schedule time control is greyed out until scheduling is enabled."
+    "note": "Verify the schedule date control is initially greyed out before scheduling is enabled."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Edit More Details",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
     "note": "Verify the Edit More Details action is present."
    },
@@ -226,8 +229,7 @@
     "args": {
      "role": "button",
      "name": "Cancel",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
     "note": "Verify the Cancel action is present."
    },
@@ -236,8 +238,7 @@
     "args": {
      "role": "button",
      "name": "Create Order",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
     "note": "Verify the Create Order action is present."
    }

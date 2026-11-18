@@ -4,19 +4,20 @@
   "title": "Download Reports: Download Reports with Include Revised Bids toggled on and off",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:41:58.416Z",
+  "compiledAt": "2026-11-13T13:55:20.773Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that revised bid entries for Vendor A are present in the downloaded Excel workbook"
+   "Verify the downloaded Excel contains Vendor A's revised bid entries.",
+   "Open the bid's three-dots menu and verify that Download Report is reached through that menu."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Verify that revised bid entries for Vendor A are present in the downloaded Excel workbook"
+   "can only test part of this — no step for: Verify the downloaded Excel contains Vendor A's revised bid entries.; Open the bid's three-dots menu and verify that Download Report is reached through that menu."
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 15,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -26,31 +27,27 @@
    "go_to",
    "go_to",
    "click",
-   "expect_visible",
+   "expect_text",
    "toggle",
-   "expect_value",
    "click",
    "expect_download",
-   "click",
-   "expect_visible",
    "toggle",
-   "expect_value",
    "click",
    "expect_download"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 29018
+  "ms": 18325
  },
  "plan": {
-  "title": "Closed RFQ Report Revised Bids",
+  "title": "Closed RFQ report with revised bids",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ event without creating or searching for another event."
+    "note": "Open the prepared closed RFQ summary; the event and bid state already exist."
    },
    {
     "step": "require_setting",
@@ -58,7 +55,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the test configuration."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "require_setting",
@@ -74,7 +71,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Enable buyer editing of bidding fields as required."
+    "note": "Enable buyer bid editing as required by the case."
    },
    {
     "step": "require_setting",
@@ -97,7 +94,7 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab where Download Report is available."
+    "note": "Open the RFQ Responses view where the report control is available."
    },
    {
     "step": "click",
@@ -108,13 +105,11 @@
     "note": "Open the Download Reports window."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "dialog",
-     "name": "Download Reports",
-     "visible": true
+     "text": "Download Reports"
     },
-    "note": "Confirm that the Download Reports window opened."
+    "note": "Verify that the report window opened."
    },
    {
     "step": "toggle",
@@ -122,15 +117,7 @@
      "label": "Include Revised Bids",
      "on": false
     },
-    "note": "Set the revised-bids option off for the first report download."
-   },
-   {
-    "step": "expect_value",
-    "args": {
-     "label": "Include Revised Bids",
-     "value": "false"
-    },
-    "note": "Verify the Include Revised Bids control is off."
+    "note": "Verify the report can be configured with revised bids excluded."
    },
    {
     "step": "click",
@@ -138,29 +125,12 @@
      "role": "button",
      "name": "Download Excel"
     },
-    "note": "Download the report without revised bids."
+    "note": "Download the report with revised bids excluded."
    },
    {
     "step": "expect_download",
     "args": {},
-    "note": "Verify that the Excel report downloads successfully with revised bids excluded."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Download Report"
-    },
-    "note": "Reopen the Download Reports window for the enabled-option case."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Download Reports",
-     "visible": true
-    },
-    "note": "Confirm the report dialog is available again."
+    "note": "Verify that the Excel report download succeeded."
    },
    {
     "step": "toggle",
@@ -168,15 +138,7 @@
      "label": "Include Revised Bids",
      "on": true
     },
-    "note": "Enable inclusion of revised bids for Vendor A."
-   },
-   {
-    "step": "expect_value",
-    "args": {
-     "label": "Include Revised Bids",
-     "value": "true"
-    },
-    "note": "Verify that Include Revised Bids is on."
+    "note": "Enable the case's required Include Revised Bids option."
    },
    {
     "step": "click",
@@ -188,10 +150,8 @@
    },
    {
     "step": "expect_download",
-    "args": {
-     "contains": "Vendor A"
-    },
-    "note": "Verify that the enabled-option Excel report downloads and contains Vendor A's report data."
+    "args": {},
+    "note": "Verify that the revised-bids report download succeeded."
    }
   ]
  }

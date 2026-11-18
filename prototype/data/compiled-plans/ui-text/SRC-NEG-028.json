@@ -4,21 +4,21 @@
   "title": "Counter offer while bidding is live on one of the two lines; the vendor rejects",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:04:27.373Z",
+  "compiledAt": "2026-11-13T12:19:28.340Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog cannot perform or assert a vendor rejecting a pending counter offer.",
-   "The catalog cannot target only line 1 when placing a counter offer; place_counter_offer accepts a price but has no line-selection argument.",
-   "The prepared-state catalog does not expose the requested two distinct line prices of 100 and 50 for separate line assertions; its Master QCS assertions are limited to the prepared event data."
+   "Select only line 1 in the counter-offer drawer and change only its 100 quote to 90; place_counter_offer has no line-selection argument.",
+   "Have Vendor A reject a pending counter offer in the vendor portal; the catalog provides vendor acceptance but no rejection step.",
+   "Assert that only the countered line shows the offer and that every individual line retains its original quote after rejection."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: The catalog cannot perform or assert a vendor rejecting a pending counter offer.; The catalog cannot target only line 1 when placing a counter offer; place_counter_offer accepts a price but has no line-selection argument.; The prepared-state catalog does not expose the requested two distinct line prices of 100 and 50 for separate line assertions; its Master QCS assertions are limited to the prepared event data."
+   "can only test part of this — no step for: Select only line 1 in the counter-offer drawer and change only its 100 quote to 90; place_counter_offer has no line-selection argument.; Have Vendor A reject a pending counter offer in the vendor portal; the catalog provides vendor acceptance but no rejection step.; Assert that only the countered line shows the offer and that every individual line retains its original quote after rejection."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -26,14 +26,15 @@
    "place_counter_offer",
    "expect_counter_offer_sent",
    "ask_tester",
+   "switch_portal",
+   "go_to",
    "open_master_qcs",
    "expect_qcs_vendors",
-   "expect_qcs_cell",
    "expect_qcs_amounts"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 21209
+  "ms": 25153
  },
  "plan": {
   "title": "Live RFQ Counter Offer Rejection",
@@ -43,7 +44,7 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the existing live RFQ on the buyer's Responses tab as required for the prepared state."
+    "note": "Open the prepared live RFQ with Vendor A's existing bid on the Responses tab."
    },
    {
     "step": "require_setting",
@@ -51,7 +52,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Ensure RFQ counter offers are available for the buyer."
+    "note": "Enable counter offers on RFQ rounds as required by the case."
    },
    {
     "step": "require_setting",
@@ -59,55 +60,70 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure eRFX project functionality is enabled for the prepared RFQ."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "place_counter_offer",
     "args": {
+     "vendor": "Vendor A",
      "price": 90
     },
-    "note": "Open Vendor A's own bid and send the available counter offer at 90; line-specific selection cannot be expressed."
+    "note": "Send the closest expressible buyer counter offer at 90; the catalog cannot restrict it to line 1 only."
    },
    {
     "step": "expect_counter_offer_sent",
-    "args": {},
-    "note": "Verify the buyer's Responses grid records the pending counter offer."
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Assert that the buyer's grid records a counter offer for Vendor A."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in to Vendor A's supplier portal, open the pending counter offer, reject it, and return to the buyer session"
+     "need": "in the Vendor A supplier portal, open the pending counter offer and reject it"
     },
-    "note": "The catalog has no vendor-side reject-counter-offer action or assertion."
+    "note": "The catalog has no vendor-side counter-offer rejection action."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer session after the vendor rejection."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Return to the RFQ Responses view for the post-rejection buyer state."
    },
    {
     "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's Master QCS after the tester completes the rejection."
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open the buyer's Master QCS to inspect the current Vendor A comparison data."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
      "count": 1,
+     "vendors": [
+      "Vendor A"
+     ],
      "realNames": true
     },
-    "note": "Verify the vendor column remains present with a real vendor name."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": 1,
-     "key": "bidPrice"
-    },
-    "note": "Verify the prepared vendor's current RFQ rate remains populated after the rejection."
+    "note": "Assert that Vendor A is present as the real vendor column."
    },
    {
     "step": "expect_qcs_amounts",
     "args": {
-     "vendor": 1
+     "vendor": "Vendor A"
     },
-    "note": "Verify the displayed line amount and total arithmetic follows the current bid price."
+    "note": "Assert that Master QCS amounts and totals remain arithmetically consistent with the current prices."
    }
   ]
  }

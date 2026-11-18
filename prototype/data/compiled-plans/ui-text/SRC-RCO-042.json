@@ -4,62 +4,66 @@
   "title": "Recreate Order with Quantity Requested = 2.5",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:11:02.316Z",
+  "compiledAt": "2026-11-13T12:38:49.943Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the exact backend enforcement of decimal vs whole units across different unit types during recreate order"
+   "The catalog has no dedicated assertion for the Recreate Order quantity result or for comparing decimal-unit behavior with whole-unit behavior; the on-screen step must record whether 2.5 is kept, refused, or rounded."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify the exact backend enforcement of decimal vs whole units across different unit types during recreate order"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The catalog has no dedicated assertion for the Recreate Order quantity result or for comparing decimal-unit behavior with whole-unit behavior; the on-screen step must record whether 2.5 is kept, refused, or rounded."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
-   "set_sheet_cell",
-   "expect_sheet_cell"
+   "do_on_screen",
+   "expect_screen_clean"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 19778
+  "ms": 16719
  },
  "plan": {
-  "title": "Recreate Order with Quantity Requested 2.5",
+  "title": "Recreate Order Decimal Quantity",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Start from the prepared closed RFQ summary page"
+    "note": "Open the prepared closed RFQ summary for the recreate-order scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order",
-     "stage": "rfq"
+     "item": "Recreate Order"
     },
-    "note": "Open the settings menu on the RFQ stage and select Recreate Order"
+    "note": "Open the stage Settings menu and select Recreate Order."
    },
    {
-    "step": "set_sheet_cell",
+    "step": "do_on_screen",
     "args": {
-     "column": "Quantity Requested",
-     "row": 1,
-     "value": "2.5"
+     "goal": "On the Recreate Order screen, inspect the Quantity Requested unit, type 2.5 into Quantity Requested, click Create Order, and record whether the value is kept as 2.5, refused, or rounded."
     },
-    "note": "Type 2.5 into the Quantity Requested cell on the create screen of the recreated order"
+    "note": "The catalog has no dedicated Recreate Order form or Create Order step, so perform and observe the buyer-side flow directly."
    },
    {
-    "step": "expect_sheet_cell",
-    "args": {
-     "column": "Quantity Requested",
-     "kept": true,
-     "row": 1
-    },
-    "note": "Assert whether the decimal quantity 2.5 is kept or refused in the quantity field"
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert the resulting screen has no crash, server error, NaN, undefined, null, or raw ids."
    }
   ]
  }

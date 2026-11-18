@@ -3,13 +3,16 @@
   "caseId": "PRD-KBVDB-011",
   "title": "Regret Item writes \"Regret\" into every vendor response for the item",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:53:44.002Z",
+  "compiledAt": "2026-11-13T15:44:21.546Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing"
+  ],
   "source": "llm",
-  "steps": 9,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "set_title",
@@ -17,11 +20,20 @@
    "switch_stage",
    "select_template",
    "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "switch_stage",
+   "select_template",
+   "fill_sheet",
+   "set_schedule",
    "invite_vendor",
+   "publish",
+   "expect_published",
+   "go_to",
    "do_on_screen",
    "expect_text"
   ],
-  "ms": 14240
+  "ms": 24677
  },
  "plan": {
   "title": "Regret Item fills vendor responses",
@@ -31,12 +43,12 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage event builder."
+    "note": "Open the multi-stage event creation flow."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Regret Item Vendor Response Test"
+     "title": "Regret Item Vendor Responses"
     },
     "note": "Provide the required event title."
    },
@@ -44,43 +56,88 @@
     "step": "compose_stages",
     "args": {
      "stages": [
-      "rfp"
+      "rfp",
+      "rfq"
      ]
     },
-    "note": "Create a Technical Stage event, which is the subject of the test."
+    "note": "Create a Technical Stage and RFQ so the event has a line item and vendor response context."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Work on the Technical Stage tab where the RFI builder is available."
+    "note": "configure the rfp stage on its own tab"
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply a technical template so the questionnaire and line-item response fields are rendered."
+    "note": "rfp needs its own template"
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Create the required line item whose vendor responses will be regretted."
+    "note": "Ensure the event contains at least one line item."
+   },
+   {
+    "step": "fill_questionnaires"
+   },
+   {
+    "step": "assign_evaluator"
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "configure the rfq stage on its own tab"
+   },
+   {
+    "step": "select_template",
+    "note": "rfq needs its own template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Set up a participating vendor for the response fields."
+    "note": "Add a participating vendor."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the participating vendor and Technical Stage are active."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached its published project page."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfp"
+    },
+    "note": "Open the Technical Stage event tab where Quick Fill is available."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the Technical Stage RFI builder, open Quick Fill for the line item, click Regret Item, and verify that every Vendor Responses field for that item shows Regret"
+     "goal": "On the Technical Stage Event tab, open Quick Fill for a line item, press Regret Item, and stop only when every Vendor Responses field for that line item visibly shows Regret."
     },
-    "note": "Perform the catalog-missing Regret Item action and verify its effect on every vendor response field."
+    "note": "Perform and visually verify the catalog-missing Regret Item action across all vendor response fields."
    },
    {
     "step": "expect_text",
@@ -88,7 +145,7 @@
      "text": "Regret",
      "present": true
     },
-    "note": "Confirm the resulting Regret value is visible on the Technical Stage screen."
+    "note": "Assert that the resulting Technical Stage screen displays the Regret value."
    }
   ]
  }

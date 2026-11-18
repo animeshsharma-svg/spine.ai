@@ -3,39 +3,34 @@
   "caseId": "PRD-KBSRC-079",
   "title": "Convert to Auction with fresh bids (checkbox unchecked)",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:11:48.598Z",
+  "compiledAt": "2026-11-13T14:35:47.130Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Directly assert that the conversion prompt checkbox is unchecked using a catalog assertion step",
-   "Directly configure and save the converted auction through the conversion prompt",
-   "Directly verify that any later vendor bids are fresh rather than carried forward from the RFQ",
-   "The requested second publish action is not represented as a distinct supported flow after the auction is published"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "added open_create — every create test has to start somewhere",
-   "added publish + expect_published before convert_to_auction — only a published RFQ can be converted",
+   "moved convert_to_auction after publish — only a published RFQ can be converted",
    "added set_title — publishing without a title is refused",
    "added set_schedule — the schedule is displayed but not committed until saved",
    "added invite_vendor — an event with no participants cannot be bid on",
    "inserted select_template + add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "added open_create — every create test has to start somewhere",
-   "added publish + expect_published before convert_to_auction — only a published RFQ can be converted",
+   "moved convert_to_auction after publish — only a published RFQ can be converted",
    "added set_title — publishing without a title is refused",
    "added set_schedule — the schedule is displayed but not committed until saved",
    "added invite_vendor — an event with no participants cannot be bid on",
-   "inserted select_template + add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
-   "can only test part of this — no step for: Directly assert that the conversion prompt checkbox is unchecked using a catalog assertion step; Directly configure and save the converted auction through the conversion prompt; Directly verify that any later vendor bids are fresh rather than carried forward from the RFQ; The requested second publish action is not represented as a distinct supported flow after the auction is published"
+   "inserted select_template + add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added"
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "compose_stages",
    "set_title",
    "open_event",
+   "do_on_screen",
    "select_template",
    "add_line_items",
    "set_schedule",
@@ -43,12 +38,9 @@
    "publish",
    "expect_published",
    "convert_to_auction",
-   "do_on_screen",
-   "expect_published",
-   "open_master_qcs",
-   "expect_text"
+   "expect_responses"
   ],
-  "ms": 14338
+  "ms": 28246
  },
  "plan": {
   "title": "Convert RFQ to Auction Without Carried Bids",
@@ -73,7 +65,14 @@
    {
     "step": "open_event",
     "args": {},
-    "note": "Open the existing concluded RFQ with quotations from the setup."
+    "note": "Open an existing concluded event with RFQ quotations."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the conversion prompt, uncheck the option to carry RFQ quotations into the auction, configure the converted auction, click Save, and stop on the auction create screen ready to publish"
+    },
+    "note": "Perform the conversion configuration and explicitly leave the carry-forward bids checkbox unchecked."
    },
    {
     "step": "select_template",
@@ -92,10 +91,14 @@
     "step": "invite_vendor"
    },
    {
-    "step": "publish"
+    "step": "publish",
+    "args": {},
+    "note": "Publish the converted auction."
    },
    {
-    "step": "expect_published"
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the auction reached a real published project page."
    },
    {
     "step": "convert_to_auction",
@@ -103,29 +106,12 @@
     "note": "Open the RFQ-to-Auction conversion flow."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_responses",
     "args": {
-     "goal": "On the conversion prompt and converted auction create screen, uncheck the carry-forward RFQ quotations checkbox, configure the auction, save the configuration, and publish the auction as requested; stop on the published auction page."
+     "stage": "auction",
+     "count": 0
     },
-    "note": "The catalog has no dedicated step for the conversion checkbox or saving this configuration, so perform those actions on screen."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Assert that the converted auction was published successfully."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the auction comparison view to inspect whether any RFQ quotations were carried forward as starting bids."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "No bids are placed yet!",
-     "present": true
-    },
-    "note": "Assert that the auction has no carried-forward bids before any fresh auction bid is submitted."
+    "note": "Verify the new auction has no carried-forward vendor responses or starting bids."
    }
   ]
  }

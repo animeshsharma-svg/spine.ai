@@ -4,60 +4,69 @@
   "title": "Review request to a colleague works the same way",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:33.006Z",
+  "compiledAt": "2026-11-13T14:19:54.578Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in to Asha's mailbox and open the Procol approval email",
-   "Click Review in the email",
-   "Enter a comment and Chetan's email as the recipient",
-   "Send the email without changing the subject",
-   "Wait for Procol to process the mailbox reply and verify the reply and Chetan's review email",
-   "Verify that the email review request is recorded on the event"
+   "Log in to Asha's mailbox, open the Procol approval email, click Review, enter a comment and Chetan's email, and send the reply without changing the subject",
+   "Wait for Procol to ingest the mailbox reply and verify Asha's review was recorded",
+   "Verify Chetan received the forwarded review email",
+   "Verify the event displays the recorded review"
   ],
   "warnings": [
-   "can only test part of this — no step for: Log in to Asha's mailbox and open the Procol approval email; Click Review in the email; Enter a comment and Chetan's email as the recipient; Send the email without changing the subject; Wait for Procol to process the mailbox reply and verify the reply and Chetan's review email; Verify that the email review request is recorded on the event"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "resolved: “Switch to the DLF Hospitality company by company name and verify the connected Outlook approval mailbox” — require_setting switches that company setting before the case and back after",
+   "can only test part of this — no step for: Log in to Asha's mailbox, open the Procol approval email, click Review, enter a comment and Chetan's email, and send the reply without changing the subject; Wait for Procol to ingest the mailbox reply and verify Asha's review was recorded; Verify Chetan received the forwarded review email; Verify the event displays the recorded review"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "open_event",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 10029
+  "ms": 13450
  },
  "plan": {
-  "title": "Email Review Request to Colleague",
+  "title": "Email review request to colleague",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named event to establish the approval workflow context."
+    "note": "Open the existing event after the email interaction so its current state can be inspected."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the company capability required for email approvals."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow prerequisite stated by the case."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "log in as Asha, open the Procol approval email, click Review, enter the review comment and Chetan's email, send it without changing the subject, wait for processing, and verify the reply and Chetan's email"
+     "need": "log in to Asha's mailbox, open the Procol approval request, click Review, enter the review comment and Chetan's email, send the unchanged-subject reply, wait for Procol to process it, and verify the review is recorded and emailed to Chetan"
     },
-    "note": "Mailbox access, email composition, delivery, and asynchronous processing are not expressible by catalog steps."
+    "note": "The catalog has no mailbox or email-approval workflow actions, nor a way to verify the colleague's receipt or the recorded review."
    },
    {
-    "step": "open_event",
-    "args": {
-     "title": "QA Email Approval - Office Chairs Nov"
-    },
-    "note": "Return to the named event after the mailbox workflow to inspect its resulting state."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Approval in Progress"
-    },
-    "note": "Assert the event displays the known approval-state indicator after the review workflow."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Final assertion that the opened event screen remains healthy after the tester's email interaction; this does not assert the approval outcome."
    }
   ]
  }

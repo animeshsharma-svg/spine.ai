@@ -4,65 +4,94 @@
   "title": "Counter offer during evaluation time: the vendor rejects",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:03:31.903Z",
+  "compiledAt": "2026-11-13T12:17:28.581Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the counter offer is persisted as rejected after Vendor A clicks Reject"
+  ],
   "warnings": [
-   "resolved: “Switching back to the buyer portal from the vendor side mid-test and re-opening the specific event in evaluation in a si” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Verify the rejected counter offer's closed status independently of the vendor screen” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Assert that the counter offer is persisted as rejected after Vendor A clicks Reject"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "place_counter_offer",
    "expect_counter_offer_sent",
    "switch_portal",
    "vendor_open_event",
    "click",
+   "expect_text",
    "switch_portal",
-   "go_to"
+   "go_to",
+   "expect_qcs_cell"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 78564
+  "ms": 23432
  },
  "plan": {
-  "title": "Counter offer during evaluation time: the vendor rejects",
+  "title": "SRC-NEG-007 Counter Offer Rejected During Evaluation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared event's Responses tab"
+    "note": "Open the prepared RFQ in evaluation with Vendor A and Vendor B bids on the buyer’s Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Enable counter offers on RFQs as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "place_counter_offer",
     "args": {
+     "vendor": "Vendor A",
      "price": 90,
      "remark": "Best price please"
     },
-    "note": "Raise a counter offer on Vendor A's bid"
+    "note": "Send the buyer’s counter offer to Vendor A at the requested price."
    },
    {
     "step": "expect_counter_offer_sent",
-    "args": {},
-    "note": "Assert the counter offer was successfully sent"
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Confirm the buyer’s counter offer was initiated for Vendor A."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Switch to the vendor portal as Vendor A"
+    "note": "Move to Vendor A’s supplier-portal session while leaving the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
-     "overview": false
+     "overview": true
     },
-    "note": "Open the event on the vendor portal"
+    "note": "Open the event overview where the pending counter offer is shown."
    },
    {
     "step": "click",
@@ -70,21 +99,38 @@
      "role": "button",
      "name": "Reject"
     },
-    "note": "Vendor rejects the pending counter offer"
+    "note": "Click the vendor-side Reject control named in the case; the catalog has no dedicated counter-offer rejection step."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejected",
+     "present": true
+    },
+    "note": "Check for the vendor screen’s visible rejection indication, if rendered."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Switch back to the buyer side"
+    "note": "Return to the buyer’s event page."
    },
    {
     "step": "go_to",
     "args": {
-     "screen": "responses"
+     "screen": "master_qcs"
     },
-    "note": "Go to the Responses tab to verify rejection"
+    "note": "Open Master QCS to inspect Vendor A’s resulting bid price."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "equals": "100"
+    },
+    "note": "Verify Vendor A’s original price remains 100 after the rejection."
    }
   ]
  }

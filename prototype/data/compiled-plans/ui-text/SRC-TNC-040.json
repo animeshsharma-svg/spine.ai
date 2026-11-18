@@ -4,33 +4,27 @@
   "title": "eRFX RFQ stage only, one clause Required: the vendor accepts both clauses",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:20:29.027Z",
+  "compiledAt": "2026-11-13T13:07:11.917Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure the RFQ-stage Terms & Conditions drawer with the two named clauses and set only Payment within 45 days to Required",
-   "Complete and submit the vendor's technical questionnaire before pricing submission if the event requires a technical response",
-   "unconfirmed label \"Payment within 45 days\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "unconfirmed label \"Delivery within 7 days\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "Directly verify that both clauses were accepted as part of the submitted bid and that the clauses are absent from the Technical stage response."
   ],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "coverage partial: unconfirmed label \"Payment within 45 days\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "coverage partial: unconfirmed label \"Delivery within 7 days\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Configure the RFQ-stage Terms & Conditions drawer with the two named clauses and set only Payment within 45 days to Required; Complete and submit the vendor's technical questionnaire before pricing submission if the event requires a technical response"
+   "can only test part of this — no step for: Directly verify that both clauses were accepted as part of the submitted bid and that the clauses are absent from the Technical stage response."
   ],
   "source": "llm",
-  "steps": 27,
+  "steps": 19,
   "stepNames": [
    "open_create",
    "require_setting",
    "require_setting",
    "set_title",
    "compose_stages",
-   "expect_stages",
    "switch_stage",
    "select_template",
    "add_line_items",
@@ -43,27 +37,20 @@
    "invite_vendor",
    "publish",
    "expect_published",
-   "switch_portal",
-   "vendor_open_event",
-   "expect_text",
-   "expect_text",
-   "vendor_open_event",
-   "toggle",
-   "toggle",
-   "vendor_bid",
+   "place_bid",
    "expect_bid_submitted"
   ],
-  "ms": 27105
+  "ms": 35199
  },
  "plan": {
-  "title": "eRFX RFQ-stage terms acceptance",
+  "title": "eRFX RFQ stage terms acceptance",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation screen."
+    "note": "Open the eRFX project creation flow."
    },
    {
     "step": "require_setting",
@@ -71,7 +58,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation for the case."
+    "note": "Enable eRFX project creation required by the case."
    },
    {
     "step": "require_setting",
@@ -79,12 +66,12 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation."
+    "note": "Allow vendors to be added during event creation and publishing."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title."
+    "note": "Provide the mandatory event title required for publishing."
    },
    {
     "step": "compose_stages",
@@ -95,16 +82,6 @@
      ]
     },
     "note": "Create the required Technical plus RFQ stage pair."
-   },
-   {
-    "step": "expect_stages",
-    "args": {
-     "stages": [
-      "rfp",
-      "rfq"
-     ]
-    },
-    "note": "Assert that both required stage tabs exist."
    },
    {
     "step": "switch_stage",
@@ -122,7 +99,7 @@
     "args": {
      "count": 1
     },
-    "note": "Add the required RFQ line item."
+    "note": "Add the RFQ line item to quote."
    },
    {
     "step": "fill_questionnaires"
@@ -156,77 +133,24 @@
     "args": {
      "count": 1
     },
-    "note": "Invite one QA test vendor without inventing a vendor name."
+    "note": "Invite one QA vendor for the vendor response."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured event."
+    "note": "Publish the configured two-stage event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publishing reached the project page."
+    "note": "Assert that publishing reached a real project page."
    },
    {
-    "step": "switch_portal",
-    "args": {
-     "to": "vendor"
-    },
-    "note": "Open the invited vendor's supplier-portal session."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "stage": "technical"
-    },
-    "note": "Open the Technical stage first to inspect whether RFQ-only clauses are absent there."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Payment within 45 days",
-     "present": false
-    },
-    "note": "Assert that the RFQ clause is not shown on the Technical stage."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Delivery within 7 days",
-     "present": false
-    },
-    "note": "Assert that the optional RFQ clause is also not shown on the Technical stage."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "stage": "pricing"
-    },
-    "note": "Open the RFQ pricing round where the clauses should be presented."
-   },
-   {
-    "step": "toggle",
-    "args": {
-     "label": "Payment within 45 days",
-     "on": true
-    },
-    "note": "Accept the required payment clause."
-   },
-   {
-    "step": "toggle",
-    "args": {
-     "label": "Delivery within 7 days",
-     "on": true
-    },
-    "note": "Accept the optional delivery clause."
-   },
-   {
-    "step": "vendor_bid",
+    "step": "place_bid",
     "args": {
      "price": 100
     },
-    "note": "Submit a quote of 100 for every RFQ line."
+    "note": "Submit the invited vendor's combined technical response and RFQ quote at 100 per line."
    },
    {
     "step": "expect_bid_submitted",

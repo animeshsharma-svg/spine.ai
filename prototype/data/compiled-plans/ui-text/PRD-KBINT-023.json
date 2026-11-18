@@ -3,63 +3,66 @@
   "caseId": "PRD-KBINT-023",
   "title": "Awarding criteria on lot vs line item",
   "group": "PRD-KBINT",
-  "compiledAt": "2026-11-10T02:11:47.341Z",
+  "compiledAt": "2026-11-13T15:04:52.779Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Open the RFQ/Auction Template Creation page and the Ranking Criteria/Awarding Criteria module",
-   "Select and save lot-level awarding criteria on a template variant",
-   "Select and save line-item-level awarding criteria on a template variant",
-   "Reopen Ranking Criteria and verify the saved awarding level for each variant"
+   "Open the template-creation Ranking Criteria / Awarding Criteria module",
+   "Save awarding criteria as lot on a template",
+   "Save awarding criteria as line item on a template",
+   "Reopen Ranking Criteria and verify the saved level for each template variant"
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added set_title — publishing without a title is refused",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added set_title — publishing without a title is refused",
-   "cannot test this case yet — no step can observe: Open the RFQ/Auction Template Creation page and the Ranking Criteria/Awarding Criteria module; Select and save lot-level awarding criteria on a template variant; Select and save line-item-level awarding criteria on a template variant; Reopen Ranking Criteria and verify the saved awarding level for each variant"
+   "cannot test this case yet — no step can observe: Open the template-creation Ranking Criteria / Awarding Criteria module; Save awarding criteria as lot on a template; Save awarding criteria as line item on a template; Reopen Ranking Criteria and verify the saved level for each template variant"
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_create",
-   "compose_stages",
    "set_title",
-   "expect_no_error"
+   "configure_single_stage",
+   "expect_text"
   ],
-  "ms": 15063
+  "ms": 11795
  },
  "plan": {
-  "title": "Awarding Criteria Lot vs Line Item",
+  "title": "Awarding criteria persistence on templates",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "erfx"
+     "path": "single-stage"
     },
-    "note": "Closest available route to an event configuration screen, but it is not the template creation page."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    }
+    "note": "Opens the closest available event configuration screen; the catalog has no template-creation screen."
    },
    {
     "step": "set_title"
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirms the closest configuration flow completed without an application error, but does not assert the requested Awarding Criteria module."
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "line_item"
+    },
+    "note": "Configures the closest event-level equivalent of awarding by line item, but does not test template persistence."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "How will you award the event?",
+     "present": true
+    },
+    "note": "Confirms the available event-level awarding configuration is present; it does not assert the requested template-level saved state."
    }
   ]
  }

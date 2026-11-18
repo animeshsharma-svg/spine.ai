@@ -4,54 +4,54 @@
   "title": "Traffic light auction: the result after it ends",
   "group": "SRC-STR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:07:20.579Z",
+  "compiledAt": "2026-11-13T12:57:40.033Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Verify that the downloaded report exactly matches the Master QCS screen's dynamic contents"
+   "A finished traffic light auction state is not available in the prepared catalog state; it provides a closed RFQ instead.",
+   "Traffic-light strategy ranking behavior, including the applicable reverse-auction or forward-auction winner rule, cannot be observed.",
+   "The downloaded report cannot be asserted to match the Master QCS screen's ranking because no step compares report contents with the displayed grid."
   ],
   "warnings": [
-   "added open_prepared(master_qcs) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify that the downloaded report exactly matches the Master QCS screen's dynamic contents"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "cannot test this case yet — no step can observe: A finished traffic light auction state is not available in the prepared catalog state; it provides a closed RFQ instead.; Traffic-light strategy ranking behavior, including the applicable reverse-auction or forward-auction winner rule, cannot be observed.; The downloaded report cannot be asserted to match the Master QCS screen's ranking because no step compares report contents with the displayed grid."
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
-   "open_master_qcs",
+   "require_setting",
    "expect_qcs_ranks",
    "click",
    "expect_download"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 9923
+  "ms": 23639
  },
  "plan": {
-  "title": "Finished Traffic Light Auction Master QCS and Report",
+  "title": "Finished Traffic Light Auction Result",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "the API built this case's state"
+    "note": "Open the closest available completed bidding comparison screen; this is a closed RFQ state rather than the requested traffic light auction."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's Master QCS comparison grid."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting before accessing the prepared auction-related state."
    },
    {
     "step": "expect_qcs_ranks",
-    "args": {
-     "by": "RFQ Amount",
-     "order": "lowest",
-     "atLeast": 1
-    },
-    "note": "Assert that final ranks follow the lowest bid amount for the reverse traffic-light auction."
+    "args": {},
+    "note": "Inspect the available Master QCS ranking, but this does not prove traffic-light-specific ranking behavior."
    },
    {
     "step": "click",
@@ -59,12 +59,12 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Download the report from the event page."
+    "note": "Trigger the report download from Master QCS."
    },
    {
     "step": "expect_download",
     "args": {},
-    "note": "Assert that the report download completed."
+    "note": "Assert that a report file was downloaded; the catalog cannot compare its contents with the Master QCS ranking."
    }
   ]
  }

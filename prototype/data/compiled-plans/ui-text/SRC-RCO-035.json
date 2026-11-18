@@ -4,28 +4,29 @@
   "title": "Recreate Order with \"Product Variant\" cleared (a required * column)",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:10:47.872Z",
+  "compiledAt": "2026-11-13T12:38:10.422Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Independently verify from backend records that no event was created"
+  ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Independently verify from backend records that no event was created"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "event_menu",
-   "set_sheet_cell",
-   "expect_sheet_cell",
-   "attempt",
-   "expect_field_error"
+   "do_on_screen",
+   "expect_toast"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 13676
+  "ms": 15672
  },
  "plan": {
   "title": "Recreate Order rejects cleared Product Variant",
@@ -35,7 +36,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing prepared closed RFQ without creating or searching for another event."
+    "note": "Open the prepared closed RFQ summary instead of searching or creating a new event."
    },
    {
     "step": "require_setting",
@@ -43,51 +44,29 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case configuration."
+    "note": "Ensure eRFX projects are enabled as required by the case."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Open the stage Settings menu and launch the Recreate Order flow."
+    "note": "Open the stage Settings menu and choose Recreate Order."
    },
    {
-    "step": "set_sheet_cell",
+    "step": "do_on_screen",
     "args": {
-     "row": 1,
-     "column": "Product Variant",
-     "value": ""
+     "goal": "On the Recreate Order screen, clear the Product Variant cell in the row, click Create Order, and stop with the empty required Product Variant cell highlighted and the refusal message \"Please fill valid event details to proceed\" visible."
     },
-    "note": "Clear the required Product Variant cell in the recreated order."
+    "note": "Perform the grid edit and submission that no catalog domain step can express."
    },
    {
-    "step": "expect_sheet_cell",
+    "step": "expect_toast",
     "args": {
-     "row": 1,
-     "column": "Product Variant",
-     "empty": true
+     "kind": "error",
+     "text": "Please fill valid event details to proceed"
     },
-    "note": "Confirm the Product Variant cell is empty before attempting submission."
-   },
-   {
-    "step": "attempt",
-    "args": {
-     "step": "click",
-     "args": {
-      "text": "Create Order"
-     },
-     "expect": "refused",
-     "because": "Please fill valid event details to proceed"
-    },
-    "note": "Attempt to create the order and require the product-details validation refusal."
-   },
-   {
-    "step": "expect_field_error",
-    "args": {
-     "field": "Product Variant"
-    },
-    "note": "Verify the empty required Product Variant cell is identified as invalid/highlighted."
+    "note": "Assert the required-field submission was refused with the expected message."
    }
   ]
  }

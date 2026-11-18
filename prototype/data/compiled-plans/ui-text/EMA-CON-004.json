@@ -4,47 +4,83 @@
   "title": "A deactivated user of the company is refused",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:11.951Z",
+  "compiledAt": "2026-11-13T14:19:27.752Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Asha's mailbox, open the Procol approval email, use Consult to email Deepa without changing the subject, wait for Procol to process it, and verify the bounce-back and that Deepa receives nothing."
+   "Log in to Asha's mailbox and open the Procol approval request email",
+   "Click Consult and verify a new email with a subject starting Action:Consult",
+   "Enter a comment and Deepa's email address and send the email without changing the subject",
+   "Wait for Procol to process the connected approval mailbox",
+   "Observe the bounce-back stating that Deepa is not part of the organisation on Procol",
+   "Verify that Deepa receives no email"
   ],
   "warnings": [
-   "can only test part of this — no step for: Access Asha's mailbox, open the Procol approval email, use Consult to email Deepa without changing the subject, wait for Procol to process it, and verify the bounce-back and that Deepa receives nothing."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Log in to Asha's mailbox and open the Procol approval request email; Click Consult and verify a new email with a subject starting Action:Consult; Enter a comment and Deepa's email address and send the email without changing the subject; Wait for Procol to process the connected approval mailbox; Observe the bounce-back stating that Deepa is not part of the organisation on Procol; Verify that Deepa receives no email"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
+   "expect_visible",
    "ask_tester",
    "expect_text"
   ],
-  "ms": 10465
+  "ms": 12066
  },
  "plan": {
-  "title": "EMA-CON-004 Deactivated User Consult Refusal",
+  "title": "EMA-CON-004 Deactivated User Email Consult Refusal",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named approval event in the buyer portal as the closest available event context; this does not test the email workflow."
+    "note": "Open the existing event named in the test so the buyer-side approval context is available."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the company configuration required for the email approval flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow prerequisite specified by the case."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Approvals",
+     "visible": true
+    },
+    "note": "Confirm the event exposes its approval area before handing off the mailbox-specific actions."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "access Asha's mailbox, open the Procol approval email, click Consult, send a comment to Deepa's deactivated-user email without changing the subject, wait for processing, and return to the bounce-back message"
+     "need": "access Asha's mailbox, open the Procol approval request, use Consult to email Deepa with a comment without changing the Action:Consult subject, send it, wait for processing, and verify the expected bounce-back and that Deepa receives nothing"
     },
-    "note": "The catalog has no mailbox, email-sending, or recipient-delivery step, so the tester must perform the core scenario."
+    "note": "Mailbox access, email composition and delivery verification are not available through catalog steps."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "is not part of your organisation on Procol"
+     "text": "Approvals",
+     "present": true
     },
-    "note": "Assert the expected bounce-back wording if the tester leaves the resulting message visible."
+    "note": "Retain a final known-label assertion for the buyer-side event context; this does not assert the email refusal itself."
    }
   ]
  }

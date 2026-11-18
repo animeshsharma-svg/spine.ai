@@ -4,28 +4,25 @@
   "title": "Start now, end after 60 Mins",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:14:04.657Z",
+  "compiledAt": "2026-11-13T12:50:54.560Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the exact Event will end at timestamp equals Bidding Ends At after publishing.",
-   "Verify that the published countdown matches the 60-minute schedule."
+   "The published countdown matching the scheduled end time cannot be directly asserted as a value with the catalog."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added set_schedule — the schedule is displayed but not committed until saved",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added set_schedule — the schedule is displayed but not committed until saved",
-   "can only test part of this — no step for: Verify that the exact Event will end at timestamp equals Bidding Ends At after publishing.; Verify that the published countdown matches the 60-minute schedule."
+   "can only test part of this — no step for: The published countdown matching the scheduled end time cannot be directly asserted as a value with the catalog."
   ],
   "source": "llm",
-  "steps": 22,
+  "steps": 25,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -34,33 +31,36 @@
    "set_title",
    "select_template",
    "add_line_items",
-   "fill_sheet",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
    "set_sheet_cell",
    "expect_sheet_cell",
-   "expect_sheet_cell",
+   "fill_sheet",
    "invite_vendor",
    "click",
-   "expect_options",
-   "select",
    "expect_text",
+   "select",
+   "remember",
    "click",
    "expect_text",
    "set_schedule",
    "publish",
    "expect_published",
-   "expect_text"
+   "expect_text",
+   "expect_remembered"
   ],
-  "ms": 25988
+  "ms": 19914
  },
  "plan": {
-  "title": "Single-stage RFQ 60-minute schedule",
+  "title": "Start Now, End After 60 Minutes",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the single-stage event creation screen specified by the case."
    },
    {
     "step": "require_setting",
@@ -76,25 +76,26 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Ensure vendors can be added during event creation and publishing is not disabled."
+    "note": "Allow the buyer to add a vendor during event creation."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq",
-     "awarding": "lot"
+     "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ as required by the scenario."
+    "note": "Switch the initial event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title using an automatically generated unique title."
+    "args": {
+     "title": "SRC-SCH-003 Start Now 60 Mins"
+    },
+    "note": "Provide the mandatory event title needed to publish."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the pricing sheet can be populated."
+    "note": "Apply the first available RFQ template so the pricing sheet can be configured."
    },
    {
     "step": "add_line_items",
@@ -103,19 +104,25 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product and set its requested quantity to 10; the product's Variant 1 is expected to populate automatically."
+    "note": "Add the specified product and set its requested quantity to 10."
    },
    {
-    "step": "fill_sheet"
-   },
-   {
-    "step": "set_sheet_cell",
+    "step": "expect_sheet_cell",
     "args": {
      "row": 1,
-     "column": "Delivery location",
-     "value": "Plant Name (LOC-0001)"
+     "column": "Product",
+     "equals": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Choose the required delivery location in the first line item."
+    "note": "Verify that the requested product was added to the first sheet row."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "equals": "Variant 1"
+    },
+    "note": "Verify that the product’s variant auto-filled as Variant 1."
    },
    {
     "step": "expect_sheet_cell",
@@ -124,25 +131,37 @@
      "column": "Quantity Requested",
      "equals": "10"
     },
-    "note": "Confirm the requested quantity was retained."
+    "note": "Verify the requested quantity."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Choose the required delivery location from the sheet dropdown."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
      "column": "Delivery location",
-     "contains": "Plant Name (LOC-0001)"
+     "equals": "Plant Name (LOC-0001)"
     },
-    "note": "Confirm the selected delivery location is shown in the sheet."
+    "note": "Verify that the delivery location was selected."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete any remaining required pricing-sheet fields before scheduling."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "vendors": [
-      "Vendor A"
-     ]
+     "count": 1
     },
-    "note": "Add the vendor named in the scenario before scheduling and publishing."
+    "note": "Add one available QA test vendor without inventing a vendor name."
    },
    {
     "step": "click",
@@ -150,32 +169,30 @@
      "role": "button",
      "name": "Schedule"
     },
-    "note": "Open the Schedule Event drawer from the footer."
-   },
-   {
-    "step": "expect_options",
-    "args": {
-     "label": "Duration",
-     "options": [
-      "60 Mins"
-     ]
-    },
-    "note": "Verify that the configured 60 Mins duration is offered."
-   },
-   {
-    "step": "select",
-    "args": {
-     "label": "Duration",
-     "option": "60 Mins"
-    },
-    "note": "Choose the required 60-minute duration while keeping the default Start now setting."
+    "note": "Open the Schedule Event drawer."
    },
    {
     "step": "expect_text",
     "args": {
+     "text": "Start now"
+    },
+    "note": "Verify that the schedule is using the Start now mode."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "End time",
+     "option": "60 Mins"
+    },
+    "note": "Choose the required 60-minute duration preset."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "scheduledEnd",
      "text": "Event will end at"
     },
-    "note": "Confirm the schedule drawer calculates and displays an end time for the selected duration."
+    "note": "Record the end time shown by the schedule drawer for comparison after publishing."
    },
    {
     "step": "click",
@@ -183,14 +200,14 @@
      "role": "button",
      "name": "Save Schedule"
     },
-    "note": "Commit the start-now and 60-minute schedule."
+    "note": "Commit the schedule."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "60 Mins"
     },
-    "note": "Confirm the footer schedule summary shows the selected duration."
+    "note": "Verify that the saved schedule chip shows the 60-minute duration."
    },
    {
     "step": "set_schedule"
@@ -198,19 +215,28 @@
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured RFQ event and confirm the publish dialog."
+    "note": "Publish the configured single-stage RFQ and confirm the publication dialog."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm publishing reached a real project page."
+    "note": "Verify that publication reached a real project page."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Bidding Ends At"
     },
-    "note": "Verify the published Project Details page exposes the bidding end-time field."
+    "note": "Verify that Project Details exposes the published bidding end time."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "scheduledEnd",
+     "text": "Bidding Ends At",
+     "contains": true
+    },
+    "note": "Compare the published Bidding Ends At value with the end time recorded in the schedule drawer."
    }
   ]
  }

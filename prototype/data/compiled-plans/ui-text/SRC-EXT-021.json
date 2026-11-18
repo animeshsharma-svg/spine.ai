@@ -4,23 +4,21 @@
   "title": "Extend twice",
   "group": "SRC-EXT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:27:11.273Z",
+  "compiledAt": "2026-11-13T12:09:27.804Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert the final end time moved exactly 20 minutes in total as one cumulative value.",
-   "Assert that Order Activity contains exactly two extension entries because the catalog provides no confirmed label or row-count assertion for those entries."
+   "Verify that the prepared live RFQ has no bids.",
+   "Assert that Order Activity contains both extension records specifically."
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Assert the final end time moved exactly 20 minutes in total as one cumulative value.; Assert that Order Activity contains exactly two extension entries because the catalog provides no confirmed label or row-count assertion for those entries."
+   "can only test part of this — no step for: Verify that the prepared live RFQ has no bids.; Assert that Order Activity contains both extension records specifically."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "extend_time",
    "extend_time",
    "event_menu",
@@ -28,17 +26,25 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 15081
+  "ms": 21751
  },
  "plan": {
-  "title": "Extend submission time twice",
+  "title": "Extend Submission Time Twice",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ event without searching the events list."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled for the case."
    },
    {
     "step": "extend_time",
@@ -46,9 +52,10 @@
      "which": "submission",
      "option": "custom",
      "amount": 10,
-     "unit": "minutes"
+     "unit": "minutes",
+     "expect": "saved"
     },
-    "note": "Extend the live RFQ submission window by the first 10 minutes and verify the saved end-time change."
+    "note": "Extend the current submission deadline by 10 minutes and verify the saved end-time change."
    },
    {
     "step": "extend_time",
@@ -56,16 +63,18 @@
      "which": "submission",
      "option": "custom",
      "amount": 10,
-     "unit": "minutes"
+     "unit": "minutes",
+     "expect": "saved"
     },
-    "note": "Extend the same submission window by another 10 minutes and verify the second saved end-time change."
+    "note": "Extend the already extended deadline by another 10 minutes and verify the second saved change."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Order Activity"
+     "item": "Order Activity",
+     "stage": "rfq"
     },
-    "note": "Open the stage Order Activity drawer to inspect the recorded activity."
+    "note": "Open the RFQ stage's Activity drawer to inspect the extension history."
    },
    {
     "step": "expect_text",
@@ -73,7 +82,7 @@
      "text": "Activity",
      "present": true
     },
-    "note": "Assert that the Order Activity drawer is open."
+    "note": "Assert that the Order Activity drawer opened; the catalog cannot reliably assert both extension entries."
    }
   ]
  }

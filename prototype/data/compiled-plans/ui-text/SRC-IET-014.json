@@ -4,28 +4,35 @@
   "title": "Extend to a fixed time: a day more than 3 months ahead",
   "group": "SRC-IET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:27:55.013Z",
+  "compiledAt": "2026-11-13T12:10:32.003Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "none",
+  "gaps": [
+   "Choose a specific day more than three months ahead in the fixed-time calendar and verify that the day is greyed out and cannot be selected.",
+   "The fixed-time extension step only accepts relative shorthand values and cannot represent an arbitrary calendar date beyond three months."
+  ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "cannot test this case yet — no step can observe: Choose a specific day more than three months ahead in the fixed-time calendar and verify that the day is greyed out and cannot be selected.; The fixed-time extension step only accepts relative shorthand values and cannot represent an arbitrary calendar date beyond three months."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "do_on_screen",
+   "require_setting",
+   "event_menu",
+   "expect_text",
+   "click",
    "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 13168
+  "ms": 12832
  },
  "plan": {
-  "title": "Reject fixed end time beyond three months",
+  "title": "Reject fixed date beyond three months",
   "steps": [
    {
     "step": "open_prepared",
@@ -35,19 +42,41 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "do_on_screen",
+    "step": "require_setting",
     "args": {
-     "goal": "On the live RFQ, open Settings, choose Extend Submission Time, choose Fixed, and show that a calendar day more than three months ahead is greyed out and cannot be selected; stop with the Increase Event Time window visible."
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Perform the relative-date calendar interaction and verify the out-of-range day is disabled."
+    "note": "Enable the eRFX project setting required by the setup."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Extend Submission Time"
+    },
+    "note": "Open the Increase Event Time dialog for the live event."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Increase Event Time",
-     "present": true
+     "text": "Increase Event Time"
     },
-    "note": "Assert that the fixed-time extension window remains open after the unavailable date is checked."
+    "note": "Confirm that the extension dialog opened before attempting the unsupported calendar-date check."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "radio",
+     "name": "Fixed"
+    },
+    "note": "Switch the extension dialog to fixed-time mode, the closest reachable state for the requested calendar check."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Choose fixed time"
+    },
+    "note": "Confirm that fixed-time selection is available, although the catalog cannot inspect disabled dates in its calendar."
    }
   ]
  }

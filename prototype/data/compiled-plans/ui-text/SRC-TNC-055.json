@@ -4,47 +4,54 @@
   "title": "Attach a T&C document",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:16:22.430Z",
+  "compiledAt": "2026-11-13T13:08:46.752Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Attach the specifically named file terms.pdf rather than a supported PDF fixture.",
+   "Verify that the exact terms.pdf filename is listed and downloadable by the vendor.",
+   "unconfirmed label \"sample.pdf\" (expect_visible) — not among the labels known from the app nor in the case"
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "inserted add_line_items before invite_vendor — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "inserted add_line_items before invite_vendor — the create screen locks Participants and Publish until a template is chosen and a product added"
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "coverage partial: unconfirmed label \"sample.pdf\" (expect_visible) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Attach the specifically named file terms.pdf rather than a supported PDF fixture.; Verify that the exact terms.pdf filename is listed and downloadable by the vendor."
   ],
   "source": "llm",
-  "steps": 22,
+  "steps": 23,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
-   "do_on_screen",
-   "click",
+   "add_line_items",
+   "fill_sheet",
+   "set_sheet_cell",
+   "set_sheet_cell",
    "click",
    "upload",
-   "click",
-   "expect_text",
-   "add_line_items",
-   "invite_vendor",
+   "expect_visible",
    "set_schedule",
+   "invite_vendor",
    "publish",
    "expect_published",
-   "expect_text",
    "expect_visible",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
+   "expect_visible",
    "click",
    "expect_download"
   ],
-  "ms": 19426
+  "ms": 19268
  },
  "plan": {
   "title": "Attach T&C document",
@@ -54,33 +61,71 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow."
+    "note": "Open the single-stage event creation screen specified by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "Set the single-stage event type to RFQ."
+    "note": "Change the default event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-TNC-055 Attach T&C"
-    },
-    "note": "Provide the mandatory event title."
+    "args": {},
+    "note": "Provide the mandatory event title using an automatically generated unique title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the product sheet is available."
+    "note": "Apply the first available RFQ template so the pricing sheet is available."
    },
    {
-    "step": "do_on_screen",
+    "step": "add_line_items",
     "args": {
-     "goal": "on the single-stage RFQ create screen, select the product CYLINDER WITH KEY & KNOB so Product Variant shows Default Variant, set Quantity Requested to 10, and select Plant Name (LOC-0001) for Delivery location; stop with the completed product row visible"
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
     },
-    "note": "The catalog has no dedicated step for selecting a specific product variant or delivery location."
+    "note": "Add the specified product and quantity."
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "value": "Variant 1"
+    },
+    "note": "Select the product's mapped variant."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location."
    },
    {
     "step": "click",
@@ -88,57 +133,37 @@
      "role": "button",
      "name": "Terms & Conditions"
     },
-    "note": "Open the event-level Terms & Conditions interface."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "Upload"
-    },
-    "note": "Open the document upload control in the Terms & Conditions interface."
+    "note": "Open the terms and conditions attachment modal."
    },
    {
     "step": "upload",
     "args": {
      "label": "Upload",
-     "file": "terms.pdf"
+     "file": "sample.pdf"
     },
-    "note": "Attach the requested terms.pdf document."
+    "note": "Attach the closest supported PDF fixture in place of the unavailable terms.pdf."
    },
    {
-    "step": "click",
+    "step": "expect_visible",
     "args": {
-     "text": "Done"
+     "text": "sample.pdf",
+     "visible": true
     },
-    "note": "Complete the document attachment flow."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "terms.pdf"
-    },
-    "note": "Verify the attached document is listed before publishing."
-   },
-   {
-    "step": "add_line_items",
-    "args": {},
-    "note": "a product is needed before participants or publishing"
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Add the vendor named in the case as a participant."
+    "note": "Confirm the uploaded PDF is shown in the attachment UI."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required 30-minute event schedule."
+    "note": "Commit the 30-minute event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one available QA vendor to the event."
    },
    {
     "step": "publish",
@@ -148,60 +173,49 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publishing reached a real project page."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "terms.pdf"
-    },
-    "note": "Verify the document is listed on Project Details after publication."
+    "note": "Confirm publication reached a real project page."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "Download",
+     "text": "Download",
      "visible": true
     },
-    "note": "Verify Project Details exposes a Download control for the attachment."
+    "note": "Check that the published project details expose a download control for the attachment."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
+     "to": "vendor"
     },
-    "note": "Switch to the invited vendor portal to verify vendor access."
+    "note": "Move to the invited vendor's supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "overview": true
     },
-    "note": "Open the published event overview in the vendor portal."
+    "note": "Open this event in the vendor's overview so its shared documents can be checked."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
-     "text": "terms.pdf"
+     "text": "Download",
+     "visible": true
     },
-    "note": "Verify the vendor can see the attached document."
+    "note": "Confirm the vendor view exposes a document download control."
    },
    {
     "step": "click",
     "args": {
-     "role": "button",
-     "name": "Download"
+     "text": "Download"
     },
-    "note": "Attempt the vendor download action."
+    "note": "Have the vendor download the attached PDF."
    },
    {
     "step": "expect_download",
-    "args": {
-     "name": "terms.pdf"
-    },
-    "note": "Verify the vendor download produced the attached document."
+    "args": {},
+    "note": "Assert that the vendor download completed."
    }
   ]
  }

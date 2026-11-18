@@ -4,49 +4,94 @@
   "title": "Assign one item from its Assignee cell",
   "group": "PRA-ASN",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:00:35.278Z",
+  "compiledAt": "2026-11-13T14:25:21.818Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"+\" (click) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "resolved: “Verify that the assignee dropdown contains exactly all and only users who can see PR-2 under team-category filtering.” — expect_options opens the list and reads what it offers, with greyed-out items",
+   "coverage partial: unconfirmed label \"+\" (click) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 8,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "do_on_screen",
+   "select_pr",
+   "click",
+   "expect_options",
+   "select",
    "expect_text"
   ],
-  "ms": 8074
+  "ms": 17019
  },
  "plan": {
-  "title": "Assign PR Item from Assignee Cell",
+  "title": "PR item assignee filtering",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team filtering configuration."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open Purchase Requisitions as the starting screen for the PR assignment flow."
+    "note": "Open the Purchase Requisitions area."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab where PR-2 is available."
+    "note": "Stay on the Open PR tab where PR-2 is available."
    },
    {
-    "step": "do_on_screen",
+    "step": "select_pr",
     "args": {
-     "goal": "find PR-2 in the Open Purchase Requisitions list, open the Assignee cell in its item row, verify the picker shows only users who can see PR-2 including Engg Buyer (User C), select Engg Buyer (User C), and stop with the PR-2 row showing User C as its assignee"
+     "pr": "PR-2"
     },
-    "note": "Perform the row-level assignment and inspect the eligible-user list, which has no dedicated catalog step."
+    "note": "Locate PR-2 in the list so its row and line items are available for inspection."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "+",
+     "within": "PR-2"
+    },
+    "note": "Open the unassigned item's Assignee cell in the PR-2 row."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "options": [
+      "Engg Buyer"
+     ]
+    },
+    "note": "Verify that Engg Buyer/User C is offered as an assignee; the full filtered set cannot be proven from the case data."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Assignee",
+     "option": "Engg Buyer",
+     "within": "PR-2"
+    },
+    "note": "Assign the PR-2 item to User C."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "User C"
+     "text": "User C",
+     "within": "PR-2"
     },
-    "note": "Assert that the assigned PR-2 row visibly shows User C after the assignment."
+    "note": "Confirm that the row now displays User C as the assignee."
    }
   ]
  }

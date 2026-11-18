@@ -4,33 +4,57 @@
   "title": "The award proposal page: \"Document\" — record what happens",
   "group": "EXP-PROPOSAL",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:50:51.434Z",
+  "compiledAt": "2026-11-13T14:16:18.290Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_navigated",
-   "probe_controls",
-   "expect_navigated"
+   "remember",
+   "click",
+   "expect_remembered",
+   "expect_navigated",
+   "expect_screen_clean"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 70666
+  "ms": 9422
  },
  "plan": {
-  "title": "EXP-PROPOSAL-001 — Document control behavior",
+  "title": "EXP-PROPOSAL-001 Document Control Exploration",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS on the prepared closed RFQ with an award proposal."
+    "note": "Open the prepared closed RFQ's Master QCS."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "ntd_required_on_proposal",
+     "value": "On"
+    },
+    "note": "Enable the required Note to Director proposal configuration."
    },
    {
     "step": "click",
@@ -45,24 +69,44 @@
     "args": {
      "screen": "proposal"
     },
-    "note": "Confirm the award proposal page is ready before testing Document."
+    "note": "Verify that the award proposal page opened."
    },
    {
-    "step": "probe_controls",
+    "step": "remember",
     "args": {
-     "include": [
-      "Document"
-     ],
-     "max": 1
+     "key": "document_control",
+     "role": "button",
+     "name": "Document"
     },
-    "note": "Click the Document control and record whether it opens anything or changes the page, without confirming any dialog."
+    "note": "Record the Document control before clicking it so a visible change can be checked."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Document"
+    },
+    "note": "Perform the exploratory action requested by the case."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "document_control",
+     "same": true
+    },
+    "note": "Verify that the Document control's visible state did not change."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "proposal"
     },
-    "note": "Verify the browser remains on the proposal page, matching the expected lack of visible change."
+    "note": "Verify that clicking Document did not navigate away from the award proposal page."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm that no error, crash, raw value, or other visible rendering problem appeared."
    }
   ]
  }

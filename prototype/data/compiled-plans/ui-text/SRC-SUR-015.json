@@ -4,41 +4,41 @@
   "title": "Surrogate bid that needs approval",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:18:38.112Z",
+  "compiledAt": "2026-11-13T13:00:53.823Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Start from a live RFQ with no bids; the available prepared state has one existing bid.",
-   "Verify that the pending surrogate bid is excluded from response counts with a no-bid baseline.",
-   "Approve or reject the surrogate-bid approval request and verify that rejection removes it."
+   "Approve the pending surrogate bid and verify that it becomes counted",
+   "Reject the pending surrogate bid and verify that it is removed"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Start from a live RFQ with no bids; the available prepared state has one existing bid.; Verify that the pending surrogate bid is excluded from response counts with a no-bid baseline.; Approve or reject the surrogate-bid approval request and verify that rejection removes it."
+   "can only test part of this — no step for: Approve the pending surrogate bid and verify that it becomes counted; Reject the pending surrogate bid and verify that it is removed"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
    "place_surrogate_bid",
-   "expect_text"
+   "go_to",
+   "expect_responses"
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 12601
+  "ms": 8468
  },
  "plan": {
-  "title": "Surrogate bid requires approval",
+  "title": "Surrogate bid requiring approval",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared event's pricing-stage Participants tab without creating or searching for another event."
+    "note": "Open the prepared live RFQ's Participants tab, as required for this prepared state."
    },
    {
     "step": "require_setting",
@@ -46,7 +46,7 @@
      "key": "company_level_approval_workflows_allowed",
      "value": "On"
     },
-    "note": "Enable company approval workflows required for surrogate bids."
+    "note": "Enable the company approval workflow required for surrogate bids."
    },
    {
     "step": "require_setting",
@@ -54,19 +54,26 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects for the RFQ flow."
+    "note": "Ensure eRFX projects are enabled for the RFQ event."
    },
    {
     "step": "place_surrogate_bid",
-    "note": "Have the buyer add a surrogate bid and observe whether Procol reports it as approval-pending rather than immediately active."
+    "args": {},
+    "note": "Add a surrogate bid for an invited vendor; the step reports whether approval is required."
    },
    {
-    "step": "expect_text",
+    "step": "go_to",
     "args": {
-     "text": "Approval",
-     "present": true
+     "screen": "responses"
     },
-    "note": "Check the visible approval-related state after submitting the surrogate bid; the exact product label is not guaranteed by the catalog."
+    "note": "Open the RFQ Responses view to check whether the approval-pending bid is counted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 0
+    },
+    "note": "Verify that no response is counted before the surrogate bid is approved."
    }
   ]
  }

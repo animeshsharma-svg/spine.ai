@@ -4,40 +4,55 @@
   "title": "Send Bulk Counter Offer is offered on a live RFQ where Vendor An and Vendor B have bid",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:00:02.545Z",
+  "compiledAt": "2026-11-13T12:49:43.257Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
+   "require_setting",
+   "require_setting",
    "expect_menu_item",
    "event_menu",
-   "expect_visible",
+   "expect_text",
    "click",
-   "expect_visible"
+   "expect_menu_item"
   ],
   "state": "two_bids",
   "screen": "responses",
-  "ms": 8170
+  "ms": 9344
  },
  "plan": {
-  "title": "Bulk Counter Offer availability with two bids",
+  "title": "Bulk Counter Offer on Live RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ with two bids on its Responses tab."
+    "note": "Open the prepared live RFQ with two bids on the buyer's Responses tab."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the stage Settings menu where Send Bulk Counter Offer is offered."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the setup."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure counter offers are shown on RFQ stages."
    },
    {
     "step": "expect_menu_item",
@@ -45,23 +60,21 @@
      "item": "Send Bulk Counter Offer",
      "enabled": true
     },
-    "note": "Assert the bulk counter-offer action is present and clickable."
+    "note": "Verify the Settings menu offers the action and that it is clickable with two live bids."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Send Bulk Counter Offer"
     },
-    "note": "Select the enabled action to open its counter-offer window."
+    "note": "Open the bulk counter-offer window without confirming any counter offer."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "button",
-     "name": "Cancel",
-     "visible": true
+     "text": "Counter Offer"
     },
-    "note": "Assert the bulk counter-offer window opened and exposes its Cancel control."
+    "note": "Confirm the bulk counter-offer window opened."
    },
    {
     "step": "click",
@@ -69,16 +82,15 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the window without confirming any counter offer."
+    "note": "Close the bulk counter-offer window without submitting changes."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_menu_item",
     "args": {
-     "role": "button",
-     "name": "Cancel",
-     "visible": false
+     "item": "Send Bulk Counter Offer",
+     "enabled": true
     },
-    "note": "Assert the counter-offer window closed after cancellation."
+    "note": "Verify the enabled menu action remains available after cancelling."
    }
   ]
  }

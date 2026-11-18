@@ -3,43 +3,34 @@
   "caseId": "PRD-RA-021",
   "title": "Auction Time Controls: not available on plans below Growth",
   "group": "PRD-RA",
-  "compiledAt": "2026-11-10T01:37:32.239Z",
+  "compiledAt": "2026-11-13T14:58:01.987Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Switching between or verifying a tenant on a plan below Growth and a tenant on Growth, because the catalog cannot inspect plan levels and no tenant IDs are provided",
-   "Comparing Auction Time Controls availability across two plan tiers with the same user and steps",
-   "Shortening submission time with a logged reason, because no catalog step supports shortening submission time with a reason",
-   "Verifying the specific Auction Time Controls capability as a plan-gated feature rather than checking individual settings items"
+   "Identify a tenant on a plan below Growth and a tenant on Growth when no tenant IDs are provided, then repeat the same actions across both tenants",
+   "Verify that the capability is unavailable specifically because the tenant is below Growth",
+   "Shorten submission time; the catalog supports extending submission time but not decreasing submission time",
+   "Log a reason for every submission-time control action"
   ],
   "warnings": [
-   "moved open_event to the front — the steps after it act on that event's page",
-   "moved open_event to the front — the steps after it act on that event's page",
-   "can only test part of this — no step for: Switching between or verifying a tenant on a plan below Growth and a tenant on Growth, because the catalog cannot inspect plan levels and no tenant IDs are provided; Comparing Auction Time Controls availability across two plan tiers with the same user and steps; Shortening submission time with a logged reason, because no catalog step supports shortening submission time with a reason; Verifying the specific Auction Time Controls capability as a plan-gated feature rather than checking individual settings items"
+   "can only test part of this — no step for: Identify a tenant on a plan below Growth and a tenant on Growth when no tenant IDs are provided, then repeat the same actions across both tenants; Verify that the capability is unavailable specifically because the tenant is below Growth; Shorten submission time; the catalog supports extending submission time but not decreasing submission time; Log a reason for every submission-time control action"
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_event",
-   "ask_tester",
-   "expect_settings_menu"
+   "expect_settings_menu",
+   "extend_submission_time"
   ],
-  "ms": 9905
+  "ms": 13769
  },
  "plan": {
-  "title": "Auction Time Controls Plan Gating",
+  "title": "Auction Time Controls by Plan",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open the event page needed to inspect the current tenant's event controls."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "provide access to the lower-plan tenant and the Growth tenant, then compare Auction Time Controls availability for extending, shortening, and ending submission with a logged reason"
-    },
-    "note": "Tenant plan selection and the cross-plan comparison are not expressible by the catalog."
+    "note": "Open an existing event page where the current Settings menu can be inspected."
    },
    {
     "step": "expect_settings_menu",
@@ -51,7 +42,14 @@
       "Extend Submission Time"
      ]
     },
-    "note": "Checks the closest supported representation of an available Auction Time Control on the current event."
+    "note": "Assert that the available event exposes an enabled submission-time control; this checks availability on the current tenant but cannot establish its plan tier."
+   },
+   {
+    "step": "extend_submission_time",
+    "args": {
+     "by": "15 minutes"
+    },
+    "note": "Exercise the supported submission-time control and verify that the extension is accepted."
    }
   ]
  }

@@ -4,39 +4,36 @@
   "title": "Switching from RFQ to Auction after choosing a template",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:29:22.536Z",
+  "compiledAt": "2026-11-13T11:49:06.869Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Directly assert that the specific previously selected RFQ template was dropped rather than merely checking that auction templates are offered.",
-   "Directly assert that no RFQ pricing-sheet data is published under the auction; the plan intentionally does not publish."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Directly assert that the specific previously selected RFQ template was dropped rather than merely checking that auction templates are offered.; Directly assert that no RFQ pricing-sheet data is published under the auction; the plan intentionally does not publish."
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 10,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
+   "expect_template_selected",
    "add_line_items",
+   "expect_line_items",
    "configure_single_stage",
    "expect_template_menu",
-   "expect_visible",
    "expect_line_items"
   ],
-  "ms": 10027
+  "ms": 11028
  },
  "plan": {
-  "title": "Switch RFQ to Auction After Template Selection",
+  "title": "Switch RFQ to Auction After Template",
   "steps": [
    {
     "step": "open_create",
@@ -48,60 +45,65 @@
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq",
-     "awarding": "lot"
+     "eventType": "rfq"
     },
-    "note": "Set the initial event type to RFQ."
+    "note": "Set the event type to RFQ before choosing its template."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title for a create flow."
+    "args": {
+     "title": "SRC-CRE-007 RFQ to Auction Template Switch"
+    },
+    "note": "Provide the required event title for a create test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose an RFQ template before adding the product."
+    "note": "Choose an available RFQ template."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Verify that the RFQ stage has a template applied before switching event type."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the product whose retention after switching event type is being checked."
-   },
-   {
-    "step": "configure_single_stage",
-    "args": {
-     "eventType": "auction",
-     "auctionSubtype": "rank",
-     "awarding": "lot"
-    },
-    "note": "Switch the single-stage event from RFQ to Auction."
-   },
-   {
-    "step": "expect_template_menu",
-    "args": {
-     "eventType": "auction",
-     "min": 1
-    },
-    "note": "Verify that the current event type offers auction templates for selection."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Select Templates",
-     "visible": true
-    },
-    "note": "Confirm the template must be selected again after the event-type switch."
+    "note": "Add a product so its retention can be checked after switching to Auction."
    },
    {
     "step": "expect_line_items",
     "args": {
      "count": 1
     },
-    "note": "Verify that the product row remains after switching from RFQ to Auction."
+    "note": "Confirm the RFQ product row exists before the event type change."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "Switch the single-stage event to Auction."
+   },
+   {
+    "step": "expect_template_menu",
+    "args": {
+     "eventType": "auction",
+     "min": 1,
+     "distinctFrom": [
+      "rfq"
+     ]
+    },
+    "note": "Verify that the RFQ template is no longer the applicable template and that auction templates are offered."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Confirm whether the product row was retained after switching event type."
    }
   ]
  }

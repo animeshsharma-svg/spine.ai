@@ -3,41 +3,50 @@
   "caseId": "PRD-RA-009",
   "title": "Multiple Auction Strategies: refused for a user without the Buyer role",
   "group": "PRD-RA",
-  "compiledAt": "2026-11-10T01:36:50.161Z",
+  "compiledAt": "2026-11-13T14:57:30.004Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as the non-Buyer and Buyer personas and verify that Multiple Auction Strategies is refused or absent for the non-Buyer while available to the Buyer; the catalog cannot switch to those roles or inspect tenant RBAC configuration.",
-   "Observe the exact Multiple Auction Strategies control and its English, Dutch, Japanese, or other format options because no catalog step exposes that feature by name."
+   "Sign in as a non-Buyer and then as a Buyer on the specified Growth-plan tenant, attempt Multiple Auction Strategies in both sessions, and compare refusal or availability by role.",
+   "Verify the tenant is on the Growth plan because no catalog step can inspect or select an unnamed plan tier."
   ],
   "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "added set_title — publishing without a title is refused",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Sign in as the non-Buyer and Buyer personas and verify that Multiple Auction Strategies is refused or absent for the non-Buyer while available to the Buyer; the catalog cannot switch to those roles or inspect tenant RBAC configuration.; Observe the exact Multiple Auction Strategies control and its English, Dutch, Japanese, or other format options because no catalog step exposes that feature by name."
+   "can only test part of this — no step for: Sign in as a non-Buyer and then as a Buyer on the specified Growth-plan tenant, attempt Multiple Auction Strategies in both sessions, and compare refusal or availability by role.; Verify the tenant is on the Growth plan because no catalog step can inspect or select an unnamed plan tier."
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_create",
    "set_title",
-   "configure_single_stage",
    "ask_tester",
-   "expect_no_error"
+   "configure_single_stage",
+   "expect_options"
   ],
-  "ms": 11069
+  "ms": 24098
  },
  "plan": {
-  "title": "Multiple Auction Strategies RBAC",
+  "title": "Auction strategy role access",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Reach the single-stage auction configuration screen, the closest available screen for auction strategy access."
+    "note": "Open the closest available auction configuration screen for inspecting strategy choices."
    },
    {
     "step": "set_title"
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the non-Buyer and Buyer personas on the specified Growth-plan tenant, attempt Multiple Auction Strategies in both sessions, and record whether the action is refused or available"
+    },
+    "note": "Role-specific sign-in and the cross-role comparison are not expressible by the catalog."
    },
    {
     "step": "configure_single_stage",
@@ -46,19 +55,25 @@
      "auctionSubtype": "rank",
      "awarding": "lot"
     },
-    "note": "Open and configure the available auction strategy area before the role-based comparison."
+    "note": "Enter the auction configuration drawer without publishing an event."
    },
    {
-    "step": "ask_tester",
+    "step": "expect_options",
     "args": {
-     "need": "sign in as the non-Buyer and Buyer personas on the same tenant and verify whether Multiple Auction Strategies is absent or refused for the non-Buyer and available to the Buyer"
+     "label": "Choose a Strategy",
+     "options": [
+      "Price Based",
+      "Rank Based",
+      "Traffic Light",
+      "Knockout",
+      "Dutch Auction"
+     ],
+     "disabled": [
+      "Knockout",
+      "Dutch Auction"
+     ]
     },
-    "note": "The catalog cannot change user roles or test this role-dependent feature."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the session has not produced an application error after the tester's role comparison."
+    "note": "Assert the strategy choices and the known disabled state of conversion-only strategies."
    }
   ]
  }

@@ -4,17 +4,18 @@
   "title": "A live RFQ: switching hide_withdraw_in_intake_and_event changes nothing visible here",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:46:07.969Z",
+  "compiledAt": "2026-11-13T14:13:35.141Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "none",
+  "gaps": [
+   "Record what opens or changes as a result of switching the setting."
+  ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "resolved: “Switch hide_withdraw_in_intake_and_event from On to Off during the same session and verify that the visible controls and” — require_setting switches that company setting before the case and back after"
+   "resolved: “Switch hide_withdraw_in_intake_and_event from On to Off during the session and compare the visible controls or menus bef” — require_setting switches that company setting before the case and back after",
+   "cannot test this case yet — no step can observe: Record what opens or changes as a result of switching the setting."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -23,13 +24,11 @@
    "require_setting",
    "go_to",
    "go_to",
-   "expect_screen_clean",
-   "open_event_settings",
-   "expect_settings_menu"
+   "expect_menu_item"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 11115
+  "ms": 15675
  },
  "plan": {
   "title": "Live RFQ withdraw setting visibility",
@@ -39,7 +38,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ without creating or searching for another event."
+    "note": "Open the prepared live RFQ event required by this case."
    },
    {
     "step": "require_setting",
@@ -47,7 +46,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects required for the prepared RFQ."
+    "note": "Enable eRFX projects as required for the event."
    },
    {
     "step": "require_setting",
@@ -55,7 +54,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "Off"
     },
-    "note": "Apply the setting value under test."
+    "note": "Set the configuration under test to Off; the runner restores it afterward."
    },
    {
     "step": "require_setting",
@@ -63,7 +62,7 @@
      "key": "disable_withdraw_during_submission_time",
      "value": "Off"
     },
-    "note": "Use the requested live-event withdrawal configuration."
+    "note": "Allow withdrawal during live submission as required by the scenario."
    },
    {
     "step": "require_setting",
@@ -71,7 +70,7 @@
      "key": "is_vendor_masking_allowed_for_everyone",
      "value": "On"
     },
-    "note": "Apply the requested vendor-masking configuration."
+    "note": "Apply the required vendor-masking tenant configuration."
    },
    {
     "step": "go_to",
@@ -86,26 +85,16 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the Responses tab, the screen named by the case."
+    "note": "Open the RFQ Responses tab, the screen named by the case."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Verify the Responses screen rendered without errors or raw values."
-   },
-   {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the live RFQ Settings menu to inspect withdrawal availability."
-   },
-   {
-    "step": "expect_settings_menu",
+    "step": "expect_menu_item",
     "args": {
-     "offered": [
-      "Withdraw"
-     ]
+     "item": "Withdraw",
+     "stage": "rfq",
+     "enabled": true
     },
-    "note": "Assert the live RFQ Settings menu's visible withdrawal control under the configured state."
+    "note": "Inspect the RFQ Settings menu for the visible Withdraw control under the configured state."
    }
   ]
  }

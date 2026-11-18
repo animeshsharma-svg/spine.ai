@@ -4,32 +4,48 @@
   "title": "New message with empty fields",
   "group": "SRC-STG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:06:44.952Z",
+  "compiledAt": "2026-11-13T12:56:47.383Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "the model was unsure of 2 label(s) that are known from the app — coverage full"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "click",
-   "do_on_screen",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "click",
    "expect_message"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9502
+  "ms": 20678
  },
  "plan": {
-  "title": "Empty message validation",
+  "title": "Empty New Message Refused",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary page without searching or creating another event."
+    "note": "Open the prepared live RFQ with no bids on its project summary page."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration for the case."
    },
    {
     "step": "click",
@@ -37,14 +53,38 @@
      "role": "button",
      "name": "Messages"
     },
-    "note": "Open the buyer's Messages drawer."
+    "note": "Open the buyer's Messages area."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_visible",
     "args": {
-     "goal": "open the New Message form, leave all message fields empty, click Send, and stop after the screen shows the refusal for the empty message"
+     "text": "Messages",
+     "visible": true
     },
-    "note": "Perform the empty-message submission in the buyer session."
+    "note": "Confirm the Messages area is open before starting a new message."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "New Message"
+    },
+    "note": "Open the new-message form; this label is not confirmed in the catalog."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "New Message",
+     "visible": true
+    },
+    "note": "Confirm the new-message form is displayed."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Send"
+    },
+    "note": "Submit the empty form without entering message text; this label is not confirmed in the catalog."
    },
    {
     "step": "expect_message",
@@ -52,7 +92,7 @@
      "kind": "error",
      "text": "Please fill all the values and try again"
     },
-    "note": "Assert the exact validation refusal."
+    "note": "Assert that Procol refuses the empty message with the expected validation message."
    }
   ]
  }

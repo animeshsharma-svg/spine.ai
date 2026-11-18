@@ -4,34 +4,42 @@
   "title": "Decrease the evaluation time to before the bidding end",
   "group": "SRC-IET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:29:13.557Z",
+  "compiledAt": "2026-11-13T12:11:15.736Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "extend_time"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 16451
+  "ms": 12811
  },
  "plan": {
-  "title": "Reject evaluation time before bidding end",
+  "title": "Reject evaluation end before bidding end",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared RFQ currently in evaluation instead of creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the test configuration."
    },
    {
     "step": "extend_time",
@@ -44,7 +52,7 @@
      "expect": "refused",
      "message": "New time cannot be less than existing event time"
     },
-    "note": "Open Edit Evaluation Time, choose Decrease by, enter a duration that moves the evaluation end before the existing event time, and verify the exact refusal."
+    "note": "Attempt to decrease the evaluation duration far enough to place its end before the bidding end, and verify the required refusal."
    }
   ]
  }

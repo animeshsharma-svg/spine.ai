@@ -4,10 +4,12 @@
   "title": "Configuration for Event: Cancel event creation without saving",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:38:06.267Z",
+  "compiledAt": "2026-11-13T14:01:08.144Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Prove that every pre-existing event-list row remains unchanged, beyond verifying that this test event was not created."
+  ],
   "warnings": [
    "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -18,28 +20,34 @@
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet"
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Prove that every pre-existing event-list row remains unchanged, beyond verifying that this test event was not created."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 17,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
+   "click",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "do_on_screen",
-   "expect_text",
+   "configure_single_stage",
+   "click",
+   "expect_visible",
    "save_draft",
    "open_events_list",
    "expect_events_list",
-   "expect_table"
+   "expect_text"
   ],
-  "ms": 13231
+  "ms": 18492
  },
  "plan": {
-  "title": "Cancel Single-Stage RFQ Configuration",
+  "title": "Cancel Single-Stage Configuration",
   "steps": [
    {
     "step": "open_create",
@@ -49,23 +57,57 @@
     "note": "Open the Single Stage event creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Enable the required tenant configuration before opening the create flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable the required read-only ceiling-price configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Apply the required terms-and-conditions configuration."
+   },
+   {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ and open its configuration drawer."
+    "note": "Set the event type to RFQ and open the Configuration for Event window."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Close the initial configuration window so the RFQ can be prepared."
    },
    {
     "step": "set_title",
     "args": {
      "title": "EXP-CREATESINGLE-012 Cancel Configuration"
     },
-    "note": "Give the unsaved event a unique title so its absence can be checked later."
+    "note": "Provide the mandatory event title without implying that the event will be saved."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Choose the RFQ pricing template."
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Apply the requested Buy pricing template."
    },
    {
     "step": "add_line_items",
@@ -74,25 +116,34 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product with quantity 10."
+    "note": "Add the requested product with quantity 10."
    },
    {
     "step": "fill_sheet"
    },
    {
-    "step": "do_on_screen",
+    "step": "configure_single_stage",
     "args": {
-     "goal": "on the Single Stage RFQ create screen, click Cancel in the Configuration for Event window; stop on the create screen after the window is closed without saving or creating the event"
+     "eventType": "rfq"
     },
-    "note": "Perform the configuration cancellation that no dedicated catalog action exposes."
+    "note": "Reopen the RFQ Configuration for Event window after product setup."
    },
    {
-    "step": "expect_text",
+    "step": "click",
     "args": {
-     "text": "Configuration for Event",
-     "present": false
+     "role": "button",
+     "name": "Cancel"
     },
-    "note": "Verify the configuration window is closed."
+    "note": "Perform the behavior under test: cancel configuration without saving."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Configuration for Event",
+     "visible": false
+    },
+    "note": "Verify that the configuration window has closed."
    },
    {
     "step": "save_draft"
@@ -100,20 +151,20 @@
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to check that cancellation created nothing."
+    "note": "Navigate to the events list to check that cancellation did not create the event."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the events list rendered without an application error."
+    "note": "Verify that the events list rendered without an application error."
    },
    {
-    "step": "expect_table",
+    "step": "expect_text",
     "args": {
-     "row": "EXP-CREATESINGLE-012 Cancel Configuration",
+     "text": "EXP-CREATESINGLE-012 Cancel Configuration",
      "present": false
     },
-    "note": "Assert that the cancelled event does not appear in the events list."
+    "note": "Assert that the unsaved test event is not present in the list."
    }
   ]
  }

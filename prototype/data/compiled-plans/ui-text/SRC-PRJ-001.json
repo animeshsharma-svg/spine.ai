@@ -4,24 +4,26 @@
   "title": "Read the Project Details tab of a live project",
   "group": "SRC-PRJ",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:35:19.101Z",
+  "compiledAt": "2026-11-13T12:30:58.037Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The Events list navigation, title search, and row selection cannot be performed because the prepared-state rules require opening the existing event directly with open_prepared.",
-   "The exact Project ID and Created at values cannot be compared because no catalog assertion exposes those dynamic values.",
-   "The exact Participants 0/N ratio cannot be asserted because the prepared event's invited-vendor total is not exposed as an API value or fixed case value.",
-   "The exact quotation-sheet names, per-sheet Download association, and clause contents cannot be asserted; only their visible labels can be checked.",
-   "The open-in-new-tab icon beside Stage Title cannot be asserted as a distinct control."
+   "Verify the exact Project ID and Created at values.",
+   "Verify the exact RFQ stage code, stage title, participant ratio 0/N, bidding start/end times, and quotation-template sheet values.",
+   "Verify the open-in-new-tab icon beside the stage title.",
+   "Verify every individual quotation-template download control and every listed terms-and-conditions clause."
   ],
   "warnings": [
-   "can only test part of this — no step for: The Events list navigation, title search, and row selection cannot be performed because the prepared-state rules require opening the existing event directly with open_prepared.; The exact Project ID and Created at values cannot be compared because no catalog assertion exposes those dynamic values.; The exact Participants 0/N ratio cannot be asserted because the prepared event's invited-vendor total is not exposed as an API value or fixed case value.; The exact quotation-sheet names, per-sheet Download association, and clause contents cannot be asserted; only their visible labels can be checked.; The open-in-new-tab icon beside Stage Title cannot be asserted as a distinct control."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify the exact Project ID and Created at values.; Verify the exact RFQ stage code, stage title, participant ratio 0/N, bidding start/end times, and quotation-template sheet values.; Verify the open-in-new-tab icon beside the stage title.; Verify every individual quotation-template download control and every listed terms-and-conditions clause."
   ],
   "source": "llm",
   "steps": 16,
   "stepNames": [
    "open_prepared",
-   "expect_visible",
+   "require_setting",
+   "expect_navigated",
    "expect_text",
    "expect_text",
    "expect_text",
@@ -31,7 +33,6 @@
    "expect_text",
    "expect_text",
    "expect_text",
-   "expect_table",
    "expect_text",
    "expect_text",
    "expect_text",
@@ -39,134 +40,121 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 14548
+  "ms": 11631
  },
  "plan": {
-  "title": "Read live project details",
+  "title": "SRC-PRJ-001 — Read live project details",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing live RFQ on its Project Details summary screen as required for the prepared state."
+    "note": "Open the prepared live RFQ directly on its Project Details summary page."
    },
    {
-    "step": "expect_visible",
+    "step": "require_setting",
     "args": {
-     "text": "Project Details",
-     "visible": true
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Verify that the Project Details view is visible."
+    "note": "Ensure eRFX projects are enabled as required by the setup."
    },
    {
-    "step": "expect_text",
+    "step": "expect_navigated",
     "args": {
-     "text": "Project ID",
-     "present": true
+     "screen": "summary"
     },
-    "note": "Check that the project metadata includes the Project ID field."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Created at",
-     "present": true
-    },
-    "note": "Check that the project metadata includes the creation timestamp field."
+    "note": "Confirm the browser is on the Project Details summary screen."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Stage Code",
-     "present": true
+     "text": "Project ID"
     },
-    "note": "Check the case's expected Published Stages column label for the RFQ stage code."
+    "note": "Check that the project metadata section exposes the Project ID."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "RFQ-",
-     "present": true
+     "text": "Created at"
     },
-    "note": "Check that an RFQ stage-code value is displayed with the expected RFQ prefix."
+    "note": "Check that the project metadata section exposes its creation timestamp."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Stage Title",
-     "present": true
+     "text": "Published Stages"
     },
-    "note": "Verify the Published Stages table exposes the stage title column."
+    "note": "Check that the published-stage section is present."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Pending Actions",
-     "present": true
+     "text": "Stage Code"
     },
-    "note": "Verify the Published Stages table exposes pending actions."
+    "note": "Check that the stage table exposes the RFQ stage-code column."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Participants",
-     "present": true
+     "text": "Stage Title"
     },
-    "note": "Verify participant information is shown for the published stage."
+    "note": "Check that the stage table exposes the stage-title column."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Bidding Starts At",
-     "present": true
+     "text": "Pending Actions"
     },
-    "note": "Verify the stage start-time field is shown."
+    "note": "Check that the stage table exposes pending actions."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Bidding Ends At",
-     "present": true
+     "text": "Participants"
     },
-    "note": "Verify the stage end-time field is shown."
-   },
-   {
-    "step": "expect_table",
-    "args": {
-     "within": "Published Stages",
-     "min": 1
-    },
-    "note": "Confirm that the Published Stages table rendered at least one stage row."
+    "note": "Check that participant information is shown for the published stage."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Quotation Templates",
-     "present": true
+     "text": "Bidding Starts At"
     },
-    "note": "Verify the quotation-template section is present."
+    "note": "Check that the stage table shows the bidding start field."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Download",
-     "present": true
+     "text": "Bidding Ends At"
     },
-    "note": "Verify that a template download control is available."
+    "note": "Check that the stage table shows the bidding end field."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Terms and Conditions",
-     "present": true
+     "text": "Quotation Templates"
     },
-    "note": "Verify the terms-and-conditions section is present."
+    "note": "Check that the quotation-template section is present."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Download"
+    },
+    "note": "Check that template download actions are exposed."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Terms and Conditions"
+    },
+    "note": "Check that the terms-and-conditions section is present."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Ensure the Project Details screen has no crash, server error, raw identifiers, or undefined values."
+    "note": "Confirm the Project Details screen has no rendering errors, raw values, or server failures."
    }
   ]
  }

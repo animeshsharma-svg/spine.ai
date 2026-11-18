@@ -4,49 +4,71 @@
   "title": "Text typed below the system line is ignored",
   "group": "EMA-APR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:53:35.777Z",
+  "compiledAt": "2026-11-13T14:19:02.149Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in to Asha's mailbox and open the Procol approval request email",
-   "Click the email's Approve button and compose the approval reply",
-   "Type the comment above and text below the system-generated line, then send the email unchanged",
-   "Wait for Procol to process the approval mailbox",
-   "Verify that only \"OK\" is recorded and \"ignore me\" is absent from Procol"
+   "Open Asha's external mailbox and the Procol approval request email",
+   "Click the email's Approve action and send the reply without changing its subject",
+   "Verify that text below the system-generated line is ignored and only \"OK\" is recorded in Procol",
+   "Verify the approval mailbox processes the reply after 1–2 minutes"
   ],
   "warnings": [
-   "can only test part of this — no step for: Log in to Asha's mailbox and open the Procol approval request email; Click the email's Approve button and compose the approval reply; Type the comment above and text below the system-generated line, then send the email unchanged; Wait for Procol to process the approval mailbox; Verify that only \"OK\" is recorded and \"ignore me\" is absent from Procol"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Open Asha's external mailbox and the Procol approval request email; Click the email's Approve action and send the reply without changing its subject; Verify that text below the system-generated line is ignored and only \"OK\" is recorded in Procol; Verify the approval mailbox processes the reply after 1–2 minutes"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 9830
+  "ms": 16027
  },
  "plan": {
-  "title": "Email Approval Ignores System-Line Text",
+  "title": "EMA-APR-011 Email Approval Comment Parsing",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named event to provide the closest available buyer-side context; this does not access or verify the email approval flow."
+    "note": "Open the named existing event in the buyer portal before the external mailbox action."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the email approval capability required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Ensure the event approval workflow is configured for email approvals."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open Asha's mailbox, complete the Procol approval email flow with \"OK\" above and \"ignore me\" below the system-generated line, send it, wait for processing, and verify that only \"OK\" is recorded"
+     "need": "open Asha's mailbox, approve the Procol request, reply with \"OK\" after the Required Comment line and \"ignore me\" below the system-generated line, send it unchanged, and wait for Procol to process the email"
     },
-    "note": "The catalog cannot perform or observe the mailbox interaction, email processing, or recorded-comment filtering."
+    "note": "The catalog has no external mailbox or email-reply processing step, so the tester must perform the core scenario."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert only that the current screen remains free of visible errors; this is not an assertion of the email approval result."
+    "step": "expect_text",
+    "args": {
+     "text": "Approval in Progress",
+     "present": true
+    },
+    "note": "Check the known event-page state as the closest available buyer-portal observation after the tester's email action."
    }
   ]
  }

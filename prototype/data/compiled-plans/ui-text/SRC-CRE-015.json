@@ -4,7 +4,7 @@
   "title": "RFQ: Quantity Requested = 10",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:30:03.336Z",
+  "compiledAt": "2026-11-13T11:50:03.660Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,36 +17,39 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 19,
   "stepNames": [
    "open_create",
    "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
+   "expect_template_selected",
    "add_line_items",
    "fill_sheet",
+   "expect_sheet_columns",
    "set_sheet_cell",
    "expect_sheet_cell",
+   "expect_sheet_cell",
    "set_sheet_cell",
-   "set_sheet_cell",
+   "expect_sheet_cell",
    "expect_sheet_cell",
    "invite_vendor",
    "set_schedule",
    "publish",
    "expect_published"
   ],
-  "ms": 17165
+  "ms": 28976
  },
  "plan": {
-  "title": "SRC-CRE-015 RFQ Quantity Requested 10",
+  "title": "Single-stage RFQ quantity requested is retained as 10",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the Single Stage event creation screen."
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "require_setting",
@@ -62,19 +65,24 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set the event type to RFQ and use the entire-lot awarding mode."
+    "note": "Set the event type to RFQ and use the stated whole-lot awarding mode."
    },
    {
     "step": "set_title",
     "args": {
      "title": "SRC-CRE-015 RFQ Quantity 10"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Every successful create flow requires an event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template so the product sheet is available."
+    "note": "Apply the first available RFQ template so the pricing sheet is available."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Verify that the RFQ template was applied."
    },
    {
     "step": "add_line_items",
@@ -82,12 +90,26 @@
      "count": 1,
      "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the specified product; the product's configured variant should populate automatically."
+    "note": "Add the specified product to the RFQ sheet."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Fill remaining mandatory pricing-sheet fields so the event can be completed."
+    "note": "Populate the sheet, including a price, so calculated amount behavior can be observed."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested",
+      "Delivery location",
+      "Price",
+      "Total Amount"
+     ]
+    },
+    "note": "Verify that the expected RFQ pricing columns rendered."
    },
    {
     "step": "set_sheet_cell",
@@ -96,17 +118,26 @@
      "column": "Quantity Requested",
      "value": "10"
     },
-    "note": "Set the first line item's requested quantity to 10."
+    "note": "Enter the case's target quantity in the first product row."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
      "column": "Quantity Requested",
-     "kept": true,
-     "equals": "10"
+     "equals": "10",
+     "kept": true
     },
-    "note": "Verify that Quantity Requested remains 10 after editing and tabbing away."
+    "note": "Assert that Quantity Requested remains 10 after the edit."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "equals": "Variant 1"
+    },
+    "note": "Verify that the product's mapped default variant is populated."
    },
    {
     "step": "set_sheet_cell",
@@ -115,51 +146,49 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Choose the required delivery location."
+    "note": "Select the specified delivery location."
    },
    {
-    "step": "set_sheet_cell",
+    "step": "expect_sheet_cell",
     "args": {
      "row": 1,
-     "column": "Price",
-     "value": "100"
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
     },
-    "note": "Provide a price so Total Amount can be calculated."
+    "note": "Assert that the requested delivery location was selected."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
      "column": "Total Amount",
-     "equals": "1000"
+     "empty": false
     },
-    "note": "Verify that Total Amount is calculated as price 100 multiplied by quantity 10."
+    "note": "Verify that Total Amount is populated once a price exists."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "vendors": [
-      "Vendor A"
-     ]
+     "count": 1
     },
-    "note": "Add the named vendor to the event participants."
+    "note": "Add one QA test vendor so the RFQ can be published."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the 30-minute start-now schedule."
+    "note": "Commit the 30-minute schedule described in the case."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured RFQ event."
+    "note": "Publish the completed RFQ."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publishing reached a real project page."
+    "note": "Assert that publication reached a real project page."
    }
   ]
  }

@@ -3,49 +3,47 @@
   "caseId": "PRD-KBSRC-363",
   "title": "Total submission time is calculated from the number of line items",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:17:47.056Z",
+  "compiledAt": "2026-11-13T14:41:16.650Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Enable Serial Bidding for the auction",
-   "Configure a per-line-item duration for Serial Bidding"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
    "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "can only test part of this — no step for: Enable Serial Bidding for the auction; Configure a per-line-item duration for Serial Bidding"
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 11,
   "stepNames": [
    "open_create",
    "set_title",
    "configure_single_stage",
    "select_template",
    "add_line_items",
-   "set_schedule",
+   "fill_sheet",
+   "do_on_screen",
    "remember",
    "add_line_items",
+   "expect_line_items",
    "expect_remembered"
   ],
-  "ms": 74724
+  "ms": 19323
  },
  "plan": {
-  "title": "Serial bidding total time updates with line count",
+  "title": "Serial bidding total time recalculates with line items",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage creation flow for an auction."
+    "note": "Open the single-stage auction creation screen."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Serial Bidding Duration Check"
+     "title": "Serial bidding duration recalculation"
     },
     "note": "Provide the required event title."
    },
@@ -66,38 +64,52 @@
     "args": {
      "count": 1
     },
-    "note": "Create the initial line item whose submission duration will be observed."
+    "note": "Create the initial line item whose duration contributes to the total submission time."
    },
    {
-    "step": "set_schedule",
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the line item is configured."
+   },
+   {
+    "step": "do_on_screen",
     "args": {
-     "minutes": 30
+     "goal": "enable Serial Bidding for the auction and set a per-line-item submission duration, leaving the create screen showing the automatically calculated total submission time"
     },
-    "note": "Commit an initial schedule so the displayed total submission time is available for comparison."
+    "note": "Configure the serial-bidding mode and per-line-item duration, which have no dedicated catalog step."
    },
    {
     "step": "remember",
     "args": {
-     "key": "initialSubmissionDuration",
-     "text": "30 Mins"
+     "key": "initial_submission_time",
+     "role": "button",
+     "name": "Schedule"
     },
-    "note": "Record the initial displayed duration."
+    "note": "Record the automatically calculated schedule before increasing the line-item count."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one more line item to trigger any automatic total-duration recalculation."
+    "note": "Add one more line item to trigger recalculation of the total submission time."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Confirm that the line-item count increased to two."
    },
    {
     "step": "expect_remembered",
     "args": {
-     "key": "initialSubmissionDuration",
+     "key": "initial_submission_time",
      "same": false,
-     "text": "30 Mins"
+     "role": "button",
+     "name": "Schedule"
     },
-    "note": "Assert that the displayed submission duration changed after the line-item count increased."
+    "note": "Assert that the displayed total submission time changed after adding the line item."
    }
   ]
  }

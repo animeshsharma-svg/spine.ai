@@ -4,17 +4,18 @@
   "title": "The vendor re-bids after a rejection that allowed it",
   "group": "SRC-RJB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:12:51.852Z",
+  "compiledAt": "2026-11-13T12:43:14.874Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Perform the prior buyer rejection with “Allow seller to bid again” ticked and verify that the re-bid was accepted specifically because of that setting"
+   "Perform the buyer-side bid rejection with “Allow seller to bid again” enabled before the rebid",
+   "Verify that the accepted quote is a distinct new bid specifically resulting from that rejection rather than a normal bid revision"
   ],
   "warnings": [
-   "can only test part of this — no step for: Perform the prior buyer rejection with “Allow seller to bid again” ticked and verify that the re-bid was accepted specifically because of that setting"
+   "can only test part of this — no step for: Perform the buyer-side bid rejection with “Allow seller to bid again” enabled before the rebid; Verify that the accepted quote is a distinct new bid specifically resulting from that rejection rather than a normal bid revision"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
    "switch_portal",
@@ -22,76 +23,96 @@
    "vendor_bid",
    "expect_bid_submitted",
    "switch_portal",
+   "go_to",
    "expect_responses",
    "open_master_qcs",
+   "expect_qcs_cell",
    "expect_qcs_ranks"
   ],
   "state": "bid",
   "screen": "master_qcs",
-  "ms": 12128
+  "ms": 13050
  },
  "plan": {
-  "title": "Vendor re-bids after rejection",
+  "title": "Vendor rebids after rejection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared event's buyer view while keeping the buyer session available."
+    "note": "Open the prepared event with an existing bid, which is the closest available state for the post-rejection rebid scenario."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the separate supplier portal session for the event's invited QA vendor."
+    "note": "Continue in the Vendor A supplier session while leaving the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing round after the buyer-side preparation."
+    "note": "Open the event's pricing round after the buyer-side submission-time extension."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 95
     },
-    "note": "Submit the vendor's new quote at 95."
+    "note": "Submit Vendor A's quote of 95 as the rebid action."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the vendor portal accepted the submitted bid."
+    "note": "Assert that the vendor portal accepted the submitted quote."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer session to inspect the new response."
+    "note": "Return to the buyer console to inspect the resulting response."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the buyer's Responses view for the pricing stage."
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 1,
-     "direct": 1
+     "direct": 1,
+     "participation": "1/1"
     },
-    "note": "Verify that the buyer sees the vendor response in the Responses view."
+    "note": "Assert that the buyer sees Vendor A's direct response."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's Master QCS comparison grid for the submitted bid."
+    "note": "Open the buyer's Master QCS comparison grid."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "equals": "95"
+    },
+    "note": "Assert that the Master QCS shows the rebid price of 95."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
      "atLeast": 1
     },
-    "note": "Verify that the submitted bid is ranked again in Master QCS."
+    "note": "Assert that the visible bid is ranked again in Master QCS."
    }
   ]
  }

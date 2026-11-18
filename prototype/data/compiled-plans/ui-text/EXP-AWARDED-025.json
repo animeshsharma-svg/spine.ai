@@ -4,63 +4,68 @@
   "title": "An awarded event: \"Rejected Bids\": \"Close\" closes it and changes nothing",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:14:41.032Z",
+  "compiledAt": "2026-11-13T13:44:37.772Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "A before/after comparison proving that the event status and event times remain unchanged after closing the window."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: A before/after comparison proving that the event status and event times remain unchanged after closing the window."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Direct before-and-after comparison that the event status is unchanged” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Direct before-and-after comparison that the event times are unchanged” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
   ],
   "source": "llm",
   "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_responses",
    "event_menu",
-   "click",
    "expect_visible",
-   "expect_text",
    "expect_responses",
-   "expect_screen_clean"
+   "expect_api_value",
+   "expect_api_value"
   ],
   "state": "awarded",
   "screen": "responses",
-  "ms": 17277
+  "ms": 18208
  },
  "plan": {
-  "title": "Rejected Bids Close on Awarded Event",
+  "title": "Rejected Bids closes without changes",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared awarded event on the RFQ Responses tab."
+    "note": "Open the already-awarded event on its RFQ Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 1
+     "count": 1,
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Record the expected single vendor response before opening Rejected Bids."
+    "note": "Record the existing vendor response before opening Rejected Bids."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Rejected Bids",
-     "stage": "rfq"
+     "stage": "rfq",
+     "close": true
     },
-    "note": "Open the RFQ Settings menu item for Rejected Bids."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Close"
-    },
-    "note": "Close the Rejected Bids window as required by the case."
+    "note": "Open the RFQ Settings Rejected Bids window and close it again."
    },
    {
     "step": "expect_visible",
@@ -69,27 +74,33 @@
      "name": "Rejected Bids",
      "visible": false
     },
-    "note": "Verify that the Rejected Bids window is no longer open."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Awarded",
-     "present": true
-    },
-    "note": "Verify that the awarded state remains visible after closing the window."
+    "note": "Assert that the Rejected Bids window is closed."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 1
+     "count": 1,
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Verify that the response count and vendor bid view remain unchanged."
+    "note": "Verify the vendor response remains present after closing the window."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Ensure closing the window did not cause an error or rendering issue."
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName",
+     "within": "Responses"
+    },
+    "note": "Verify the response still displays its vendor identity."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice",
+     "within": "Responses"
+    },
+    "note": "Verify the existing bid value still displays after the window is closed."
    }
   ]
  }

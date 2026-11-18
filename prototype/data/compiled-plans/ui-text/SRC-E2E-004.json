@@ -4,23 +4,25 @@
   "title": "Material PR → single stage reverse auction → split award → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T12:59:15.478Z",
+  "compiledAt": "2026-11-13T11:56:54.847Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The PR status transition from Open to In Progress to ordered cannot be asserted.",
-   "A separate approver login and approval identity cannot be performed by the buyer session.",
-   "The catalog cannot directly assert that two separate POs were created, one for each vendor, with split quantities of 6 and 4; it can only assert the resulting PO line items."
+   "Verify the PR line transitions explicitly from Open to In Progress to ordered.",
+   "Open and inspect the Purchase Orders, Events History, and the specific PR as separate screens after PO creation.",
+   "Verify Vendor B's independent vendor-portal login session; the bid step can submit a second vendor bid but does not expose that separate-login detail."
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: The PR status transition from Open to In Progress to ordered cannot be asserted.; A separate approver login and approval identity cannot be performed by the buyer session.; The catalog cannot directly assert that two separate POs were created, one for each vendor, with split quantities of 6 and 4; it can only assert the resulting PO line items."
+   "can only test part of this — no step for: Verify the PR line transitions explicitly from Open to In Progress to ordered.; Open and inspect the Purchase Orders, Events History, and the specific PR as separate screens after PO creation.; Verify Vendor B's independent vendor-portal login session; the bid step can submit a second vendor bid but does not expose that separate-login detail."
   ],
   "source": "llm",
-  "steps": 32,
+  "steps": 37,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -45,20 +47,25 @@
    "expect_bid_submitted",
    "close_event",
    "open_master_qcs",
-   "expect_qcs_vendors",
    "expect_qcs_ranks",
-   "expect_qcs_cell",
    "start_awarding",
+   "allocate_award",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "click",
+   "expect_awarded",
+   "approve_award",
    "create_po",
    "expect_po_items",
    "open_events_list",
    "filter_events",
    "expect_event_in_list"
   ],
-  "ms": 28646
+  "ms": 21496
  },
  "plan": {
-  "title": "Material PR to Split Auction PO",
+  "title": "Material PR to split-award purchase orders",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -101,7 +108,7 @@
      "key": "is_partial_awarding_enabled",
      "value": "On"
     },
-    "note": "Enable splitting one PR line across multiple vendors."
+    "note": "Enable split awarding across vendors."
    },
    {
     "step": "require_setting",
@@ -109,7 +116,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable event creation from the PR flow."
+    "note": "Enable sourcing projects for the PR-created event."
    },
    {
     "step": "require_setting",
@@ -122,30 +129,30 @@
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-E2E-004 Material PR Split Auction"
+     "title": "Material PR Split Award Reverse Auction"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provide the required event title."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit the 30-minute bidding schedule."
+    "note": "Set and commit the 30-minute bidding duration."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the single-stage auction create screen, set the evaluation duration to 30 minutes and add one Required Terms and Conditions clause, then stop with the saved schedule and clause visible"
+     "goal": "On the single-stage auction create screen, set the evaluation duration to 30 minutes and add one required Terms and Conditions clause; stop on the create screen showing both saved configurations."
     },
-    "note": "Configure the required evaluation duration and T&C clause, which have no dedicated catalog domain step."
+    "note": "Set the required evaluation period and add the required T&C clause, which no single domain step fully expresses together."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite exactly two QA vendors for Vendor A and Vendor B bidding."
+    "note": "Use the product's mapped QA vendors rather than inviting real suppliers."
    },
    {
     "step": "publish",
@@ -155,7 +162,7 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the auction reached a published project page."
+    "note": "Verify the event reached a real published project page."
    },
    {
     "step": "place_bid",
@@ -163,12 +170,12 @@
      "vendor": 1,
      "price": 100
     },
-    "note": "Submit Vendor A's portal bid at 100, including the vendor-side terms acceptance handled by the bid flow."
+    "note": "Submit Vendor A's bid at 100 through the supported vendor-bidding flow."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify Vendor A's bid was submitted."
+    "note": "Verify the first vendor bid was accepted."
    },
    {
     "step": "place_bid",
@@ -176,85 +183,121 @@
      "vendor": 2,
      "price": 90
     },
-    "note": "Submit Vendor B's portal bid at 90."
+    "note": "Submit Vendor B's lower bid at 90 through the second vendor bidding flow."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify Vendor B's bid was submitted."
+    "note": "Verify the second vendor bid was accepted."
    },
    {
     "step": "close_event",
     "args": {
-     "natural": true,
-     "maxWaitMinutes": 36
+     "natural": true
     },
-    "note": "Wait for bidding to end before ranking and awarding."
+    "note": "Wait for the bidding window to end before ranking and awarding."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer comparison grid after both bids are available."
-   },
-   {
-    "step": "expect_qcs_vendors",
-    "args": {
-     "count": 2,
-     "realNames": true
-    },
-    "note": "Verify two real vendor columns are shown."
+    "note": "Open the buyer's comparison grid after bidding closes."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "by": "RFQ Amount",
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Verify the lower bid ranks first, corresponding to Vendor B's 90 bid."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "Rank",
-     "vendor": 2,
-     "number": 1
-    },
-    "note": "Check that the second bidding vendor, Vendor B in this plan, is Rank 1."
+    "note": "Verify the lowest bid ranks first, covering Vendor B's expected Rank 1 outcome."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding flow for the closed auction."
+    "note": "Enter the awarding flow for the closed, bid event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": 2,
+     "quantity": 6,
+     "line": 1
+    },
+    "note": "Allocate six units of the PR line to the lower bidder, Vendor B."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": 1,
+     "quantity": 4,
+     "line": 1
+    },
+    "note": "Allocate the remaining four units to Vendor A."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "2/2",
+     "proposal": 940
+    },
+    "note": "Verify the full line is split across both vendors and the proposal value is 6×90 plus 4×100."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the proposal after the split allocation."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the split-award proposal for approval."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify the award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {
+     "remark": "Approved split award for material PR"
+    },
+    "note": "Approve the submitted proposal with the required approver remark."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete the approved award and create the purchase orders."
+    "note": "Complete the approved award and create one purchase order per awarded vendor."
    },
    {
     "step": "expect_po_items",
     "args": {
      "count": 2
     },
-    "note": "Verify the created purchase orders contain the two awarded line entries."
+    "note": "Verify the resulting purchase orders contain the two awarded portions."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to verify the event reached history."
+    "note": "Return to the events list to inspect the event's post-bidding history."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Open the History tab after the event lifecycle completes."
+    "note": "Open the History tab after the event has completed."
    },
    {
     "step": "expect_event_in_list",
     "args": {},
-    "note": "Verify this plan's event appears in event history."
+    "note": "Verify this plan's auction appears in event history."
    }
   ]
  }

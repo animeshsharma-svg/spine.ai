@@ -4,11 +4,11 @@
   "title": "Upload Sheet partially filled",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T12:57:26.865Z",
+  "compiledAt": "2026-11-13T11:53:17.709Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Provide a CSV upload fixture containing exactly one product row with no quantity while retaining the specified product and other row values."
+   "Create or verify the contents of a custom upload file whose product row has no quantity; the available sample.csv fixture does not guarantee that structure."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -17,41 +17,46 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Provide a CSV upload fixture containing exactly one product row with no quantity while retaining the specified product and other row values."
+   "can only test part of this — no step for: Create or verify the contents of a custom upload file whose product row has no quantity; the available sample.csv fixture does not guarantee that structure."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 11,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
+   "expect_template_selected",
+   "add_line_items",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
    "upload",
-   "expect_message"
+   "expect_error"
   ],
-  "ms": 9768
+  "ms": 16288
  },
  "plan": {
-  "title": "Single-stage RFQ partial sheet upload",
+  "title": "SRC-CRE-047 — Upload Sheet partially filled",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the Single Stage event creation screen described by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ as required by the case."
+    "note": "Switch the single-stage event type from the default to RFQ."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title before interacting with the sheet."
+    "note": "Provide the required event title so setup can proceed."
    },
    {
     "step": "select_template",
@@ -59,20 +64,60 @@
     "note": "Apply an RFQ template so the pricing sheet and Upload Sheet control are available."
    },
    {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Confirm the template was applied before interacting with the sheet."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER",
+     "quantity": "10"
+    },
+    "note": "Add the mapped CYLINDER product and establish the requested quantity and product variant in the sheet."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the delivery location required by the scenario."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10"
+    },
+    "note": "Confirm the valid quantity entered during setup is present before the upload attempt."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "contains": "Plant Name (LOC-0001)"
+    },
+    "note": "Confirm the specified delivery location was selected."
+   },
+   {
     "step": "upload",
     "args": {
      "label": "Upload Sheet",
      "file": "sample.csv"
     },
-    "note": "Attempt the sheet upload using the available CSV fixture; the catalog cannot ensure its contents are partially filled."
+    "note": "Attempt the sheet upload using the available CSV fixture; the fixture-content limitation is recorded in cannotExpress."
    },
    {
-    "step": "expect_message",
+    "step": "expect_error",
     "args": {
-     "kind": "error",
-     "text": "Sheet partially filled, please check again."
+     "contains": "Sheet partially filled, please check again."
     },
-    "note": "Verify that Procol refuses or flags the partially filled sheet with the expected message."
+    "note": "Assert the application flags the partially filled upload with the required message."
    }
   ]
  }

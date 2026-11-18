@@ -4,37 +4,38 @@
   "title": "All Vendors: Filters opens the vendor filtering controls",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:55:28.155Z",
+  "compiledAt": "2026-11-13T14:09:32.194Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Reliably apply the All Vendors filter using Closed or City = Aalborg when the control labels and filter interaction are not catalog-defined",
-   "Verify that the vendor list changes after applying the filter",
-   "Capture every filter control and any resulting message as an assertion"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Reliably apply the All Vendors filter using Closed or City = Aalborg when the control labels and filter interaction are not catalog-defined; Verify that the vendor list changes after applying the filter; Capture every filter control and any resulting message as an assertion"
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 16,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
-   "expect_visible",
    "click",
    "expect_visible",
-   "expect_visible",
+   "expect_text",
+   "expect_text",
+   "expect_text",
    "click",
-   "expect_visible",
-   "expect_visible",
+   "inventory_screen",
+   "do_on_screen",
    "expect_screen_clean"
   ],
-  "ms": 11428
+  "ms": 29995
  },
  "plan": {
-  "title": "EXP-DRAFT-070 — Draft All Vendors Filters",
+  "title": "Draft All Vendors Filters",
   "steps": [
    {
     "step": "open_events_list",
@@ -42,38 +43,55 @@
     "note": "Open the Events list to reach the saved draft."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Use the tenant configuration required for the saved draft scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the case's required stage-addition configuration."
+   },
+   {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the events list rendered before navigating to Drafts."
+    "note": "Confirm the Events list rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab containing the saved eRFX draft."
+    "note": "Switch to the Drafts tab specified by the case."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first saved draft; this reopens its create screen."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Participants",
-     "visible": true
-    },
-    "note": "Verify the draft screen exposes the Participants control."
+    "note": "Open the first saved draft shown in the Drafts list."
    },
    {
     "step": "click",
     "args": {
-     "text": "Participants"
+     "role": "button",
+     "name": "Participants"
     },
-    "note": "Open the Participants/All Vendors view requested by the case."
+    "note": "Open the draft's participant view, where the All Vendors window is available."
    },
    {
     "step": "expect_visible",
@@ -81,43 +99,57 @@
      "text": "All Vendors",
      "visible": true
     },
-    "note": "Verify that the All Vendors window or section opened."
+    "note": "Confirm that the All Vendors window opened."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Filters",
-     "visible": true
+     "text": "No bids",
+     "present": true
     },
-    "note": "Check whether the requested Filters control is displayed."
+    "note": "Check one of the vendor-list values expected by the case."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Aalborg",
+     "present": true
+    },
+    "note": "Check that the expected city value is visible in the vendor list."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delhi Hills",
+     "present": true
+    },
+    "note": "Check another expected city value in the vendor list."
    },
    {
     "step": "click",
     "args": {
      "text": "Filters"
     },
-    "note": "Open the vendor filtering controls when the control is available."
+    "note": "Open the vendor filtering controls requested by the case."
    },
    {
-    "step": "expect_visible",
+    "step": "inventory_screen",
     "args": {
-     "text": "Closed",
-     "visible": true
+     "label": "all-vendors-filter-controls"
     },
-    "note": "Check whether the requested Closed filter value is visible after opening Filters."
+    "note": "Record every filter control, field, option, disabled state, and visible message after Filters is opened."
    },
    {
-    "step": "expect_visible",
+    "step": "do_on_screen",
     "args": {
-     "text": "City",
-     "visible": true
+     "goal": "Review the open All Vendors filter controls, apply an available visible value such as Closed or City Aalborg when offered, and record whether the vendor list changes and what message or result appears; stop on the filtered All Vendors result."
     },
-    "note": "Check whether a City filter control is visible."
+    "note": "Exercise the dynamically rendered filter UI and observe the resulting list or message without inventing control labels."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the inspected filtering view has no visible crash, server error, or raw data artifact."
+    "note": "Confirm the filtered result screen has no crash, server error, or raw invalid values."
    }
   ]
  }

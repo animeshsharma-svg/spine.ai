@@ -4,44 +4,135 @@
   "title": "Master QCS shows 1/1 line items and 1/1 vendors after selection",
   "group": "TYP",
   "sheet": "typed-cases",
-  "compiledAt": "2026-11-09T22:28:33.234Z",
+  "compiledAt": "2026-11-13T13:20:34.330Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
    "start_awarding",
    "allocate_award",
    "expect_award_counters"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 5299
+  "ms": 19129
  },
  "plan": {
-  "title": "Master QCS awarding counters",
+  "title": "TYP-002 Master QCS Awarding Counters",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS for the prepared closed RFQ with one vendor bid."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "quantity": "10"
+    },
+    "note": "Create the single line item with the required quantity of 10."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the bidding schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Invite the specified bidder."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 100
+    },
+    "note": "Submit Vendor A's bid at 100 per unit."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the RFQ so awarding is available."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open Master QCS and verify the bidder's comparison grid is present."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding screen where the line item can be selected."
+    "note": "Enter the awarding screen for the closed RFQ."
    },
    {
     "step": "allocate_award",
     "args": {
-     "vendor": "Vendor A"
+     "vendor": "Vendor A",
+     "line": 1
     },
-    "note": "Select the line item for Vendor A."
+    "note": "Select the only line item for Vendor A."
    },
    {
     "step": "expect_award_counters",
@@ -49,7 +140,7 @@
      "items": "1/1",
      "vendors": "1/1"
     },
-    "note": "Verify the selected line-item and vendor counters both read 1/1."
+    "note": "Assert that all one line item and the one awarded vendor are selected."
    }
   ]
  }

@@ -4,61 +4,37 @@
   "title": "Settings menu on a closed technical (RFP) stage",
   "group": "SRC-MNU",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:01:53.772Z",
+  "compiledAt": "2026-11-13T12:15:37.854Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Event is closed and technical stage settings are checked"
+  ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "can only test part of this — no step for: Event is closed and technical stage settings are checked"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "require_setting",
-   "require_setting",
-   "require_setting",
    "go_to",
-   "expect_settings_menu"
+   "click",
+   "expect_menu_item",
+   "expect_menu_item"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 8282
+  "ms": 18286
  },
  "plan": {
-  "title": "Closed Technical Stage Settings Menu",
+  "title": "Settings menu on a closed technical (RFP) stage",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared Tech+RFQ project's summary without searching for another event."
-   },
-   {
-    "step": "require_setting",
-    "args": {
-     "key": "hide_counter_offer_rfq",
-     "value": "Off"
-    },
-    "note": "Ensure RFQ counter-offer visibility is configured as required."
-   },
-   {
-    "step": "require_setting",
-    "args": {
-     "key": "hide_withdraw_in_intake_and_event",
-     "value": "Off"
-    },
-    "note": "Ensure event withdrawal is not hidden by tenant configuration."
-   },
-   {
-    "step": "require_setting",
-    "args": {
-     "key": "rfx_project_enabled",
-     "value": "On"
-    },
-    "note": "Ensure eRFX projects are enabled for the prepared project."
+    "note": "Open the prepared event summary"
    },
    {
     "step": "go_to",
@@ -66,26 +42,33 @@
      "screen": "stage",
      "stage": "rfp"
     },
-    "note": "Navigate to the closed technical stage whose Settings menu is being tested."
+    "note": "Go to the technical stage"
    },
    {
-    "step": "expect_settings_menu",
+    "step": "click",
     "args": {
-     "offered": [
-      "Order Activity"
-     ],
-     "absent": [
-      "Recreate Order",
-      "Extend Submission Time",
-      "Reschedule Event",
-      "Withdraw",
-      "Convert to Auction",
-      "Rejected Bids",
-      "Edit Evaluation Time",
-      "Send Bulk Counter Offer"
-     ]
+     "role": "button",
+     "name": "Settings"
     },
-    "note": "Assert the complete expected Settings-menu availability for the closed technical stage, including that any greyed items expose their explanatory tooltips."
+    "note": "Open the settings menu"
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Order Activity",
+     "enabled": true,
+     "stage": "rfp"
+    },
+    "note": "Assert Order Activity is enabled"
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Withdraw",
+     "present": false,
+     "stage": "rfp"
+    },
+    "note": "Assert Withdraw is absent"
    }
   ]
  }

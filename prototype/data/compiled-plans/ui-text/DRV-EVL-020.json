@@ -4,78 +4,59 @@
   "title": "Tie on lowest landed price shows both rows highlighted as L1",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-09T23:05:45.240Z",
+  "compiledAt": "2026-11-13T13:36:54.076Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The green L1 highlight appearing on both tied vendor rows in Master QCS cannot be directly observed by any catalog assertion."
+   "The prepared event does not contain both Vendor A and Vendor B with equal landed prices of 100, so the presence of two green L1-highlighted vendor rows cannot be tested."
   ],
   "warnings": [
-   "can only test part of this — no step for: The green L1 highlight appearing on both tied vendor rows in Master QCS cannot be directly observed by any catalog assertion."
+   "can only test part of this — no step for: The prepared event does not contain both Vendor A and Vendor B with equal landed prices of 100, so the presence of two green L1-highlighted vendor rows cannot be tested."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "open_participants",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
-   "open_master_qcs",
+   "go_to",
    "expect_qcs_vendors",
    "expect_qcs_ranks"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 8415
+  "ms": 14740
  },
  "plan": {
-  "title": "Tie on Lowest Landed Price Highlights Both Vendors",
+  "title": "DRV-EVL-020 — Tie on Lowest Landed Price",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ on the buyer side."
+    "note": "Open the prepared live RFQ summary as the buyer."
    },
    {
-    "step": "open_participants",
-    "args": {},
-    "note": "Reach the participant list so a surrogate bid can be entered for another invited vendor."
-   },
-   {
-    "step": "place_surrogate_bid",
+    "step": "go_to",
     "args": {
-     "price": 100
+     "screen": "master_qcs"
     },
-    "note": "Submit a second vendor bid at the same landed price of 100 to create the tie."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify the second bid was accepted."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's Master QCS comparison grid."
+    "note": "Navigate to the Master QCS screen named by the test case."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
-     "count": 2,
+     "count": 1,
      "realNames": true
     },
-    "note": "Verify both bidding vendors appear as real vendor columns."
+    "note": "Assert the available QCS vendor column is a real vendor column; only one bid is present in the prepared state."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "by": "RFQ Amount",
      "order": "lowest",
-     "atLeast": 2
+     "atLeast": 1
     },
-    "note": "Verify the QCS ranking is based on the tied lowest amount for both vendors."
+    "note": "Assert the available bid is ranked according to the lowest landed-price ordering, without claiming a tie."
    }
   ]
  }

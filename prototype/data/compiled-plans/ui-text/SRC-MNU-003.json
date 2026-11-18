@@ -4,44 +4,65 @@
   "title": "Settings menu on an evaluation RFQ",
   "group": "SRC-MNU",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:33:13.954Z",
+  "compiledAt": "2026-11-13T12:14:56.605Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_settings_menu"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 7488
+  "ms": 10520
  },
  "plan": {
-  "title": "Settings menu on evaluation RFQ",
+  "title": "RFQ Evaluation Settings Menu",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared RFQ evaluation event without searching the events list."
+    "note": "Opens the prepared RFQ evaluation event without searching or creating another event."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
     },
-    "note": "Navigate to the RFQ stage page where its Settings menu is available."
+    "note": "Ensures counter-offer actions remain available on RFQ stages."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensures Withdraw is offered for the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensures eRFX project functionality is enabled for the prepared case."
    },
    {
     "step": "expect_settings_menu",
     "args": {
-     "enabled": [
+     "offered": [
       "Recreate Order",
       "Extend Submission Time",
       "Withdraw",
@@ -53,9 +74,19 @@
      ],
      "absent": [
       "Reschedule Event"
+     ],
+     "enabled": [
+      "Recreate Order",
+      "Extend Submission Time",
+      "Withdraw",
+      "Convert to Auction",
+      "Rejected Bids",
+      "Order Activity",
+      "Edit Evaluation Time",
+      "Send Bulk Counter Offer"
      ]
     },
-    "note": "Assert every expected action is enabled and Reschedule Event is not offered in the evaluation state."
+    "note": "Asserts the complete expected Settings menu for an RFQ in evaluation, including enabled actions and the absent rescheduling action."
    }
   ]
  }

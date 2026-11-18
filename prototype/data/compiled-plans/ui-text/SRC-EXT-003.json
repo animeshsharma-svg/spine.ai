@@ -4,20 +4,24 @@
   "title": "Extend the live RFQ to earlier than the current end",
   "group": "SRC-EXT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:25:23.410Z",
+  "compiledAt": "2026-11-13T12:08:01.501Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "extend_time"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 11101
+  "ms": 11702
  },
  "plan": {
   "title": "Reject Earlier RFQ End Time",
@@ -27,18 +31,26 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary as the buyer."
+    "note": "Open the prepared live RFQ with no bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the RFQ scenario."
    },
    {
     "step": "extend_time",
     "args": {
      "which": "submission",
      "option": "fixed",
-     "at": "-10m",
+     "at": "E-10m",
      "expect": "refused",
      "message": "New time cannot be less than existing"
     },
-    "note": "Attempt to move the submission end earlier than the current end and assert Procol refuses it without changing the end time."
+    "note": "Attempt to move the current submission end earlier and verify Procol refuses it without changing the end time."
    }
   ]
  }

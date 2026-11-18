@@ -3,117 +3,69 @@
   "caseId": "PRD-KBSRC-381",
   "title": "Vendor who accepts moves to the next round",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:18:56.367Z",
+  "compiledAt": "2026-11-13T14:42:34.809Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Configure the converted auction as a live Knockout auction with a current offer",
-   "Sign in as the vendor and click Accept on the current offer",
-   "Verify that the accepting vendor remains in the next round's bidder list"
+   "Accept the current knockout offer using the vendor's knockout auction control",
+   "Verify that the accepting vendor remains in the bidder list for the next round"
   ],
   "warnings": [
-   "can only test part of this — no step for: Configure the converted auction as a live Knockout auction with a current offer; Sign in as the vendor and click Accept on the current offer; Verify that the accepting vendor remains in the next round's bidder list"
+   "cannot test this case yet — no step can observe: Accept the current knockout offer using the vendor's knockout auction control; Verify that the accepting vendor remains in the bidder list for the next round"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 6,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
-   "convert_to_auction",
-   "ask_tester",
+   "open_event",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible",
+   "click",
    "expect_screen_clean"
   ],
-  "ms": 12706
+  "ms": 16195
  },
  "plan": {
   "title": "Knockout acceptance advances vendor",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Start the RFQ needed for the catalog's supported RFQ-to-auction conversion path."
-   },
-   {
-    "step": "set_title",
+    "step": "open_event",
     "args": {},
-    "note": "Provide the required event title before publishing."
+    "note": "Open the existing live event from the setup."
    },
    {
-    "step": "compose_stages",
+    "step": "switch_portal",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "to": "vendor"
     },
-    "note": "Create an RFQ-only event, which is the required source for auction conversion."
+    "note": "Act from the invited vendor's supplier-portal session."
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply an RFQ template before adding line items."
-   },
-   {
-    "step": "add_line_items",
+    "step": "vendor_open_event",
     "args": {
-     "count": 1
+     "stage": "pricing"
     },
-    "note": "Add the minimum line item needed for a publishable RFQ."
+    "note": "Open the event's pricing/auction view where the current offer should appear."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
+    "step": "expect_visible",
     "args": {
-     "minutes": 30
+     "text": "Accept",
+     "visible": true
     },
-    "note": "Commit a live bidding schedule before publishing."
+    "note": "Check whether an acceptance control is exposed to the vendor."
    },
    {
-    "step": "invite_vendor",
+    "step": "click",
     "args": {
-     "count": 1
+     "text": "Accept"
     },
-    "note": "Invite the vendor participant required for the auction setup."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the source RFQ."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the source event reached a published project page."
-   },
-   {
-    "step": "convert_to_auction",
-    "args": {},
-    "note": "Reach the supported RFQ-to-auction conversion screen; Knockout configuration and the live offer still require tester action."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "configure the converted event as a live Knockout auction with a current offer, sign in as the vendor, click Accept, and verify that the vendor remains in the next round's bidder list"
-    },
-    "note": "The catalog has no step for Knockout setup, offer acceptance, or next-round bidder-list verification."
+    "note": "Attempt to accept the current offer using the closest generic control action."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the resulting screen has no visible application errors after the tester's missing actions."
+    "note": "Confirm the portal remains usable after the attempted action, without claiming that round advancement occurred."
    }
   ]
  }

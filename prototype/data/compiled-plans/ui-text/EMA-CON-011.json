@@ -4,48 +4,68 @@
   "title": "Recipient address with spaces around it is accepted",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:41.072Z",
+  "compiledAt": "2026-11-13T14:20:05.140Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open Asha's mailbox and the Procol approval request email",
-   "Click Consult and verify the new email subject starts with \"Action:Consult\"",
-   "Enter \"Recipient:   chetan@...   \" with surrounding spaces and send without changing the subject",
-   "Wait for Procol to process the mailbox and verify the consultation is created without a bounce"
+   "Connect and access the company's approval mailbox as Asha",
+   "Open Procol's approval request email and click Consult",
+   "Send an unchanged-subject email containing a recipient address with surrounding spaces",
+   "Wait for mailbox processing and verify that the consultation is created without a bounce"
   ],
   "warnings": [
-   "can only test part of this — no step for: Open Asha's mailbox and the Procol approval request email; Click Consult and verify the new email subject starts with \"Action:Consult\"; Enter \"Recipient:   chetan@...   \" with surrounding spaces and send without changing the subject; Wait for Procol to process the mailbox and verify the consultation is created without a bounce"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Connect and access the company's approval mailbox as Asha; Open Procol's approval request email and click Consult; Send an unchanged-subject email containing a recipient address with surrounding spaces; Wait for mailbox processing and verify that the consultation is created without a bounce"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 8065
+  "ms": 11909
  },
  "plan": {
-  "title": "EMA-CON-011 — Consult recipient spaces accepted",
+  "title": "Email Consult Recipient Trimming",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named approval event to provide the closest available buyer-side context."
+    "note": "Open the existing event that was sent for approval before the mailbox action."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the email approval capability required by the scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow configuration required for the event."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open Asha's mailbox, send the Consult email with the recipient address surrounded by spaces, wait for Procol to process it, and verify the consultation is created without a bounce"
+     "need": "Access Asha's mailbox, open the Procol approval request, click Consult, send an unchanged-subject email with the recipient address padded by spaces, and verify the consultation is created without a bounce"
     },
-    "note": "The mailbox interaction, email send, and asynchronous consultation result cannot be performed by any catalog step."
+    "note": "The email mailbox interaction and its asynchronous outcome are not expressible by catalog steps."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the current screen has no visible crash or server error after the missing mailbox flow is completed."
+    "note": "Assert that the current Procol screen remains free of application errors after the tester-assisted portion."
    }
   ]
  }

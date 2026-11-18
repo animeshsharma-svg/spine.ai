@@ -4,47 +4,57 @@
   "title": "Company whose approval mailbox is Gmail: actions work, replies may not be sent yet",
   "group": "EMA-THR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T01:00:11.492Z",
+  "compiledAt": "2026-11-13T14:24:48.676Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Asha's Gmail mailbox and approve the event from the approval email",
-   "Verify the approval is recorded in Procol after the email action",
-   "Inspect the Gmail reply thread and confirm the known limitation that no reply is sent while no broken email or application error occurs"
+   "Send the event for approval and approve it from Asha's Gmail/IMAP mailbox.",
+   "Verify that the approval is recorded in Procol and that the Gmail reply in the thread is not sent yet without causing an error or broken email."
   ],
   "warnings": [
-   "can only test part of this — no step for: Access Asha's Gmail mailbox and approve the event from the approval email; Verify the approval is recorded in Procol after the email action; Inspect the Gmail reply thread and confirm the known limitation that no reply is sent while no broken email or application error occurs"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Send the event for approval and approve it from Asha's Gmail/IMAP mailbox.; Verify that the approval is recorded in Procol and that the Gmail reply in the thread is not sent yet without causing an error or broken email."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
+   "require_setting",
    "ask_tester",
    "expect_no_error"
   ],
-  "ms": 69418
+  "ms": 13906
  },
  "plan": {
-  "title": "Gmail approval email thread",
+  "title": "Gmail Email Approval Reply Thread",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the specifically named event before the mailbox-based approval action."
+    "note": "Open the named event created by Ravi as the closest available way to reach its approval context."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Company whose approval mailbox is Gmail / IMAP",
+     "value": "On"
+    },
+    "note": "Configure the required company mailbox type before testing email approval."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open Asha's Gmail mailbox, approve the event from the approval email, then verify the Procol approval record and inspect the thread for the expected no-reply limitation without a broken email"
+     "need": "send the event for approval, open Asha's Gmail/IMAP mailbox, approve the event, and verify the Procol approval record and the unsent Gmail reply-thread behavior"
     },
-    "note": "The catalog has no Gmail or email-approval step, so the mailbox action and its thread/result checks require the tester."
+    "note": "Email access, email approval, and thread verification require mailbox capabilities not present in the catalog."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Check that the Procol event page has not displayed an application error after the external approval action."
+    "note": "Check the Procol event page for an application error after the tester completes the unavailable email action."
    }
   ]
  }

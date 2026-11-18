@@ -4,20 +4,16 @@
   "title": "eRFX Items drawer: quantity 0",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:00:19.288Z",
+  "compiledAt": "2026-11-13T12:03:28.955Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Select Plant Name (LOC-0001) in the Items drawer after entering the invalid quantity",
-   "Click Save after the invalid quantity is entered"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Select Plant Name (LOC-0001) in the Items drawer after entering the invalid quantity; Click Save after the invalid quantity is entered"
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 9,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -25,19 +21,21 @@
    "compose_stages",
    "select_template",
    "add_line_items",
+   "set_sheet_cell",
+   "set_sheet_cell",
    "expect_error"
   ],
-  "ms": 13994
+  "ms": 18260
  },
  "plan": {
-  "title": "eRFX Items drawer rejects zero quantity",
+  "title": "eRFX Items Drawer Rejects Zero Quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project create screen."
+    "note": "Open the eRFX project creation screen."
    },
    {
     "step": "require_setting",
@@ -45,12 +43,14 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation as required by the case."
+    "note": "Enable eRFX project creation for the test company."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory project title so the test reaches item validation."
+    "args": {
+     "title": "SRC-ERX-030 Quantity Zero"
+    },
+    "note": "Provide the mandatory project title."
    },
    {
     "step": "compose_stages",
@@ -59,7 +59,7 @@
       "rfq"
      ]
     },
-    "note": "Change the default Auction stage to RFQ only."
+    "note": "Configure the project as RFQ-only."
    },
    {
     "step": "select_template",
@@ -70,17 +70,34 @@
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB",
-     "quantity": "0"
+     "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the named product while entering the invalid zero quantity; this is the action whose validation is being tested."
+    "note": "Add the specified product with a valid default quantity so the sheet can be configured."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location for the line item."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "0"
+    },
+    "note": "Enter the invalid zero quantity that the case expects Procol to reject."
    },
    {
     "step": "expect_error",
     "args": {
      "contains": "greater than zero"
     },
-    "note": "Assert that Procol refuses the zero quantity with the expected validation wording."
+    "note": "Assert the inline refusal states that quantity must be greater than zero."
    }
   ]
  }

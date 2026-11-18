@@ -4,56 +4,76 @@
   "title": "Approve button opens a correct email in Gmail on the web",
   "group": "EMA-LINK",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:49.969Z",
+  "compiledAt": "2026-11-13T14:20:21.465Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the approval request email in Gmail on the web and click Approve.",
-   "Verify the recipient is the company's approval mailbox and that the complete dynamic proposal identifier in the subject is correct."
+   "Open the approval request email in Gmail on the web.",
+   "Click the email's Approve action.",
+   "Verify the new email is addressed to the company's approval mailbox.",
+   "Verify the complete dynamic subject format, including the proposal identifier, in Gmail."
   ],
   "warnings": [
-   "can only test part of this — no step for: Open the approval request email in Gmail on the web and click Approve.; Verify the recipient is the company's approval mailbox and that the complete dynamic proposal identifier in the subject is correct."
+   "can only test part of this — no step for: Open the approval request email in Gmail on the web.; Click the email's Approve action.; Verify the new email is addressed to the company's approval mailbox.; Verify the complete dynamic subject format, including the proposal identifier, in Gmail."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_text",
    "expect_text",
    "expect_text"
   ],
-  "ms": 8896
+  "ms": 16324
  },
  "plan": {
-  "title": "EMA-LINK-001 Gmail approval email",
+  "title": "EMA-LINK-001 — Approve email link",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required email-approval configuration before testing the email action."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the workflow prerequisite named by the case."
+   },
    {
     "step": "ask_tester",
     "args": {
      "need": "open the approval request email in Gmail on the web, click Approve, and leave the newly opened email visible"
     },
-    "note": "Gmail mailbox access and the Approve action are not available through the catalog."
+    "note": "Gmail mailbox access and the email Approve action are not available through the catalog."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Action:Approve|Proposal:"
+     "text": "Action:Approve|Proposal:["
     },
-    "note": "Checks that the opened email subject begins with the required action and proposal format."
+    "note": "Check that the opened email visibly uses the required unencoded subject prefix and bracket format."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "(Required) Comment:"
     },
-    "note": "Checks the required comment prompt appears in the email body."
+    "note": "Check that the generated email body begins with the required comment prompt."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "This is a system-generated message, content after this will be ignored"
     },
-    "note": "Checks the system-generated body notice is present."
+    "note": "Check that the generated email body contains the required system-generated notice."
    }
   ]
  }

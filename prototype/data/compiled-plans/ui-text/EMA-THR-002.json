@@ -4,46 +4,59 @@
   "title": "Every bounce-back also sits in the original approval thread",
   "group": "EMA-THR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:58:48.053Z",
+  "compiledAt": "2026-11-13T14:24:16.114Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open Asha's mailbox and inspect the original approval request thread.",
-   "Verify that the no-comment rejection bounce and outside-recipient bounce both appear in that thread, one under the other and in order."
+   "Trigger the no-comment rejection bounce and outside-recipient bounce from the referenced cases",
+   "Open Asha's mailbox and verify both bounce-backs are in the original approval request thread in order",
+   "Verify that the connected Outlook approval mailbox sends and receives the replies",
+   "Set or verify the two-step approval workflow with Asha as step 1 and Bikram as step 2"
   ],
   "warnings": [
-   "can only test part of this — no step for: Open Asha's mailbox and inspect the original approval request thread.; Verify that the no-comment rejection bounce and outside-recipient bounce both appear in that thread, one under the other and in order."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Trigger the no-comment rejection bounce and outside-recipient bounce from the referenced cases; Open Asha's mailbox and verify both bounce-backs are in the original approval request thread in order; Verify that the connected Outlook approval mailbox sends and receives the replies; Set or verify the two-step approval workflow with Asha as step 1 and Bikram as step 2"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_no_error"
   ],
-  "ms": 9812
+  "ms": 14879
  },
  "plan": {
-  "title": "EMA-THR-002 Approval Bounce Thread",
+  "title": "EMA-THR-002 Approval Bounce-Back Thread",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the existing event named by the case before the mailbox-specific verification."
+    "note": "Open the existing event named by the case; no catalog step can observe its related mailbox thread."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the catalog-supported company setting required for email approval testing."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open Asha's mailbox and verify that both bounce-backs appear in the original approval request thread, one under the other and in order"
+     "need": "trigger both bounce-backs, open Asha's mailbox, and verify they appear in order in the original approval request thread"
     },
-    "note": "Mailbox access and email-thread inspection are not available in the catalog."
+    "note": "Mailbox access, bounce triggering, and thread verification are not available in the catalog."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Final assertion required by the plan format; this only checks the current screen is free of rendering or server errors and does not verify the email thread."
+    "note": "Confirm the Procol event screen remains usable after the unavailable mailbox portion; this does not assert the email-thread subject."
    }
   ]
  }

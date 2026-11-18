@@ -4,17 +4,16 @@
   "title": "A line already in progress for its whole quantity cannot be sourced again",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:31:17.638Z",
+  "compiledAt": "2026-11-13T12:26:28.141Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Identify the specific PR line used in the setup case when no PR number or line identifier is provided",
-   "Directly assert that the line cannot be ticked if Procol disables its checkbox rather than showing a refusal message",
-   "Publish the event after a refused Purchase Items action because no create screen should be reached"
+   "Identify the specific PR line used in the PR-based RFQ because no PR number or line identifier is provided.",
+   "Assert that the specific line cannot be ticked as an alternative to the Purchase Items refusal."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
-   "can only test part of this — no step for: Identify the specific PR line used in the setup case when no PR number or line identifier is provided; Directly assert that the line cannot be ticked if Procol disables its checkbox rather than showing a refusal message; Publish the event after a refused Purchase Items action because no create screen should be reached"
+   "can only test part of this — no step for: Identify the specific PR line used in the PR-based RFQ because no PR number or line identifier is provided.; Assert that the specific line cannot be ticked as an alternative to the Purchase Items refusal."
   ],
   "source": "llm",
   "steps": 5,
@@ -27,10 +26,10 @@
   ],
   "state": "pr_rfq",
   "screen": "summary",
-  "ms": 10493
+  "ms": 14357
  },
  "plan": {
-  "title": "Reject sourcing an in-progress PR line",
+  "title": "In-progress PR line cannot be sourced again",
   "steps": [
    {
     "step": "open_prepared",
@@ -42,19 +41,19 @@
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions area as the buyer."
+    "note": "Open the Purchase Requisitions area required for this PR-based scenario."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "In Progress"
     },
-    "note": "Switch to the tab containing requisition lines already being sourced."
+    "note": "Open the In Progress tab where the already-used PR line should appear."
    },
    {
     "step": "select_pr",
     "args": {},
-    "note": "Attempt to select the available in-progress requisition line."
+    "note": "Attempt to select the first matching in-progress PR row as the line used by the prior RFQ."
    },
    {
     "step": "attempt",
@@ -63,7 +62,7 @@
      "expect": "refused",
      "because": "This Line item is already in Progress for some quantity"
     },
-    "note": "Verify that starting a new project from the in-progress line is refused with the expected business-rule message."
+    "note": "Attempt Purchase Items and Start New Project, asserting Procol refuses sourcing the in-progress line with the expected message."
    }
   ]
  }

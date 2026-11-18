@@ -4,7 +4,7 @@
   "title": "No currency selected",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:21:31.703Z",
+  "compiledAt": "2026-11-13T11:54:17.525Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,20 +17,21 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
+   "set_sheet_cell",
    "do_on_screen",
    "expect_message"
   ],
-  "ms": 12798
+  "ms": 13044
  },
  "plan": {
-  "title": "No Currency Selected",
+  "title": "No currency selected is refused",
   "steps": [
    {
     "step": "open_create",
@@ -44,35 +45,44 @@
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ before selecting its template."
+    "note": "Set the event type to RFQ as required by the case."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-CUR-002 Test"
+     "title": "SRC-CUR-002 No Currency Selected"
     },
-    "note": "Provide the mandatory event title required on create screens."
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the product sheet is available."
+    "note": "Apply the available RFQ template so the pricing sheet is rendered."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested CYLINDER line item with quantity 10."
+    "note": "Add the specified product and quantity to create the sheet row."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location on the first line item."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the RFQ create screen, select CYLINDER WITH KEY & KNOB so Product Variant shows Default Variant, choose Plant Name (LOC-0001) for Delivery location, open Add Bid Currencies, untick every currency, click Save, and stop when the screen shows the refusal for having no selected currency."
+     "goal": "open Add Bid Currencies, untick every selected currency, save the currency configuration, and stop when the screen shows the refusal for having no currency selected"
     },
-    "note": "Perform the product variant, delivery location, and currency configuration interactions unavailable as catalog domain steps."
+    "note": "Perform the currency configuration interaction that has no dedicated catalog step."
    },
    {
     "step": "expect_message",
@@ -80,7 +90,7 @@
      "kind": "error",
      "text": "Please select atleast one currency."
     },
-    "note": "Assert the exact no-currency validation refusal."
+    "note": "Assert the exact refusal message for saving with no currency selected."
    }
   ]
  }

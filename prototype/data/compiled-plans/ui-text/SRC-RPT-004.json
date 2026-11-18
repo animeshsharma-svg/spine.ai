@@ -4,39 +4,59 @@
   "title": "Proposal Allocation Summary after awarding a split 6 to B and 4 to A",
   "group": "SRC-RPT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:50:20.171Z",
+  "compiledAt": "2026-11-13T12:43:37.503Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared awarded event has only one vendor and one line item, so it cannot represent the requested split allocation of 6 to B and 4 to A.",
-   "The exact vendor totals B 540, A 400, and total 940 cannot be asserted because the required two-vendor split state is unavailable.",
-   "Matching the Allocation Summary against purchase orders cannot be tested because the prepared-state plan cannot create or inspect the requested POs."
+   "Verify that the Allocation Summary matches the purchase orders."
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared awarded event has only one vendor and one line item, so it cannot represent the requested split allocation of 6 to B and 4 to A.; The exact vendor totals B 540, A 400, and total 940 cannot be asserted because the required two-vendor split state is unavailable.; Matching the Allocation Summary against purchase orders cannot be tested because the prepared-state plan cannot create or inspect the requested POs."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that the Allocation Summary matches the purchase orders."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "click",
+   "expect_table",
+   "expect_table",
    "expect_text",
-   "expect_text",
-   "expect_text"
+   "click",
+   "expect_download"
   ],
   "state": "awarded",
   "screen": "proposal",
-  "ms": 11854
+  "ms": 14695
  },
  "plan": {
-  "title": "Proposal Allocation Summary for Split Award",
+  "title": "Proposal Allocation Summary Split Award",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "proposal"
     },
-    "note": "Open the existing awarded event's proposal page as required for prepared-state cases."
+    "note": "Open the existing awarded event's proposal page."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable split awarding as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "click",
@@ -44,28 +64,58 @@
      "role": "button",
      "name": "Allocation Summary"
     },
-    "note": "Open the proposal's Allocation Summary section."
+    "note": "Open the proposal's Allocation Summary."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "within": "Allocation Summary",
+     "rows": 2,
+     "row": "B",
+     "cells": {
+      "Total Items selected": "6",
+      "Total Amount": "540"
+     }
+    },
+    "note": "Verify vendor B's split allocation and amount."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "within": "Allocation Summary",
+     "row": "A",
+     "cells": {
+      "Total Items selected": "4",
+      "Total Amount": "400"
+     }
+    },
+    "note": "Verify vendor A's split allocation and amount."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Allocation Summary"
+     "text": "940"
     },
-    "note": "Verify that the Allocation Summary section is rendered."
+    "note": "Verify the overall allocation total is 940."
    },
    {
-    "step": "expect_text",
+    "step": "click",
     "args": {
-     "text": "Total Items selected"
+     "role": "button",
+     "name": "Report"
     },
-    "note": "Verify that the summary exposes the selected-item total label."
+    "note": "Download the proposal report for comparison with the displayed allocation."
    },
    {
-    "step": "expect_text",
+    "step": "expect_download",
     "args": {
-     "text": "Total Amount"
+     "contains": [
+      "540",
+      "400",
+      "940"
+     ]
     },
-    "note": "Verify that the summary exposes the total-amount label."
+    "note": "Verify the downloaded report contains both vendor amounts and the total."
    }
   ]
  }

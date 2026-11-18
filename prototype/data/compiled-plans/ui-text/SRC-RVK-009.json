@@ -4,23 +4,30 @@
   "title": "Revert to the previous revision",
   "group": "SRC-RVK",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:53:21.330Z",
+  "compiledAt": "2026-11-13T12:45:39.723Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the revision trail retains exactly three entries: 100, 90, and the new 100 revision."
+  ],
   "warnings": [
    "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
    "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
    "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
    "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "resolved: “Use the vendor portal's revert option to restore 100 as a new revision and record the three-entry revision trail, includ” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "resolved: “Observe whether the vendor portal offers a revert option and perform the revert when available, including recording the ” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Verify that the revision trail retains exactly three entries: 100, 90, and the new 100 revision."
   ],
   "source": "llm",
   "steps": 18,
   "stepNames": [
    "open_create",
    "set_title",
-   "compose_stages",
+   "configure_single_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -30,74 +37,74 @@
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "expect_bid_submitted",
-   "expect_bid_submitted",
+   "expect_text",
+   "expect_text",
    "ask_tester",
    "switch_portal",
    "open_master_qcs",
    "expect_qcs_cell"
   ],
-  "ms": 76132
+  "ms": 16788
  },
  "plan": {
-  "title": "Vendor Revert to Previous Bid Revision",
+  "title": "SRC-RVK-009 Vendor Revert to Previous Revision",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "erfx"
+     "path": "single-stage"
     },
-    "note": "Create the RFQ event needed for the vendor revision scenario."
+    "note": "Create a standalone event for the vendor revision scenario."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title before publishing."
+    "args": {
+     "title": "SRC-RVK-009 Vendor Revert"
+    },
+    "note": "Provide the required event title."
    },
    {
-    "step": "compose_stages",
+    "step": "configure_single_stage",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "eventType": "rfq"
     },
-    "note": "Configure the event as an RFQ rather than the default auction stage."
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template before adding line items."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one product for the vendor bid sheet."
+    "note": "Add one line item for bidding."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet so the event can be published."
+    "note": "Complete the RFQ pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a bidding schedule required for publication."
+    "note": "Commit a bidding schedule before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor who will submit the revisions."
+    "note": "Invite one QA vendor to act as Vendor A."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so the vendor can bid."
+    "note": "Publish the event so Vendor A can submit revisions."
    },
    {
     "step": "expect_published",
@@ -109,31 +116,37 @@
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier-portal session while keeping the buyer session available."
+    "note": "Move to the separate supplier portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's RFQ bid sheet in the vendor portal."
+    "note": "Open the created event's pricing round as Vendor A."
    },
    {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the initial vendor bid was accepted."
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Confirm the vendor portal shows the bid as submitted."
    },
    {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the revised vendor bid was accepted."
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Confirm the revised bid was submitted."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "use the vendor portal's revert option to restore the previous bid of 100 as a new revision; if revert is not offered, record that outcome"
+     "need": "use Vendor A's vendor-portal revert option to restore the previous 100 bid if it is offered, or record that the revert option is not offered"
     },
-    "note": "The catalog has no step for the vendor-portal revert control or its revision-trail outcome."
+    "note": "The catalog has no step for locating or executing the vendor-portal revert action or recording its availability."
    },
    {
     "step": "switch_portal",
@@ -144,10 +157,8 @@
    },
    {
     "step": "open_master_qcs",
-    "args": {
-     "vendors": []
-    },
-    "note": "Open Master QCS after the vendor's revert attempt."
+    "args": {},
+    "note": "Open Master QCS to verify the buyer's current bid value."
    },
    {
     "step": "expect_qcs_cell",
@@ -156,7 +167,7 @@
      "vendor": 1,
      "number": 100
     },
-    "note": "Verify that Master QCS uses the restored bid value of 100 when the revert succeeds."
+    "note": "On the successful revert path, assert that Master QCS uses 100 as the current bid."
    }
   ]
  }

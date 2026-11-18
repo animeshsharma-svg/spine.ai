@@ -4,31 +4,43 @@
   "title": "Reschedule an upcoming event: move the start 2 hours later",
   "group": "SRC-RSC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:51:11.931Z",
+  "compiledAt": "2026-11-13T12:44:10.677Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "reschedule_event",
    "expect_settings_menu"
   ],
   "state": "upcoming",
   "screen": "summary",
-  "ms": 6727
+  "ms": 10358
  },
  "plan": {
-  "title": "Reschedule Upcoming RFQ by Two Hours",
+  "title": "Reschedule Upcoming RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared upcoming RFQ directly on its project summary page."
+    "note": "Open the API-prepared upcoming RFQ without searching or recreating it."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "reschedule_event",
@@ -36,7 +48,7 @@
      "start": "S+2h",
      "expect": "saved"
     },
-    "note": "Move the event start two hours after its current start and verify the save, preserved round length, and shifted end time."
+    "note": "Move the current start two hours later; the step verifies the save, preserved round length, and shifted closing time."
    },
    {
     "step": "expect_settings_menu",
@@ -45,7 +57,7 @@
       "Reschedule Event"
      ]
     },
-    "note": "Confirm the event remains upcoming after rescheduling, because Reschedule Event is still offered."
+    "note": "Confirm the event remains upcoming, because Reschedule Event is offered in that state."
    }
   ]
  }

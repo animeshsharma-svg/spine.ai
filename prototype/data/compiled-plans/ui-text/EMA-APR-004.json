@@ -4,22 +4,23 @@
   "title": "The step-2 approver cannot approve before step 1 is done",
   "group": "EMA-APR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-12T13:46:58.895Z",
+  "compiledAt": "2026-11-13T14:18:27.632Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Submit the event into a two-step email approval workflow with Asha as step 1 and Bikram as step 2.",
-   "Sign in to Bikram's mailbox, open or forward the approval email, click Approve, and send it unchanged.",
-   "Wait for Procol to process the mailbox and verify the bounce-back stating that Bikram is not an approver at the current stage.",
-   "Verify that step 1 remains pending on Asha."
+   "Connect the company's Outlook approval mailbox to Procol.",
+   "Configure the two-step approval workflow with Asha as step 1 and Bikram as step 2.",
+   "Submit Ravi's event for approval through that workflow.",
+   "Open Bikram's mailbox, use an approval email, send the unchanged-subject approval reply, and observe the bounce-back stating that Bikram is not an approver at the current stage.",
+   "Verify that step 1 remains pending with Asha."
   ],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Submit the event into a two-step email approval workflow with Asha as step 1 and Bikram as step 2.; Sign in to Bikram's mailbox, open or forward the approval email, click Approve, and send it unchanged.; Wait for Procol to process the mailbox and verify the bounce-back stating that Bikram is not an approver at the current stage.; Verify that step 1 remains pending on Asha."
+   "can only test part of this — no step for: Connect the company's Outlook approval mailbox to Procol.; Configure the two-step approval workflow with Asha as step 1 and Bikram as step 2.; Submit Ravi's event for approval through that workflow.; Open Bikram's mailbox, use an approval email, send the unchanged-subject approval reply, and observe the bounce-back stating that Bikram is not an approver at the current stage.; Verify that step 1 remains pending with Asha."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 12,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -30,12 +31,11 @@
    "fill_sheet",
    "set_schedule",
    "invite_vendor",
-   "publish",
-   "expect_published",
+   "save_draft",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_no_error"
   ],
-  "ms": 23574
+  "ms": 24181
  },
  "plan": {
   "title": "EMA-APR-004 Wrong-Step Email Approval",
@@ -45,7 +45,7 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Start creating the event that will be used for the approval scenario."
+    "note": "Prepare the event in the buyer console before the missing approval-flow actions."
    },
    {
     "step": "require_setting",
@@ -53,7 +53,7 @@
      "phrase": "Email approvals switched on for the company",
      "value": "On"
     },
-    "note": "Enable the required company configuration before creating the test event."
+    "note": "Enable the company configuration required for email approvals."
    },
    {
     "step": "require_setting",
@@ -61,65 +61,61 @@
      "phrase": "Approval workflow for events with email approval turned on",
      "value": "On"
     },
-    "note": "Enable the approval workflow prerequisite described by the case."
+    "note": "Enable the approval-workflow configuration required by the case."
    },
    {
     "step": "set_title",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Create the specifically named event from the case."
+    "note": "Use the exact event title from the case."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available template so the event can be completed."
+    "note": "Apply the first available template so the event can be configured."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 1
+     "count": 1,
+     "search": "Office Chairs"
     },
-    "note": "Add the required line item for a valid event."
+    "note": "Add a representative line item for the requested event."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet before publishing."
+    "note": "Complete the pricing sheet required for a valid event."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule."
+    "note": "Commit a schedule so the event is otherwise complete."
    },
    {
     "step": "invite_vendor",
     "args": {},
-    "note": "Add the product-provided vendor audience required for publishing."
+    "note": "Add the product's available vendor participant required for event completion."
    },
    {
-    "step": "publish",
+    "step": "save_draft",
     "args": {},
-    "note": "Publish the event; this is the closest available action to submitting it into the configured approval flow."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event was successfully created and reached its project page."
+    "note": "Save the prepared event without falsely treating publication as submission for approval."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in to Bikram's mailbox, approve the older company approval email without changing its subject, send it, wait for Procol to process it, and verify the wrong-step bounce-back and that Asha's step 1 remains pending"
+     "need": "Submit Ravi's event into the configured two-step approval workflow, then open Bikram's mailbox, approve using an older or forwarded approval email without changing its subject, send it, and report the bounce-back and whether Asha remains pending"
     },
-    "note": "The catalog has no mailbox, email-reply, or approval-workflow observation step."
+    "note": "Mailbox access, approval-email handling, and the workflow transition are unavailable to catalog steps."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Provide a final assertion on the available Procol screen without claiming that the mailbox outcome was verified."
+    "note": "Confirm the buyer console has not reported an application error after the tester's missing-flow actions."
    }
   ]
  }

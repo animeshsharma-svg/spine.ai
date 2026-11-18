@@ -4,37 +4,39 @@
   "title": "Submit a bid on a single stage forward auction",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:28:18.981Z",
+  "compiledAt": "2026-11-13T11:48:23.995Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that higher prices rank better, because this state and case provide only one bid and no comparative ranking assertion."
+   "The prepared event is a pricing RFQ rather than a single-stage forward auction.",
+   "Verify that higher prices rank better, because the prepared state provides only one bid and no ranking comparison."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that higher prices rank better, because this state and case provide only one bid and no comparative ranking assertion."
+   "can only test part of this — no step for: The prepared event is a pricing RFQ rather than a single-stage forward auction.; Verify that higher prices rank better, because the prepared state provides only one bid and no ranking comparison."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
+   "toggle",
    "vendor_bid",
    "expect_bid_submitted"
   ],
   "state": "forward",
   "screen": "summary",
-  "ms": 10012
+  "ms": 14842
  },
  "plan": {
-  "title": "Submit Bid on Live Forward Auction",
+  "title": "Vendor submits bid on forward auction",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live forward auction summary as required for this state."
+    "note": "Open the API-prepared event summary as required for prepared-state cases."
    },
    {
     "step": "switch_portal",
@@ -48,19 +50,27 @@
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live auction's pricing round in the vendor portal."
+    "note": "Open the prepared live event's pricing round in the vendor portal."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Terms and Conditions",
+     "on": true
+    },
+    "note": "Accept the required terms before submitting the quote."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Accept any required terms in the vendor bid flow, enter a quote of 100, and submit it."
+    "note": "Enter a quote of 100 in the vendor bid sheet and submit it."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the vendor portal reports the bid as submitted."
+    "note": "Verify that the vendor portal shows the bid as accepted and submitted."
    }
   ]
  }

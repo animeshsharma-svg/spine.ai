@@ -4,17 +4,15 @@
   "title": "A user who can see only one of the selected PRs is not shown",
   "group": "PRA-MANY",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-12T13:47:31.513Z",
+  "compiledAt": "2026-11-13T14:26:20.580Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Search for PR-1 and PR-4 and select one line item from each",
-   "Open the Assign user list for the selected PRs and inspect all available users",
    "unconfirmed label \"Fruits Buyer (B)\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
    "coverage partial: unconfirmed label \"Fruits Buyer (B)\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Search for PR-1 and PR-4 and select one line item from each; Open the Assign user list for the selected PRs and inspect all available users"
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
   "steps": 6,
@@ -22,14 +20,14 @@
    "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "ask_tester",
+   "do_on_screen",
    "expect_text",
    "expect_text"
   ],
-  "ms": 11247
+  "ms": 15651
  },
  "plan": {
-  "title": "Assignee list shows only users who see all selected PRs",
+  "title": "PR Assignee Visibility Across Selected PRs",
   "steps": [
    {
     "step": "require_setting",
@@ -37,26 +35,26 @@
      "key": "is_pr_teams_filtering_enabled",
      "value": "On"
     },
-    "note": "Enable the required PR team-filtering behavior for this tenant."
+    "note": "Enable the team-filtering configuration required for the visibility rule."
    },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions area, the required starting screen for a PR-based workflow."
+    "note": "Open the Purchase Requisitions screen."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Ensure the PR list is on the Open tab, where selectable PRs are expected."
+    "note": "Stay on the Open PR tab where the selected requisitions are available."
    },
    {
-    "step": "ask_tester",
+    "step": "do_on_screen",
     "args": {
-     "need": "search for PR-1 and PR-4, select one line item from each, open Assign, and leave the Search a user list open showing all available names"
+     "goal": "Search for PR-1 and PR-4, select one line item from each purchase requisition, click the Assign person icon next to Upload PRs, and leave the Search a user assignee list open after scrolling through every available name to the end; the list must show Food Buyer (A) and must not show Fruits Buyer (B)"
     },
-    "note": "The catalog has no step for searching and selecting multiple PRs or opening the PR assignment user list."
+    "note": "Perform the multi-PR selection and inspect the complete assignee list in the buyer portal."
    },
    {
     "step": "expect_text",
@@ -64,7 +62,7 @@
      "text": "Food Buyer (A)",
      "present": true
     },
-    "note": "Verify that the user who can see both selected PRs is offered for assignment."
+    "note": "Assert that the user who can see both selected PRs is offered."
    },
    {
     "step": "expect_text",
@@ -72,7 +70,7 @@
      "text": "Fruits Buyer (B)",
      "present": false
     },
-    "note": "Verify that the user who can see only PR-1 is excluded from the assignment list."
+    "note": "Assert that the user who can see only PR-1 is excluded."
    }
   ]
  }

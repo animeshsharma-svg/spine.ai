@@ -4,25 +4,27 @@
   "title": "Attach two documents to the event and see them on the project",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T12:57:52.605Z",
+  "compiledAt": "2026-11-13T11:53:54.726Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Upload the exact files \"Technical Specification Sheet.pdf\" and \"Bidding Sheet Template.xlsx\" because the upload catalog exposes only supported fixtures such as sample.pdf and sample.csv.",
-   "Verify that each downloaded file is byte-for-byte or content-identical to the corresponding uploaded file.",
-   "Verify the vendor can download each specific named attachment rather than merely seeing two Download controls."
+   "Attach the exact files Technical Specification Sheet.pdf and Bidding Sheet Template.xlsx",
+   "Verify both files are listed under Quotation Templates (2) on Project Details with working Download links",
+   "Verify the vendor can see and download both uploaded files"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Upload the exact files \"Technical Specification Sheet.pdf\" and \"Bidding Sheet Template.xlsx\" because the upload catalog exposes only supported fixtures such as sample.pdf and sample.csv.; Verify that each downloaded file is byte-for-byte or content-identical to the corresponding uploaded file.; Verify the vendor can download each specific named attachment rather than merely seeing two Download controls."
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Attach the exact files Technical Specification Sheet.pdf and Bidding Sheet Template.xlsx; Verify both files are listed under Quotation Templates (2) on Project Details with working Download links; Verify the vendor can see and download both uploaded files"
   ],
   "source": "llm",
-  "steps": 20,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -32,20 +34,18 @@
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "upload",
-   "upload",
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "click",
+   "ask_tester",
    "invite_vendor",
    "set_schedule",
    "publish",
    "expect_published",
    "go_to",
-   "expect_text",
-   "expect_count",
-   "switch_portal",
-   "vendor_open_event",
-   "expect_count"
+   "expect_visible"
   ],
-  "ms": 19577
+  "ms": 25306
  },
  "plan": {
   "title": "Single-stage RFQ attachments",
@@ -55,7 +55,7 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the Single Stage event creation screen."
    },
    {
     "step": "require_setting",
@@ -63,7 +63,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation as required by the case."
+    "note": "Enable eRFX event creation for the test company."
    },
    {
     "step": "require_setting",
@@ -76,65 +76,80 @@
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "Switch the default event type to RFQ."
+    "note": "Change the default event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Attachment verification event"
+     "title": "Attachment Verification RFQ"
     },
-    "note": "Provide the mandatory event title before publishing."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the pricing sheet and attachment flow are available."
+    "note": "Apply the first available RFQ template so the product sheet is available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB",
-     "quantity": "10"
+     "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the requested product and quantity."
+    "note": "Add the requested product to the single-stage sheet."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the remaining required sheet fields, including delivery location where needed."
+    "step": "fill_sheet"
    },
    {
-    "step": "upload",
+    "step": "set_sheet_cell",
     "args": {
-     "label": "Add Attachments",
-     "file": "sample.pdf"
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
     },
-    "note": "Upload the closest supported PDF fixture to represent the first attachment."
+    "note": "Enter the requested quantity."
    },
    {
-    "step": "upload",
+    "step": "set_sheet_cell",
     "args": {
-     "label": "Add Attachments",
-     "file": "sample.csv"
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
     },
-    "note": "Upload a second supported fixture to represent the second attachment."
+    "note": "Select the requested delivery location."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Add Attachments"
+    },
+    "note": "Open the attachment control before the tester supplies the exact files."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "Upload Technical Specification Sheet.pdf and Bidding Sheet Template.xlsx, verify both are listed under Quotation Templates (2) with working Download links on Project Details, and verify the vendor can see and download both files"
+    },
+    "note": "The exact file uploads and attachment/download verification are not expressible by the catalog."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add one QA vendor without inventing a vendor name."
+    "note": "Add one QA test vendor for publication."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required 30-minute schedule."
+    "note": "Commit the required 30-minute event schedule."
    },
    {
     "step": "publish",
@@ -144,7 +159,7 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm that publishing reached a real project page."
+    "note": "Confirm publication reached a real project page."
    },
    {
     "step": "go_to",
@@ -152,46 +167,16 @@
      "screen": "tab",
      "name": "Project Details"
     },
-    "note": "Open the project details area where quotation attachments should be listed."
+    "note": "Return to the project details view where attachments would be inspected."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
-     "text": "Quotation Templates (2)"
+     "role": "tab",
+     "name": "Project Details",
+     "visible": true
     },
-    "note": "Check that the project details show two quotation-template attachments."
-   },
-   {
-    "step": "expect_count",
-    "args": {
-     "role": "link",
-     "name": "Download",
-     "count": 2
-    },
-    "note": "Check that two attachment download links are present for the buyer."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "vendor"
-    },
-    "note": "Move to the invited vendor's supplier portal."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "overview": true
-    },
-    "note": "Open the event overview where vendor-visible attachments should be available."
-   },
-   {
-    "step": "expect_count",
-    "args": {
-     "role": "link",
-     "name": "Download",
-     "count": 2
-    },
-    "note": "Check that the vendor portal exposes two download controls."
+    "note": "Assert that the Project Details tab is available."
    }
   ]
  }

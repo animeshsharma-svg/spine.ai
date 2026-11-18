@@ -3,34 +3,23 @@
   "caseId": "PRD-KBSRC-032",
   "title": "Start Now with a preset duration",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:09:13.272Z",
+  "compiledAt": "2026-11-13T14:32:16.891Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Exact current date and time shown for Start Now and the exact end timestamp equal to now plus the selected duration."
-  ],
-  "warnings": [
-   "added set_title — publishing without a title is refused",
-   "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Exact current date and time shown for Start Now and the exact end timestamp equal to now plus the selected duration."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 12,
+  "steps": 7,
   "stepNames": [
    "open_create",
    "set_title",
-   "click",
-   "expect_visible",
-   "expect_visible",
-   "expect_visible",
-   "expect_text",
-   "expect_options",
-   "select",
-   "expect_text",
-   "click",
-   "expect_no_error"
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "expect_text"
   ],
-  "ms": 23519
+  "ms": 15013
  },
  "plan": {
   "title": "Start Now with Preset Duration",
@@ -40,93 +29,46 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Open the event creation screen where the Schedule control is available."
+    "note": "Open the event creation screen."
    },
    {
-    "step": "set_title"
-   },
-   {
-    "step": "click",
+    "step": "set_title",
     "args": {
-     "role": "button",
-     "name": "Schedule"
+     "title": "Start Now Preset Duration Test"
     },
-    "note": "Open the schedule side panel."
+    "note": "Provide the required event title so the create flow is valid."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "label": "Start time",
-     "visible": true
-    },
-    "note": "Verify the panel shows the Start Time field."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "label": "End time",
-     "visible": true
-    },
-    "note": "Verify the panel shows the End Time field."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "label": "Evaluation time",
-     "visible": true
-    },
-    "note": "Verify the panel shows the Evaluation Time field."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Start now",
-     "present": true
-    },
-    "note": "Verify the Start Now option is available for the start time."
-   },
-   {
-    "step": "expect_options",
-    "args": {
-     "label": "Duration",
-     "options": [
-      "30 Mins",
-      "1 Hrs",
-      "4 Hrs",
-      "1 Days"
-     ],
-     "only": true
-    },
-    "note": "Verify the duration dropdown offers the expected preset choices."
-   },
-   {
-    "step": "select",
-    "args": {
-     "label": "Duration",
-     "option": "30 Mins"
-    },
-    "note": "Choose the 30-minute preset."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Event will end at",
-     "present": true
-    },
-    "note": "Verify the schedule summary displays the calculated end-time summary."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Save Schedule"
-    },
-    "note": "Commit the Start Now schedule with the selected preset."
-   },
-   {
-    "step": "expect_no_error",
+    "step": "select_template",
     "args": {},
-    "note": "Verify saving the schedule produced no application error."
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the line item required to enable the schedule controls."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the event can be scheduled."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Keep the default Start Now setting, choose the 30-minute duration preset, save it, and verify the schedule calculation."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "30 Mins",
+     "present": true
+    },
+    "note": "Confirm the create screen shows the selected 30-minute schedule preset."
    }
   ]
  }

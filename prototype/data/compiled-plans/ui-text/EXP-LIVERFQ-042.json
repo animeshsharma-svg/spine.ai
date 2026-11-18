@@ -4,19 +4,25 @@
   "title": "Recreate Order: Cancel button closes Recreate Order without creating an order",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:47:35.351Z",
+  "compiledAt": "2026-11-13T14:14:11.993Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
    "Verify that no new order appears in the order list after cancellation."
   ],
   "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
    "can only test part of this — no step for: Verify that no new order appears in the order list after cancellation."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "event_menu",
@@ -26,7 +32,7 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9010
+  "ms": 10018
  },
  "plan": {
   "title": "Cancel Recreate Order",
@@ -36,7 +42,39 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ on the buyer's summary page."
+    "note": "Open the prepared live RFQ event without recreating its state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Ensure live-event withdrawal behavior matches the case setup."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor masking configuration."
    },
    {
     "step": "go_to",
@@ -44,14 +82,12 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage."
+    "note": "Open the RFQ stage."
    },
    {
     "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Open the RFQ Responses tab."
+    "args": {},
+    "note": "Open the RFQ Responses tab before using its Settings menu."
    },
    {
     "step": "event_menu",
@@ -86,7 +122,7 @@
      "name": "Recreate Order",
      "visible": false
     },
-    "note": "Verify that cancellation closes the Recreate Order window."
+    "note": "Confirm that cancellation closes the Recreate Order window."
    }
   ]
  }

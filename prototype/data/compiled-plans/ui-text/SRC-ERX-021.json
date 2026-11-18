@@ -4,18 +4,22 @@
   "title": "Save as draft with title, template and items",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:18:35.852Z",
+  "compiledAt": "2026-11-13T12:02:39.122Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "added fill_sheet — a pricing stage will not publish with an unfilled sheet"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 13,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "select_template",
    "add_line_items",
@@ -27,78 +31,85 @@
    "expect_event_in_list",
    "expect_event_status"
   ],
-  "ms": 68097
+  "ms": 10789
  },
  "plan": {
-  "title": "Save eRFX as Draft",
+  "title": "Save eRFX Event as Draft",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation screen."
+    "note": "Opens the eRFX project create screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_draft_project_creation",
+     "value": "On"
+    },
+    "note": "Enables saving sourcing projects as drafts."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enables eRFX project creation."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-ERX-021 Draft"
-    },
-    "note": "Provide the required project title."
+    "note": "Provides the required event title."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply a pricing template to the Auction stage."
+    "note": "Applies a template to the default Auction stage."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the single required line item."
+    "note": "Adds the single required line item."
    },
    {
     "step": "fill_sheet"
    },
    {
     "step": "save_draft",
-    "args": {},
-    "note": "Save the configured project without publishing it."
+    "note": "Saves the completed titled project as a draft."
    },
    {
     "step": "expect_toast",
     "args": {
-     "kind": "success"
+     "kind": "success",
+     "text": "Draft Project created successfully"
     },
-    "note": "Verify that saving produced a success message."
+    "note": "Verifies that the draft save succeeded."
    },
    {
     "step": "open_events_list",
-    "args": {},
-    "note": "Return to the events list to verify the saved draft."
+    "note": "Opens the events list to verify persistence."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab where the saved project should appear."
+    "note": "Shows the Drafts tab where the saved project should appear."
    },
    {
     "step": "expect_event_in_list",
-    "args": {
-     "title": "SRC-ERX-021 Draft"
-    },
-    "note": "Verify the draft is listed under its title."
+    "note": "Verifies that this plan's saved event is listed in Drafts."
    },
    {
     "step": "expect_event_status",
     "args": {
-     "title": "SRC-ERX-021 Draft",
      "status": "Draft"
     },
-    "note": "Verify the listed project has Draft status."
+    "note": "Confirms the listed event has Draft status."
    }
   ]
  }

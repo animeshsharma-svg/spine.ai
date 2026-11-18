@@ -4,28 +4,31 @@
   "title": "A live RFQ: \"Click here\" shows \"Order Details\"",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:14:31.968Z",
+  "compiledAt": "2026-11-13T14:11:10.938Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The identities and presence of the seven additional unspecified items in the Order Details view"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The identities and presence of the seven additional unspecified items in the Order Details view"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "click",
-   "expect_visible",
-   "expect_visible",
+   "expect_text",
+   "expect_text",
    "expect_text",
    "expect_text"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 7460
+  "ms": 10974
  },
  "plan": {
   "title": "Live RFQ Click Here Order Details",
@@ -35,48 +38,74 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ directly on its Responses tab."
+    "note": "Open the prepared live RFQ directly on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required withdrawal visibility setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal during the live submission period as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Enable vendor masking for everyone as required by the scenario."
    },
    {
     "step": "click",
     "args": {
-     "role": "button",
-     "name": "Click here"
+     "text": "Click here"
     },
-    "note": "Activate the control under test."
+    "note": "Activate the control whose resulting screen is being tested."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Order Details",
-     "visible": true
+     "text": "Order Details"
     },
     "note": "Verify that the Order Details view opened."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "button",
-     "name": "Edit",
-     "visible": true
+     "text": "Edit"
     },
-    "note": "Verify the Edit control is shown in Order Details."
+    "note": "Verify the expected edit control is present."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Event Title",
-     "present": true
+     "text": "Event Title"
     },
-    "note": "Verify the Event Title field is shown."
+    "note": "Verify the event title field is shown."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Location",
-     "present": true
+     "text": "Location"
     },
-    "note": "Verify the Location field is shown."
+    "note": "Verify the location field is shown."
    }
   ]
  }

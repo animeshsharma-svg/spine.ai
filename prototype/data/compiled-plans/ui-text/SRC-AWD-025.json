@@ -4,48 +4,48 @@
   "title": "Two bids on two lines: award both lines to B; no approval flow",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:20:18.893Z",
+  "compiledAt": "2026-11-13T11:40:54.938Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared state exposes only one line item, so allocating and verifying the second line (5 units at ₹60) and the ₹1,200 total cannot be tested.",
-   "The catalog cannot verify that the event moves to History for this prepared event because its title is not available to target in the events list.",
-   "The catalog cannot verify that no approval flow occurs as a distinct assertion."
+   "The prepared state has only one line item, so allocating both requested lines to Vendor B and verifying the combined ₹1,200 total cannot be expressed.",
+   "Filling and submitting individual required proposal fields cannot be observed separately; award_event submits the proposal as one operation.",
+   "The absence of an approval flow cannot be asserted directly."
   ],
   "warnings": [
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
    "moved open_prepared to the front — every later step acts on that screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: The prepared state exposes only one line item, so allocating and verifying the second line (5 units at ₹60) and the ₹1,200 total cannot be tested.; The catalog cannot verify that the event moves to History for this prepared event because its title is not available to target in the events list.; The catalog cannot verify that no approval flow occurs as a distinct assertion."
+   "can only test part of this — no step for: The prepared state has only one line item, so allocating both requested lines to Vendor B and verifying the combined ₹1,200 total cannot be expressed.; Filling and submitting individual required proposal fields cannot be observed separately; award_event submits the proposal as one operation.; The absence of an approval flow cannot be asserted directly."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "start_awarding",
-   "allocate_award",
-   "expect_award_counters",
-   "click",
-   "expect_navigated",
-   "fill_required",
-   "click",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "award_event",
    "expect_awarded",
    "create_po",
-   "expect_po_items"
+   "expect_po_items",
+   "filter_events",
+   "expect_event_in_list"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 14865
+  "ms": 19068
  },
  "plan": {
-  "title": "Award both bids to Vendor B with no approval",
+  "title": "Award both lines to Vendor B without approval flow",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly on Master QCS, as required for prepared-state cases."
+    "note": "Open the existing closed two-bid RFQ directly on Master QCS."
    },
    {
     "step": "require_setting",
@@ -53,68 +53,45 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project configuration before opening the prepared event."
+    "note": "Enable the required eRFX project configuration before accessing the prepared event."
    },
    {
-    "step": "start_awarding",
-    "args": {},
-    "note": "Open the awarding screen for the closed event."
-   },
-   {
-    "step": "allocate_award",
+    "step": "expect_qcs_vendors",
     "args": {
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "realNames": true
+    },
+    "note": "Confirm both bidding vendors are represented by real names before awarding."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
      "vendor": "Vendor B",
-     "quantity": 10,
-     "line": 1
+     "number": 90
     },
-    "note": "Allocate the available first line's full quantity to Vendor B."
+    "note": "Verify the available prepared line shows Vendor B's stated rate."
    },
    {
-    "step": "expect_award_counters",
+    "step": "award_event",
     "args": {
-     "items": "1/1",
-     "vendors": "1/2",
-     "proposal": 900
+     "vendor": "Vendor B"
     },
-    "note": "Verify the available allocation selects one of two bidders and calculates Vendor B's first-line proposal as 10 × ₹90 = ₹900."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Proposal"
-    },
-    "note": "Create the proposal from the selected allocation."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "proposal"
-    },
-    "note": "Verify that the proposal page opened."
-   },
-   {
-    "step": "fill_required",
-    "args": {},
-    "note": "Complete the mandatory proposal fields before submission."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Submit Proposal"
-    },
-    "note": "Submit the award proposal."
+    "note": "Allocate the available line to Vendor B, create the proposal, and submit it in the catalog's combined award flow."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Verify that the award proposal was submitted successfully."
+    "note": "Assert that the award proposal was created and submitted."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete the available awarded flow and create the purchase order for the awarded vendor."
+    "note": "Complete the post-award flow and create the purchase order for the awarded vendor."
    },
    {
     "step": "expect_po_items",
@@ -122,7 +99,19 @@
      "count": 1,
      "quantity": 10
     },
-    "note": "Verify the resulting purchase order contains the available awarded line with quantity 10."
+    "note": "Verify the available awarded line appears in the resulting purchase order with its requested quantity."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab where a completed award should be listed."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Assert that this plan's awarded event appears in History."
    }
   ]
  }

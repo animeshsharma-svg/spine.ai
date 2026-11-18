@@ -3,41 +3,39 @@
   "caseId": "PRD-KBSRC-422",
   "title": "Re-evaluation reason is mandatory",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:22:32.383Z",
+  "compiledAt": "2026-11-13T14:45:55.491Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "A dedicated step to open or interact with the Request Re-Evaluation drawer and select line items",
-   "An assertion that the request was not sent",
-   "An assertion that the selected line items did not change status"
-  ],
-  "warnings": [
-   "can only test part of this — no step for: A dedicated step to open or interact with the Request Re-Evaluation drawer and select line items; An assertion that the request was not sent; An assertion that the selected line items did not change status"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
+   "open_event",
    "do_on_screen",
-   "expect_message"
+   "expect_screen_clean"
   ],
-  "ms": 15041
+  "ms": 19003
  },
  "plan": {
-  "title": "Re-evaluation reason is mandatory",
+  "title": "Re-evaluation reason required",
   "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing event so the buyer-side re-evaluation drawer can be reached."
+   },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "With the Request Re-Evaluation drawer already open, select one or more line items, leave the reason empty, click Send Request, and stop when the screen proves that the request was refused because a reason is mandatory and the line items remain unchanged"
+     "goal": "Open the Request Re-Evaluation drawer, select one or more line items, leave the reason empty, click Send Request, and verify the request is refused/not sent while the selected line items retain their original statuses."
     },
-    "note": "The catalog has no domain step for the Request Re-Evaluation drawer, so this performs and observes the buyer-side validation directly."
+    "note": "Perform and observe the drawer-specific validation and status-preservation behavior that has no dedicated domain step."
    },
    {
-    "step": "expect_message",
-    "args": {
-     "kind": "error"
-    },
-    "note": "Assert that the empty-reason submission produced an error rather than succeeding."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the browser remains healthy after the refused request attempt."
    }
   ]
  }

@@ -4,102 +4,58 @@
   "title": "Changing the selection changes the list",
   "group": "PRA-MANY",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-12T13:47:49.988Z",
+  "compiledAt": "2026-11-13T14:26:42.374Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify the exact team-based filtering logic inside the assignee search box showing Engg Buyer vs Fruits Buyer dynamically per PR"
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Verify the exact team-based filtering logic inside the assignee search box showing Engg Buyer vs Fruits Buyer dynamically per PR"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 11,
+  "steps": 12,
   "stepNames": [
    "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "click",
+   "select_pr",
    "click",
    "expect_visible",
-   "press",
+   "expect_options",
    "click",
+   "select_pr",
    "click",
-   "click",
-   "expect_visible"
+   "expect_visible",
+   "expect_options"
   ],
-  "ms": 19769
+  "ms": 17510
  },
  "plan": {
-  "title": "PRA-MANY-006 — Changing the selection changes the list",
+  "title": "Assignee list updates with PR selection",
   "steps": [
    {
     "step": "require_setting",
     "args": {
-     "phrase": "is_pr_teams_filtering_enabled",
+     "key": "is_pr_teams_filtering_enabled",
      "value": "On"
     },
-    "note": "Enable PR teams filtering company setting as requested"
+    "note": "Enable the team-based PR filtering required by the scenario."
    },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open Purchase Requisitions screen"
+    "note": "Open the Purchase Requisitions area."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab"
+    "note": "Stay on the Open tab where PR-1 and PR-2 are available for assignment."
    },
    {
-    "step": "click",
+    "step": "select_pr",
     "args": {
-     "role": "checkbox",
-     "name": "PR-1"
+     "pr": "PR-1"
     },
-    "note": "Tick the checkbox of one PR-1 item"
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Assign"
-    },
-    "note": "Click the Assign button to open the user search box"
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Search a user",
-     "visible": true
-    },
-    "note": "Assert the Search a user box opens"
-   },
-   {
-    "step": "press",
-    "args": {
-     "key": "Escape"
-    },
-    "note": "Close the assign user box"
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "checkbox",
-     "name": "PR-1"
-    },
-    "note": "Untick the PR-1 item"
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "checkbox",
-     "name": "PR-2"
-    },
-    "note": "Tick a PR-2 item"
+    "note": "Select the PR-1 item whose eligible assignee list will be inspected first."
    },
    {
     "step": "click",
@@ -107,16 +63,69 @@
      "role": "button",
      "name": "Assign"
     },
-    "note": "Click the Assign button again for PR-2"
+    "note": "Open the assignee picker for the selected PR-1 item."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Search a user",
+     "label": "Search a user",
      "visible": true
     },
-    "note": "Assert the new Search a user box opens for PR-2"
+    "note": "Confirm the assignee search box opened."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Search a user",
+     "options": [
+      "Fruits Buyer"
+     ]
+    },
+    "note": "Record the PR-1 assignee options and verify the expected PR-1 user is offered."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "checkbox",
+     "within": "PR-1"
+    },
+    "note": "Clear the PR-1 selection before choosing PR-2."
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "pr": "PR-2"
+    },
+    "note": "Select PR-2 so the Assign list must be recalculated for the new selection."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Assign"
+    },
+    "note": "Open the assignee picker again for PR-2."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "label": "Search a user",
+     "visible": true
+    },
+    "note": "Confirm the second assignee picker opened."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Search a user",
+     "options": [
+      "Engg Buyer"
+     ],
+     "absent": [
+      "Fruits Buyer"
+     ]
+    },
+    "note": "Verify the second list is for PR-2 and does not reuse the PR-1 list."
    }
   ]
  }

@@ -3,40 +3,42 @@
   "caseId": "PRD-INTK-020",
   "title": "Withdraw Intake Request: not available on plans below Growth",
   "group": "PRD-INTK",
-  "compiledAt": "2026-11-10T04:59:11.608Z",
+  "compiledAt": "2026-11-13T15:24:53.573Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The Withdraw Intake Request flow for an intake with pending approvals",
-   "Comparing capability availability between a lower-than-Growth tenant and a Growth tenant",
-   "Signing in as the Requester / End User and preserving the same role across both tenants",
-   "Verifying the tenant plan or changing it to Growth; switch_company only supports explicitly named tenant IDs and cannot change plan settings"
+   "Open or create an intake request with approvals pending",
+   "Sign in as the requester on a tenant below Growth and attempt Withdraw Intake Request",
+   "Repeat the same workflow on a Growth tenant and compare availability",
+   "Verify plan-tier-specific refusal or absence and successful withdrawal"
   ],
   "warnings": [
-   "can only test part of this — no step for: The Withdraw Intake Request flow for an intake with pending approvals; Comparing capability availability between a lower-than-Growth tenant and a Growth tenant; Signing in as the Requester / End User and preserving the same role across both tenants; Verifying the tenant plan or changing it to Growth; switch_company only supports explicitly named tenant IDs and cannot change plan settings"
+   "can only test part of this — no step for: Open or create an intake request with approvals pending; Sign in as the requester on a tenant below Growth and attempt Withdraw Intake Request; Repeat the same workflow on a Growth tenant and compare availability; Verify plan-tier-specific refusal or absence and successful withdrawal"
   ],
   "source": "llm",
   "steps": 2,
   "stepNames": [
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 10501
+  "ms": 18201
  },
  "plan": {
-  "title": "Withdraw Intake Request Plan Gating",
+  "title": "Withdraw Intake Request by Plan",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the Requester / End User, verify Withdraw Intake Request for an intake with approvals pending on a tenant below Growth, then repeat the same flow on a Growth tenant and report whether the capability is absent or refused below Growth and works on Growth"
+     "need": "sign in as the requester on a tenant below Growth and a Growth tenant, open an intake request with approvals pending, attempt Withdraw Intake Request on both, and compare the refusal or absence below Growth with successful availability on Growth"
     },
-    "note": "No catalog step can access intake requests, pending approvals, plan-gated capabilities, or the required requester sessions."
+    "note": "No catalog step can navigate intake requests, establish pending approvals, switch or inspect plan tiers, or perform this requester-specific withdrawal."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the tester-provided flow leaves the application without a crash or server error; this does not replace the missing capability-specific assertion."
+    "step": "expect_text",
+    "args": {
+     "text": "Withdraw Intake Request"
+    },
+    "note": "Closest observable check for the requested capability label after the tester performs the workflow; it does not establish plan-specific behavior."
    }
   ]
  }

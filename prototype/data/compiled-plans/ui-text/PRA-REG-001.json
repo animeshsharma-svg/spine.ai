@@ -4,33 +4,30 @@
   "title": "Other user pickers are not affected",
   "group": "PRA-REG",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:06:12.588Z",
+  "compiledAt": "2026-11-13T14:29:35.010Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in specifically as the PR manager who assigns PRs.",
-   "Verify the picker contains exactly the same users as before this change.",
-   "Verify that the picker applies no category filtering compared with the pre-change user list."
+   "Sign in as the PR manager who assigns PRs",
+   "Open an event collaborator or approver user picker outside the PR page and inspect every listed user through the end of the list",
+   "Verify the picker contains the same users as before the change and has no category filtering"
   ],
   "warnings": [
    "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
    "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
-   "can only test part of this — no step for: Log in specifically as the PR manager who assigns PRs.; Verify the picker contains exactly the same users as before this change.; Verify that the picker applies no category filtering compared with the pre-change user list."
+   "can only test part of this — no step for: Sign in as the PR manager who assigns PRs; Open an event collaborator or approver user picker outside the PR page and inspect every listed user through the end of the list; Verify the picker contains the same users as before the change and has no category filtering"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
-   "event_menu",
-   "expect_text",
-   "expect_count",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 17633
+  "ms": 12712
  },
  "plan": {
-  "title": "Other User Picker Regression",
+  "title": "Verify user picker options outside PR",
   "steps": [
    {
     "step": "open_prepared",
@@ -40,38 +37,16 @@
     "note": "the API builds the proposal event this case starts from"
    },
    {
-    "step": "event_menu",
-    "args": {
-     "item": "Change Owner"
-    },
-    "note": "Open the event's Change Owner user picker, which is the closest available non-PR user dropdown."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Change Owner"
-    },
-    "note": "Confirm that the Change Owner picker is open."
-   },
-   {
-    "step": "expect_count",
-    "args": {
-     "role": "option",
-     "min": 1
-    },
-    "note": "Confirm that the picker exposes user options, without inventing expected names."
-   },
-   {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the PR manager, provide the pre-change user list, and verify that the Change Owner picker contains the same users without category filtering"
+     "need": "sign in as the PR manager, open an event collaborator or approver user picker outside the PR page, scroll through every name, and compare the complete list with the pre-change user set to verify there is no category filtering"
     },
-    "note": "The catalog cannot provide the required identity, historical baseline, or category-comparison assertion."
+    "note": "The catalog has no step to authenticate as this user, open the required picker, or compare its complete contents with a prior baseline."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Ensure no visible application error or crash occurred while inspecting the picker."
+    "note": "Assert that the resulting screen remains free of visible application errors after the manual inspection."
    }
   ]
  }

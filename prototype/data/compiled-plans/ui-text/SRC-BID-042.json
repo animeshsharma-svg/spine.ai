@@ -4,19 +4,19 @@
   "title": "Submit a bid on an eRFX Auction project",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:28:11.458Z",
+  "compiledAt": "2026-11-13T11:48:15.930Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The exact updated live rank or best-price value shown to the vendor after submitting the bid"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
+   "invite_vendor now names Vendor A — a later step expects that vendor on the event",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: The exact updated live rank or best-price value shown to the vendor after submitting the bid"
+   "invite_vendor now names Vendor A — a later step expects that vendor on the event",
+   "resolved: “The catalog does not provide a dedicated step to accept arbitrary required Terms and Conditions checkboxes in the vendor” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 19,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -32,12 +32,13 @@
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "toggle",
    "vendor_bid",
    "expect_bid_submitted",
-   "expect_visible"
+   "switch_portal",
+   "open_master_qcs",
+   "expect_qcs_ranks"
   ],
-  "ms": 14281
+  "ms": 17870
  },
  "plan": {
   "title": "Submit Bid on eRFX Auction",
@@ -47,7 +48,7 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation flow."
+    "note": "Open the eRFX project creation screen."
    },
    {
     "step": "require_setting",
@@ -55,14 +56,14 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project capability for the test tenant."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-BID-042 Auction Bid"
+     "title": "SRC-BID-042 Auction"
     },
-    "note": "Provide the mandatory project title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -71,57 +72,60 @@
       "auction"
      ]
     },
-    "note": "Configure the project as Auction-only."
+    "note": "Configure an Auction-only eRFX project."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "auction"
     },
-    "note": "Work on the Auction stage before configuring its template and sheet."
+    "note": "Work on the auction stage before configuring it."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an Auction pricing template."
+    "note": "Apply the auction pricing template required for the bid sheet."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one product for the vendor to quote."
+    "note": "Add a product for Vendor A to quote."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the Auction pricing sheet."
+    "note": "Complete the auction pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule."
+    "note": "Commit a valid bidding schedule before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "vendors": [
       "Vendor A"
+     ],
+     "names": [
+      "Vendor A"
      ]
     },
-    "note": "Invite the named vendor required by the scenario."
+    "note": "Invite the vendor specified by the case."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so Vendor A can access it."
+    "note": "Publish the auction so it is available in the vendor portal."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a real published project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "switch_portal",
@@ -129,42 +133,49 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Open the separate Vendor A supplier-portal session while keeping the buyer session available."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open this event's Auction pricing round in the vendor portal."
-   },
-   {
-    "step": "toggle",
-    "args": {
-     "label": "Terms and Conditions",
-     "on": true
-    },
-    "note": "Accept the required terms before submitting the quote."
+    "note": "Open this event's auction bid sheet in the vendor portal."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Enter a bid of 100 in the vendor portal and submit it."
+    "note": "Enter the requested quote and submit it from Vendor A's portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the vendor portal records the bid as submitted."
+    "note": "Assert that the vendor portal accepted the submitted bid."
    },
    {
-    "step": "expect_visible",
+    "step": "switch_portal",
     "args": {
-     "text": "Rank",
-     "visible": true
+     "to": "buyer"
     },
-    "note": "Check that the vendor portal exposes the rank indicator after submission, while the catalog cannot assert its exact updated value."
+    "note": "Return to the buyer's event page to observe the live result."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open the buyer comparison grid and verify Vendor A's bid is visible."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "atLeast": 1
+    },
+    "note": "Assert that the submitted bid produces a live auction rank."
    }
   ]
  }

@@ -3,46 +3,40 @@
   "caseId": "PRD-RFX-043",
   "title": "Clara AI Sourcing Assistant: not available on the Growth plan",
   "group": "PRD-RFX",
-  "compiledAt": "2026-11-10T01:35:16.769Z",
+  "compiledAt": "2026-11-13T14:54:53.880Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Switch between the unnamed Growth and Enterprise tenants and verify that Clara is refused or absent on Growth but available and working on Enterprise using the same buyer steps."
+   "Identify or access a tenant specifically on the Growth plan and a tenant specifically on the Enterprise plan when no tenant IDs are provided.",
+   "Use Clara AI Sourcing Assistant to assist through the sourcing event and observe whether the capability is refused, absent, or functional.",
+   "Compare the same Clara workflow's availability across Growth and Enterprise tenants."
   ],
   "warnings": [
-   "added set_title — publishing without a title is refused",
-   "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Switch between the unnamed Growth and Enterprise tenants and verify that Clara is refused or absent on Growth but available and working on Enterprise using the same buyer steps."
+   "can only test part of this — no step for: Identify or access a tenant specifically on the Growth plan and a tenant specifically on the Enterprise plan when no tenant IDs are provided.; Use Clara AI Sourcing Assistant to assist through the sourcing event and observe whether the capability is refused, absent, or functional.; Compare the same Clara workflow's availability across Growth and Enterprise tenants."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
-   "open_create",
-   "set_title",
+   "open_events_list",
+   "expect_events_list",
+   "expect_visible",
    "ask_tester",
    "expect_visible"
   ],
-  "ms": 70369
+  "ms": 19991
  },
  "plan": {
-  "title": "Clara availability by plan",
+  "title": "Clara availability by tenant plan",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Open the sourcing event screen where the Clara assistant control is offered."
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open a buyer-facing screen where the Clara entry point may be available."
    },
    {
-    "step": "set_title"
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "switch between the Growth and Enterprise tenants and use Clara through the sourcing event to verify it is absent or refused on Growth and available and working on Enterprise"
-    },
-    "note": "Tenant plan switching and operating the Clara assistant are not expressible by the catalog."
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered before inspecting its available controls."
    },
    {
     "step": "expect_visible",
@@ -51,7 +45,23 @@
      "name": "Ask Clara",
      "visible": true
     },
-    "note": "Check the known Clara control on the resulting sourcing screen when available."
+    "note": "Check whether the known Clara entry point is visible on the current tenant, without claiming this proves plan entitlement."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide access to the named Growth and Enterprise tenants and run the same buyer workflow with Clara, recording whether Clara is absent or refused on Growth and usable on Enterprise"
+    },
+    "note": "The plan comparison and Clara interaction require tenant plan access and behavior not expressible by the catalog."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Ask Clara",
+     "visible": true
+    },
+    "note": "Final assertion that the known Clara control is visible after the tester-provided tenant workflow."
    }
   ]
  }

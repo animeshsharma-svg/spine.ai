@@ -4,56 +4,88 @@
   "title": "All Vendors: Searching for an existing vendor filters the vendor list",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:55:05.340Z",
+  "compiledAt": "2026-11-13T14:08:41.318Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Whether all vendors whose details do not contain \"check@gmail.com\" are removed from the list."
+   "Assert that no vendor rows whose text does not contain check@gmail.com remain visible."
   ],
   "warnings": [
-   "can only test part of this — no step for: Whether all vendors whose details do not contain \"check@gmail.com\" are removed from the list."
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Assert that no vendor rows whose text does not contain check@gmail.com remain visible."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 15,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
    "click",
    "expect_visible",
+   "remember",
+   "click",
    "fill",
    "expect_value",
+   "expect_remembered",
    "expect_text"
   ],
-  "ms": 14038
+  "ms": 15176
  },
  "plan": {
-  "title": "Filter Vendors in Draft Participants",
+  "title": "Draft Vendor Search Filtering",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to locate an existing saved draft."
+    "note": "Open the events list to locate the existing draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-addition restriction for event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the additional tenant configuration specified by the case."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Verify the events list rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show saved drafts as required by the case."
+    "note": "Switch to the Drafts tab specified by the case."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first existing draft; drafts reopen on their create screen."
+    "note": "Open the existing saved draft; the draft reopens on its create screen."
    },
    {
     "step": "click",
@@ -61,7 +93,7 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the draft's All Vendors participant window."
+    "note": "Open the draft's participant and All Vendors window."
    },
    {
     "step": "expect_visible",
@@ -69,31 +101,57 @@
      "text": "All Vendors",
      "visible": true
     },
-    "note": "Confirm the All Vendors window opened."
+    "note": "Verify that the All Vendors window opened."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "vendor-list-before-search",
+     "text": "All Vendors"
+    },
+    "note": "Capture the current All Vendors region before applying the search."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "textbox",
+     "name": "Search Vendors"
+    },
+    "note": "Focus the vendor search field."
    },
    {
     "step": "fill",
     "args": {
-     "label": "Search vendors you want to add",
+     "label": "Search Vendors",
      "value": "check@gmail.com"
     },
-    "note": "Enter the requested vendor search text."
+    "note": "Enter the vendor search text from the test case."
    },
    {
     "step": "expect_value",
     "args": {
-     "label": "Search vendors you want to add",
+     "label": "Search Vendors",
      "value": "check@gmail.com"
     },
-    "note": "Verify the search field contains the requested email."
+    "note": "Confirm the search field contains the requested query."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "vendor-list-before-search",
+     "same": false,
+     "text": "All Vendors"
+    },
+    "note": "Verify that the All Vendors content changed after searching."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "check@gmail.com",
-     "present": true
+     "present": true,
+     "within": "All Vendors"
     },
-    "note": "Verify the filtered vendor list shows the searched vendor text."
+    "note": "Verify that the matching vendor appears in the filtered vendor list."
    }
   ]
  }

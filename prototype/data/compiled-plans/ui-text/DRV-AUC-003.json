@@ -4,65 +4,169 @@
   "title": "Rank-based auction respects Display Vendor Rank In Auction QCs setting when configured",
   "group": "DRV-AUC",
   "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
-  "compiledAt": "2026-11-12T13:25:24.104Z",
+  "compiledAt": "2026-11-13T13:21:51.430Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "A vendor bid with an explicit trailing space in the price field (the prepared state provides a standard numeric bid)"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: A vendor bid with an explicit trailing space in the price field (the prepared state provides a standard numeric bid)"
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 18,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
-   "click",
-   "click",
-   "expect_navigated"
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "switch_portal",
+   "convert_to_auction",
+   "expect_no_error",
+   "open_master_qcs",
+   "expect_qcs_cell",
+   "expect_no_error"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 22135
+  "ms": 1211
  },
  "plan": {
-  "title": "Convert to Auction with a vendor bid containing a trailing space in price field",
+  "title": "Convert RFQ with trailing-space bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Start on the prepared event summary page"
+    "note": "the API built this case's state"
    },
    {
-    "step": "open_event_settings",
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ, which is the source stage for conversion."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Open the event settings menu to access conversion options"
+    "note": "Apply the RFQ pricing template before adding line items."
    },
    {
-    "step": "click",
+    "step": "add_line_items",
     "args": {
-     "role": "menuitem",
-     "name": "Convert to Auction"
+     "count": 1
     },
-    "note": "Select Convert to Auction from the settings menu"
+    "note": "Add the product needed for the vendor bid."
    },
    {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Continue"
-    },
-    "note": "Confirm the conversion dialog"
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
    },
    {
-    "step": "expect_navigated",
+    "step": "set_schedule",
     "args": {
-     "screen": "overview"
+     "minutes": 30
     },
-    "note": "Assert we land on the newly created auction overview page"
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the vendor who will submit the edge-case bid."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the RFQ pricing sheet as the vendor."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": "100 "
+    },
+    "note": "Submit the price with the required trailing space."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor portal accepted the bid."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's event page for conversion."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Use the RFQ project action to convert the active RFQ and carry its bid into the auction."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm conversion did not produce an error."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's comparison grid containing the converted auction bid."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "equals": "100"
+    },
+    "note": "Verify the copied bid is displayed as numeric price 100, with the trailing space trimmed."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the converted auction screen shows no error."
    }
   ]
  }

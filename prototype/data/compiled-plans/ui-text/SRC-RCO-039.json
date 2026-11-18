@@ -4,23 +4,22 @@
   "title": "Recreate Order with Quantity Requested = 0",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:45:57.880Z",
+  "compiledAt": "2026-11-13T12:38:34.496Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "event_menu",
-   "fill",
-   "click",
-   "expect_error"
+   "do_on_screen",
+   "expect_message"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 14338
+  "ms": 18991
  },
  "plan": {
   "title": "Recreate Order Rejects Zero Quantity",
@@ -30,7 +29,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ created by the setup case."
+    "note": "Open the prepared closed RFQ summary without searching or creating another event."
    },
    {
     "step": "event_menu",
@@ -38,30 +37,22 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage Settings menu and choose Recreate Order."
+    "note": "Open the RFQ stage action that launches the Recreate Order flow."
    },
    {
-    "step": "fill",
+    "step": "do_on_screen",
     "args": {
-     "label": "Quantity Requested",
-     "value": "0"
+     "goal": "In the Recreate Order screen, enter 0 in Quantity Requested, click Create Order, and stop when the refusal is shown."
     },
-    "note": "Enter the invalid zero quantity in the recreate-order flow."
+    "note": "Perform the recreate-order quantity validation that has no dedicated domain step."
    },
    {
-    "step": "click",
+    "step": "expect_message",
     "args": {
-     "role": "button",
-     "name": "Create Order"
+     "kind": "error",
+     "text": "more than zero"
     },
-    "note": "Submit the recreate-order form."
-   },
-   {
-    "step": "expect_error",
-    "args": {
-     "contains": "more than zero"
-    },
-    "note": "Verify Procol refuses the order because the quantity must be greater than zero."
+    "note": "Assert that the order was refused because Quantity Requested must be greater than zero."
    }
   ]
  }

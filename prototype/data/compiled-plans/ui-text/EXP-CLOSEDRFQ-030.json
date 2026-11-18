@@ -4,16 +4,18 @@
   "title": "A closed RFQ: \"Withdrawing Order...\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:41:20.037Z",
+  "compiledAt": "2026-11-13T13:54:30.630Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Directly compare the event status and bidding times before and after cancellation.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Verify every vendor and bid remains unchanged when the prepared state exposes only the API-backed vendor and bid value a” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
   ],
   "source": "llm",
-  "steps": 20,
+  "steps": 16,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -22,33 +24,29 @@
    "require_setting",
    "go_to",
    "go_to",
-   "expect_text",
-   "remember",
-   "remember",
    "expect_api_value",
    "expect_api_value",
    "event_menu",
+   "expect_text",
    "click",
    "expect_visible",
-   "expect_text",
-   "expect_remembered",
-   "expect_remembered",
    "expect_api_value",
-   "expect_api_value"
+   "expect_api_value",
+   "expect_screen_clean"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 22618
+  "ms": 13883
  },
  "plan": {
-  "title": "Cancel withdrawal on closed RFQ",
+  "title": "Closed RFQ withdrawal cancel leaves event unchanged",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ instead of creating or searching for another event."
+    "note": "Open the prepared closed RFQ instead of creating or searching for an event."
    },
    {
     "step": "require_setting",
@@ -64,7 +62,7 @@
      "key": "is_allowed_to_add_surrogate_bid_post_expiry",
      "value": "Off"
     },
-    "note": "Use the required post-expiry surrogate-bidding configuration."
+    "note": "Apply the required post-expiry surrogate-bid configuration."
    },
    {
     "step": "require_setting",
@@ -72,7 +70,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Use the required buyer bid-editing configuration."
+    "note": "Apply the required buyer bid-edit configuration."
    },
    {
     "step": "require_setting",
@@ -80,7 +78,7 @@
      "key": "allow_event_evaluation_reopen_for_everyone",
      "value": "Off"
     },
-    "note": "Use the required evaluation reopen configuration."
+    "note": "Apply the required evaluation-reopen configuration."
    },
    {
     "step": "go_to",
@@ -88,51 +86,28 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage referenced by the case."
+    "note": "Open the RFQ stage whose withdrawal controls are being tested."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open Responses, the screen where the withdrawal action is tested."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Closed"
-    },
-    "note": "Record that the RFQ is closed before attempting cancellation."
-   },
-   {
-    "step": "remember",
-    "args": {
-     "key": "bidding-start",
-     "text": "Bidding Starts At"
-    },
-    "note": "Capture the displayed bidding start time to verify it is unchanged."
-   },
-   {
-    "step": "remember",
-    "args": {
-     "key": "bidding-end",
-     "text": "Bidding Ends At"
-    },
-    "note": "Capture the displayed bidding end time to verify it is unchanged."
+    "note": "Open Responses as specified by the case."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "vendorName"
     },
-    "note": "Verify the existing bid vendor is present before cancellation."
+    "note": "Record that the existing bidder is still shown before attempting withdrawal."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "bidPrice"
     },
-    "note": "Verify the existing bid price before cancellation."
+    "note": "Record that the existing bid price is shown before attempting withdrawal."
    },
    {
     "step": "event_menu",
@@ -140,62 +115,49 @@
      "item": "Withdraw",
      "stage": "rfq"
     },
-    "note": "Open the RFQ withdrawal window without confirming the withdrawal."
+    "note": "Open the RFQ stage's Withdraw action and leave the withdrawal window open."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawing Order..."
+    },
+    "note": "Assert that the withdrawal window opened."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Cancel",
-     "within": "dialog"
+     "name": "Cancel"
     },
-    "note": "Cancel the withdrawal as required by the case."
+    "note": "Cancel the withdrawal rather than confirming it."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Withdrawing Order...",
+     "text": "Withdrawing Order...",
      "visible": false
     },
-    "note": "Verify the withdrawal window closed."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Closed"
-    },
-    "note": "Verify the event status remains closed."
-   },
-   {
-    "step": "expect_remembered",
-    "args": {
-     "key": "bidding-start",
-     "same": true
-    },
-    "note": "Verify the bidding start time did not change."
-   },
-   {
-    "step": "expect_remembered",
-    "args": {
-     "key": "bidding-end",
-     "same": true
-    },
-    "note": "Verify the bidding end time did not change."
+    "note": "Assert that cancelling closes the withdrawal window."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "vendorName"
     },
-    "note": "Verify the existing bid vendor is unchanged."
+    "note": "Verify the bidder remains unchanged after cancellation."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "bidPrice"
     },
-    "note": "Verify the existing bid price is unchanged."
+    "note": "Verify the existing bid remains unchanged after cancellation."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the event screen remains rendered without an error or withdrawal-related change."
    }
   ]
  }

@@ -4,21 +4,22 @@
   "title": "The empty-list message shows and nothing can be picked",
   "group": "PRA-MANY",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-12T13:47:34.517Z",
+  "compiledAt": "2026-11-13T14:26:24.863Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "do_on_screen",
-   "expect_text"
+   "expect_text",
+   "expect_options"
   ],
-  "ms": 14027
+  "ms": 13483
  },
  "plan": {
   "title": "Empty assignee list for multiple PRs",
@@ -29,33 +30,41 @@
      "key": "is_pr_teams_filtering_enabled",
      "value": "On"
     },
-    "note": "Enable the required PR team-filtering configuration for the test."
+    "note": "Enable the required PR team-filtering configuration for this case."
    },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions area."
+    "note": "Open the Purchase Requisitions area, the required starting screen for a PR-based flow."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open PR tab where the test PRs can be selected."
+    "note": "Stay on the Open PR tab where the two test PRs can be selected."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "Select one item from PR-1 and one item from PR-2, click the Assign button next to Upload PRs, and stop on the assignee picker showing that no user can be selected or assigned."
+     "goal": "select one item from PR-1 and one item from PR-2, click the Assign person button next to Upload PRs, and stop with the Search a user list open showing the empty assignee result"
     },
-    "note": "Perform the multi-PR selection and assignment attempt, including the UI behavior not covered by a catalog domain step."
+    "note": "The catalog has no step for selecting items across two different PRs or opening this Assign flow, so perform those buyer-side actions in the current session."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "No user can see all selected PRs. Assign them separately."
     },
-    "note": "Assert the exact empty-list message is shown."
+    "note": "Verify the required empty-list message is shown."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "placeholder": "Search a user",
+     "count": 0
+    },
+    "note": "Verify that the assignee picker offers no selectable names, confirming nothing can be picked or assigned."
    }
   ]
  }

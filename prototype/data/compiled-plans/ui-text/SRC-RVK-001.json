@@ -4,125 +4,180 @@
   "title": "RFQ: the vendor revokes its bid while bidding is on",
   "group": "SRC-RVK",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:51:52.000Z",
+  "compiledAt": "2026-11-13T12:44:57.543Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly assert that the revoked bid is excluded from ranking in Master QCS",
-   "Directly assert that the revoked bid cannot be awarded"
+   "Buyer views Order Activity showing the revocation record directly via a dedicated domain step"
   ],
   "warnings": [
-   "go_to master_qcs → open_master_qcs — a domain step owns that screen",
-   "go_to master_qcs → open_master_qcs — a domain step owns that screen",
-   "can only test part of this — no step for: Directly assert that the revoked bid is excluded from ranking in Master QCS; Directly assert that the revoked bid cannot be awarded"
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Buyer views Order Activity showing the revocation record directly via a dedicated domain step"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 20,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_bid_submitted",
    "switch_portal",
    "vendor_open_event",
    "click",
-   "click",
-   "expect_text",
+   "dialog",
    "switch_portal",
    "go_to",
-   "expect_text",
-   "open_master_qcs",
-   "expect_text",
-   "event_menu",
    "expect_text"
   ],
-  "ms": 19214
+  "ms": 22029
  },
  "plan": {
-  "title": "RFQ vendor bid revoke",
+  "title": "RFQ: the vendor revokes its bid while bidding is on",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start creating an eRFX event"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case config"
+   },
+   {
+    "step": "set_title",
     "args": {},
-    "note": "Open the existing live RFQ with the vendor bid so the buyer session remains associated with the event."
+    "note": "Set a unique event title"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Set up an RFQ stage"
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Switch to the RFQ stage"
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select template for the RFQ stage"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item to the RFQ"
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Fill the pricing sheet"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 60
+    },
+    "note": "Set event schedule duration"
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite a vendor to participate"
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event live"
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert the event is successfully published"
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert the bid was successfully submitted"
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the separate supplier portal session while keeping the buyer session open."
+    "note": "Switch to vendor portal"
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ's pricing round where the vendor's submitted bid can be revoked."
+    "note": "Vendor opens the event in their portal"
    },
    {
     "step": "click",
     "args": {
-     "text": "Revoke"
+     "role": "button",
+     "name": "Revoke"
     },
-    "note": "Initiate revocation of the vendor's submitted bid."
+    "note": "Vendor clicks revoke on their bid"
    },
    {
-    "step": "click",
+    "step": "dialog",
     "args": {
-     "text": "Confirm"
+     "action": "accept"
     },
-    "note": "Confirm the revoke action in the vendor portal."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Revoked"
-    },
-    "note": "Assert that the vendor portal shows the bid as revoked."
+    "note": "Confirm the revocation dialog"
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's event page."
+    "note": "Switch back to buyer console"
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open Responses to inspect the buyer's view of the revoked bid."
+    "note": "Go to the responses tab to verify revocation"
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Revoked"
+     "text": "Revoked",
+     "present": true
     },
-    "note": "Assert that the buyer's Responses view marks the bid as revoked."
-   },
-   {
-    "step": "open_master_qcs",
-    "note": "Open Master QCS to inspect the revoked bid's buyer-side comparison state."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Revoked"
-    },
-    "note": "Assert that the revoked bid remains visibly identified in Master QCS, where available."
-   },
-   {
-    "step": "event_menu",
-    "args": {
-     "item": "Order Activity"
-    },
-    "note": "Open the Order Activity drawer for the event."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Revoked"
-    },
-    "note": "Assert that Order Activity contains a visible record of the revocation."
+    "note": "Assert that the bid is marked as revoked on the buyer side"
    }
   ]
  }

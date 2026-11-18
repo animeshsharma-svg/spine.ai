@@ -4,55 +4,56 @@
   "title": "Recreate with Event End Time Duration 60 Mins",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:09:46.260Z",
+  "compiledAt": "2026-11-13T12:35:31.702Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that Evaluation Duration remains exactly 30 Mins and that no schedule is selected in the Recreate Order dialog.",
-   "Assert that the recreated event has a new RFX/stage code.",
-   "Assert that the recreated event preserves the exact product and delivery location.",
-   "Assert that the recreated event has exactly the same participants as the old event."
+   "The new event has a new RFX/stage code",
+   "The same product and delivery location were carried over",
+   "The recreated event opens live with its exact schedule state"
   ],
   "warnings": [
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
    "moved open_prepared to the front — every later step acts on that screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "resolved: “Assert that Bidding Ends At equals the new start time plus exactly 60 minutes.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "resolved: “Assert that the old event is unchanged after recreation.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "can only test part of this — no step for: Assert that Evaluation Duration remains exactly 30 Mins and that no schedule is selected in the Recreate Order dialog.; Assert that the recreated event has a new RFX/stage code.; Assert that the recreated event preserves the exact product and delivery location.; Assert that the recreated event has exactly the same participants as the old event."
+   "resolved: “Exact Bidding Ends At equals the new start plus 60 minutes” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “The old event remained unchanged” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “The complete participant set is identical to the old event” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "can only test part of this — no step for: The new event has a new RFX/stage code; The same product and delivery location were carried over; The recreated event opens live with its exact schedule state"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 15,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "event_menu",
    "expect_visible",
-   "expect_text",
-   "expect_text",
-   "expect_text",
-   "expect_options",
-   "click",
+   "select",
+   "expect_value",
    "expect_value",
    "click",
    "expect_api_value",
    "expect_api_value",
-   "expect_text"
+   "open_participants",
+   "search_participants",
+   "expect_participant",
+   "search_participants",
+   "expect_participant"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 19046
+  "ms": 23548
  },
  "plan": {
-  "title": "Recreate Order with 60-Minute End Time",
+  "title": "Recreate Closed RFQ with 60-Minute End Time",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ rather than creating or searching for another event."
+    "note": "Open the prepared closed RFQ summary as required for this case."
    },
    {
     "step": "require_setting",
@@ -60,107 +61,106 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project capability before navigating."
+    "note": "Enable the required eRFX project setting before accessing the prepared event."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open Recreate Order from the stage Settings menu."
+    "note": "Open the RFQ stage Settings menu and launch the Recreate Order dialog."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Recreate Order",
+     "text": "Recreate Order",
      "visible": true
     },
-    "note": "Verify that the Recreate Order pop-up opened."
+    "note": "Confirm that the recreate dialog opened."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Product Sheet",
-     "present": true,
-     "within": "dialog"
-    },
-    "note": "Confirm the recreation dialog contains the expected Product Sheet section."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Auction Configurations",
-     "present": true,
-     "within": "dialog"
-    },
-    "note": "Confirm the recreation dialog contains auction configuration controls."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Delivery Date",
-     "present": true,
-     "within": "dialog"
-    },
-    "note": "Confirm the recreation dialog contains delivery-date controls."
-   },
-   {
-    "step": "expect_options",
+    "step": "select",
     "args": {
      "label": "Event End Time Duration",
-     "options": [
-      "60 Mins"
-     ]
+     "option": "60 Mins"
     },
-    "note": "Verify that the requested 60-minute duration is offered."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "60 Mins",
-     "within": "dialog"
-    },
-    "note": "Select the requested event end-time duration."
+    "note": "Set the recreated event's end-time duration to 60 minutes."
    },
    {
     "step": "expect_value",
     "args": {
-     "label": "Event End Time Duration",
-     "value": "60 Mins"
+     "label": "Evaluation Duration",
+     "value": "30 Mins"
     },
-    "note": "Verify that the duration field shows the selected 60-minute value."
+    "note": "Verify that the evaluation duration remains 30 minutes."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Schedule this event?",
+     "value": "No"
+    },
+    "note": "Verify that no delayed schedule is selected."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Create Order",
-     "within": "dialog"
+     "name": "Create Order"
     },
-    "note": "Create the recreated event using the configured duration."
+    "note": "Create the recreated event using the configured duration and evaluation settings."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "quantity"
     },
-    "note": "Verify that the recreated event retains the prepared event's line-item quantity."
+    "note": "Verify that the recreated event carries the prepared RFQ quantity."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "unit"
     },
-    "note": "Verify that the recreated event retains the prepared event's line-item unit."
+    "note": "Verify that the recreated event carries the prepared RFQ unit."
    },
    {
-    "step": "expect_text",
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the recreated event's participants list to verify the known bidding participants were carried over."
+   },
+   {
+    "step": "search_participants",
     "args": {
-     "text": "Bidding Ends At",
-     "present": true
+     "vendor": "Vendor A"
     },
-    "note": "Confirm that the newly opened live event displays its bidding end-time information."
+    "note": "Find Vendor A in the recreated event's participant list."
+   },
+   {
+    "step": "expect_participant",
+    "args": {
+     "vendor": "Vendor A",
+     "present": true,
+     "selected": true
+    },
+    "note": "Verify that Vendor A remains selected on the recreated event."
+   },
+   {
+    "step": "search_participants",
+    "args": {
+     "vendor": "Vendor B"
+    },
+    "note": "Find Vendor B in the recreated event's participant list."
+   },
+   {
+    "step": "expect_participant",
+    "args": {
+     "vendor": "Vendor B",
+     "present": true,
+     "selected": true
+    },
+    "note": "Verify that Vendor B remains selected on the recreated event."
    }
   ]
  }

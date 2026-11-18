@@ -3,39 +3,49 @@
   "caseId": "PRD-AE-004",
   "title": "DoA Threshold Currency (approval.doa.currency) = EUR",
   "group": "PRD-AE",
-  "compiledAt": "2026-11-10T01:41:37.703Z",
+  "compiledAt": "2026-11-13T15:01:06.050Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Change the tenant setting approval.doa.currency from INR to EUR.",
-   "Use Modular Approval Setup to attach approvals to entities such as events, onboarding, purchase orders, payments, and letters of credit.",
-   "Observe and verify that Delegation of Authority spend threshold definitions use EUR and differ from the default INR."
+   "Independently verify that EUR affects approval routing thresholds for every supported entity type and all existing DoA rules across the tenant."
   ],
   "warnings": [
-   "can only test part of this — no step for: Change the tenant setting approval.doa.currency from INR to EUR.; Use Modular Approval Setup to attach approvals to entities such as events, onboarding, purchase orders, payments, and letters of credit.; Observe and verify that Delegation of Authority spend threshold definitions use EUR and differ from the default INR."
+   "can only test part of this — no step for: Independently verify that EUR affects approval routing thresholds for every supported entity type and all existing DoA rules across the tenant."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
-   "ask_tester",
-   "expect_screen_clean"
+   "require_setting",
+   "do_on_screen",
+   "expect_text"
   ],
-  "ms": 72772
+  "ms": 12178
  },
  "plan": {
   "title": "DoA Threshold Currency EUR",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "as the Tenant Admin, set approval.doa.currency to EUR, use Modular Approval Setup to open the Delegation of Authority matrix, and verify that all spend threshold definitions display EUR instead of INR"
+     "key": "approval.doa.currency",
+     "value": "EUR"
     },
-    "note": "No catalog step can modify this tenant setting or observe the Modular Approval Setup and DoA threshold currency behavior."
+    "note": "Set the tenant's DoA threshold currency to EUR before inspecting approval configuration."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Verify the session remains free of crashes or server errors after the tester performs the unavailable workflow."
+    "step": "do_on_screen",
+    "args": {
+     "goal": "As the Tenant Admin, open Modular Approval Setup, configure an approval that can attach to an entity, and inspect the Delegation of Authority matrix so the spend-threshold definitions show EUR rather than the default INR; stop on the matrix showing the EUR currency."
+    },
+    "note": "No catalog domain step reaches or configures Modular Approval Setup, so use the on-screen workflow to observe the controlled behavior."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "EUR",
+     "present": true
+    },
+    "note": "Assert that the visible DoA threshold definitions use EUR."
    }
   ]
  }

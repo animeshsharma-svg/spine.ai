@@ -3,97 +3,68 @@
   "caseId": "PRD-KBSRC-626",
   "title": "Master QCS tab shows the evaluation summary on the latest commercial stage",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:26:11.516Z",
+  "compiledAt": "2026-11-13T14:48:24.302Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Confirm that the opened Master QCS is specifically for the latest commercial stage (RFQ or auction) rather than another stage.",
-   "Verify the complete final-versus-initial price comparison when the product exposes values under client-specific or unknown row labels.",
-   "Verify technical rankings across stages and all client-configured custom columns.",
-   "Verify charges for every stage when their labels or values are not exposed through the catalog's known Master QCS rows."
+   "Final versus initial price comparisons in the Master QCS",
+   "Technical rankings in the Master QCS",
+   "Client-configured custom columns without their specific column names",
+   "Charges across stages",
+   "That the displayed Master QCS is specifically the latest commercial stage when the event contains multiple commercial stages"
   ],
   "warnings": [
-   "can only test part of this — no step for: Confirm that the opened Master QCS is specifically for the latest commercial stage (RFQ or auction) rather than another stage.; Verify the complete final-versus-initial price comparison when the product exposes values under client-specific or unknown row labels.; Verify technical rankings across stages and all client-configured custom columns.; Verify charges for every stage when their labels or values are not exposed through the catalog's known Master QCS rows."
+   "can only test part of this — no step for: Final versus initial price comparisons in the Master QCS; Technical rankings in the Master QCS; Client-configured custom columns without their specific column names; Charges across stages; That the displayed Master QCS is specifically the latest commercial stage when the event contains multiple commercial stages"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 6,
   "stepNames": [
-   "open_prepared",
+   "open_event",
+   "open_master_qcs",
    "expect_qcs_vendors",
-   "expect_qcs_cell",
-   "expect_qcs_cell",
-   "expect_qcs_cell",
-   "expect_qcs_amounts",
    "expect_qcs_ranks",
-   "expect_text",
-   "expect_text"
+   "expect_qcs_amounts",
+   "expect_screen_clean"
   ],
-  "ms": 9308
+  "ms": 18000
  },
  "plan": {
-  "title": "Master QCS evaluation summary",
+  "title": "Master QCS Evaluation Summary",
   "steps": [
    {
-    "step": "open_prepared",
-    "args": {
-     "screen": "master_qcs"
-    },
-    "note": "Open the prepared event directly on its Master QCS screen, which contains the commercial bids needed for the evaluation summary."
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing bid event suitable for Master QCS inspection."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the Master QCS comparison grid for the event."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
      "realNames": true
     },
-    "note": "Assert that the comparison grid has real vendor columns rather than placeholders."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate"
-    },
-    "note": "Check that the commercial unit-price comparison cell is populated."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Amount"
-    },
-    "note": "Check that the commercial line amount is populated."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "Rank"
-    },
-    "note": "Check that a commercial ranking value is displayed."
-   },
-   {
-    "step": "expect_qcs_amounts",
-    "args": {},
-    "note": "Verify the displayed commercial amounts equal rate multiplied by quantity and that totals reconcile."
+    "note": "Verify that the comparison grid contains real vendor columns rather than placeholders."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "by": "RFQ Amount",
-     "order": "lowest"
+     "order": "lowest",
+     "atLeast": 1
     },
-    "note": "Verify commercial ranks follow the displayed buy-event amounts."
+    "note": "Verify that commercial rankings are present and follow the lowest commercial amounts."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Rfq Final"
-    },
-    "note": "Assert that the known final RFQ pricing section is present in Master QCS."
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify that commercial line amounts and vendor totals calculate correctly from rates and quantities."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Other Charges"
-    },
-    "note": "Assert that the known charges section is present in Master QCS."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Verify that the Master QCS renders without missing values, raw identifiers, or application errors."
    }
   ]
  }

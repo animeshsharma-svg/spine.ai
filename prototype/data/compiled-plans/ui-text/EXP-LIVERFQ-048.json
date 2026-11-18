@@ -4,36 +4,76 @@
   "title": "Increase Event Time: Attempt to set Custom Fixed time to a past datetime shows validation error",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:47:53.518Z",
+  "compiledAt": "2026-11-13T14:14:48.500Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enter the exact absolute datetime \"01 October 2026 01:00 AM\"; the fixed-time step accepts only relative expressions such as \"-10m\"."
+   "Enter the exact absolute datetime \"01 October 2026 01:00 AM\" in the custom fixed-time field; extend_time only accepts relative fixed-time values such as -10m."
   ],
   "warnings": [
-   "can only test part of this — no step for: Enter the exact absolute datetime \"01 October 2026 01:00 AM\"; the fixed-time step accepts only relative expressions such as \"-10m\"."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Enter the exact absolute datetime \"01 October 2026 01:00 AM\" in the custom fixed-time field; extend_time only accepts relative fixed-time values such as -10m."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
-   "extend_time"
+   "extend_time",
+   "expect_visible",
+   "expect_message"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9532
+  "ms": 15415
  },
  "plan": {
-  "title": "Past Fixed Submission Time Validation",
+  "title": "Live RFQ Custom Past Time Validation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ without recreating or searching for the event."
+    "note": "Open the prepared live RFQ summary; the prepared-state contract requires this as the first step."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the requested withdraw-visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal during live submission time as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the requested vendor-masking configuration."
    },
    {
     "step": "go_to",
@@ -41,14 +81,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage named in the case."
+    "note": "Open the RFQ stage of the prepared project."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the Responses tab before accessing Settings, matching the requested buyer flow."
+    "note": "Reach the Responses tab specified by the case before opening Settings."
    },
    {
     "step": "extend_time",
@@ -58,7 +98,23 @@
      "at": "-10m",
      "expect": "refused"
     },
-    "note": "Attempt to set the submission end to a past time and assert Procol refuses it with validation feedback while the dialog remains available."
+    "note": "Attempt to set the submission end to a past fixed time and assert Procol refuses it with its validation response."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Increase Event Time",
+     "visible": true
+    },
+    "note": "Verify the Increase Event Time window remains open after the refused submission."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error"
+    },
+    "note": "Verify that a validation error is displayed for the past fixed time."
    }
   ]
  }

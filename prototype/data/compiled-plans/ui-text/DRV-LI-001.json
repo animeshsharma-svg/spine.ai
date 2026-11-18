@@ -4,51 +4,85 @@
   "title": "Buyer deletes a line item from a live RFQ with multiple active items",
   "group": "DRV-LI",
   "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
-  "compiledAt": "2026-11-09T23:06:48.091Z",
+  "compiledAt": "2026-11-13T13:37:50.976Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The required live RFQ fixture with exactly two active named items (QA_Platform Item A and QA_Platform Item B) and their specified quantities cannot be created or selected from the prepared state.",
-   "The Open PR pool returning the deleted item with its original quantity cannot be directly asserted as a deletion relationship by the catalog."
+   "Guaranteeing that the selected live RFQ starts with exactly the two named active line items, quantities 10 and 5, and no award proposal.",
+   "A dedicated assertion that the deleted item is returned to the linked Open PR with its original quantity available for reuse; the generic PR table can only check visible row and cell values.",
+   "unconfirmed label \"QA_Platform Item A\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "can only test part of this — no step for: The required live RFQ fixture with exactly two active named items (QA_Platform Item A and QA_Platform Item B) and their specified quantities cannot be created or selected from the prepared state.; The Open PR pool returning the deleted item with its original quantity cannot be directly asserted as a deletion relationship by the catalog."
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "coverage partial: unconfirmed label \"QA_Platform Item A\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Guaranteeing that the selected live RFQ starts with exactly the two named active line items, quantities 10 and 5, and no award proposal.; A dedicated assertion that the deleted item is returned to the linked Open PR with its original quantity available for reuse; the generic PR table can only check visible row and cell values."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
+   "expect_text",
+   "expect_text",
    "do_on_screen",
-   "expect_toast"
+   "expect_toast",
+   "expect_text",
+   "expect_text",
+   "go_to",
+   "expect_table"
   ],
   "state": "proposal",
   "screen": "summary",
-  "ms": 13826
+  "ms": 26497
  },
  "plan": {
-  "title": "Delete Live RFQ Line Item",
+  "title": "Delete live RFQ line item",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary instead of creating or searching for an event."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "pr_deletion_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required tenant behavior for deleting line items from PR-linked events."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "overview"
     },
-    "note": "Navigate to the RFQ Overview where the line items table is shown."
+    "note": "Open the RFQ stage's Overview tab where the line-items table is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "QA_Platform Item A"
+    },
+    "note": "Confirm the target line item is present before attempting deletion."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "QA_Platform Item B"
+    },
+    "note": "Confirm the second active line item is also visible before deletion."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "In the RFQ Overview line items table, open the row actions for the target active line item, choose Delete, confirm the deletion, and stop with the line item absent from the table."
+     "goal": "On the RFQ Overview line-items table, open the three-dot row menu for QA_Platform Item A, choose Delete, confirm the deletion, and stop on the Overview screen after the item has disappeared."
     },
-    "note": "Perform the row-menu deletion and confirmation that no dedicated domain step exposes."
+    "note": "Perform the deletion flow that no dedicated catalog step exposes, including the confirmation dialog and removal from the table."
    },
    {
     "step": "expect_toast",
@@ -56,7 +90,42 @@
      "kind": "success",
      "text": "Line item deleted successfully"
     },
-    "note": "Verify Procol reported the deletion succeeded."
+    "note": "Verify the application reports the expected successful deletion."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "QA_Platform Item A",
+     "present": false
+    },
+    "note": "Verify the deleted line item no longer appears in the Overview table."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "QA_Platform Item B",
+     "present": true
+    },
+    "note": "Verify the other line item remains visible after deletion."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "path",
+     "path": "/purchase-requisitions"
+    },
+    "note": "Navigate to the Purchase Requisitions area to inspect whether the deleted item is available for reuse."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "row": "QA_Platform Item A",
+     "present": true,
+     "cells": {
+      "Quantity": "10"
+     }
+    },
+    "note": "Check the Open PR pool shows the deleted item and its original quantity, subject to the table exposing those labels."
    }
   ]
  }

@@ -4,39 +4,60 @@
   "title": "Only the assigned user gets the notification",
   "group": "PRA-NTX",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:03:15.910Z",
+  "compiledAt": "2026-11-13T14:27:15.443Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assign one PR-1 item to User A",
-   "Log in as User B on the Buyer portal",
-   "Open User B's notification bell and verify there is no notification about PR-1"
+   "Assign PR-1 to User A using the Buyer portal; no catalog step can perform PR assignment.",
+   "Log in as User B; this requires another buyer's credentials and session.",
+   "The notification bell's exact accessible label is not confirmed; the plan assumes it is labeled Notifications."
   ],
   "warnings": [
-   "can only test part of this — no step for: Assign one PR-1 item to User A; Log in as User B on the Buyer portal; Open User B's notification bell and verify there is no notification about PR-1"
+   "can only test part of this — no step for: Assign PR-1 to User A using the Buyer portal; no catalog step can perform PR assignment.; Log in as User B; this requires another buyer's credentials and session.; The notification bell's exact accessible label is not confirmed; the plan assumes it is labeled Notifications."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "click",
+   "expect_text"
   ],
-  "ms": 8894
+  "ms": 17323
  },
  "plan": {
-  "title": "PRA-NTX-002 Assigned User Notification Isolation",
+  "title": "PRA-NTX-002 — User B receives no PR notification",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team-filtering configuration before testing visibility."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "assign one PR-1 item to User A, sign in as User B on the Buyer portal, open the notification bell, and verify User B has no notification about PR-1"
+     "need": "sign in as User B in the Buyer portal and leave the Buyer portal ready"
     },
-    "note": "The catalog cannot perform or observe the assignment notification scenario across two buyer users."
+    "note": "A second buyer session is required to observe User B's notifications."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Final assertion that the current screen has no visible crash or server error after the tester completes the unavailable workflow."
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Notifications"
+    },
+    "note": "Open the top-right notification center for User B."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "PR-1",
+     "present": false
+    },
+    "note": "Verify User B has no notification referring to PR-1."
    }
   ]
  }

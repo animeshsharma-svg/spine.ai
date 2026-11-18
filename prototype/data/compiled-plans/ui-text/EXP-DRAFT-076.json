@@ -4,108 +4,77 @@
   "title": "Savings Calculation: Attempt to add an excessively long custom reference",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:11:06.126Z",
+  "compiledAt": "2026-11-13T14:10:01.511Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "added expect_events_list — opening the list without asserting it rendered tests nothing",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "added expect_events_list — opening the list without asserting it rendered tests nothing"
+  ],
   "source": "llm",
-  "steps": 17,
+  "steps": 10,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "save_draft",
    "open_events_list",
-   "expect_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "filter_events",
-   "expect_event_in_list",
-   "open_event",
-   "click",
-   "expect_visible",
+   "open_first_event",
    "click",
    "do_on_screen",
-   "expect_screen_clean"
+   "expect_screen_clean",
+   "expect_events_list"
   ],
-  "ms": 17662
+  "ms": 18181
  },
  "plan": {
-  "title": "EXP-DRAFT-076 Long Custom Savings Reference",
+  "title": "Long Custom Savings Reference",
   "steps": [
-   {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Create an eRFX draft for the scenario."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "EXP-DRAFT-076 Long Custom Savings Reference"
-    },
-    "note": "Provide the required draft title."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Use an RFQ stage within the eRFX project."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply a pricing template so the draft has a configured savings-capable stage."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the required line item for the pricing stage."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet before saving the draft."
-   },
-   {
-    "step": "save_draft",
-    "args": {},
-    "note": "Create the saved eRFX draft required by the test."
-   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the events list to locate the saved draft."
+    "note": "Open the Events list to reach the saved draft."
    },
    {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Assert that the events list rendered successfully."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-lock configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage-addition configuration."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab specified by the scenario."
+    "note": "Show saved drafts."
    },
    {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Verify that the draft created by this plan appears in Drafts."
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Reopen this plan's saved draft."
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the available saved eRFX draft; drafts reopen on their create screen."
    },
    {
     "step": "click",
@@ -116,32 +85,19 @@
     "note": "Open the Savings Calculation window."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "role": "heading",
-     "name": "Savings Calculation",
-     "visible": true
-    },
-    "note": "Assert that the Savings Calculation window opened."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "Add Custom Reference"
-    },
-    "note": "Start adding the custom savings reference."
-   },
-   {
     "step": "do_on_screen",
     "args": {
-     "goal": "In the open Savings Calculation window, enter a string of exactly 500 repeated A characters into the custom reference field, click Save, and record the application's result, including any validation message, saved row, truncation, refusal, or error."
+     "goal": "In the open Savings Calculation window, click Add Custom Reference, enter a 500-character string made of repeated A characters in the reference field, click Save, and stop on the resulting validation or saved state so the application response is recorded."
     },
-    "note": "The reference field and the resulting save behavior must be handled and observed directly on the buyer screen."
+    "note": "Perform and observe the custom-reference save attempt, which has no dedicated catalog step."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the application did not crash or show a server error after saving the long reference."
+    "note": "Confirm the resulting screen has no crash, server error, raw identifiers, or malformed values."
+   },
+   {
+    "step": "expect_events_list"
    }
   ]
  }

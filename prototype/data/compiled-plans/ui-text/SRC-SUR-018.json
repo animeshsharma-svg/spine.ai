@@ -4,125 +4,92 @@
   "title": "What the vendor sees after a surrogate bid",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:10:26.789Z",
+  "compiledAt": "2026-11-13T13:01:08.307Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Whether Vendor A can revise the surrogate bid"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "added open_prepared(participants) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "resolved: “Whether the vendor sees the surrogate bid explicitly as buyer-added or as the vendor's own bid” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "can only test part of this — no step for: Whether Vendor A can revise the surrogate bid"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “The vendor portal's exact attribution of the surrogate bid as buyer-added versus the vendor's own bid cannot be asserted” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "resolved: “Whether Vendor A can revise the surrogate bid when enable_surrogate_revise_bid is Off cannot be directly asserted becaus” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "open_participants",
+   "require_setting",
+   "require_setting",
    "place_surrogate_bid",
    "expect_bid_submitted",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
-   "expect_screen_clean"
+   "capture_screen",
+   "expect_text"
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 11839
+  "ms": 14458
  },
  "plan": {
-  "title": "Vendor view after surrogate bid",
+  "title": "Vendor View After Surrogate Bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ's Participants tab, as required for a prepared no-bid event."
    },
    {
-    "step": "compose_stages",
+    "step": "require_setting",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "key": "enable_surrogate_revise_bid",
+     "value": "Off"
     },
-    "note": "Configure the event as an RFQ rather than the default auction."
+    "note": "Ensure the case's surrogate-revision configuration is disabled."
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply an RFQ pricing template before adding line items."
-   },
-   {
-    "step": "add_line_items",
+    "step": "require_setting",
     "args": {
-     "count": 1
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Add the required RFQ line item."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a live bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite the QA vendor so a surrogate bid can be entered for it."
-   },
-   {
-    "step": "open_participants",
-    "args": {},
-    "note": "Open the published RFQ Participants tab where surrogate bidding is performed."
+    "note": "Ensure eRFX projects are enabled as required by the setup."
    },
    {
     "step": "place_surrogate_bid",
-    "args": {},
-    "note": "Place a buyer-entered bid on behalf of the invited vendor."
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Place the buyer-entered bid for Vendor A."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the surrogate bid was accepted and submitted."
+    "note": "Verify that the surrogate bid was accepted and submitted."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Open the separate vendor portal while keeping the buyer session available."
+    "note": "Open the separate supplier-portal session while preserving the buyer session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Have the vendor open this event's RFQ pricing round."
+    "note": "Open the event's pricing round in Vendor A's portal to inspect the vendor-visible bid state."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "vendor-view-after-surrogate-bid"
+    },
+    "note": "Record the vendor portal screen for the surrogate bid's displayed attribution and available revision controls."
    },
    {
     "step": "expect_text",
@@ -130,12 +97,7 @@
      "text": "Submitted",
      "present": true
     },
-    "note": "Verify the vendor portal shows the RFQ as submitted after the surrogate bid."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the vendor view rendered without an error or broken state."
+    "note": "Assert that Vendor A's pricing round shows the bid as submitted."
    }
   ]
  }

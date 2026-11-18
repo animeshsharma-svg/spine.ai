@@ -4,104 +4,93 @@
   "title": "Upload Attachments: Entering invalid text into the URL field fails",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:14:12.037Z",
+  "compiledAt": "2026-11-13T14:10:53.816Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact validation outcome for saving the invalid URL, including whether the URL is rejected or stored."
+   "The exact validation or persistence result for saving the invalid URL text, beyond observing that no application error is shown."
   ],
   "warnings": [
-   "can only test part of this — no step for: The exact validation outcome for saving the invalid URL, including whether the URL is rejected or stored."
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: The exact validation or persistence result for saving the invalid URL text, beyond observing that no application error is shown."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 13,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "save_draft",
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_events_list",
    "filter_events",
-   "expect_event_in_list",
-   "open_event",
+   "open_first_event",
    "click",
    "expect_visible",
-   "select",
+   "click",
    "fill",
    "click",
    "expect_no_error"
   ],
-  "ms": 174501
+  "ms": 24423
  },
  "plan": {
-  "title": "Invalid URL Attachment on Saved Draft",
+  "title": "Invalid URL in Draft Attachment Upload",
   "steps": [
-   {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Create the eRFX draft required by the scenario."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "EXP-DRAFT-083 Invalid URL Attachment"
-    },
-    "note": "Provide the mandatory draft title so the saved draft can be found again."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Configure the draft with a template before adding line items."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the minimum line item needed for a valid eRFX draft."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet before saving the draft."
-   },
-   {
-    "step": "save_draft",
-    "args": {},
-    "note": "Save the eRFX as a draft for the attachment scenario."
-   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to follow the specified Drafts navigation."
+    "note": "Open the Events list to reach the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-lock configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the requested stage configuration."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab where the saved eRFX should appear."
+    "note": "Switch to the Drafts tab specified by the case."
    },
    {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Assert that the saved draft is present in the Drafts list."
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Open the draft created by this plan."
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the available saved eRFX draft."
    },
    {
     "step": "click",
     "args": {
      "text": "Add Attachments"
     },
-    "note": "Open the Upload Attachments window on the saved draft."
+    "note": "Open the Upload Attachments window."
    },
    {
     "step": "expect_visible",
@@ -109,15 +98,14 @@
      "text": "Upload Attachments",
      "visible": true
     },
-    "note": "Assert that the attachment window opened."
+    "note": "Confirm the attachment window opened."
    },
    {
-    "step": "select",
+    "step": "click",
     "args": {
-     "label": "Add Attachments",
-     "option": "Add URL"
+     "text": "Add URL"
     },
-    "note": "Choose the Add URL attachment path."
+    "note": "Choose the URL attachment path."
    },
    {
     "step": "fill",
@@ -125,7 +113,7 @@
      "label": "URL",
      "value": "invalid-text-string"
     },
-    "note": "Enter the invalid text specified by the test case; the field label is not confirmed in the catalog."
+    "note": "Enter the invalid text supplied by the case; the field label is not confirmed in the catalog."
    },
    {
     "step": "click",
@@ -134,12 +122,12 @@
      "name": "Save",
      "within": "dialog"
     },
-    "note": "Attempt to save the invalid URL attachment."
+    "note": "Submit the attachment form with the invalid text."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Assert that no application error was shown after saving, recording the observable outcome available to the catalog."
+    "note": "Record that no application error was shown after saving."
    }
   ]
  }

@@ -3,39 +3,56 @@
   "caseId": "PRD-ADM-032",
   "title": "SCIM User Provisioning with SSO Configuration missing or misconfigured (DEP-005)",
   "group": "PRD-ADM",
-  "compiledAt": "2026-11-10T06:34:48.463Z",
+  "compiledAt": "2026-11-13T15:29:50.533Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access or inspect SSO Configuration settings and leave them missing or misconfigured",
-   "Configure SCIM User Provisioning",
-   "Observe SCIM auto-provisioning and verify that users use password login without SSO, or verify that Procol blocks the configuration"
+   "Exercise SCIM User Provisioning to observe whether users are auto-provisioned and use password login without SSO",
+   "Observe or verify an admin-visible warning, impact, or preventive block for the missing or misconfigured SSO dependency"
   ],
   "warnings": [
-   "can only test part of this — no step for: Access or inspect SSO Configuration settings and leave them missing or misconfigured; Configure SCIM User Provisioning; Observe SCIM auto-provisioning and verify that users use password login without SSO, or verify that Procol blocks the configuration"
+   "can only test part of this — no step for: Exercise SCIM User Provisioning to observe whether users are auto-provisioned and use password login without SSO; Observe or verify an admin-visible warning, impact, or preventive block for the missing or misconfigured SSO dependency"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 8209
+  "ms": 16324
  },
  "plan": {
-  "title": "SCIM provisioning without SSO",
+  "title": "SCIM Without SSO Configuration",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "SSO Configuration",
+     "value": "Off"
+    },
+    "note": "Leave the recommended SSO dependency disabled to represent the missing or misconfigured prerequisite."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "SCIM User Provisioning",
+     "value": "On"
+    },
+    "note": "Enable the SCIM feature whose behavior is under test."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open the admin SSO and SCIM settings, leave SSO missing or misconfigured, configure SCIM User Provisioning, and observe whether users are provisioned with password login or the configuration is safely blocked"
+     "need": "exercise SCIM User Provisioning with SSO disabled and verify whether a user is auto-provisioned, whether password login is used, or whether Procol visibly prevents or warns about the configuration"
     },
-    "note": "No catalog step can reach or operate the SSO/SCIM administration workflow or observe its provisioning consequence."
+    "note": "No catalog step can create or inspect a provisioned SCIM user or validate its login method."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the application did not crash or show an unhandled error after the tester performed the unavailable workflow."
+    "note": "Confirm the resulting screen remains free of crashes or server errors after the tester-assisted exercise."
    }
   ]
  }

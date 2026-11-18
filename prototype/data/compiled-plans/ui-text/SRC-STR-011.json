@@ -4,55 +4,56 @@
   "title": "Dutch (price falls step by step) auction: what each side sees during bidding",
   "group": "SRC-STR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:17:54.677Z",
+  "compiledAt": "2026-11-13T12:58:04.146Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Configure a Dutch auction strategy with a step-by-step falling price.",
-   "Run the Dutch price drop to 90 and observe the live price.",
-   "Provide separate supplier-portal sessions for Vendors A, B, and C.",
-   "Have Vendor A accept first and verify the lot is awarded at the accepted price.",
-   "Attempt later vendor accepts and verify they are refused.",
-   "Inspect Vendor A's and Vendor B's screens during the Dutch bidding and compare them with the buyer's Responses view."
+   "Select the Dutch price-falls-step-by-step strategy on a fresh single-stage auction; Dutch auctions are only reachable through RFQ conversion and no catalog step configures Dutch after conversion.",
+   "Observe the auction price falling step by step to 90.",
+   "Have Vendor A accept the Dutch price and verify the lot is awarded at the accepted price.",
+   "Have Vendors B and C accept later and verify their accepts are refused.",
+   "Inspect separate sessions for Vendors A, B, and C during the Dutch acceptance flow."
   ],
   "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added place_bid — the test is about bidding and no bid step was planned",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added place_bid — the test is about bidding and no bid step was planned",
-   "cannot test this case yet — no step can observe: Configure a Dutch auction strategy with a step-by-step falling price.; Run the Dutch price drop to 90 and observe the live price.; Provide separate supplier-portal sessions for Vendors A, B, and C.; Have Vendor A accept first and verify the lot is awarded at the accepted price.; Attempt later vendor accepts and verify they are refused.; Inspect Vendor A's and Vendor B's screens during the Dutch bidding and compare them with the buyer's Responses view."
+   "cannot test this case yet — no step can observe: Select the Dutch price-falls-step-by-step strategy on a fresh single-stage auction; Dutch auctions are only reachable through RFQ conversion and no catalog step configures Dutch after conversion.; Observe the auction price falling step by step to 90.; Have Vendor A accept the Dutch price and verify the lot is awarded at the accepted price.; Have Vendors B and C accept later and verify their accepts are refused.; Inspect separate sessions for Vendors A, B, and C during the Dutch acceptance flow."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "require_setting",
    "require_setting",
+   "configure_single_stage",
    "set_title",
-   "compose_stages",
-   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_sheet_cell",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
-   "place_bid",
-   "convert_to_auction",
-   "expect_no_error"
+   "place_bid"
   ],
-  "ms": 15111
+  "ms": 14715
  },
  "plan": {
-  "title": "Dutch Auction Price Drop and Acceptance",
+  "title": "Dutch auction bidding behavior",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "erfx"
+     "path": "single-stage"
     },
-    "note": "Use the supported eRFX path needed to reach RFQ-to-Auction conversion."
+    "note": "Open the single-stage event creation screen specified by the case."
    },
    {
     "step": "require_setting",
@@ -60,7 +61,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation as required by the setup."
+    "note": "Enable eRFX project creation as required by the case."
    },
    {
     "step": "require_setting",
@@ -68,33 +69,28 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation so publishing is possible."
+    "note": "Allow vendors to be added during event creation so publishing can proceed."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
+    },
+    "note": "Configure the closest supported auction type; Dutch is not available in the catalog."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title for a valid create flow."
-   },
-   {
-    "step": "compose_stages",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "title": "SRC-STR-011 Dutch Auction QA"
     },
-    "note": "Create an RFQ stage because auction conversion is the supported path to converted auction modes."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Configure the RFQ stage before adding its template and items."
+    "note": "Provide the mandatory event title for a publishable create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply the first available auction pricing template."
    },
    {
     "step": "add_line_items",
@@ -103,49 +99,48 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product and quantity to approximate the Dutch-auction lot."
+    "note": "Add the requested product and quantity."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet so the RFQ can be published."
+    "note": "Complete the pricing sheet for the line item."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location in the first row."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required 30-minute schedule."
+    "note": "Commit the 30-minute event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 3
     },
-    "note": "Invite three QA vendors to approximate Vendors A, B, and C without inventing vendor names."
+    "note": "Invite three QA vendors as required for the buyer and vendor scenario."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the prepared RFQ before conversion."
+    "note": "Publish the closest supported auction setup."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that the RFQ reached a real published project page."
+    "note": "Assert that the event reached a real published project page."
    },
    {
     "step": "place_bid"
-   },
-   {
-    "step": "convert_to_auction",
-    "args": {},
-    "note": "Reach the supported converted-auction create screen, although Dutch strategy selection remains unavailable."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the conversion completed without an application error."
    }
   ]
  }

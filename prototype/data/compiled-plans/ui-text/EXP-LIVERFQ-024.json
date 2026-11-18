@@ -4,45 +4,81 @@
   "title": "A live RFQ: \"Recreate Order\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T01:46:35.508Z",
+  "compiledAt": "2026-11-13T14:12:42.627Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Reliably compare the event's exact start and end times before and after cancelling Recreate Order.",
-   "Reliably compare the complete vendor list before and after cancelling Recreate Order."
+   "Directly compare the event's submission times before and after cancelling Recreate Order.",
+   "Directly compare the invited vendor set before and after cancelling Recreate Order."
   ],
   "warnings": [
-   "can only test part of this — no step for: Reliably compare the event's exact start and end times before and after cancelling Recreate Order.; Reliably compare the complete vendor list before and after cancelling Recreate Order."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Directly compare the event's submission times before and after cancelling Recreate Order.; Directly compare the invited vendor set before and after cancelling Recreate Order."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
-   "expect_event_status",
    "expect_text",
    "event_menu",
-   "expect_visible",
    "click",
    "expect_visible",
-   "expect_event_status",
+   "expect_text",
    "expect_text",
    "expect_screen_clean"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 11198
+  "ms": 20477
  },
  "plan": {
-  "title": "Cancel Recreate Order on Live RFQ",
+  "title": "Live RFQ Recreate Order Cancel",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary as required for this state."
+    "note": "Open the prepared live RFQ instead of creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required withdrawal visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Ensure live-event withdrawal behavior matches the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
    },
    {
     "step": "go_to",
@@ -50,43 +86,29 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage."
+    "note": "Open the RFQ stage on the prepared event."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab where the Settings menu is available."
-   },
-   {
-    "step": "expect_event_status",
-    "args": {
-     "status": "Live"
-    },
-    "note": "Record the expected unchanged live status before opening the action."
+    "note": "Reach the Responses tab where the case opens Settings."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "No bids received yet."
     },
-    "note": "Verify the prepared event has no bids before the cancellation flow."
+    "note": "Record the expected live no-bid state before opening Recreate Order."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
     "note": "Open the Recreate Order window from the RFQ Settings menu."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "visible": true
-    },
-    "note": "Confirm that the Recreate Order window opened."
    },
    {
     "step": "click",
@@ -94,20 +116,20 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the Recreate Order flow."
+    "note": "Cancel the Recreate Order operation."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
+     "text": "Recreate Order",
      "visible": false
     },
-    "note": "Verify that cancelling closes the Recreate Order window."
+    "note": "Verify the Recreate Order window closed."
    },
    {
-    "step": "expect_event_status",
+    "step": "expect_text",
     "args": {
-     "status": "Live"
+     "text": "Live"
     },
     "note": "Verify the event remains live after cancellation."
    },
@@ -116,12 +138,12 @@
     "args": {
      "text": "No bids received yet."
     },
-    "note": "Verify that the no-bid state is unchanged after cancellation."
+    "note": "Verify the no-bid Responses state is unchanged."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Ensure cancellation did not leave an error or broken screen."
+    "note": "Verify no error or rendering issue resulted from cancelling."
    }
   ]
  }

@@ -4,40 +4,40 @@
   "title": "Add a surrogate bid on a RFQ in evaluation",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:18:30.682Z",
+  "compiledAt": "2026-11-13T13:00:04.075Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Conditionally add a surrogate bid if Add Bid is offered during evaluation, including entering the Surrogate Bid Reference \"Phone quote 27 Oct\" and saving it."
+   "Opening the specifically prepared RFQ pricing stage in evaluation state; open_prepared cannot select that state or event.",
+   "Conditionally enter 95 for every line and save only if Add Bid is offered.",
+   "Entering or asserting the Surrogate Bid Reference value \"Phone quote 27 Oct\"."
   ],
   "warnings": [
-   "added open_prepared(participants) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Conditionally add a surrogate bid if Add Bid is offered during evaluation, including entering the Surrogate Bid Reference \"Phone quote 27 Oct\" and saving it."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Opening the specifically prepared RFQ pricing stage in evaluation state; open_prepared cannot select that state or event.; Conditionally enter 95 for every line and save only if Add Bid is offered.; Entering or asserting the Surrogate Bid Reference value \"Phone quote 27 Oct\"."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "open_participants",
-   "search_participants",
-   "expect_participant"
+   "inventory_screen",
+   "expect_screen_clean"
   ],
   "state": "closed_two_bids",
   "screen": "participants",
-  "ms": 17269
+  "ms": 19275
  },
  "plan": {
-  "title": "Surrogate Bid Availability During RFQ Evaluation",
+  "title": "SRC-SUR-003 — Surrogate bid on RFQ in evaluation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared event's pricing-stage Participants screen, the closest available route to the RFQ in evaluation."
    },
    {
     "step": "require_setting",
@@ -45,28 +45,19 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the setup."
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
-    "step": "open_participants",
+    "step": "inventory_screen",
+    "args": {
+     "label": "RFQ evaluation participants and Add Bid availability"
+    },
+    "note": "Record whether Add Bid is offered and capture the available participant controls without assuming its state."
+   },
+   {
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Open the RFQ stage's Participants tab where Add Bid is offered per vendor."
-   },
-   {
-    "step": "search_participants",
-    "args": {
-     "vendor": "Vendor A"
-    },
-    "note": "Locate Vendor A's participant row."
-   },
-   {
-    "step": "expect_participant",
-    "args": {
-     "vendor": "Vendor A",
-     "present": true,
-     "addBid": false
-    },
-    "note": "Assert whether the evaluation state removes the Add Bid control for Vendor A."
+    "note": "Assert that the Participants screen rendered without errors or broken content."
    }
   ]
  }

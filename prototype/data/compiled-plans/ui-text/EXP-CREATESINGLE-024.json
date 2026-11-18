@@ -4,43 +4,72 @@
   "title": "All Vendors: Save after selecting a vendor adds the vendor to the RFQ participants",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:39:01.066Z",
+  "compiledAt": "2026-11-13T14:02:11.453Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The All Vendors window closes after clicking Save"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: The All Vendors window closes after clicking Save"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 15,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "invite_vendor",
+   "click",
+   "click",
+   "fill",
+   "press",
+   "click",
+   "click",
    "expect_text"
   ],
-  "ms": 10185
+  "ms": 19052
  },
  "plan": {
-  "title": "Single-Stage RFQ Vendor Selection",
+  "title": "Single-stage RFQ vendor selection",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the single-stage creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration before opening the create flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Apply the required read-only ceiling-price configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Apply the required terms-and-conditions configuration."
    },
    {
     "step": "configure_single_stage",
@@ -54,12 +83,12 @@
     "args": {
      "title": "EXP-CREATESINGLE-024 Vendor Selection"
     },
-    "note": "Provide the required event title so the create screen is valid."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the available RFQ pricing template, corresponding to choosing Buy Template."
+    "note": "Choose the available RFQ pricing template."
    },
    {
     "step": "add_line_items",
@@ -71,13 +100,52 @@
     "note": "Add the specified product with quantity 10."
    },
    {
-    "step": "invite_vendor",
+    "step": "click",
     "args": {
-     "vendors": [
-      "QA_Platform Vendor B"
-     ]
+     "role": "button",
+     "name": "Participants"
     },
-    "note": "Use the participant picker to select and save the named vendor."
+    "note": "Open the RFQ participant panel."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "All Vendors"
+    },
+    "note": "Open the All Vendors selection window."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Search Vendors",
+     "value": "QA_Platform Vendor B"
+    },
+    "note": "Search for the specified vendor."
+   },
+   {
+    "step": "press",
+    "args": {
+     "key": "Enter"
+    },
+    "note": "Apply the vendor search."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "checkbox",
+     "name": "QA_Platform Vendor B"
+    },
+    "note": "Select QA_Platform Vendor B."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save",
+     "within": "dialog"
+    },
+    "note": "Save the vendor selection and close the All Vendors window."
    },
    {
     "step": "expect_text",
@@ -85,7 +153,7 @@
      "text": "QA_Platform Vendor B",
      "present": true
     },
-    "note": "Verify the selected vendor appears in the RFQ Participants list."
+    "note": "Verify the selected vendor appears in the RFQ participants list."
    }
   ]
  }

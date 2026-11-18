@@ -4,21 +4,21 @@
   "title": "Three bids: award a three-way split 4 / 3 / 3 to B, C and A; no approval flow",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:20:38.878Z",
+  "compiledAt": "2026-11-13T11:41:23.260Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A closed RFQ with three bids from vendors A, B, and C, including vendor C's bid of 95",
-   "The exact three-way allocation of 4 units to B, 3 to C, and 3 to A, totaling 945",
-   "Verification that one purchase order is created for each of three awarded vendors and that the event moves to History without an approval flow"
+   "A third vendor bid for vendor C is unavailable in the prepared state, so the exact three-way 4/3/3 allocation cannot be performed.",
+   "The expected B/C/A allocation totals of 360, 285, 300 and 945 cannot be verified without vendor C's bid.",
+   "Creating one purchase order per awarded vendor and confirming the event moves to History after proposal submission are not expressible from this prepared awarding flow without submitting an award and using the approval/PO flow."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: A closed RFQ with three bids from vendors A, B, and C, including vendor C's bid of 95; The exact three-way allocation of 4 units to B, 3 to C, and 3 to A, totaling 945; Verification that one purchase order is created for each of three awarded vendors and that the event moves to History without an approval flow"
+   "can only test part of this — no step for: A third vendor bid for vendor C is unavailable in the prepared state, so the exact three-way 4/3/3 allocation cannot be performed.; The expected B/C/A allocation totals of 360, 285, 300 and 945 cannot be verified without vendor C's bid.; Creating one purchase order per awarded vendor and confirming the event moves to History after proposal submission are not expressible from this prepared awarding flow without submitting an award and using the approval/PO flow."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -26,26 +26,21 @@
    "start_awarding",
    "allocate_award",
    "allocate_award",
-   "expect_award_counters",
-   "click",
-   "expect_navigated",
-   "fill_required",
-   "click",
-   "expect_awarded"
+   "expect_award_counters"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 14377
+  "ms": 23117
  },
  "plan": {
-  "title": "Three-way split award",
+  "title": "Three-way split award with no approval",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed two-bid event directly in Master QCS."
+    "note": "Open the existing closed RFQ with the prepared bids on Master QCS."
    },
    {
     "step": "require_setting",
@@ -53,7 +48,7 @@
      "key": "is_partial_awarding_enabled",
      "value": "On"
     },
-    "note": "Enable split awarding required for the closest available allocation test."
+    "note": "Enable split awarding as required by the case."
    },
    {
     "step": "require_setting",
@@ -61,12 +56,12 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project behavior required by the case."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen where vendor quantities can be allocated."
+    "note": "Open the awarding screen for the prepared event."
    },
    {
     "step": "allocate_award",
@@ -75,7 +70,7 @@
      "quantity": 4,
      "line": 1
     },
-    "note": "Allocate four units to the second prepared vendor, corresponding to the requested B allocation."
+    "note": "Allocate 4 units to the second prepared bidder, the closest available equivalent to vendor B."
    },
    {
     "step": "allocate_award",
@@ -84,7 +79,7 @@
      "quantity": 6,
      "line": 1
     },
-    "note": "Allocate the remaining six units to the first prepared vendor so the available two-vendor award covers all ten units."
+    "note": "Allocate the remaining 6 units to the first prepared bidder so the available two-vendor split covers all 10 units."
    },
    {
     "step": "expect_award_counters",
@@ -93,40 +88,7 @@
      "vendors": "2/2",
      "proposal": 960
     },
-    "note": "Assert that the closest supported two-vendor split selects the full line and both vendors, with 4 × 90 plus 6 × 100 totaling 960."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Proposal"
-    },
-    "note": "Create the award proposal from the completed closest-supported allocation."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "proposal"
-    },
-    "note": "Verify that the proposal page opened."
-   },
-   {
-    "step": "fill_required",
-    "args": {},
-    "note": "Complete mandatory proposal fields before submission."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Submit Proposal"
-    },
-    "note": "Submit the proposal without adding an approval step."
-   },
-   {
-    "step": "expect_awarded",
-    "args": {},
-    "note": "Assert that the award proposal was submitted."
+    "note": "Verify both available vendors are selected and the closest achievable split totals 4 × 90 plus 6 × 100 = 960."
    }
   ]
  }

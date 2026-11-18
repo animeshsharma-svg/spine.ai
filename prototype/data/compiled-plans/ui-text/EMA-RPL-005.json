@@ -4,47 +4,71 @@
   "title": "A reply with the Ref line deleted is not treated as an answer",
   "group": "EMA-RPL",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:58:16.854Z",
+  "compiledAt": "2026-11-13T14:23:30.691Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as Chetan and reply from the approver's mailbox with an answer after deleting the Ref: Action:Reply|... line",
-   "Wait for mailbox processing and verify that nothing is recorded on the event",
-   "Verify Chetan is told the email could not be understood and to use Reply in Procol or answer in Procol"
+   "Sign in as Chetan, open the approver mailbox, reply to the approval email, delete the Ref: Action:Reply|... line, and send the response",
+   "Wait for Procol to process the connected approval mailbox and verify that nothing is recorded on the event",
+   "Verify that Chetan receives an email saying the reply could not be understood and instructing him to use the Reply button again or answer in Procol"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as Chetan and reply from the approver's mailbox with an answer after deleting the Ref: Action:Reply|... line; Wait for mailbox processing and verify that nothing is recorded on the event; Verify Chetan is told the email could not be understood and to use Reply in Procol or answer in Procol"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Sign in as Chetan, open the approver mailbox, reply to the approval email, delete the Ref: Action:Reply|... line, and send the response; Wait for Procol to process the connected approval mailbox and verify that nothing is recorded on the event; Verify that Chetan receives an email saying the reply could not be understood and instructing him to use the Reply button again or answer in Procol"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_visible"
   ],
-  "ms": 10215
+  "ms": 17449
  },
  "plan": {
-  "title": "EMA-RPL-005 — Reply Without Ref Line",
+  "title": "EMA-RPL-005 Ref-less Consultant Reply",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named event so the email-processing outcome can be checked in the correct approval workflow."
+    "note": "Open the named event that was sent for approval so the tester can perform the mailbox action and inspect the event afterward."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the stated email-approval configuration before opening the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow configuration required by the scenario."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Chetan, delete the Ref: Action:Reply|... line from the reply, send the answer, wait 1-2 minutes, and verify no answer is recorded on the event and Chetan receives the unreadable-email guidance"
+     "need": "open Chetan's mailbox, reply to the approval email with an answer after deleting the Ref: Action:Reply|... line, send it, wait for Procol to process it, and verify the refusal email and that no approval action was recorded"
     },
-    "note": "Mailbox access, sending the malformed reply, processing wait, and the resulting event/email assertions are not available in the catalog."
+    "note": "Mailbox access, malformed email composition, processing delay, and the resulting email/event outcome are not expressible by catalog steps."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Final assertion that the event screen remains usable after the tester's email-processing check."
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Overview",
+     "visible": true
+    },
+    "note": "Confirm the browser remains on the event page after the tester's mailbox interaction."
    }
   ]
  }

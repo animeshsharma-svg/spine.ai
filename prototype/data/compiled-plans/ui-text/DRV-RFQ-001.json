@@ -4,12 +4,11 @@
   "title": "Import terms from a previous RFQ with the exact same product and commodity",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-12T13:37:17.355Z",
+  "compiledAt": "2026-11-13T13:38:38.255Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify vendor bid prices become visible when the RFQ closes, because the required starting state has no bids.",
-   "Verify the specific automatic commercial-unmasking behavior from a no-bid state, because no commercial values exist to display."
+   "Verify that all vendor bids and their prices become visible in the commercial section after closure when the stated setup has no bids."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
@@ -21,10 +20,10 @@
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
    "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify vendor bid prices become visible when the RFQ closes, because the required starting state has no bids.; Verify the specific automatic commercial-unmasking behavior from a no-bid state, because no commercial values exist to display."
+   "can only test part of this — no step for: Verify that all vendor bids and their prices become visible in the commercial section after closure when the stated setup has no bids."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -35,13 +34,11 @@
    "set_schedule",
    "invite_vendor",
    "close_event",
-   "expect_text",
-   "go_to",
-   "expect_responses"
+   "expect_event_status"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 16679
+  "ms": 2999
  },
  "plan": {
   "title": "RFQ Commercials Auto-Open on Closure",
@@ -59,7 +56,7 @@
      "key": "enable_bid_masking_for_event",
      "value": "On"
     },
-    "note": "Enable sealed commercial bidding as required by the case."
+    "note": "Enable sealed-bid masking as required by the case."
    },
    {
     "step": "compose_stages",
@@ -80,7 +77,7 @@
     "args": {
      "count": 1
     },
-    "note": "Add the required product line for the RFQ."
+    "note": "Add the required RFQ line item."
    },
    {
     "step": "fill_sheet",
@@ -92,38 +89,24 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding schedule so the RFQ can be published and closed."
+    "note": "Set and commit a live bidding window so the RFQ can be closed."
    },
    {
     "step": "invite_vendor",
     "args": {},
-    "note": "Invite the QA vendors supplied by the product without inventing vendor names."
+    "note": "Invite the QA vendors required for the RFQ."
    },
    {
     "step": "close_event",
     "args": {},
-    "note": "Close the live RFQ using the buyer-side closure flow."
+    "note": "Close the live RFQ through the buyer-side project controls."
    },
    {
-    "step": "expect_text",
+    "step": "expect_event_status",
     "args": {
-     "text": "Closed"
+     "status": "Closed"
     },
-    "note": "Confirm the project page shows the RFQ as closed."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Open the buyer's responses/commercial view after closure."
-   },
-   {
-    "step": "expect_responses",
-    "args": {
-     "count": 0
-    },
-    "note": "Confirm the specified no-bid starting condition remains reflected after closure; no vendor prices can be asserted."
+    "note": "Verify that the RFQ row reports the Closed status after closure."
    }
   ]
  }

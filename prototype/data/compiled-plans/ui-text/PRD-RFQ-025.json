@@ -3,45 +3,94 @@
   "caseId": "PRD-RFQ-025",
   "title": "Participation Status Tracking: refused for a user without the Buyer role",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:30:33.831Z",
+  "compiledAt": "2026-11-13T14:51:46.479Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and verify that Participation Status Tracking is refused or unavailable.",
-   "Repeat the same action as a Buyer and verify that stage-wise per-vendor participation status tracking is available.",
-   "Compare the tenant's RBAC configuration to determine whether access is intentionally granted to additional roles."
+   "Sign in as a user without the Buyer role and as a Buyer in the same tenant, then verify that Participation Status Tracking is refused or absent for the former and available for the latter."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify that Participation Status Tracking is refused or unavailable.; Repeat the same action as a Buyer and verify that stage-wise per-vendor participation status tracking is available.; Compare the tenant's RBAC configuration to determine whether access is intentionally granted to additional roles."
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer in the same tenant, then verify that Participation Status Tracking is refused or absent for the former and available for the latter."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 9,
   "stepNames": [
    "open_event",
+   "event_menu",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 11521
+  "ms": 20323
  },
  "plan": {
-  "title": "Participation Status Tracking RBAC",
+  "title": "Participation Status Tracking Role Access",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing event so the tester can attempt the role-dependent participation-status action in the relevant event context."
+    "note": "Open an existing event to reach the stage-level controls related to participation status."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Shared With"
+    },
+    "note": "Open the closest available participation-status view, the Participation Summary drawer."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Participation Summary"
+    },
+    "note": "Confirm that the participation summary view opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Invited"
+    },
+    "note": "Confirm the closest available vendor participation status category is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Seen"
+    },
+    "note": "Confirm the closest available vendor participation status category is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bid Placed"
+    },
+    "note": "Confirm the closest available vendor participation status category is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bid Not Placed"
+    },
+    "note": "Confirm the closest available vendor participation status category is shown."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a non-Buyer user, attempt stage-wise per-vendor Participation Status Tracking, then repeat the same action as a Buyer in the same tenant and report whether each role is refused, absent, or allowed"
+     "need": "sign in as a non-Buyer and as a Buyer in the same tenant, attempt stage-wise per-vendor Participation Status Tracking in both sessions, and report whether it is refused or absent for the non-Buyer and available for the Buyer"
     },
-    "note": "The catalog has no step for switching to another user's role or observing this dedicated tracking feature."
+    "note": "Role-specific authentication and comparison are not available through the catalog."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Verify the event screen remains usable after the tester's role-comparison attempt."
+    "step": "expect_text",
+    "args": {
+     "text": "Participation Summary",
+     "present": true
+    },
+    "note": "End with an assertion on the closest participation-status screen."
    }
   ]
  }

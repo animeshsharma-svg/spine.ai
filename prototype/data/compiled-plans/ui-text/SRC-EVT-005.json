@@ -4,34 +4,38 @@
   "title": "Edit Evaluation Time is greyed out on a closed event",
   "group": "SRC-EVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:00:43.196Z",
+  "compiledAt": "2026-11-13T12:07:13.040Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Assert that Edit Evaluation Time is acceptable when either absent or disabled; the catalog requires choosing one exact state."
+  ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Assert that Edit Evaluation Time is acceptable when either absent or disabled; the catalog requires choosing one exact state."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "expect_menu_item"
+   "go_to",
+   "expect_settings_menu"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 12917
+  "ms": 14577
  },
  "plan": {
-  "title": "Edit Evaluation Time is disabled on closed RFQ",
+  "title": "Edit Evaluation Time unavailable on closed RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary instead of creating or searching for another event."
+    "note": "Open the prepared closed RFQ's summary page; the event already exists in the required closed state."
    },
    {
     "step": "require_setting",
@@ -39,16 +43,24 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX projects as required by the setup."
    },
    {
-    "step": "expect_menu_item",
+    "step": "go_to",
     "args": {
-     "item": "Edit Evaluation Time",
-     "stage": "rfq",
-     "enabled": false
+     "screen": "stage",
+     "stage": "rfq"
     },
-    "note": "Assert that Edit Evaluation Time is present but disabled in the closed RFQ stage Settings menu."
+    "note": "Navigate to the closed RFQ stage page where the Settings menu is available."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "absent": [
+      "Edit Evaluation Time"
+     ]
+    },
+    "note": "Assert the closed stage does not offer Edit Evaluation Time."
    }
   ]
  }

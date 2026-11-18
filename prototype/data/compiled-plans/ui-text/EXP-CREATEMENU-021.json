@@ -4,43 +4,73 @@
   "title": "Events list and the Create Event menu: \"Procol Support RFX-19549 3 items recurr_01 #184 Technical Of\" opens the Project Details page",
   "group": "EXP-CREATEMENU",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:36:06.110Z",
+  "compiledAt": "2026-11-13T13:59:34.939Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_url_contains",
-   "expect_url_contains"
+   "expect_text"
   ],
-  "ms": 6496
+  "ms": 13236
  },
  "plan": {
-  "title": "Open named event Project Details",
+  "title": "Open event Project Details",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "Procol Support RFX-19549 3 items recurr_01 #184 Technical Of"
     },
-    "note": "Open the named existing event from the buyer's Events list."
+    "note": "Open the specifically named existing event from the buyer portal."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable RFX project creation as required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "boq_in_erfx_allowed",
+     "value": "On"
+    },
+    "note": "Enable BOQ events as required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "scheduled_events_enabled",
+     "value": "On"
+    },
+    "note": "Enable scheduled event creation as required by the case configuration."
    },
    {
     "step": "expect_url_contains",
     "args": {
      "text": "/project/"
     },
-    "note": "Verify navigation reached the event project route."
+    "note": "Verify navigation reached a project page rather than remaining on the events list."
    },
    {
-    "step": "expect_url_contains",
+    "step": "expect_text",
     "args": {
-     "text": "/details"
+     "text": "Project Details"
     },
-    "note": "Verify the destination is the Project Details page."
+    "note": "Verify the opened page visibly identifies the Project Details section."
    }
   ]
  }

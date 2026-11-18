@@ -4,39 +4,85 @@
   "title": "A live RFQ with a vendor's bid: \"Withdraw\" opens the \"Withdrawing Order...\" window",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:19:01.241Z",
+  "compiledAt": "2026-11-13T13:46:58.396Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 11,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
-   "open_event_settings",
    "event_menu",
-   "expect_visible",
+   "expect_text",
    "expect_text",
    "expect_visible",
    "expect_visible",
-   "expect_visible",
-   "expect_text"
+   "expect_visible"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 7712
+  "ms": 14666
  },
  "plan": {
-  "title": "Withdraw dialog for live RFQ with bid",
+  "title": "Live RFQ Withdraw Dialog",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ that already has one vendor bid."
+    "note": "Open the prepared live RFQ summary containing the invited vendor's bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure counter-offer controls are not hidden on RFQs."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Use the required buyer bid-control configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
    },
    {
     "step": "go_to",
@@ -44,42 +90,36 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage."
+    "note": "Open the RFQ stage before accessing its Responses view."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab as the case requires."
-   },
-   {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the RFQ stage Settings menu."
+    "note": "Navigate to the buyer's RFQ Responses screen described in the scenario."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Withdraw"
+     "item": "Withdraw",
+     "stage": "rfq"
     },
-    "note": "Select Withdraw to open the withdrawal confirmation without confirming it."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Withdrawing Order...",
-     "visible": true
-    },
-    "note": "Verify the withdrawal window opens with the expected title."
+    "note": "Open Withdraw from the RFQ Settings menu without confirming the action."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Please enter reason for withdrawing this event",
-     "present": true
+     "text": "Withdrawing Order..."
     },
-    "note": "Verify the dialog explains that a withdrawal reason is required."
+    "note": "Assert that the withdrawal dialog opens."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Please enter reason for withdrawing this event"
+    },
+    "note": "Assert the dialog's required withdrawal-reason instruction."
    },
    {
     "step": "expect_visible",
@@ -87,7 +127,7 @@
      "label": "Enter reason",
      "visible": true
     },
-    "note": "Verify the withdrawal reason field is present."
+    "note": "Assert the withdrawal reason field is present."
    },
    {
     "step": "expect_visible",
@@ -96,7 +136,7 @@
      "name": "Cancel",
      "visible": true
     },
-    "note": "Verify the dialog offers Cancel."
+    "note": "Assert the dialog offers Cancel before any state change."
    },
    {
     "step": "expect_visible",
@@ -105,15 +145,7 @@
      "name": "Yes",
      "visible": true
     },
-    "note": "Verify the dialog offers Yes without pressing it."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Withdrawn",
-     "present": false
-    },
-    "note": "Verify the event has not changed to Withdrawn while the confirmation window remains unsubmitted."
+    "note": "Assert the dialog offers Yes without pressing it."
    }
   ]
  }

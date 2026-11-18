@@ -4,36 +4,39 @@
   "title": "Reverse auction: a typed title is never replaced by the auto title",
   "group": "SRC-TTL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:19:19.150Z",
+  "compiledAt": "2026-11-13T13:12:26.625Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Selecting a specifically named reverse (buy) auction template cannot be guaranteed because no template name is provided; select_template uses the first offered template."
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Selecting a specifically named reverse (buy) auction template cannot be guaranteed because no template name is provided; select_template uses the first offered template."
   ],
   "source": "llm",
   "steps": 10,
   "stepNames": [
    "open_create",
    "configure_single_stage",
-   "set_title",
-   "expect_value",
    "select_template",
-   "expect_value",
+   "set_title",
    "add_line_items",
+   "expect_value",
+   "set_sheet_cell",
    "expect_value",
    "add_line_items",
    "expect_value"
   ],
-  "ms": 9702
+  "ms": 9951
  },
  "plan": {
-  "title": "Reverse auction typed title persists",
+  "title": "Reverse auction typed title persistence",
   "steps": [
    {
     "step": "open_create",
@@ -46,37 +49,22 @@
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
-     "auctionSubtype": "rank"
+     "auctionSubtype": "rank",
+     "awarding": "lot"
     },
-    "note": "Set the event type to Auction for the reverse-auction flow."
+    "note": "Switch the event type from the default RFP to an auction."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available auction template so the product sheet is available."
    },
    {
     "step": "set_title",
     "args": {
      "title": "QA_Platform my own title"
     },
-    "note": "Enter the buyer's title before template and product changes."
-   },
-   {
-    "step": "expect_value",
-    "args": {
-     "label": "Enter the title of this event",
-     "value": "QA_Platform my own title"
-    },
-    "note": "Confirm the typed title is initially present."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the first offered auction template so the product sheet is available."
-   },
-   {
-    "step": "expect_value",
-    "args": {
-     "label": "Enter the title of this event",
-     "value": "QA_Platform my own title"
-    },
-    "note": "Confirm template selection did not replace the typed title."
+    "note": "Enter the buyer's title before adding products."
    },
    {
     "step": "add_line_items",
@@ -84,7 +72,7 @@
      "count": 1,
      "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the first named product at the requested plant/product context."
+    "note": "Add the first specified product."
    },
    {
     "step": "expect_value",
@@ -92,7 +80,24 @@
      "label": "Enter the title of this event",
      "value": "QA_Platform my own title"
     },
-    "note": "Verify the title remains unchanged after the first product change."
+    "note": "Verify the first product addition did not replace the typed title."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the first product's delivery location to Plant Name."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Enter the title of this event",
+     "value": "QA_Platform my own title"
+    },
+    "note": "Verify the location change also preserves the typed title."
    },
    {
     "step": "add_line_items",
@@ -100,7 +105,7 @@
      "count": 1,
      "search": "AAC BLOCKS"
     },
-    "note": "Add the second named product."
+    "note": "Add the second specified product."
    },
    {
     "step": "expect_value",
@@ -108,7 +113,7 @@
      "label": "Enter the title of this event",
      "value": "QA_Platform my own title"
     },
-    "note": "Verify the title remains unchanged after the second product change."
+    "note": "Verify the second product addition did not replace the typed title."
    }
   ]
  }

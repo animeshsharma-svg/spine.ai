@@ -4,70 +4,97 @@
   "title": "Choose an existing event to test a counter offer",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:21:09.723Z",
+  "compiledAt": "2026-11-13T12:05:08.632Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Search or iterate through existing events until finding one with a direct vendor bid rather than a surrogate bid",
-   "Record the selected event title and RFX number in Test Data"
+   "Record or assert the selected event's RFX number in Test Data."
   ],
   "warnings": [
-   "can only test part of this — no step for: Search or iterate through existing events until finding one with a direct vendor bid rather than a surrogate bid; Record the selected event title and RFX number in Test Data"
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Record or assert the selected event's RFX number in Test Data."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 9,
   "stepNames": [
    "open_events_list",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
    "expect_text",
-   "expect_responses"
+   "go_to",
+   "expect_responses",
+   "expect_api_value"
   ],
-  "ms": 10370
+  "ms": 22153
  },
  "plan": {
-  "title": "Select Existing Direct-Bid Event for Counter Offer",
+  "title": "Select existing event for counter offer",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list where the Live, History, Drafts, and Recurring tabs are available."
+    "note": "Open the Events list to choose an existing event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure counter offers are available on RFQ events as required by the case."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the Events list rendered successfully before selecting an event."
+    "note": "Confirm the Events list and its controls rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Live"
     },
-    "note": "Restrict the candidates to live events, including events currently in evaluation."
+    "note": "Restrict selection to events in the live or evaluation area rather than drafts or history."
    },
    {
     "step": "open_first_event",
     "args": {
-     "tab": "Live",
-     "containing": "In - Evaluation"
+     "tab": "Live"
     },
-    "note": "Open the first live event whose card indicates it is in evaluation."
+    "note": "Open the first existing live event available for this test."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "In - Evaluation",
+     "text": "Live",
      "present": true
     },
-    "note": "Confirm the selected event is in the required evaluation state."
+    "note": "Check that the opened event shows the expected live-state indicator."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the event's Responses view to inspect the bid source."
    },
    {
     "step": "expect_responses",
     "args": {
+     "atLeast": 1,
+     "surrogate": 0,
      "direct": 1
     },
-    "note": "Verify that the buyer sees exactly one direct vendor response and therefore the bid was placed by the vendor rather than added as a surrogate bid."
+    "note": "Verify that at least one vendor response exists and that at least one is a direct vendor bid, with no surrogate response counted."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "title"
+    },
+    "note": "Read the selected event title for the available Test Data entry."
    }
   ]
  }

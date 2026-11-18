@@ -4,37 +4,49 @@
   "title": "A buyer with two companies sees only the current company's events",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:23:20.420Z",
+  "compiledAt": "2026-11-13T12:06:40.270Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Switch between the buyer's two companies because the case provides no company IDs for switch_company",
-   "Assert that the events list contains only events belonging to the selected company",
-   "Switch back to the first company and assert that its original event list is restored"
+   "Switch between the two companies and compare that each Events list contains only that company's events, because no company IDs are provided for switch_company."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Switch between the buyer's two companies because the case provides no company IDs for switch_company; Assert that the events list contains only events belonging to the selected company; Switch back to the first company and assert that its original event list is restored"
+   "can only test part of this — no step for: Switch between the two companies and compare that each Events list contains only that company's events, because no company IDs are provided for switch_company."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_events_list",
+   "expect_events_list",
+   "ask_tester",
    "expect_events_list"
   ],
-  "ms": 7134
+  "ms": 10475
  },
  "plan": {
-  "title": "Company-scoped events list visibility",
+  "title": "Company-scoped events list",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the buyer's Events list, the subject screen of the case."
+    "note": "Open the buyer's Events list, the subject of the test."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify that the events list rendered with the Create Event control and no error."
+    "note": "Verify the Events list rendered without an error and exposes the Create Event control."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide the two QA company IDs, switch to the other company, verify its Events list contains only that company's events, then switch back and verify the original list is restored"
+    },
+    "note": "The catalog requires explicit company IDs and has no row-level assertion for company ownership."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the Events list is rendered after the tester completes the company-switch portion."
    }
   ]
  }

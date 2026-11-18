@@ -4,48 +4,78 @@
   "title": "A saved eRFX draft: \"123-123\" opens its menu",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:39:48.265Z",
+  "compiledAt": "2026-11-13T14:03:03.443Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The specific menu options that should be listed are not provided by the test case."
+   "The exact behavior of clicking the control labeled \"123-123\" is not directly expressible if it is not the draft title or the stage overflow control."
   ],
   "warnings": [
-   "can only test part of this — no step for: The specific menu options that should be listed are not provided by the test case."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: The exact behavior of clicking the control labeled \"123-123\" is not directly expressible if it is not the draft title or the stage overflow control."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_event",
-   "click",
-   "expect_visible"
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "open_stage_menu",
+   "expect_options"
   ],
-  "ms": 8677
+  "ms": 21050
  },
  "plan": {
-  "title": "Saved draft 123-123 menu",
+  "title": "EXP-DRAFT-007 — Saved eRFX draft menu",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "123-123"
     },
-    "note": "Open the existing saved draft by its stated title; this lands on the draft create screen."
+    "note": "Open the existing saved eRFX draft named 123-123."
    },
    {
-    "step": "click",
+    "step": "require_setting",
     "args": {
-     "text": "123-123"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Click the control or visible title named by the case."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "expect_visible",
+    "step": "require_setting",
     "args": {
-     "role": "menu",
-     "visible": true
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
     },
-    "note": "Verify that the click opened a menu."
+    "note": "Apply the required vendor-lock configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required add-stage configuration."
+   },
+   {
+    "step": "open_stage_menu",
+    "args": {},
+    "note": "Open the draft stage overflow menu, which is the catalog-supported menu for a saved eRFX draft."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "options": [
+      "Edit title",
+      "Delete"
+     ],
+     "only": true
+    },
+    "note": "Assert the menu opens and offers the expected draft stage controls without additional options."
    }
   ]
  }

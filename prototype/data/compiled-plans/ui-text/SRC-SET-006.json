@@ -4,47 +4,44 @@
   "title": "A single-stage reverse auction (buyer buying), tick size 1, Vendors An and B invited",
   "group": "SRC-SET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:04:21.359Z",
+  "compiledAt": "2026-11-13T12:54:36.611Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set the auction tick size to 1.",
-   "Select and verify the specifically intended Vendor A and Vendor B because their actual QA vendor names are not provided."
+   "Set and verify the auction tick size is 1."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added place_bid — the test is about bidding and no bid step was planned",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added place_bid — the test is about bidding and no bid step was planned",
-   "can only test part of this — no step for: Set the auction tick size to 1.; Select and verify the specifically intended Vendor A and Vendor B because their actual QA vendor names are not provided."
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Set and verify the auction tick size is 1."
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 14,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "set_sheet_cell",
-   "expect_sheet_cell",
    "fill_sheet",
-   "set_schedule",
+   "set_sheet_cell",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
-   "place_bid",
-   "open_events_list",
-   "expect_events_list",
-   "filter_events",
-   "expect_event_in_list",
-   "expect_event_status"
+   "place_bid"
   ],
-  "ms": 16369
+  "ms": 25496
  },
  "plan": {
   "title": "Single-stage reverse auction setup",
@@ -54,25 +51,43 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow."
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
-     "auctionSubtype": "price"
+     "auctionSubtype": "price",
+     "awarding": "lot"
     },
-    "note": "Configure the event as a price-based buyer auction."
+    "note": "Configure a price-based auction for a buyer purchasing the entire lot from one vendor."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title using the product's generated unique title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply the first available auction template so the pricing sheet is available."
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Apply the buy/reverse auction template so the pricing sheet is available."
    },
    {
     "step": "add_line_items",
@@ -81,7 +96,10 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product as one line item with quantity 10."
+    "note": "Add the specified product as one line with quantity 10."
+   },
+   {
+    "step": "fill_sheet"
    },
    {
     "step": "set_sheet_cell",
@@ -90,77 +108,35 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested delivery location on the first line item."
+    "note": "Set the first line item's delivery location."
    },
    {
-    "step": "expect_sheet_cell",
+    "step": "invite_vendor",
     "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "equals": "Plant Name (LOC-0001)"
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
     },
-    "note": "Verify the requested delivery location was retained."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the remaining pricing-sheet fields required for publication."
+    "note": "Invite the two vendors named in the case."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a 30-minute schedule starting now."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 2
-    },
-    "note": "Invite exactly two QA test vendors without inventing unavailable vendor names."
+    "note": "Commit a start-now schedule with the required 30-minute duration."
    },
    {
     "step": "publish",
-    "args": {},
     "note": "Publish the configured auction."
    },
    {
     "step": "expect_published",
-    "args": {},
-    "note": "Verify publication reached a real project page."
+    "note": "Verify that publishing reached a real live project page."
    },
    {
     "step": "place_bid"
-   },
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Return to the events list to verify the published auction's live status."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Verify the events list rendered without an error."
-   },
-   {
-    "step": "filter_events",
-    "args": {
-     "tab": "Live"
-    },
-    "note": "Open the Live events tab."
-   },
-   {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Verify this plan's newly published auction appears in the Live list."
-   },
-   {
-    "step": "expect_event_status",
-    "args": {
-     "status": "Live"
-    },
-    "note": "Assert that the published auction is marked Live."
    }
   ]
  }

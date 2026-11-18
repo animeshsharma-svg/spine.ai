@@ -3,41 +3,59 @@
   "caseId": "PRD-KBAI-025",
   "title": "Closing the chat with ❌ gives the fullscreen view",
   "group": "PRD-KBAI",
-  "compiledAt": "2026-11-10T06:47:16.582Z",
+  "compiledAt": "2026-11-13T15:39:11.332Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "none",
+  "gaps": [
+   "Assert that the chat panel is no longer displayed after pressing its ❌ control.",
+   "Assert that the Technical Stage question sections occupy the full width in fullscreen mode.",
+   "unconfirmed label \"❌\" (click) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "coverage partial: unconfirmed label \"❌\" (click) — not among the labels known from the app nor in the case",
+   "cannot test this case yet — no step can observe: Assert that the chat panel is no longer displayed after pressing its ❌ control.; Assert that the Technical Stage question sections occupy the full width in fullscreen mode.; unconfirmed label \"❌\" (click) — not among the labels known from the app nor in the case"
+  ],
   "source": "llm",
-  "steps": 8,
+  "steps": 15,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
    "switch_stage",
    "select_template",
+   "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
    "click",
-   "do_on_screen",
+   "click",
    "expect_text"
   ],
-  "ms": 14782
+  "ms": 18711
  },
  "plan": {
-  "title": "Close RFP Generator chat to fullscreen",
+  "title": "Close RFP Generator Chat to Fullscreen",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage event creation flow containing a Technical Stage."
+    "note": "Open the eRFX create screen for a technical-stage event."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Chat Fullscreen Verification"
+     "title": "RFP Generator Chat Fullscreen Check"
     },
-    "note": "Provide the required event title for the create flow."
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -46,19 +64,58 @@
       "rfp"
      ]
     },
-    "note": "Configure the event with an RFP Technical Stage."
+    "note": "Configure the event with a Technical Stage, which is the screen under test."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Show the Technical Stage where the RFP Generator chat is available."
+    "note": "Move to the Technical Stage before configuring its questionnaire."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a technical-stage template so the question sections are rendered."
+    "note": "Apply the first available technical-stage template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {},
+    "note": "a product is needed before participants or publishing"
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Populate the technical questions so the Technical Stage is usable."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Assign the required evaluator for the technical stage."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required participant so the event can be published."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event and reach its Technical Stage."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the Technical Stage event page is available."
    },
    {
     "step": "click",
@@ -69,11 +126,11 @@
     "note": "Open the RFP Generator AI chat panel described in the setup."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "press the ❌ close control on the RFP Generator AI chat panel and stop on the Technical Stage with the question sections shown at full width and the chat panel no longer displayed"
+     "text": "❌"
     },
-    "note": "Perform and verify the close action and fullscreen result that no catalog step can target by a stable control name."
+    "note": "Attempt to press the chat panel's close control."
    },
    {
     "step": "expect_text",
@@ -81,7 +138,7 @@
      "text": "Technical Stage",
      "present": true
     },
-    "note": "Confirm the Technical Stage remains visible after the chat closes."
+    "note": "Confirm the Technical Stage remains visible after the close attempt, though this does not prove fullscreen layout."
    }
   ]
  }

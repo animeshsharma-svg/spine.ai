@@ -1,10 +1,10 @@
 {
  "meta": {
   "caseId": "DRV-CO-004",
-  "title": "Counter offer modification option is restricted when modification config is disabled",
+  "title": "Counter Offer submission just before extra closing time is accepted",
   "group": "DRV-CO",
   "sheet": "derived-buyer-can-send-a-counter-offer-on-an-act",
-  "compiledAt": "2026-11-12T13:35:44.109Z",
+  "compiledAt": "2026-11-13T13:33:06.659Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -13,26 +13,27 @@
    "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "require_setting",
+   "click",
    "do_on_screen",
-   "expect_counter_offer_sent"
+   "expect_toast"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 12919
+  "ms": 11565
  },
  "plan": {
-  "title": "Counter offer percentage bid allowed",
+  "title": "Counter offer percentage bid with setting enabled",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's Responses tab for the prepared live RFQ with an existing vendor bid."
+    "note": "Open the prepared live RFQ directly on the buyer's Responses tab."
    },
    {
     "step": "require_setting",
@@ -40,19 +41,29 @@
      "key": "is_counter_offer_percent_bid_allowed",
      "value": "On"
     },
-    "note": "Enable the tenant setting required for percentage-based counter offers."
+    "note": "Enable the required tenant configuration before opening the event."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Counter Offer"
+    },
+    "note": "Open the counter-offer control for the vendor bid."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the vendor's active bid, open Counter Offer, enter a 5% percentage counter offer, submit it, and stop when the screen proves the percentage was calculated and the counter offer was submitted successfully."
+     "goal": "Enter a 5% counter offer in the Counter Offer drawer, verify that Procol calculates the resulting counter value using the percentage configuration, submit it for the vendor bid, and stop when the drawer or screen shows the counter offer was submitted successfully."
     },
-    "note": "Perform and verify the percentage-specific counter-offer interaction that no dedicated catalog step models."
+    "note": "Perform and verify the percentage-specific input, calculation, and submission behavior."
    },
    {
-    "step": "expect_counter_offer_sent",
-    "args": {},
-    "note": "Assert that the buyer's comparison grid marks the vendor bid as having a counter offer initiated."
+    "step": "expect_toast",
+    "args": {
+     "kind": "success"
+    },
+    "note": "Assert that the buyer's counter-offer submission produced a success confirmation."
    }
   ]
  }

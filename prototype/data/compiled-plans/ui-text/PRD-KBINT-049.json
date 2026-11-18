@@ -3,18 +3,18 @@
   "caseId": "PRD-KBINT-049",
   "title": "Toggle Form View and Table View",
   "group": "PRD-KBINT",
-  "compiledAt": "2026-11-10T02:27:53.527Z",
+  "compiledAt": "2026-11-13T15:06:18.390Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that Table View has exactly and only the three columns Question, Description, and Vendor Response.",
-   "Fully verify that Form View renders each question in form layout rather than merely showing the questionnaire section."
+   "Assert that Table View shows exactly and only the three columns Question, Description, and Vendor Response.",
+   "Fully verify that Form View renders each question as a form control rather than merely returning to the Form View state."
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert that Table View has exactly and only the three columns Question, Description, and Vendor Response.; Fully verify that Form View renders each question in form layout rather than merely showing the questionnaire section."
+   "can only test part of this — no step for: Assert that Table View shows exactly and only the three columns Question, Description, and Vendor Response.; Fully verify that Form View renders each question as a form control rather than merely returning to the Form View state."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "set_title",
@@ -23,31 +23,30 @@
    "select_template",
    "fill_questionnaires",
    "expect_text",
-   "toggle",
+   "click",
    "expect_text",
    "expect_text",
    "expect_text",
-   "toggle",
+   "click",
+   "expect_visible",
    "expect_text"
   ],
-  "ms": 11468
+  "ms": 17374
  },
  "plan": {
-  "title": "Toggle RFP Question View",
+  "title": "Toggle RFP Questionnaire Form and Table Views",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX create screen for the RFP questionnaire setup."
+    "note": "Open the multi-stage create flow needed to configure an RFP technical stage."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "RFP View Toggle Test"
-    },
-    "note": "Provide the mandatory event title for the create flow."
+    "args": {},
+    "note": "Every successful create flow requires an event title."
    },
    {
     "step": "compose_stages",
@@ -56,75 +55,92 @@
       "rfp"
      ]
     },
-    "note": "Configure the event with an RFP technical stage."
+    "note": "Configure the event as an RFP so the questionnaire view is available."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Work on the RFP stage where Basic Details questions are configured."
+    "note": "Work on the technical stage where Basic Details questions are displayed."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an available RFP template containing the questionnaire sections."
+    "note": "Apply the available RFP template containing the Basic Details question."
    },
    {
     "step": "fill_questionnaires",
     "args": {},
-    "note": "Populate the technical questionnaire so Basic Details has at least one question."
+    "note": "Open and prepare the technical questionnaire so its Basic Details questions are rendered."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Basic Details"
+     "text": "Basic Details",
+     "present": true
     },
-    "note": "Confirm the Basic Details questionnaire section is present before changing views."
+    "note": "Confirm the target questionnaire section is present before changing views."
    },
    {
-    "step": "toggle",
+    "step": "click",
     "args": {
-     "label": "Table View",
-     "on": true
+     "role": "button",
+     "name": "Table View"
     },
-    "note": "Switch the Basic Details questionnaire to Table View."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Question"
-    },
-    "note": "Check that the Table View exposes the Question column label."
+    "note": "Switch the questionnaire from Form View to Table View."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Description"
+     "text": "Question",
+     "present": true,
+     "within": "Basic Details"
     },
-    "note": "Check that the Table View exposes the Description column label."
+    "note": "Check that the Question column is shown in the table."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Vendor Response"
+     "text": "Description",
+     "present": true,
+     "within": "Basic Details"
     },
-    "note": "Check that the Table View exposes the Vendor Response column label."
+    "note": "Check that the Description column is shown in the table."
    },
    {
-    "step": "toggle",
+    "step": "expect_text",
     "args": {
-     "label": "Form View",
-     "on": true
+     "text": "Vendor Response",
+     "present": true,
+     "within": "Basic Details"
+    },
+    "note": "Check that the Vendor Response column is shown in the table."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Form View"
     },
     "note": "Switch the questionnaire back to Form View."
    },
    {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Form View",
+     "visible": true
+    },
+    "note": "Confirm the questionnaire is back on the Form View control/state."
+   },
+   {
     "step": "expect_text",
     "args": {
-     "text": "Basic Details"
+     "text": "Basic Details",
+     "present": true
     },
-    "note": "Confirm the questionnaire remains present after returning to Form View."
+    "note": "Confirm the Basic Details questionnaire remains displayed after returning to Form View."
    }
   ]
  }

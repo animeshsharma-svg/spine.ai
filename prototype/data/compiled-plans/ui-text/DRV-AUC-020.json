@@ -1,37 +1,39 @@
 {
  "meta": {
   "caseId": "DRV-AUC-020",
-  "title": "Auction invite emails are sent using custom templates with buyer CC configuration",
+  "title": "Mobile app shows only allowed auction strategies per plan",
   "group": "DRV-AUC",
   "sheet": "derived-a-buyer-can-select-an-auction-strategy-t",
-  "compiledAt": "2026-11-09T22:54:35.262Z",
+  "compiledAt": "2026-11-13T13:27:55.648Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
    "Log in to the Procol mobile app as the buyer",
-   "Create a new auction event in the mobile app",
-   "Open the mobile app's auction strategy selection screen",
-   "Verify Standard-plan gating of auction strategies",
-   "Verify that only English is listed and Dutch and Japanese are absent",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "Use or verify a tenant with the Standard plan",
+   "Open the mobile Auction strategy selection screen",
+   "Assert that only English is listed",
+   "Assert that Dutch is absent from the mobile strategy list",
+   "Assert that Japanese is absent from the mobile strategy list"
   ],
   "warnings": [
    "added open_prepared(draft) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "cannot test this case yet — no step can observe: Log in to the Procol mobile app as the buyer; Use or verify a tenant with the Standard plan; Open the mobile Auction strategy selection screen; Assert that only English is listed; Assert that Dutch is absent from the mobile strategy list; Assert that Japanese is absent from the mobile strategy list"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
-   "configure_single_stage"
+   "configure_single_stage",
+   "expect_visible"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 887
+  "ms": 10753
  },
  "plan": {
-  "title": "DRV-AUC-020 — Standard plan auction strategies",
+  "title": "DRV-AUC-020 Mobile Auction Strategy Plan Gating",
   "steps": [
    {
     "step": "open_prepared",
@@ -44,9 +46,18 @@
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
-     "auctionSubtype": "rank"
+     "auctionSubtype": "rank",
+     "awarding": "lot"
     },
-    "note": "Closest available web-console auction configuration step; it configures a strategy instead of observing the mobile plan-specific strategy list."
+    "note": "Opens the closest available desktop auction configuration flow, but its strategy controls do not represent the mobile English/Dutch/Japanese list."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "label": "Choose a Strategy",
+     "visible": true
+    },
+    "note": "Confirms that the desktop auction strategy configuration is visible; it does not verify the mobile strategy options."
    }
   ]
  }

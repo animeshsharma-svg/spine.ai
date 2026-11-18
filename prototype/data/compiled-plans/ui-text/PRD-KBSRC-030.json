@@ -3,28 +3,24 @@
   "caseId": "PRD-KBSRC-030",
   "title": "Mandatory T&Cs must be accepted by vendors before submitting bids",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:08:52.911Z",
+  "compiledAt": "2026-11-13T14:32:07.499Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Configure the event-level T&Cs as mandatory and mark every clause as required using a dedicated catalog step"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "resolved: “Accept every individual mandatory T&C checkbox in the vendor portal” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "can only test part of this — no step for: Configure the event-level T&Cs as mandatory and mark every clause as required using a dedicated catalog step"
+   "resolved: “Selecting and accepting every mandatory T&C checkbox in the vendor portal when the individual clause labels are not know” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 16,
   "stepNames": [
    "open_create",
    "set_title",
-   "compose_stages",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "do_on_screen",
    "set_schedule",
    "invite_vendor",
+   "do_on_screen",
    "publish",
    "expect_published",
    "switch_portal",
@@ -34,55 +30,41 @@
    "vendor_bid",
    "expect_bid_submitted"
   ],
-  "ms": 17581
+  "ms": 19854
  },
  "plan": {
-  "title": "Mandatory T&Cs block vendor bids",
+  "title": "Mandatory T&C acceptance before vendor bid",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a multi-stage event creation flow."
+    "note": "Open the eRFX event creation screen."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title before publishing."
-   },
-   {
-    "step": "compose_stages",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "title": "PRD-KBSRC-030 Mandatory T&Cs"
     },
-    "note": "Create an RFQ event rather than the default auction stage."
+    "note": "Provide the required event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template before adding line items."
+    "note": "Apply the first available template so line items and the pricing sheet can be configured."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the product that the vendor will quote."
+    "note": "Add one product for the vendor bid."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "open Edit Terms and Conditions, mark all event-level terms and conditions as mandatory, click Done, and stop on the RFQ create screen showing the saved mandatory configuration"
-    },
-    "note": "Configure the buyer-side mandatory T&C setting, which has no dedicated domain step."
+    "note": "Complete the pricing sheet before publishing."
    },
    {
     "step": "set_schedule",
@@ -96,31 +78,38 @@
     "args": {
      "count": 1
     },
-    "note": "Add a participating vendor before publishing."
+    "note": "Add one participating vendor."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "open the event-level Terms and Conditions editor, mark all existing T&Cs as mandatory, click Done, and stop on the create screen showing the saved mandatory configuration"
+    },
+    "note": "Configure the mandatory event-level terms, which has no dedicated catalog step."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event with the mandatory T&C configuration."
+    "note": "Publish the event with mandatory T&Cs enabled."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a published project page."
+    "note": "Confirm the event was published successfully."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier-portal session."
+    "note": "Move to the invited vendor session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's RFQ bid sheet as the vendor."
+    "note": "Open the event's pricing bid sheet in the supplier portal."
    },
    {
     "step": "attempt",
@@ -131,26 +120,26 @@
      },
      "expect": "refused"
     },
-    "note": "Verify the vendor's bid is refused while mandatory T&Cs remain unaccepted."
+    "note": "Try to submit without accepting the mandatory T&Cs and require a refusal or disabled submission."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "tick every mandatory T&C checkbox in the already-open vendor bid sheet without changing the bid price"
+     "need": "accept every mandatory T&C checkbox in the vendor portal for this event"
     },
-    "note": "The catalog cannot identify and accept every individual vendor-side clause."
+    "note": "The individual vendor-side clauses and controls are not expressible by known catalog labels."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Submit the bid after the mandatory terms have been accepted."
+    "note": "Submit the bid after the mandatory T&Cs have been accepted."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the vendor portal reports the bid as submitted."
+    "note": "Verify the vendor portal shows the bid as submitted."
    }
   ]
  }

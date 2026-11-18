@@ -4,21 +4,24 @@
   "title": "Extend Submission Time is offered on an RFQ whose bidding has ended and is in its evaluation time",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:13:15.181Z",
+  "compiledAt": "2026-11-13T12:46:50.740Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Select the exact unnamed RFQ in evaluation from the events list; open_event can only choose a fitting existing event when no title or id is provided."
+  ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Select the exact unnamed RFQ in evaluation from the events list; open_event can only choose a fitting existing event when no title or id is provided."
   ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "expect_settings_menu",
+   "expect_menu_item",
    "event_menu",
    "expect_visible",
    "click",
@@ -26,7 +29,7 @@
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 9716
+  "ms": 15197
  },
  "plan": {
   "title": "Extend Submission Time in RFQ Evaluation",
@@ -44,23 +47,22 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX projects as required by the case setup."
    },
    {
-    "step": "expect_settings_menu",
+    "step": "expect_menu_item",
     "args": {
-     "enabled": [
-      "Extend Submission Time"
-     ]
+     "item": "Extend Submission Time",
+     "enabled": true
     },
-    "note": "Verify the stage Settings menu offers Extend Submission Time as clickable."
+    "note": "Assert that the stage Settings menu offers Extend Submission Time as an enabled action."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Extend Submission Time"
     },
-    "note": "Select the action to verify that its extension window opens."
+    "note": "Open the submission-time extension window without confirming any change."
    },
    {
     "step": "expect_visible",
@@ -69,7 +71,7 @@
      "name": "Increase Event Time",
      "visible": true
     },
-    "note": "Assert that the extension dialog is open before any confirmation."
+    "note": "Verify that clicking the enabled menu item opens the extension dialog."
    },
    {
     "step": "click",
@@ -77,7 +79,7 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the extension so no event time changes are committed."
+    "note": "Cancel the dialog so no submission time change is applied."
    },
    {
     "step": "expect_visible",
@@ -86,7 +88,7 @@
      "name": "Increase Event Time",
      "visible": false
     },
-    "note": "Confirm the extension window closed after cancellation."
+    "note": "Verify that cancellation closes the extension window."
    }
   ]
  }

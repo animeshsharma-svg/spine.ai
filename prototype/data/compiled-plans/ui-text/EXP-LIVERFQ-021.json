@@ -4,13 +4,16 @@
   "title": "A live RFQ: \"Edit Evaluation Time\" opens the \"Edit Evaluation Time\" window",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:45:52.106Z",
+  "compiledAt": "2026-11-13T14:12:22.149Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Proving that no event data changes before pressing Cancel or Ok."
+  ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Proving that no event data changes before pressing Cancel or Ok."
   ],
   "source": "llm",
   "steps": 11,
@@ -29,7 +32,7 @@
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 11123
+  "ms": 11850
  },
  "plan": {
   "title": "Live RFQ Edit Evaluation Time Window",
@@ -39,7 +42,7 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ directly on its Responses tab."
+    "note": "Open the prepared live RFQ on the buyer's Responses tab."
    },
    {
     "step": "require_setting",
@@ -47,7 +50,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX projects required for the live RFQ."
    },
    {
     "step": "require_setting",
@@ -55,7 +58,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "On"
     },
-    "note": "Apply the tenant configuration required for this scenario."
+    "note": "Apply the required tenant configuration for the event menu."
    },
    {
     "step": "require_setting",
@@ -63,7 +66,7 @@
      "key": "disable_withdraw_during_submission_time",
      "value": "Off"
     },
-    "note": "Keep withdrawal available during live submission as required."
+    "note": "Apply the required live-event withdrawal configuration."
    },
    {
     "step": "require_setting",
@@ -71,14 +74,15 @@
      "key": "is_vendor_masking_allowed_for_everyone",
      "value": "On"
     },
-    "note": "Apply the vendor-masking configuration required by the case."
+    "note": "Apply the required vendor-masking configuration."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Edit Evaluation Time"
+     "item": "Edit Evaluation Time",
+     "stage": "rfq"
     },
-    "note": "Open Edit Evaluation Time from the RFQ stage Settings menu without confirming any change."
+    "note": "Open the RFQ Settings action that should display the evaluation-time dialog."
    },
    {
     "step": "expect_visible",
@@ -87,39 +91,45 @@
      "name": "Edit Evaluation Time",
      "visible": true
     },
-    "note": "Verify that the Edit Evaluation Time window opened."
+    "note": "Assert that the Edit Evaluation Time window opened."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Edit evaluation duration"
+     "text": "Edit evaluation duration",
+     "within": "dialog",
+     "present": true
     },
-    "note": "Verify the dialog offers evaluation-duration editing."
+    "note": "Verify the dialog includes the evaluation-duration option."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Edit evaluation ending time"
+     "text": "Edit evaluation ending time",
+     "within": "dialog",
+     "present": true
     },
-    "note": "Verify the dialog offers evaluation-ending-time editing."
+    "note": "Verify the dialog includes the evaluation-ending-time option."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Cancel",
+     "within": "dialog",
      "visible": true
     },
-    "note": "Verify the dialog has a Cancel button and remains unconfirmed."
+    "note": "Verify the dialog provides a Cancel button without pressing it."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Ok",
+     "within": "dialog",
      "visible": true
     },
-    "note": "Verify the dialog has an Ok button while no event change has been submitted."
+    "note": "Verify the dialog provides an Ok button without pressing it."
    }
   ]
  }

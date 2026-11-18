@@ -4,14 +4,12 @@
   "title": "Reverse auction: the vendor tries to bid again after revoking",
   "group": "SRC-RVK",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:51:59.236Z",
+  "compiledAt": "2026-11-13T12:45:14.246Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Revoke Vendor A's previous bid in the live reverse auction and establish the reverse-auction-specific revoked state"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Revoke Vendor A's previous bid in the live reverse auction and establish the reverse-auction-specific revoked state"
+   "resolved: “Revoke Vendor A's previous bid in the vendor portal before attempting the replacement bid.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
   "steps": 5,
@@ -24,50 +22,48 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9638
+  "ms": 15143
  },
  "plan": {
-  "title": "Reverse Auction Rebid After Revocation",
+  "title": "Reverse auction bid after revocation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared event summary without searching or creating another event."
+    "note": "Open the existing prepared event without creating or searching for another event."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Continue in the vendor portal while keeping the buyer session available."
+    "note": "Continue in the invited vendor's separate supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing round as Vendor A."
+    "note": "Open the live auction's pricing bid sheet as Vendor A."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "revoke Vendor A's previous bid in the live reverse auction, then return to the vendor bid sheet"
+     "need": "revoke Vendor A's previous bid in the vendor portal and leave the event ready for a new bid attempt"
     },
-    "note": "The catalog has no vendor bid-revocation action."
+    "note": "The catalog has no vendor-side revoke action, so the tester must establish the required revoked state."
    },
    {
     "step": "attempt",
     "args": {
      "step": "vendor_bid",
-     "args": {
-      "price": 90
-     },
-     "because": "You cannot place a bid after revoking the previous one",
-     "expect": "refused"
+     "args": {},
+     "expect": "refused",
+     "because": "You cannot place a bid after revoking the previous one"
     },
-    "note": "Attempt a new price after revocation and require Procol's refusal message."
+    "note": "Attempt the replacement bid and verify that Procol refuses it with the expected revocation message."
    }
   ]
  }

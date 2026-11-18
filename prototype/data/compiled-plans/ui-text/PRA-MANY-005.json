@@ -4,29 +4,39 @@
   "title": "Users who can see all selected PRs are shown",
   "group": "PRA-MANY",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-12T13:47:48.390Z",
+  "compiledAt": "2026-11-13T14:26:38.634Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Tick one item from each of PR-1, PR-8 and PR-9 across distinct requisitions",
-   "Click the Assign button (the person icon next to Upload PRs) to open the Search a user list",
-   "Assert the specific set of displayed assignees including Food Buyer, Fruits Buyer, All Category Buyer, and the exclusion of Engg Buyer",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "unconfirmed label \"Engg Buyer\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "coverage partial: unconfirmed label \"Engg Buyer\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 15,
   "stepNames": [
    "require_setting",
    "open_purchase_requisitions",
-   "pr_tab"
+   "pr_tab",
+   "select_pr",
+   "select_pr",
+   "select_pr",
+   "click",
+   "expect_visible",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "scroll_to",
+   "expect_text"
   ],
-  "ms": 18849
+  "ms": 18053
  },
  "plan": {
-  "title": "PRA-MANY-005 — Users who can see all selected PRs are shown",
+  "title": "PR assignee list by category visibility",
   "steps": [
    {
     "step": "require_setting",
@@ -34,19 +44,111 @@
      "key": "is_pr_teams_filtering_enabled",
      "value": "On"
     },
-    "note": "Ensure team filtering is enabled for the tenant as required"
+    "note": "Enable the required PR team-category filtering configuration for this case."
    },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open Purchase Requisitions as specified in the test case"
+    "note": "Open the Purchase Requisitions area as the starting screen for the PR selection flow."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab of Purchase Requisitions"
+    "note": "Stay on the Open tab, where PRs can be selected for assignment."
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "pr": "PR-1"
+    },
+    "note": "Select the first specified Fruits PR."
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "pr": "PR-8"
+    },
+    "note": "Select the second specified Fruits PR while retaining the multi-selection."
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "pr": "PR-9"
+    },
+    "note": "Select the third specified Fruits PR while retaining the multi-selection."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Assign"
+    },
+    "note": "Open the assignee picker for the selected PRs."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "textbox",
+     "placeholder": "Search a user",
+     "visible": true
+    },
+    "note": "Verify that the Search a user box opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Food Buyer (A)",
+     "present": true
+    },
+    "note": "Verify the food-category buyer is offered."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Fruits Buyer (B)",
+     "present": true
+    },
+    "note": "Verify the fruits-category buyer is offered."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "All Category Buyer (D)",
+     "present": true
+    },
+    "note": "Verify the all-category buyer is offered."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "super admin",
+     "present": true
+    },
+    "note": "Verify the super admin is offered."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "process validator",
+     "present": true
+    },
+    "note": "Verify the process validator is offered."
+   },
+   {
+    "step": "scroll_to",
+    "args": {
+     "text": "process validator"
+    },
+    "note": "Scroll to the end of the assignee list so the complete list is traversed."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Engg Buyer",
+     "present": false
+    },
+    "note": "Verify the engineering-category buyer is excluded by team filtering."
    }
   ]
  }

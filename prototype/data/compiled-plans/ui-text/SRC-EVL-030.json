@@ -4,24 +4,27 @@
   "title": "The given event is in the wrong state for the test",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:23:09.607Z",
+  "compiledAt": "2026-11-13T12:06:21.006Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Identify and open the specific given event because no title or project ID was provided",
-   "Assert the given event's current state against the required awarding states (evaluation or closed with bids)",
-   "Conditionally avoid running awarding and report that the event is unsuitable"
+   "Identify and open the specific given event because no event title or project ID is provided",
+   "Verify that the given event has bids and is in evaluation or closed state suitable for awarding",
+   "Record the finding and stop without running the awarding test"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Identify and open the specific given event because no title or project ID was provided; Assert the given event's current state against the required awarding states (evaluation or closed with bids); Conditionally avoid running awarding and report that the event is unsuitable"
+   "cannot test this case yet — no step can observe: Identify and open the specific given event because no event title or project ID is provided; Verify that the given event has bids and is in evaluation or closed state suitable for awarding; Record the finding and stop without running the awarding test"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_events_list",
-   "expect_events_list"
+   "expect_events_list",
+   "filter_events",
+   "open_first_event",
+   "expect_text"
   ],
-  "ms": 9831
+  "ms": 10940
  },
  "plan": {
   "title": "Find Given Event State",
@@ -29,12 +32,34 @@
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the existing events list, which is the closest available navigation for finding the given event."
+    "note": "Open the buyer's Events list where the given event should be found."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify that the Events list rendered before the missing event-specific inspection."
+    "note": "Confirm the Events list rendered with the expected tabs and Create Event control."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Live"
+    },
+    "note": "Inspect the Live tab as the closest available representation of the example event state."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Live"
+    },
+    "note": "Open a live event for state inspection; this cannot guarantee it is the specific given event."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Live",
+     "present": true
+    },
+    "note": "Assert that the inspected event visibly indicates a live state, which is not suitable evidence that the given event is ready for awarding."
    }
   ]
  }

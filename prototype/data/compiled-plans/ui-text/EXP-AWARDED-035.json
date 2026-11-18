@@ -4,32 +4,46 @@
   "title": "Recreate Order: Create Order with extremely large price value is accepted",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:16:06.164Z",
+  "compiledAt": "2026-11-13T13:45:21.135Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
-   "do_on_screen",
-   "expect_toast"
+   "fill",
+   "click",
+   "expect_toast",
+   "expect_visible"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 7012
+  "ms": 12788
  },
  "plan": {
-  "title": "Recreate Order with Extremely Large Price",
+  "title": "Recreate Order with Large Price",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared awarded event summary without creating or searching for another event."
+    "note": "Open the already awarded event's summary page."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "event_menu",
@@ -37,14 +51,23 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage's Recreate Order window from Settings."
+    "note": "Open Recreate Order from the RFQ stage Settings menu."
    },
    {
-    "step": "do_on_screen",
+    "step": "fill",
     "args": {
-     "goal": "In the Recreate Order window, click Edit More Details, replace the Price* field with 9999999999.99, click Create Order, verify the window closes, and stop when the new order creation result is shown"
+     "label": "Price*",
+     "value": "9999999999.99"
     },
-    "note": "Perform the buyer-side form interaction that has no dedicated catalog step, including the large price value and order creation."
+    "note": "Replace the existing price with the extremely large value."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order"
+    },
+    "note": "Submit the recreated order."
    },
    {
     "step": "expect_toast",
@@ -52,7 +75,16 @@
      "kind": "success",
      "text": "New Order Created"
     },
-    "note": "Assert the expected success confirmation after creating the order."
+    "note": "Verify the order was created successfully."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": false
+    },
+    "note": "Verify the Recreate Order window closes after creation."
    }
   ]
  }

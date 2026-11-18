@@ -4,31 +4,71 @@
   "title": "Master QCS of a closed RFQ: \"RFQ\" opens the stage page",
   "group": "EXP-CLOSEDQCS",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:24:27.155Z",
+  "compiledAt": "2026-11-13T13:51:51.850Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "click",
-   "expect_navigated"
+   "expect_url_contains",
+   "expect_visible"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 5679
+  "ms": 8946
  },
  "plan": {
-  "title": "Closed RFQ Master QCS RFQ Navigation",
+  "title": "Closed RFQ Master QCS Navigation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly on its Master QCS screen."
+    "note": "Open the prepared closed RFQ directly on Master QCS."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Apply the requested partial-awarding configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "restrict_unlock_bid_before_evaluation",
+     "value": "Off"
+    },
+    "note": "Apply the requested bid-unlock configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_over_awarding_allowed",
+     "value": "Off"
+    },
+    "note": "Prevent awarding beyond the requested quantity as configured."
    },
    {
     "step": "click",
@@ -36,15 +76,23 @@
      "role": "tab",
      "name": "RFQ"
     },
-    "note": "Select the RFQ control to test its navigation behavior."
+    "note": "Activate the RFQ control whose navigation behavior is under test."
    },
    {
-    "step": "expect_navigated",
+    "step": "expect_url_contains",
     "args": {
-     "screen": "stage",
-     "path": "/project/"
+     "text": "/project/"
     },
-    "note": "Verify that the RFQ stage page opened and the URL changed to the project stage route."
+    "note": "Verify the browser navigated to the event project route."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Project Details",
+     "visible": true
+    },
+    "note": "Verify the destination is the RFQ stage page rather than remaining on Master QCS."
    }
   ]
  }

@@ -4,19 +4,26 @@
   "title": "A live RFQ with a vendor's bid: \"Rejected Bids\": \"Close\" closes it and changes nothing",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:20:49.002Z",
+  "compiledAt": "2026-11-13T13:48:12.561Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Exact before-and-after comparison of the event's bidding times and all vendor details after closing the window"
+   "Exact event status and bidding times remaining unchanged after closing the Rejected Bids window"
   ],
   "warnings": [
-   "can only test part of this — no step for: Exact before-and-after comparison of the event's bidding times and all vendor details after closing the window"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Exact event status and bidding times remaining unchanged after closing the Rejected Bids window"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_responses",
    "event_menu",
    "expect_visible",
@@ -26,24 +33,65 @@
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 10772
+  "ms": 23611
  },
  "plan": {
-  "title": "Rejected Bids Close Without Changes",
+  "title": "Rejected Bids Close Leaves RFQ Unchanged",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ with one vendor bid directly on its Responses tab."
+    "note": "Open the prepared live RFQ Responses tab with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Keep counter offers available on RFQ rounds."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Allow bid rejection while bidding is open, matching the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 1
+     "count": 1,
+     "direct": 1
     },
-    "note": "Confirm the existing vendor bid is present before opening Rejected Bids."
+    "note": "Record the existing single direct vendor response before opening Rejected Bids."
    },
    {
     "step": "event_menu",
@@ -58,7 +106,7 @@
      "text": "Rejected Bids",
      "visible": true
     },
-    "note": "Confirm the Rejected Bids window opened."
+    "note": "Confirm that the Rejected Bids window opened."
    },
    {
     "step": "click",
@@ -66,7 +114,7 @@
      "role": "button",
      "name": "Close"
     },
-    "note": "Close the Rejected Bids window without taking any rejection action."
+    "note": "Close the Rejected Bids window."
    },
    {
     "step": "expect_visible",
@@ -74,14 +122,15 @@
      "text": "Rejected Bids",
      "visible": false
     },
-    "note": "Verify the Rejected Bids window is closed."
+    "note": "Confirm that the Rejected Bids window is closed."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 1
+     "count": 1,
+     "direct": 1
     },
-    "note": "Confirm the existing bid remains visible after closing and was not changed."
+    "note": "Verify that the vendor response state remains unchanged after closing."
    }
   ]
  }

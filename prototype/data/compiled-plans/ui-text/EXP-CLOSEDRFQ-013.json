@@ -4,49 +4,79 @@
   "title": "A closed RFQ: the \"Responses\" tab opens",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:26:14.318Z",
+  "compiledAt": "2026-11-13T13:53:07.547Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
-   "click",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_navigated",
    "expect_text",
    "expect_text",
-   "expect_no_error"
+   "expect_screen_clean"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 6752
+  "ms": 8662
  },
  "plan": {
-  "title": "Closed RFQ Responses Tab Opens",
+  "title": "Closed RFQ Responses Tab",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared closed RFQ directly on its Responses screen."
+    "note": "Open the prepared closed RFQ on its buyer-side Responses tab."
    },
    {
-    "step": "click",
+    "step": "require_setting",
     "args": {
-     "role": "tab",
-     "name": "Responses"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Activate the Responses tab as described by the case."
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Apply the required post-expiry surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-editing configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen configuration."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "responses"
     },
-    "note": "Verify the Responses tab opened and the response route is ready."
+    "note": "Assert that the Responses screen and route are ready."
    },
    {
     "step": "expect_text",
@@ -54,7 +84,7 @@
      "text": "New! Keyboard Navigation",
      "present": true
     },
-    "note": "Confirm representative Responses content is visible."
+    "note": "Verify that the Responses tab displays its expected content."
    },
    {
     "step": "expect_text",
@@ -62,12 +92,12 @@
      "text": "Use < or > to navigate the event with your keyboard",
      "present": true
     },
-    "note": "Confirm the Responses screen content rendered as expected."
+    "note": "Verify the Responses tab guidance is visible."
    },
    {
-    "step": "expect_no_error",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Verify that opening the Responses tab produced no application error."
+    "note": "Confirm the Responses screen has no error, crash, or raw invalid values."
    }
   ]
  }

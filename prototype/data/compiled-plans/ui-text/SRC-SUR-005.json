@@ -4,41 +4,40 @@
   "title": "Add a surrogate bid on a closed RFQ, company allows surrogate bids after expiry",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:18:34.239Z",
+  "compiledAt": "2026-11-13T13:00:13.920Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enter \"Phone quote 27 Oct\" in the Surrogate Bid Reference field."
+   "Entering or verifying the Surrogate Bid Reference value \"Phone quote 27 Oct\"."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Enter \"Phone quote 27 Oct\" in the Surrogate Bid Reference field."
+   "resolved: “A closed RFQ state with Vendor A still eligible for Add Bid; the prepared closed_two_bids state already has two bids and” — place_surrogate_bid enters the second vendor's bid as the buyer (another invited vendor's Add Bid row)",
+   "can only test part of this — no step for: Entering or verifying the Surrogate Bid Reference value \"Phone quote 27 Oct\"."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
    "place_surrogate_bid",
-   "expect_responses",
-   "go_to",
-   "expect_qcs_cell"
+   "expect_responses"
   ],
   "state": "closed_two_bids",
   "screen": "participants",
-  "ms": 18970
+  "ms": 19792
  },
  "plan": {
-  "title": "Closed RFQ Surrogate Bid After Expiry",
+  "title": "Closed RFQ surrogate bid after expiry",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the existing closed RFQ directly on its Participants tab."
+    "note": "Open the prepared closed RFQ directly on its Participants tab, as required for prepared-state cases."
    },
    {
     "step": "require_setting",
@@ -54,7 +53,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "place_surrogate_bid",
@@ -62,34 +61,14 @@
      "vendor": "Vendor A",
      "price": 95
     },
-    "note": "Add the buyer-entered bid for Vendor A after the RFQ has closed."
+    "note": "Attempt to add the buyer-entered bid at 95 for Vendor A; this also performs the save and reports whether the closed-round restriction permits it."
    },
    {
     "step": "expect_responses",
     "args": {
-     "vendors": [
-      "Vendor A"
-     ],
-     "surrogate": 1,
-     "stage": "rfq"
+     "surrogate": 1
     },
-    "note": "Verify the RFQ response is present for Vendor A and marked as a surrogate bid."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "master_qcs"
-    },
-    "note": "Navigate to the comparison grid to verify the submitted bid value."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": "Vendor A",
-     "equals": "95"
-    },
-    "note": "Confirm Vendor A's surrogate bid rate is 95."
+    "note": "Verify the buyer-side response grid marks a response as a surrogate bid if the bid was accepted."
    }
   ]
  }

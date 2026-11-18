@@ -4,17 +4,14 @@
   "title": "Upload a bid file for another event",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:28:32.156Z",
+  "compiledAt": "2026-11-13T11:48:40.086Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Upload the template downloaded from a different event in the vendor portal and verify that Procol refuses it or reports unmatched rows without submitting prices."
+   "Upload the bid template downloaded from a different event and verify Procol refuses it or reports unmatched rows with no prices submitted."
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Upload the template downloaded from a different event in the vendor portal and verify that Procol refuses it or reports unmatched rows without submitting prices."
+   "can only test part of this — no step for: Upload the bid template downloaded from a different event and verify Procol refuses it or reports unmatched rows with no prices submitted."
   ],
   "source": "llm",
   "steps": 5,
@@ -23,51 +20,51 @@
    "switch_portal",
    "vendor_open_event",
    "ask_tester",
-   "expect_visible"
+   "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 13549
+  "ms": 16090
  },
  "plan": {
-  "title": "Vendor rejects bid file from another event",
+  "title": "Reject bid template from another event",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ event with no bids."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Open Vendor A's supplier-portal session while keeping the buyer session available."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open this event's RFQ pricing round in the vendor portal."
+    "note": "Open the live RFQ's pricing bid sheet in the vendor portal."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "upload the bid template downloaded from a different event and verify the refusal or unmatched-row message without submitting any prices"
+     "need": "provide or open the bid template downloaded from a different event, upload it in Vendor A's bid sheet, and stop after the portal shows its refusal or unmatched-row message"
     },
-    "note": "No catalog step can select or submit a bid file from another event."
+    "note": "The catalog has no step for downloading a template from another event or uploading that cross-event file."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "button",
-     "name": "Submit Quote",
-     "visible": true
+     "text": "Submitted",
+     "present": false
     },
-    "note": "Confirm the vendor pricing screen remains available after the attempted upload."
+    "note": "Verify the vendor portal does not show the bid as submitted after the attempted upload."
    }
   ]
  }

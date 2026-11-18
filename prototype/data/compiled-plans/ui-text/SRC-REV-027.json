@@ -4,117 +4,34 @@
   "title": "Reverse auction: lower only line 2 to 45",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:12:04.145Z",
+  "compiledAt": "2026-11-13T12:41:22.444Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact initial bid state of 100 on line 1 and 50 on line 2 cannot be established because vendor_bid applies one price to every line.",
-   "A reliable line-specific vendor edit/revision control for changing only line 2 from 50 to 45 is not exposed as a domain step.",
-   "The expected comparison that line 1 remains 100 while line 2 changes to 45 cannot be fully asserted without reliable line-specific vendor-cell targeting.",
-   "The rank change attributable specifically to the line 2 revision cannot be compared with the pre-revision rank.",
-   "unconfirmed label \"45\" (expect_text) — not among the labels known from the app nor in the case"
+   "Change only line 2 to 45 while preserving line 1 at 100 because vendor_bid applies one price to every price cell and the case provides no line-item label for a generic cell edit.",
+   "Verify that only line 2 changed from 50 to 45 and that its rank updated relative to the prior bid."
   ],
   "warnings": [
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "coverage partial: unconfirmed label \"45\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: The exact initial bid state of 100 on line 1 and 50 on line 2 cannot be established because vendor_bid applies one price to every line.; A reliable line-specific vendor edit/revision control for changing only line 2 from 50 to 45 is not exposed as a domain step.; The expected comparison that line 1 remains 100 while line 2 changes to 45 cannot be fully asserted without reliable line-specific vendor-cell targeting.; The rank change attributable specifically to the line 2 revision cannot be compared with the pre-revision rank."
+   "can only test part of this — no step for: Change only line 2 to 45 while preserving line 1 at 100 because vendor_bid applies one price to every price cell and the case provides no line-item label for a generic cell edit.; Verify that only line 2 changed from 50 to 45 and that its rank updated relative to the prior bid."
   ],
   "source": "llm",
-  "steps": 21,
+  "steps": 5,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "configure_single_stage",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
+   "open_event",
    "switch_portal",
    "vendor_open_event",
    "vendor_bid",
-   "expect_bid_submitted",
-   "click",
-   "fill",
-   "click",
-   "expect_text",
-   "switch_portal",
-   "open_master_qcs",
-   "expect_qcs_ranks"
+   "expect_bid_submitted"
   ],
-  "ms": 25739
+  "ms": 17579
  },
  "plan": {
-  "title": "Reverse auction line 2 bid revision",
+  "title": "Reverse auction bid revision on line 2",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "single-stage"
-    },
-    "note": "Create a reverse auction in the single-stage flow."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "SRC-REV-027 Reverse Auction"
-    },
-    "note": "Provide the required event title."
-   },
-   {
-    "step": "configure_single_stage",
-    "args": {
-     "eventType": "auction"
-    },
-    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
-   },
-   {
-    "step": "select_template",
+    "step": "open_event",
     "args": {},
-    "note": "Apply a pricing template before adding line items."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 2
-    },
-    "note": "Create the required two-line auction."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Populate the pricing sheet so the event can be scheduled and published."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a live bidding window."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Invite the vendor named in the case."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the auction before bidding."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Verify the auction reached a published project page."
+    "note": "Open a suitable existing live event with bids because the case does not name an event and no catalog step can create the required two different initial line prices."
    },
    {
     "step": "switch_portal",
@@ -122,77 +39,26 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Move to the vendor session while keeping the buyer session open."
+    "note": "Move to Vendor A's supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live auction's vendor bid sheet."
+    "note": "Open the live auction's pricing round in the vendor portal."
    },
    {
     "step": "vendor_bid",
     "args": {
-     "price": 100
+     "price": 45
     },
-    "note": "Establish the closest available initial vendor bid; the catalog applies this value to every price cell."
+    "note": "Submit a vendor-side bid revision at 45; this checks acceptance of a revision but cannot restrict the value to line 2."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the initial vendor bid was accepted."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "Edit"
-    },
-    "note": "Attempt to open the vendor's bid revision control."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Price",
-     "value": "45",
-     "within": "2"
-    },
-    "note": "Attempt to change only the second line's price to 45; the line-region label is not catalog-confirmed."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Submit Quote"
-    },
-    "note": "Submit the vendor's revision."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "45",
-     "present": true
-    },
-    "note": "Verify the revised price is visible on the vendor screen."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "buyer"
-    },
-    "note": "Return to the buyer's event page to inspect the resulting ranking."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's comparison grid after the vendor revision."
-   },
-   {
-    "step": "expect_qcs_ranks",
-    "args": {
-     "order": "lowest"
-    },
-    "note": "Verify the current reverse-auction ranks follow the lowest amounts."
+    "note": "Assert that the vendor portal accepted the revised bid."
    }
   ]
  }

@@ -3,7 +3,7 @@
   "caseId": "PRD-KBSRC-623",
   "title": "Decline option offers both decline and modify",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:26:03.433Z",
+  "compiledAt": "2026-11-13T14:48:15.688Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -36,22 +36,22 @@
    "expect_text",
    "expect_text"
   ],
-  "ms": 12065
+  "ms": 18282
  },
  "plan": {
-  "title": "Counter offer decline and modify options",
+  "title": "Vendor counter-offer decline and modify choices",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a new multi-stage event so the RFQ stage can be configured."
+    "note": "Start an eRFX create flow for the RFQ event."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "PRD-KBSRC-623 Counter Offer"
+     "title": "Decline Modify Counter Offer Test"
     },
     "note": "Provide the required event title."
    },
@@ -62,19 +62,19 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ."
+    "note": "Configure the event with an RFQ pricing stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template before adding line items."
+    "note": "Apply an RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the product required for bidding."
+    "note": "Add the product needed for the vendor bid."
    },
    {
     "step": "fill_sheet",
@@ -86,74 +86,76 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule."
+    "note": "Commit a live bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor who will bid and receive the counter offer."
+    "note": "Invite the QA vendor who will receive and inspect the counter offer."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so the vendor can submit a bid."
+    "note": "Publish the RFQ so the vendor can bid."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the RFQ reached its published project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the vendor bid was accepted."
+    "note": "Verify the vendor bid was accepted."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer comparison grid where the counter offer can be initiated."
+    "note": "Open the buyer comparison grid where the bid can be countered."
    },
    {
     "step": "place_counter_offer",
     "args": {
      "price": 90
     },
-    "note": "Send a pending counter offer to the vendor."
+    "note": "Send a pending buyer counter offer to the vendor."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Confirm the buyer view marks the counter offer as pending."
+    "note": "Confirm the buyer grid shows the counter offer as initiated."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Continue in the vendor persona's supplier portal."
+    "note": "Continue as the invited vendor in the supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
-     "overview": true
+     "stage": "pricing"
     },
-    "note": "Open the event overview where the pending counter offer banner is shown."
+    "note": "Open the event's RFQ pricing view containing the pending counter-offer banner."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Counter Offer"
+     "text": "Counter Offer",
+     "present": true
     },
-    "note": "Confirm the vendor can see the pending counter offer banner."
+    "note": "Confirm the pending counter-offer banner is visible."
    },
    {
     "step": "click",
     "args": {
-     "text": "Decline"
+     "role": "button",
+     "name": "Accept Counter Offer"
     },
-    "note": "Choose the vendor's Decline option to open the response dialog."
+    "note": "Open the vendor's counter-offer response dialog."
    },
    {
     "step": "expect_visible",
@@ -161,23 +163,23 @@
      "role": "dialog",
      "visible": true
     },
-    "note": "Verify that the decline dialog opened."
+    "note": "Verify that a response dialog opened."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Decline",
-     "within": "dialog"
+     "present": true
     },
-    "note": "Assert the dialog includes the decline choice."
+    "note": "Assert the dialog offers a decline choice."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Modify Counter Offer",
-     "within": "dialog"
+     "present": true
     },
-    "note": "Assert the dialog offers the required Modify Counter Offer choice."
+    "note": "Assert the dialog offers the required modify-counter-offer choice."
    }
   ]
  }

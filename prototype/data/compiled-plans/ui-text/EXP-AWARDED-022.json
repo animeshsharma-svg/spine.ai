@@ -4,34 +4,46 @@
   "title": "An awarded event: \"Edit Evaluation Time\" is greyed out and says why",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:14:23.754Z",
+  "compiledAt": "2026-11-13T13:44:19.563Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "open_event_settings",
    "expect_disabled",
-   "attempt",
    "hover",
-   "expect_message"
+   "expect_message",
+   "attempt"
   ],
   "state": "awarded",
   "screen": "responses",
-  "ms": 8553
+  "ms": 12000
  },
  "plan": {
-  "title": "Awarded Event Evaluation Time Disabled",
+  "title": "Awarded Event Edit Evaluation Time Disabled",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared awarded event directly on its RFQ Responses tab."
+    "note": "Open the prepared awarded event directly on the RFQ Responses screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case before accessing the event."
    },
    {
     "step": "open_event_settings",
@@ -43,7 +55,23 @@
     "args": {
      "control": "Edit Evaluation Time"
     },
-    "note": "Verify Edit Evaluation Time is greyed out."
+    "note": "Assert that Edit Evaluation Time is greyed out."
+   },
+   {
+    "step": "hover",
+    "args": {
+     "role": "menuitem",
+     "name": "Edit Evaluation Time"
+    },
+    "note": "Hover the disabled menu item to reveal its explanatory tooltip."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "tooltip",
+     "on": "Edit Evaluation Time"
+    },
+    "note": "Assert that the product displays a tooltip explaining why the action is unavailable."
    },
    {
     "step": "attempt",
@@ -53,24 +81,9 @@
       "role": "menuitem",
       "name": "Edit Evaluation Time"
      },
-     "expect": "refused"
+     "expect": "nothing_opens"
     },
-    "note": "Try the disabled menu item and verify that it cannot be activated."
-   },
-   {
-    "step": "hover",
-    "args": {
-     "role": "menuitem",
-     "name": "Edit Evaluation Time"
-    },
-    "note": "Hover the disabled item to reveal its explanatory tooltip."
-   },
-   {
-    "step": "expect_message",
-    "args": {
-     "kind": "tooltip"
-    },
-    "note": "Verify that a tooltip explaining why the action is unavailable appears."
+    "note": "Try the disabled action and assert that no dialog or other UI opens."
    }
   ]
  }

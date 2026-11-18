@@ -4,47 +4,58 @@
   "title": "An action email with an edited subject is not treated as an approval",
   "group": "EMA-APR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:21.325Z",
+  "compiledAt": "2026-11-13T14:18:46.121Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Asha's mailbox and open the Procol approval email",
-   "Click the email's Approve action, edit the subject, and send it to the approval mailbox",
-   "Wait for Procol to process the email and verify the approval is not recorded and that the rejection reply requests the original subject or portal action"
+   "Log in to Asha's mailbox, open the Procol approval email, change the subject to \"Approve please\", send it, wait for processing, and verify the reply asks for the original subject or action in Procol."
   ],
   "warnings": [
-   "can only test part of this — no step for: Access Asha's mailbox and open the Procol approval email; Click the email's Approve action, edit the subject, and send it to the approval mailbox; Wait for Procol to process the email and verify the approval is not recorded and that the rejection reply requests the original subject or portal action"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Log in to Asha's mailbox, open the Procol approval email, change the subject to \"Approve please\", send it, wait for processing, and verify the reply asks for the original subject or action in Procol."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 70438
+  "ms": 18488
  },
  "plan": {
-  "title": "Edited Approval Email Subject Rejected",
+  "title": "Edited Approval Email Subject Is Rejected",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named event in the buyer portal before performing the email-based approval scenario."
+    "note": "Open the existing event that was sent for the two-step approval workflow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company, with the company's approval mailbox connected to Procol, and approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the email approval configuration required by the case before inspecting the event."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "access Asha's mailbox, send the approval action email with the subject changed to \"Approve please\", wait for Procol to process it, and verify the approval is rejected with the expected reply"
+     "need": "log in to Asha's mailbox, open the Procol approval request, click Approve, change the reply subject to \"Approve please\", send it, wait 1-2 minutes for processing, and verify the reply says to send the email without changing the subject or take the action in Procol"
     },
-    "note": "Mailbox access, email editing/sending, processing delay, and the resulting rejection reply are not expressible by catalog steps."
+    "note": "The mailbox login, subject edit, send action, and reply verification require an external mailbox session that the catalog cannot access."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the buyer portal remains free of errors after the unavailable email workflow is performed."
+    "step": "expect_text",
+    "args": {
+     "text": "Approval in Progress"
+    },
+    "note": "Verify in the buyer portal that the edited email did not advance the approval workflow."
    }
   ]
  }

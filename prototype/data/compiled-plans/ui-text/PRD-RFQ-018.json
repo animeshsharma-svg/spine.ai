@@ -3,23 +3,51 @@
   "caseId": "PRD-RFQ-018",
   "title": "QCS Ranking and L1 Highlighting: refused for a user without the Buyer role",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:31:34.508Z",
+  "compiledAt": "2026-11-13T14:51:26.155Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and verify that QCS ranking and L1 highlighting are refused or absent, then repeat the same action as a Buyer.",
-   "Directly assert the per-line L1 highlighting visual state."
+   "Sign in as a user without the Buyer role and verify QCS ranking and L1 highlighting is refused or absent",
+   "Repeat the QCS ranking and L1 highlighting check as a Buyer in the same tenant",
+   "Verify the per-line L1 highlighting outcome",
+   "Compare the two users' role-based access outcomes"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Sign in as a user without the Buyer role and verify that QCS ranking and L1 highlighting are refused or absent, then repeat the same action as a Buyer.; Directly assert the per-line L1 highlighting visual state."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify QCS ranking and L1 highlighting is refused or absent; Repeat the QCS ranking and L1 highlighting check as a Buyer in the same tenant; Verify the per-line L1 highlighting outcome; Compare the two users' role-based access outcomes"
   ],
   "source": "llm",
-  "steps": 0,
-  "stepNames": [],
-  "ms": 83408
+  "steps": 3,
+  "stepNames": [
+   "open_prepared",
+   "ask_tester",
+   "expect_qcs_ranks"
+  ],
+  "ms": 11264
  },
  "plan": {
-  "title": "QCS Ranking and L1 Role Access",
-  "steps": []
+  "title": "QCS RBAC Ranking and L1 Access",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open a prepared QCS so the Buyer-side ranking capability can be inspected after the role comparison."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as a non-Buyer user and as a Buyer in the same tenant, attempt QCS ranking and per-line L1 highlighting for both users, and record whether each attempt is refused or available"
+    },
+    "note": "The catalog has no step for signing in as alternate buyer roles or directly checking role-based refusal and L1 highlighting."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {},
+    "note": "Assert that the prepared QCS has ranked bids, providing the closest available check for the Buyer-side QCS ranking behavior."
+   }
+  ]
  }
 }

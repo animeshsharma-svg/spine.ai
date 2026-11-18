@@ -4,49 +4,67 @@
   "title": "Consultation asked by email and answered by email is readable in the app",
   "group": "EMA-APP",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:52:45.511Z",
+  "compiledAt": "2026-11-13T14:17:53.685Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Send a consultation email from Asha to Chetan and receive Chetan's email answer through separate mailboxes.",
-   "Open the consultation section as Asha and Ravi and verify that the question and answer show the correct names and times."
+   "Connect and use the company's Outlook approval mailbox to send Asha's consultation email to Chetan and receive Chetan's email reply.",
+   "Sign in as Asha and Ravi and open their consultation views in the event.",
+   "Assert that the consultation question and answer show the correct names and times in the app."
   ],
   "warnings": [
-   "can only test part of this — no step for: Send a consultation email from Asha to Chetan and receive Chetan's email answer through separate mailboxes.; Open the consultation section as Asha and Ravi and verify that the question and answer show the correct names and times."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Connect and use the company's Outlook approval mailbox to send Asha's consultation email to Chetan and receive Chetan's email reply.; Sign in as Asha and Ravi and open their consultation views in the event.; Assert that the consultation question and answer show the correct names and times in the app."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 12407
+  "ms": 23330
  },
  "plan": {
-  "title": "EMA-APP-003 Email Consultation Readability",
+  "title": "Email consultation visibility",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the existing event named in the case."
+    "note": "Open the specific event sent for approval, without creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the company-level email approval configuration required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow configuration required for email consultations."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "use Asha's and Chetan's mailboxes to exchange the consultation question and answer, then open the event's consultation section as Asha and Ravi and verify the displayed question, answer, names, and timestamps"
+     "need": "use Asha's mailbox to consult Chetan by email, have Chetan reply, then open the event consultation section as Asha and as Ravi and verify the question and answer names and times"
     },
-    "note": "Separate user mailboxes, email exchange, and the consultation view are not available through catalog steps."
+    "note": "Email access, other-user sessions, and consultation-content verification are not expressible by catalog steps."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Consultation",
-     "present": true
-    },
-    "note": "Closest available assertion that the event screen exposes a consultation-related section after the tester's actions."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert the final visible app screen has no crash, server error, raw identifiers, or malformed content."
    }
   ]
  }

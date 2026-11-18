@@ -4,49 +4,46 @@
   "title": "Counter offer while bidding is live on both lines; the vendor accepts",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:04:27.938Z",
+  "compiledAt": "2026-11-13T12:19:40.999Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set separate counter-offer prices of 90 and 45 on two different lines in the same counter-offer drawer",
-   "Assert that only the intended line prices changed while the untouched line retained its original quote",
-   "Verify exact Master QCS totals based on the two distinct post-acceptance line prices"
+   "Counter-offer both lines with distinct prices of 90 and 45 in one operation",
+   "Assert that only the selected lines show the counter offer while an untouched line retains its original quote of 50",
+   "Assert the exact two-line current-price totals after acceptance when the counter-offer step accepts only one price argument"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Set separate counter-offer prices of 90 and 45 on two different lines in the same counter-offer drawer; Assert that only the intended line prices changed while the untouched line retained its original quote; Verify exact Master QCS totals based on the two distinct post-acceptance line prices"
+   "can only test part of this — no step for: Counter-offer both lines with distinct prices of 90 and 45 in one operation; Assert that only the selected lines show the counter offer while an untouched line retains its original quote of 50; Assert the exact two-line current-price totals after acceptance when the counter-offer step accepts only one price argument"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
+   "open_master_qcs",
    "place_counter_offer",
    "expect_counter_offer_sent",
-   "switch_portal",
-   "vendor_open_event",
    "accept_counter_offer",
-   "switch_portal",
    "expect_counter_offer_accepted",
    "open_master_qcs",
-   "expect_qcs_vendors",
    "expect_qcs_amounts"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 18432
+  "ms": 26851
  },
  "plan": {
-  "title": "Live RFQ Counter Offer Acceptance",
+  "title": "Live RFQ counter offer acceptance",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ with the vendor's existing bid on the Responses tab."
+    "note": "Open the prepared live RFQ Responses screen with the vendor bid already present."
    },
    {
     "step": "require_setting",
@@ -54,7 +51,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Ensure the RFQ Counter Offer control is available."
+    "note": "Ensure counter offers are available on RFQ rounds."
    },
    {
     "step": "require_setting",
@@ -62,67 +59,44 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure the tenant supports eRFX project event flows."
+    "note": "Ensure the existing event uses the enabled eRFX flow."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer comparison grid, where the catalog performs counter offers."
    },
    {
     "step": "place_counter_offer",
     "args": {
      "price": 90
     },
-    "note": "Open the vendor's own counter-offer flow and submit the supported counter price entry; the catalog cannot assign a different value to a second line."
+    "note": "Send the expressible portion of the buyer’s counter offer on the vendor’s own bid."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Assert that the buyer's Responses grid marks the vendor's counter offer as initiated."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "vendor"
-    },
-    "note": "Move to the separate supplier-portal session while preserving the buyer session."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "overview": true
-    },
-    "note": "Open the prepared event's vendor overview where the pending counter offer is available."
+    "note": "Verify that the buyer grid marks the vendor bid as having a counter offer."
    },
    {
     "step": "accept_counter_offer",
     "args": {},
-    "note": "Have the configured vendor accept the pending buyer counter offer."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "buyer"
-    },
-    "note": "Return to the buyer's Responses screen."
+    "note": "Have the invited vendor accept the pending counter offer in the supplier portal."
    },
    {
     "step": "expect_counter_offer_accepted",
     "args": {},
-    "note": "Assert that the buyer's Responses grid marks the vendor's counter offer as accepted."
+    "note": "Verify on the buyer side that the vendor’s counter offer is marked accepted."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's Master QCS comparison grid after acceptance."
-   },
-   {
-    "step": "expect_qcs_vendors",
-    "args": {
-     "count": 1
-    },
-    "note": "Assert that the accepted bid remains under the expected single vendor column."
+    "note": "Return to the buyer’s Master QCS after acceptance."
    },
    {
     "step": "expect_qcs_amounts",
     "args": {},
-    "note": "Assert that Master QCS line amounts and the sum total are arithmetically consistent with the displayed current rates and quantities."
+    "note": "Verify that the displayed line amounts and sum total are arithmetically consistent with the current prices."
    }
   ]
  }

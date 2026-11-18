@@ -3,14 +3,14 @@
   "caseId": "PRD-RFQ-044",
   "title": "Email Notifications: on failure — failed emails retried 3x",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:31:48.662Z",
+  "compiledAt": "2026-11-13T14:52:52.884Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure the tenant's outbound Email Notifications integration with the specified provider and credentials.",
-   "Make the external email provider fail or become unreachable.",
-   "Trigger an approval request, bid invitation, PO issuance, or other workflow email.",
-   "Observe evidence of exactly three retries and verify that the failed email was not silently dropped."
+   "Configure the outbound Email Notifications integration with its provider and authentication settings",
+   "Make the external email provider fail or become unreachable",
+   "Trigger an approval request, bid invitation, PO issuance, or another email workflow event",
+   "Observe evidence that the failed email was retried exactly three times and was not silently dropped"
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -19,7 +19,7 @@
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "added open_create — every create test has to start somewhere",
    "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Configure the tenant's outbound Email Notifications integration with the specified provider and credentials.; Make the external email provider fail or become unreachable.; Trigger an approval request, bid invitation, PO issuance, or other workflow email.; Observe evidence of exactly three retries and verify that the failed email was not silently dropped."
+   "can only test part of this — no step for: Configure the outbound Email Notifications integration with its provider and authentication settings; Make the external email provider fail or become unreachable; Trigger an approval request, bid invitation, PO issuance, or another email workflow event; Observe evidence that the failed email was retried exactly three times and was not silently dropped"
   ],
   "source": "llm",
   "steps": 5,
@@ -30,10 +30,10 @@
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 9897
+  "ms": 17596
  },
  "plan": {
-  "title": "Email Failure Retries",
+  "title": "Email failure retry handling",
   "steps": [
    {
     "step": "open_create",
@@ -55,14 +55,14 @@
    {
     "step": "ask_tester",
     "args": {
-     "need": "configure the outbound Email Notifications integration, make the external email provider fail or become unreachable, trigger a workflow email, and inspect the resulting state, alert, log, or retry record to verify exactly three retries and no silent drop"
+     "need": "configure the Email Notifications integration, make the external email provider fail, trigger an email workflow event, and verify from the visible state, alert, log, or retry record that the email was retried exactly three times and not silently dropped"
     },
-    "note": "The catalog cannot configure integrations, inject provider failures, trigger arbitrary workflow emails, or inspect email retry records."
+    "note": "These integration, failure-injection, workflow-trigger, and retry-evidence actions are not expressible by catalog steps."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Final assertion that the current screen has no crash or server error after the tester's investigation; this does not assert the retry behavior."
+    "note": "Checks that the final screen has no crash or server error, but it does not assert the email retry behavior."
    }
   ]
  }

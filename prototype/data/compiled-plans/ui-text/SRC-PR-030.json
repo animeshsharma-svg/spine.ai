@@ -4,18 +4,18 @@
   "title": "Use more than the open quantity (12 of 10) of a PR line in the event",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:31:06.464Z",
+  "compiledAt": "2026-11-13T12:26:19.026Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 8 step(s) that would open a blank event or replace the PR's items",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items"
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 8 step(s) that would open a blank event or replace the PR's items"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 15,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -25,13 +25,15 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
-   "set_sheet_cell",
+   "require_setting",
+   "require_setting",
    "set_title",
-   "set_schedule",
+   "set_sheet_cell",
    "invite_vendor",
+   "set_schedule",
    "expect_publish_blocked"
   ],
-  "ms": 12458
+  "ms": 21656
  },
  "plan": {
   "title": "PR Quantity Above Open Limit",
@@ -72,6 +74,29 @@
     "step": "fill_sheet"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation so publication can reach the quantity validation."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-PR-030 Quantity 12 of 10"
+    },
+    "note": "Provide the mandatory event title without affecting the quantity under test."
+   },
+   {
     "step": "set_sheet_cell",
     "args": {
      "row": 1,
@@ -81,32 +106,27 @@
     "note": "Set the PR-backed line quantity above its open quantity of 10."
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title while keeping the test otherwise publishable."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit the requested 30-minute schedule."
-   },
-   {
     "step": "invite_vendor",
     "args": {
      "vendors": [
       "Vendor A"
      ]
     },
-    "note": "Add the named vendor participant required before publication."
+    "note": "Add the vendor named in the case so the event meets the participant prerequisite."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required 30-minute schedule."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Quantity should be less than open quantity"
     },
-    "note": "Attempt publication and assert Procol refuses it with the expected quantity-limit message."
+    "note": "Attempt publication and assert that Procol refuses it with the expected over-quantity message."
    }
   ]
  }

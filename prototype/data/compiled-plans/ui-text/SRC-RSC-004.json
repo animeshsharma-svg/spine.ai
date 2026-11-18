@@ -4,55 +4,65 @@
   "title": "Reschedule an upcoming event: change only the delivery date",
   "group": "SRC-RSC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:51:22.661Z",
+  "compiledAt": "2026-11-13T12:44:26.570Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Assert that the delivery date changed to the newly selected date",
-   "Assert that the Make Order Live At/start time remained unchanged",
-   "Distinguish the intended delivery-date-only update from the live-edit/reschedule API path"
+   "Directly assert that the delivery date changed while the Make Order Live At time remained unchanged after saving."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Assert that the delivery date changed to the newly selected date; Assert that the Make Order Live At/start time remained unchanged; Distinguish the intended delivery-date-only update from the live-edit/reschedule API path"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Directly assert that the delivery date changed while the Make Order Live At time remained unchanged after saving."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "open_event_settings",
    "reschedule_event",
    "expect_no_error"
   ],
   "state": "upcoming",
   "screen": "summary",
-  "ms": 9637
+  "ms": 14477
  },
  "plan": {
-  "title": "SRC-RSC-004 Delivery-Date-Only Reschedule",
+  "title": "Reschedule by Delivery Date Only",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared upcoming RFQ without searching or creating another event."
+    "note": "Open the API-prepared upcoming RFQ summary; this is the required starting point for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Open the stage Settings menu containing Reschedule Event."
+    "note": "Open the upcoming event's Settings menu."
    },
    {
     "step": "reschedule_event",
     "args": {
-     "delivery": "+1d"
+     "delivery": "+1d",
+     "expect": "saved"
     },
-    "note": "Attempt the catalog's closest delivery-date-only reschedule operation."
+    "note": "Set only a new delivery date and save without changing the event start time; the step validates the reschedule dialog's response."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the operation did not leave the screen in an application error state, although this does not verify the requested date-only behavior."
+    "note": "Confirm the event page remains usable without an application error after the delivery-date-only reschedule."
    }
   ]
  }

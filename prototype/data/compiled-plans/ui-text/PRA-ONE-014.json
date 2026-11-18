@@ -4,50 +4,80 @@
   "title": "Users with the category, with the subcategory, and with no limitation are all shown",
   "group": "PRA-ONE",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:05:33.835Z",
+  "compiledAt": "2026-11-13T14:29:14.895Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Search for PR-1 in the Open Purchase Requisitions list",
-   "Open the Assign user picker for a selected PR line item",
-   "Inspect the complete assignee list and verify Food Buyer (A), Fruits Buyer (B), and All Category Buyer (D) are present",
-   "Verify Engg Buyer (C) is absent from the assignee list",
-   "Scroll through the assignee list to its end",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "Search specifically for PR-1 using the PR list search or filters",
+   "Tick a specific PR-1 line-item checkbox rather than selecting the PR row"
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "can only test part of this — no step for: Search specifically for PR-1 using the PR list search or filters; Tick a specific PR-1 line-item checkbox rather than selecting the PR row"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "select_pr"
+   "select_pr",
+   "click",
+   "expect_options"
   ],
-  "ms": 6855
+  "ms": 14405
  },
  "plan": {
-  "title": "PR assignee list visibility",
+  "title": "PR assignee list respects category access",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the tenant configuration required for team-category filtering."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Opens the Purchase Requisitions area, which is the closest available entry point."
+    "note": "Open the Purchase Requisitions screen."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Selects the Open tab required by the case."
+    "note": "Stay on the Open tab where PR-1 is expected to be available."
    },
    {
     "step": "select_pr",
     "args": {
-     "items": 1
+     "pr": "PR-1"
     },
-    "note": "Selects one line item from an open purchase requisition, approximating the case's checkbox selection before assignment."
+    "note": "Select PR-1 as the closest catalog-supported way to expose its available actions."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Assign"
+    },
+    "note": "Open the assignee user picker from the PR list."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Search a user",
+     "options": [
+      "Food Buyer (A)",
+      "Fruits Buyer (B)",
+      "All Category Buyer (D)"
+     ],
+     "absent": [
+      "Engg Buyer (C)"
+     ]
+    },
+    "note": "Assert that the category, subcategory, and unrestricted users are offered while the unrelated category user is absent."
    }
   ]
  }

@@ -4,43 +4,55 @@
   "title": "Email approval shows in the event's approval history with the comment",
   "group": "EMA-APP",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:52:42.569Z",
+  "compiledAt": "2026-11-13T14:17:30.260Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Asha's mailbox and approve the event by email with the comment \"Looks fine\""
+   "Have Asha approve the event from the connected approval mailbox by email with the comment \"Looks fine\" and wait 1–2 minutes for Procol to process the mailbox",
+   "Verify or configure the Outlook approval mailbox connection and the named two-step approval workflow through the catalog"
   ],
   "warnings": [
-   "can only test part of this — no step for: Access Asha's mailbox and approve the event by email with the comment \"Looks fine\""
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Have Asha approve the event from the connected approval mailbox by email with the comment \"Looks fine\" and wait 1–2 minutes for Procol to process the mailbox; Verify or configure the Outlook approval mailbox connection and the named two-step approval workflow through the catalog"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_event",
+   "require_setting",
    "ask_tester",
    "go_to",
    "expect_text",
    "expect_text",
    "expect_text"
   ],
-  "ms": 72949
+  "ms": 11869
  },
  "plan": {
-  "title": "Email Approval History Comment",
+  "title": "EMA-APP-001 Email approval history",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the event as the requester so its approval details can be inspected."
+    "note": "Open the specified event as Ravi after the mailbox processing window."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the company capability required for email approvals."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Asha, open the approval email for this event, and approve it with the comment \"Looks fine\""
+     "need": "Have Asha approve \"QA Email Approval - Office Chairs Nov\" from the connected approval email with the comment \"Looks fine\", then wait 1–2 minutes for Procol to process the mailbox"
     },
-    "note": "The catalog cannot access an approver's mailbox or perform an email approval."
+    "note": "The catalog cannot access the approver's mailbox or perform the email approval."
    },
    {
     "step": "go_to",
@@ -48,28 +60,28 @@
      "screen": "tab",
      "name": "Approvals"
     },
-    "note": "Open the event's approval history/details after the email approval has been processed."
+    "note": "Navigate to the event's approval history/details."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Asha"
     },
-    "note": "Verify the approval history identifies Asha as the step 1 approver."
+    "note": "Verify that step 1 identifies Asha as the approver."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Approved"
     },
-    "note": "Verify step 1 is shown as approved."
+    "note": "Verify that step 1 is shown as approved."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Looks fine"
     },
-    "note": "Verify the email approval comment is displayed in the history."
+    "note": "Verify that the email comment is preserved in the approval history."
    }
   ]
  }

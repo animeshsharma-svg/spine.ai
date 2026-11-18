@@ -4,23 +4,30 @@
   "title": "Master QCS of a closed RFQ: \"Messages\" opens the \"Messages\" window",
   "group": "EXP-CLOSEDQCS",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:24:21.401Z",
+  "compiledAt": "2026-11-13T13:51:37.596Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_visible",
    "expect_visible",
    "expect_navigated"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 7506
+  "ms": 11330
  },
  "plan": {
   "title": "Closed RFQ Master QCS Messages window",
@@ -30,7 +37,39 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS for the prepared closed RFQ with Vendor A's bid."
+    "note": "Open the prepared closed RFQ directly on Master QCS, where the event and Vendor A's bid already exist."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Apply the required partial-awarding configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "restrict_unlock_bid_before_evaluation",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-unlock configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_over_awarding_allowed",
+     "value": "Off"
+    },
+    "note": "Prevent awarding beyond the requested quantity as required by the case."
    },
    {
     "step": "click",
@@ -38,16 +77,15 @@
      "role": "button",
      "name": "Messages"
     },
-    "note": "Open the Messages window from Master QCS."
+    "note": "Open the buyer-side Messages window from Master QCS."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Messages",
+     "text": "Messages",
      "visible": true
     },
-    "note": "Verify that the Messages window opened."
+    "note": "Verify that the Messages window is open."
    },
    {
     "step": "expect_visible",
@@ -56,14 +94,14 @@
      "name": "Message",
      "visible": true
     },
-    "note": "Verify that the window offers the Message button."
+    "note": "Verify that the opened window contains the Message button."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Confirm the underlying event remains on the Master QCS screen."
+    "note": "Verify that the underlying page remains Master QCS while the Messages window is open."
    }
   ]
  }

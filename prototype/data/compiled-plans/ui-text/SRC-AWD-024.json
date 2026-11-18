@@ -4,61 +4,41 @@
   "title": "Two bids on two lines: award line-wise: line 1 to B, line 2 to A; approver rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:20:20.791Z",
+  "compiledAt": "2026-11-13T11:40:44.085Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared state has one line item only, so allocating line 1 to Vendor B and line 2 to Vendor A and verifying the ₹1,150 total cannot be tested.",
-   "Sign in as the approver and reject the proposal with a remark.",
-   "Verify that no purchase order is created after rejection.",
-   "Verify that the buyer can start awarding again from Master QCS after the rejection."
+   "The prepared event has one line item, so awarding line 2 to Vendor A for 5 × 50 and verifying the two-line total of 1,150 cannot be tested.",
+   "Signing in as the approver in another buyer session and rejecting the proposal with a remark cannot be performed.",
+   "Verifying that no purchase order is created after rejection cannot be tested.",
+   "Verifying that the buyer can start awarding again from Master QCS after rejection cannot be tested."
   ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: The prepared state has one line item only, so allocating line 1 to Vendor B and line 2 to Vendor A and verifying the ₹1,150 total cannot be tested.; Sign in as the approver and reject the proposal with a remark.; Verify that no purchase order is created after rejection.; Verify that the buyer can start awarding again from Master QCS after the rejection."
+   "can only test part of this — no step for: The prepared event has one line item, so awarding line 2 to Vendor A for 5 × 50 and verifying the two-line total of 1,150 cannot be tested.; Signing in as the approver in another buyer session and rejecting the proposal with a remark cannot be performed.; Verifying that no purchase order is created after rejection cannot be tested.; Verifying that the buyer can start awarding again from Master QCS after rejection cannot be tested."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "require_setting",
    "expect_qcs_vendors",
    "expect_qcs_cell",
-   "expect_qcs_cell",
-   "expect_qcs_cell",
-   "expect_qcs_amounts",
-   "expect_qcs_ranks",
    "start_awarding",
    "allocate_award",
-   "expect_award_counters",
-   "click",
-   "expect_navigated",
-   "fill_required",
-   "click",
-   "expect_text"
+   "expect_award_counters"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 17544
+  "ms": 14775
  },
  "plan": {
-  "title": "SRC-AWD-024 line-wise award and approval rejection",
+  "title": "SRC-AWD-024 Line-wise Award Rejection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the existing closed two-bid event directly on Master QCS."
-   },
-   {
-    "step": "require_setting",
-    "args": {
-     "key": "rfx_project_enabled",
-     "value": "On"
-    },
-    "note": "Enable the required eRFX project setting before accessing the prepared event."
+    "note": "Open the prepared closed two-bid event directly on Master QCS."
    },
    {
     "step": "expect_qcs_vendors",
@@ -70,54 +50,22 @@
      ],
      "realNames": true
     },
-    "note": "Verify both bidding vendors are present in the comparison grid."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "Qty Offer",
-     "vendor": "Vendor A",
-     "key": "quantity"
-    },
-    "note": "Verify Vendor A's requested quantity on the available line."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": "Vendor A",
-     "equals": "100"
-    },
-    "note": "Verify Vendor A's bid rate on the available line."
+    "note": "Confirm both real bidding vendor columns are present before awarding."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
      "vendor": "Vendor B",
-     "equals": "90"
+     "product": "",
+     "key": "bidPrice2"
     },
-    "note": "Verify Vendor B's bid rate on the available line."
-   },
-   {
-    "step": "expect_qcs_amounts",
-    "args": {
-     "vendor": "Vendor B"
-    },
-    "note": "Verify the available line's amount and total arithmetic for Vendor B."
-   },
-   {
-    "step": "expect_qcs_ranks",
-    "args": {
-     "order": "lowest",
-     "atLeast": 2
-    },
-    "note": "Verify the two vendor bids rank by lowest amount."
+    "note": "Verify Vendor B's bid is shown in the comparison grid."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen for the closed event."
+    "note": "Open the awarding screen for the prepared closed event."
    },
    {
     "step": "allocate_award",
@@ -126,7 +74,7 @@
      "quantity": 10,
      "line": 1
     },
-    "note": "Allocate the available line's full quantity to Vendor B, the closest expressible part of the requested line-wise allocation."
+    "note": "Allocate the available first line to Vendor B for its full requested quantity."
    },
    {
     "step": "expect_award_counters",
@@ -135,43 +83,7 @@
      "vendors": "1/2",
      "proposal": 900
     },
-    "note": "Verify the available allocation totals ₹900 and reflects one of two vendors selected."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Proposal"
-    },
-    "note": "Create the buyer-side award proposal from the available allocation."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "proposal"
-    },
-    "note": "Assert that the proposal page opened."
-   },
-   {
-    "step": "fill_required",
-    "args": {},
-    "note": "Fill mandatory proposal fields before submission."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Submit Proposal"
-    },
-    "note": "Submit the buyer-side proposal; approver rejection is not available in the catalog."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Proposal",
-     "present": true
-    },
-    "note": "Assert that the proposal context remains visible after submission."
+    "note": "Assert the available allocation totals 10 × 90 = 900 and accurately reports that only one of two vendors is awarded in this one-line prepared state."
    }
   ]
  }

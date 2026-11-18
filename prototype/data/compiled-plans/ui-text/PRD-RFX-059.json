@@ -3,26 +3,26 @@
   "caseId": "PRD-RFX-059",
   "title": "BOQ Events: refused for a user without the Buyer role",
   "group": "PRD-RFX",
-  "compiledAt": "2026-11-10T01:35:42.685Z",
+  "compiledAt": "2026-11-13T14:55:54.238Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as the specified non-Buyer and Buyer users and compare BOQ access on the same tenant",
-   "Verify BOQ workflows with thousands of lines, rate-only items, and pre-bid updates",
-   "Verify or record tenant RBAC configuration when additional roles are intentionally granted BOQ access"
+   "Signing in and switching between the non-Buyer and Buyer personas",
+   "Creating and exercising BOQ events with thousands of lines, rate-only items, and pre-bid updates"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as the specified non-Buyer and Buyer users and compare BOQ access on the same tenant; Verify BOQ workflows with thousands of lines, rate-only items, and pre-bid updates; Verify or record tenant RBAC configuration when additional roles are intentionally granted BOQ access"
+   "can only test part of this — no step for: Signing in and switching between the non-Buyer and Buyer personas; Creating and exercising BOQ events with thousands of lines, rate-only items, and pre-bid updates"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_events_list",
    "expect_events_list",
+   "expect_create_options",
    "ask_tester",
-   "expect_create_options"
+   "expect_visible"
   ],
-  "ms": 17392
+  "ms": 15250
  },
  "plan": {
   "title": "BOQ access by Buyer role",
@@ -30,29 +30,41 @@
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the events list where BOQ Event availability is exposed."
+    "note": "Open the events list where BOQ event availability is exposed through Create Event."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered before inspecting the Create Event menu."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "sign in as the specified non-Buyer and Buyer users on the same Enterprise tenant, attempt the BOQ Events workflow for each role, and report whether BOQ is refused or available"
-    },
-    "note": "The catalog has no step for signing in as or switching between users with different roles."
+    "note": "Confirm the events list is rendered before checking the creation menu."
    },
    {
     "step": "expect_create_options",
     "args": {
+     "options": [
+      "Single Stage",
+      "eRFX"
+     ],
      "absent": [
-      "BOQ based RFX Project",
-      "BOQ"
+      "BOQ based RFX Project"
      ]
     },
-    "note": "Inspect the current user's Create Event menu for absence of the BOQ path; this is only a closest menu check and cannot establish the required role comparison."
+    "note": "Verify that the current non-Buyer user is not offered the BOQ event path."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the Buyer persona on the same Enterprise tenant, open Create Event, and verify whether BOQ based RFX Project is offered"
+    },
+    "note": "A second user session is required to perform the Buyer comparison."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "menuitem",
+     "name": "BOQ based RFX Project",
+     "visible": true
+    },
+    "note": "Assert the Buyer session offers the BOQ event path after the tester performs the role switch."
    }
   ]
  }

@@ -4,63 +4,68 @@
   "title": "For a mixed PR, a user who matches any one item is shown",
   "group": "PRA-ONE",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:05:52.544Z",
+  "compiledAt": "2026-11-13T14:28:40.804Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Select only the ENGG STORE line item of PR-3, open Assign, and inspect the complete user list after scrolling to verify the assignment scope."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Select only the ENGG STORE line item of PR-3, open Assign, and inspect the complete user list after scrolling to verify the assignment scope."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "ask_tester",
+   "do_on_screen",
    "expect_text",
    "expect_text"
   ],
-  "ms": 75528
+  "ms": 13695
  },
  "plan": {
-  "title": "PRA-ONE-007 Mixed PR Assignee Eligibility",
+  "title": "Mixed PR Assignee Visibility",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required team-category filtering configuration for the case."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen, which is the required starting point for this PR-based case."
+    "note": "Open the Purchase Requisitions screen."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab, where PR-3 must be available for selection."
+    "note": "Stay on the Open PR tab where PR-3 can be located."
    },
    {
-    "step": "ask_tester",
+    "step": "do_on_screen",
     "args": {
-     "need": "select only the ENGG STORE item of PR-3, open Assign, and leave the complete assignee user list visible after scrolling to the end"
+     "goal": "Search for PR-3, show its two line items, select only the ENGG STORE item, click the Assign person icon next to Upload PRs, and scroll through the Search a user list to the end while keeping the assignee picker open"
     },
-    "note": "The catalog has no step for item-level selection or opening the PR assignee list."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Food Buyer (A)",
-     "present": true
-    },
-    "note": "Verify that Food Buyer (A) appears in the assignee list."
+    "note": "Perform the item-specific selection and open and inspect the complete assignee list."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Engg Buyer (C)",
+     "text": "Food Buyer",
      "present": true
     },
-    "note": "Verify that Engg Buyer (C) appears in the assignee list."
+    "note": "Verify that the buyer matching the FRUITS item is available for assignment."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Engg Buyer",
+     "present": true
+    },
+    "note": "Verify that the buyer matching the ENGG STORE item is available for assignment."
    }
   ]
  }

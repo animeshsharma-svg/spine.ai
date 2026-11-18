@@ -4,64 +4,85 @@
   "title": "How a live event looks",
   "group": "SRC-STS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:08:29.503Z",
+  "compiledAt": "2026-11-13T12:59:23.163Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that both the stage header and events list row show a running countdown.",
-   "Verify that the countdown value is identical in the stage header and events list row."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
    "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify that both the stage header and events list row show a running countdown.; Verify that the countdown value is identical in the stage header and events list row."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Verify that the specific prepared live RFQ's events-list row is the one opened and shows the same Live badge as the proj” — expect_table reads the rows and cells; expect_remembered{delta} checks a count that rises or falls",
+   "resolved: “Verify that the running countdown is displayed and identical in both the project stage header and that specific events-l” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "expect_api_value",
    "expect_text",
-   "expect_screen_clean",
    "expect_events_list",
-   "expect_event_status"
+   "filter_events",
+   "expect_table"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10385
+  "ms": 22270
  },
  "plan": {
-  "title": "Live event status badges",
+  "title": "Live RFQ status badges",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ's project summary as required for prepared-state cases."
+    "note": "Open the prepared live RFQ summary as required for this case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project capability for the tenant."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "title"
+    },
+    "note": "Confirm the prepared event's title is shown on the project page."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Live"
+     "text": "Live",
+     "present": true
     },
-    "note": "Verify the project page shows the green Live status badge."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the project page renders without errors or invalid content."
+    "note": "Verify that the project page shows the Live status badge."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the events list rendered successfully."
+    "note": "Verify that the events list rendered successfully with its Create Event control and no error."
    },
    {
-    "step": "expect_event_status",
+    "step": "filter_events",
     "args": {
-     "status": "Live"
+     "tab": "Live"
     },
-    "note": "Verify the live RFQ's events-list row has the Live status label."
+    "note": "Show the Live events list corresponding to the event state under test."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "row": "Live",
+     "present": true
+    },
+    "note": "Verify that the Live list contains a row displaying the Live status."
    }
   ]
  }

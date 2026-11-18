@@ -4,47 +4,52 @@
   "title": "Recreate Order is greyed out on an event made from a PR",
   "group": "SRC-MNU",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:33:49.683Z",
+  "compiledAt": "2026-11-13T12:15:42.207Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Open and verify the specific PR-based RFQ without its exact event title or project ID",
-   "Verify that the selected event was created from a purchase request"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Open and verify the specific PR-based RFQ without its exact event title or project ID; Verify that the selected event was created from a purchase request"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
-   "expect_menu_item"
+   "require_setting",
+   "expect_settings_menu"
   ],
   "state": "pr_rfq",
   "screen": "summary",
-  "ms": 9204
+  "ms": 14472
  },
  "plan": {
-  "title": "Recreate Order Disabled for PR-Based RFQ",
+  "title": "PR Event Recreate Order Disabled",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared closed PR-based RFQ without searching or creating another event."
    },
    {
-    "step": "expect_menu_item",
+    "step": "require_setting",
     "args": {
-     "item": "Recreate Order",
-     "enabled": false,
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "greyed": [
+      "Recreate Order"
+     ],
      "stage": "rfq"
     },
-    "note": "Assert that Recreate Order is present but greyed out in the RFQ stage Settings menu."
+    "note": "Assert that the RFQ stage Settings menu offers Recreate Order but keeps it disabled."
    }
   ]
  }

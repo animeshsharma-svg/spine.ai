@@ -4,29 +4,32 @@
   "title": "Draft project: reopen it and publish",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:18:48.418Z",
+  "compiledAt": "2026-11-13T12:02:58.398Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Publish the prepared draft after adding or committing a schedule",
-   "Verify the published project leaves Drafts and appears in Live",
-   "Verify the published event retains the same RFX number",
-   "Check every draft field comprehensively"
+   "Add and commit the schedule on the prepared draft.",
+   "Publish the reopened draft and verify it leaves Drafts and appears in Live.",
+   "Verify that the Live entry retains the same RFX number."
   ],
   "warnings": [
-   "can only test part of this — no step for: Publish the prepared draft after adding or committing a schedule; Verify the published project leaves Drafts and appears in Live; Verify the published event retains the same RFX number; Check every draft field comprehensively"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Add and commit the schedule on the prepared draft.; Publish the reopened draft and verify it leaves Drafts and appears in Live.; Verify that the Live entry retains the same RFX number."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "inventory_screen",
    "expect_api_value",
-   "expect_template_selected",
-   "expect_sheet_columns"
+   "expect_screen_clean",
+   "expect_visible"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 12565
+  "ms": 14615
  },
  "plan": {
   "title": "Reopen draft project",
@@ -36,32 +39,43 @@
     "args": {
      "screen": "draft"
     },
-    "note": "Open the API-prepared draft directly, as required for prepared-state cases."
+    "note": "Reopens the API-prepared draft on its create screen, as required for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_draft_project_creation",
+     "value": "On"
+    },
+    "note": "Ensures the required draft-project setting is enabled for the case."
+   },
+   {
+    "step": "inventory_screen",
+    "args": {
+     "label": "reopened-draft-project"
+    },
+    "note": "Records every field and control visible on the reopened draft screen."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "title"
     },
-    "note": "Verify the reopened draft shows its saved event title."
+    "note": "Checks that the draft screen shows the event title held for this prepared case."
    },
    {
-    "step": "expect_template_selected",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Verify the draft retains an applied template."
+    "note": "Confirms the reopened draft screen has no rendering errors, raw values, or page crash."
    },
    {
-    "step": "expect_sheet_columns",
+    "step": "expect_visible",
     "args": {
-     "columns": [
-      "Product",
-      "Product Variant",
-      "Quantity Requested",
-      "Delivery location",
-      "Price"
-     ]
+     "role": "button",
+     "name": "Publish",
+     "visible": true
     },
-    "note": "Verify the saved pricing sheet fields render when the draft is reopened."
+    "note": "Checks whether the reopened draft exposes the expected Publish control, without attempting an unsupported prepared-state publication."
    }
   ]
  }

@@ -4,18 +4,26 @@
   "title": "Events list and the Create Event menu: \"Procol Support RFX-19557 2 items M3M-Bestq_API-1793301606311\" opens the stage page",
   "group": "EXP-CREATEMENU",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:33:28.770Z",
+  "compiledAt": "2026-11-13T13:58:34.862Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 7,
   "stepNames": [
    "open_event",
-   "expect_navigated"
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "expect_navigated",
+   "expect_url_contains"
   ],
-  "ms": 5088
+  "ms": 9071
  },
  "plan": {
   "title": "Open named event stage page",
@@ -25,14 +33,52 @@
     "args": {
      "title": "Procol Support RFX-19557 2 items M3M-Bestq_API-1793301606311"
     },
-    "note": "Open the specifically named existing event from the Events list."
+    "note": "Open the specifically named existing event from the buyer console."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable RFX project creation for the configured test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "boq_in_erfx_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required BOQ capability configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "scheduled_events_enabled",
+     "value": "On"
+    },
+    "note": "Apply the required scheduled-events configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage"
+    },
+    "note": "Navigate to the event's stage page, the subject of the case."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "stage"
     },
-    "note": "Verify that the event opens on a stage page with the expected project route."
+    "note": "Assert that the stage page is ready."
+   },
+   {
+    "step": "expect_url_contains",
+    "args": {
+     "text": "/project/"
+    },
+    "note": "Verify that navigation reached the event project route."
    }
   ]
  }

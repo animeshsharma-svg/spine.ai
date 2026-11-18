@@ -4,42 +4,60 @@
   "title": "Hide fields",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:09:07.757Z",
+  "compiledAt": "2026-11-13T12:34:10.556Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Toggle a specific Master QCS column off and verify that the column disappears and the Hide fields count updates.",
-   "Toggle the hidden column back on and verify that it is restored."
+   "Verify that every available Master QCS column, rather than one representative RFQ Rate field, can be hidden and restored.",
+   "unconfirmed label \"RFQ Rate\" (toggle) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"RFQ Rate\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "unconfirmed label \"1 hidden field(s)\" (expect_text) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"RFQ Rate\" (expect_visible) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"1 hidden field(s)\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Toggle a specific Master QCS column off and verify that the column disappears and the Hide fields count updates.; Toggle the hidden column back on and verify that it is restored."
+   "coverage partial: unconfirmed label \"RFQ Rate\" (toggle) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"RFQ Rate\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "coverage partial: unconfirmed label \"1 hidden field(s)\" (expect_text) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"RFQ Rate\" (expect_visible) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"1 hidden field(s)\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Verify that every available Master QCS column, rather than one representative RFQ Rate field, can be hidden and restored."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 16,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
    "expect_qcs_ranks",
    "expect_qcs_amounts",
+   "expect_qcs_amounts",
    "click",
-   "expect_options"
+   "expect_options",
+   "toggle",
+   "expect_visible",
+   "expect_text",
+   "toggle",
+   "expect_visible",
+   "expect_text"
   ],
   "state": "two_bids",
   "screen": "master_qcs",
-  "ms": 17932
+  "ms": 21550
  },
  "plan": {
-  "title": "Master QCS Hide Fields",
+  "title": "Master QCS Hide and Restore Fields",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared RFQ with two bids directly in Master QCS."
+    "note": "Open the prepared RFQ with two bids directly on the Master QCS screen."
    },
    {
     "step": "require_setting",
@@ -47,7 +65,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project setting for the case."
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "expect_qcs_vendors",
@@ -59,7 +77,25 @@
      ],
      "realNames": true
     },
-    "note": "Verify that both real bidder columns are present."
+    "note": "Verify both real bidder columns are present."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "equals": "100"
+    },
+    "note": "Read Vendor A's bid rate."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 2,
+     "equals": "90"
+    },
+    "note": "Read Vendor B's bid rate."
    },
    {
     "step": "expect_qcs_ranks",
@@ -68,17 +104,21 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Verify that the lower bid ranks better."
+    "note": "Verify ranks follow the lowest bid amount."
    },
    {
     "step": "expect_qcs_amounts",
     "args": {
-     "rate": "RFQ Rate",
-     "qty": "Qty Offer",
-     "amount": "RFQ Amount",
-     "total": "Sum Total"
+     "vendor": 1
     },
-    "note": "Verify the displayed line amounts and vendor totals."
+    "note": "Verify Vendor A's line amount and total are calculated from rate times quantity."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": 2
+    },
+    "note": "Verify Vendor B's line amount and total are calculated from rate times quantity."
    },
    {
     "step": "click",
@@ -86,14 +126,64 @@
      "role": "button",
      "name": "Hide fields"
     },
-    "note": "Open the Master QCS field-hiding control."
+    "note": "Open the Master QCS field visibility controls."
    },
    {
     "step": "expect_options",
     "args": {
-     "name": "Hide fields"
+     "options": [
+      "RFQ Rate"
+     ]
     },
-    "note": "Read the options exposed by the Hide fields control."
+    "note": "Confirm the rate field is available to hide."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "RFQ Rate",
+     "on": false
+    },
+    "note": "Hide the representative RFQ Rate column."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "RFQ Rate",
+     "visible": false
+    },
+    "note": "Verify the hidden field no longer appears in the comparison view."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "1 hidden field(s)",
+     "present": true
+    },
+    "note": "Verify the hidden-field count is shown after hiding one column."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "RFQ Rate",
+     "on": true
+    },
+    "note": "Show the RFQ Rate field again."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "RFQ Rate",
+     "visible": true
+    },
+    "note": "Verify the previously hidden column is restored."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "1 hidden field(s)",
+     "present": false
+    },
+    "note": "Verify the hidden-field count no longer reports one hidden field after restoration."
    }
   ]
  }

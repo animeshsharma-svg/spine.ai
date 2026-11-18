@@ -3,25 +3,26 @@
   "caseId": "PRD-PR-093",
   "title": "PR Approval: step 3 bypassed when \"Amount ≤ INR 50,000 and within budget\"",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:44:08.889Z",
+  "compiledAt": "2026-11-13T15:23:07.103Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create or open a purchase requisition totaling exactly INR 50,000 and verify it is within budget",
-   "Submit the purchase requisition to trigger the approval workflow",
-   "Follow the workflow to step 3 and inspect workflow history to verify Finance Approval was skipped under the bypass condition, the next step became active, and no Finance Controller approval was requested"
+   "Create and submit an employee Purchase Requisition with an amount exactly INR 50,000 and within budget",
+   "Follow the PR approval workflow to step 3 and verify that Finance Approval is skipped under its bypass condition and that the next step is active",
+   "Verify that no Finance Controller approval is requested",
+   "Inspect workflow history for the skipped step and bypass-condition reason"
   ],
   "warnings": [
-   "can only test part of this — no step for: Create or open a purchase requisition totaling exactly INR 50,000 and verify it is within budget; Submit the purchase requisition to trigger the approval workflow; Follow the workflow to step 3 and inspect workflow history to verify Finance Approval was skipped under the bypass condition, the next step became active, and no Finance Controller approval was requested"
+   "can only test part of this — no step for: Create and submit an employee Purchase Requisition with an amount exactly INR 50,000 and within budget; Follow the PR approval workflow to step 3 and verify that Finance Approval is skipped under its bypass condition and that the next step is active; Verify that no Finance Controller approval is requested; Inspect workflow history for the skipped step and bypass-condition reason"
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_purchase_requisitions",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 10841
+  "ms": 23047
  },
  "plan": {
   "title": "PR Approval Finance Bypass at INR 50,000",
@@ -29,19 +30,22 @@
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the closest available purchase-requisition screen before the unsupported PR setup and approval workflow actions."
+    "note": "Opens the closest available purchase-requisition area before the unavailable PR submission and approval workflow actions."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "create or open a purchase requisition totaling exactly INR 50,000 and within budget, submit it, then inspect workflow history to verify step 3 Finance Approval is skipped and the next step is active without a Finance Controller approval request"
+     "need": "create and submit a Purchase Requisition for exactly INR 50,000 within budget, follow its approval workflow to step 3, and inspect the workflow history to verify Finance Approval is skipped and the next step is active"
     },
-    "note": "The catalog cannot create/submit the required PR or observe approval workflow history and bypass conditions."
+    "note": "The catalog cannot create the employee PR, trigger the approval workflow, or inspect its workflow history and approver requests."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the screen remains usable after the tester completes or skips the unsupported workflow inspection; this does not assert the Finance Approval bypass."
+    "step": "expect_text",
+    "args": {
+     "text": "Finance Approval",
+     "present": true
+    },
+    "note": "Confirms the named workflow step is visible on the resulting screen, but does not prove that it was skipped."
    }
   ]
  }

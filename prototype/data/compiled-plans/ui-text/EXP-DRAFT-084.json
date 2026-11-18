@@ -4,113 +4,89 @@
   "title": "Upload Attachments: Clicking Cancel discards any staged attachment changes",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:46:24.478Z",
+  "compiledAt": "2026-11-13T14:10:40.561Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Upload file or enter URL inside Add Attachments modal and check that clicking cancel discards it without saving"
+   "The exact file-upload control label inside the Upload Attachments window is not specified in the catalog.",
+   "Directly verify the saved draft's persisted attachment collection after cancellation beyond checking that the staged fixture is absent from the visible screen.",
+   "unconfirmed label \"sample.pdf\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Upload file or enter URL inside Add Attachments modal and check that clicking cancel discards it without saving"
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "coverage partial: unconfirmed label \"sample.pdf\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: The exact file-upload control label inside the Upload Attachments window is not specified in the catalog.; Directly verify the saved draft's persisted attachment collection after cancellation beyond checking that the staged fixture is absent from the visible screen."
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 13,
   "stepNames": [
-   "open_create",
-   "compose_stages",
+   "open_events_list",
    "require_setting",
    "require_setting",
    "require_setting",
-   "set_title",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "save_draft",
-   "expect_no_error",
+   "expect_events_list",
+   "filter_events",
+   "open_first_event",
    "click",
    "expect_visible",
+   "upload",
    "click",
-   "expect_visible"
+   "expect_visible",
+   "expect_text"
   ],
-  "ms": 63625
+  "ms": 11032
  },
  "plan": {
-  "title": "EXP-DRAFT-084",
+  "title": "Cancel Discards Draft Attachment",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Open eRFX create screen"
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    }
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open the Events list to reach the saved draft."
    },
    {
     "step": "require_setting",
     "args": {
-     "phrase": "rfx_project_enabled",
+     "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure rfx_project_enabled is On"
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "require_setting",
     "args": {
-     "phrase": "lock_vendors_addition_in_event_creation",
+     "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Ensure lock_vendors_addition_in_event_creation is On"
+    "note": "Apply the required tenant configuration for draft creation."
    },
    {
     "step": "require_setting",
     "args": {
-     "phrase": "is_add_new_stage_allowed",
+     "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Ensure is_add_new_stage_allowed is Off"
+    "note": "Apply the remaining configuration specified by the case."
    },
    {
-    "step": "set_title",
+    "step": "expect_events_list",
     "args": {},
-    "note": "Set a unique project title"
+    "note": "Confirm the Events list rendered successfully."
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Select a template"
-   },
-   {
-    "step": "add_line_items",
+    "step": "filter_events",
     "args": {
-     "count": 1
+     "tab": "Drafts"
     },
-    "note": "Add line item"
+    "note": "Switch to the Drafts tab required by the scenario."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Fill sheet"
-   },
-   {
-    "step": "save_draft",
-    "args": {},
-    "note": "Save as draft to create a draft event"
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Verify draft saved successfully"
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the first available saved draft as the case does not identify a specific draft."
    },
    {
     "step": "click",
@@ -118,16 +94,23 @@
      "role": "button",
      "name": "Add Attachments"
     },
-    "note": "Click Add Attachments to open the modal"
+    "note": "Open the draft's Upload Attachments window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Upload Attachments",
+     "text": "Upload Attachments",
      "visible": true
     },
-    "note": "Assert the Upload Attachments window is open"
+    "note": "Confirm the attachment window opened."
+   },
+   {
+    "step": "upload",
+    "args": {
+     "label": "Upload Attachments",
+     "file": "sample.pdf"
+    },
+    "note": "Stage a valid fixture attachment for the cancellation test; the catalog does not specify the exact upload-control label."
    },
    {
     "step": "click",
@@ -135,16 +118,23 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Click Cancel on the attachments modal"
+    "note": "Cancel the attachment operation without saving the staged file."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Upload Attachments",
+     "text": "Upload Attachments",
      "visible": false
     },
-    "note": "Assert the Upload Attachments window is closed"
+    "note": "Verify that the Upload Attachments window closed."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "sample.pdf",
+     "present": false
+    },
+    "note": "Verify the staged fixture is not visible after cancellation."
    }
   ]
  }

@@ -4,7 +4,7 @@
   "title": "Single stage create screen (RFQ with a product): with enable_tnc_mandatory_button On — blocked",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:43:32.863Z",
+  "compiledAt": "2026-11-13T14:00:51.188Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -14,9 +14,7 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "resolved: “The exact UI change or preselection caused by enable_tnc_mandatory_button on the create screen cannot be asserted with a” — require_setting switches that company setting before the case and back after",
-   "resolved: “A complete record of every change caused by clicking enable_tnc_mandatory_button cannot be expressed as a structured ass” — require_setting switches that company setting before the case and back after"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
   "steps": 11,
@@ -29,21 +27,21 @@
    "set_title",
    "select_template",
    "add_line_items",
-   "capture_screen",
-   "click",
-   "expect_screen_clean"
+   "expect_line_items",
+   "do_on_screen",
+   "expect_visible"
   ],
-  "ms": 21296
+  "ms": 16064
  },
  "plan": {
-  "title": "Single-stage RFQ mandatory T&C setting",
+  "title": "Single-stage RFQ mandatory T&C behavior",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage create screen specified by the case."
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "require_setting",
@@ -51,7 +49,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Configure the tenant so vendors cannot be added during event creation."
+    "note": "Enable the requested vendor-lock configuration before opening the create flow."
    },
    {
     "step": "require_setting",
@@ -59,7 +57,7 @@
      "key": "can_add_ceil_price",
      "value": "On"
     },
-    "note": "Apply the requested ceiling-price configuration."
+    "note": "Apply the requested read-only ceiling-price configuration."
    },
    {
     "step": "require_setting",
@@ -67,7 +65,7 @@
      "key": "enable_tnc_mandatory_button",
      "value": "On"
     },
-    "note": "Enable the setting whose effect on the create screen is being explored."
+    "note": "Enable the setting whose effect on the single-stage create screen is being tested."
    },
    {
     "step": "configure_single_stage",
@@ -75,19 +73,19 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set the event type to RFQ and configure the single-stage event."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "EXP-CREATESINGLE-010 Mandatory T&C RFQ"
+     "title": "EXP-CREATESINGLE-010 RFQ"
     },
-    "note": "A title is required for a valid create-screen setup."
+    "note": "Provide the mandatory title required for a valid create-screen setup."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the available RFQ pricing template before adding the product."
+    "note": "Choose the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
@@ -99,24 +97,27 @@
     "note": "Add the specified product with quantity 10."
    },
    {
-    "step": "capture_screen",
+    "step": "expect_line_items",
     "args": {
-     "label": "single-stage-rfq-mandatory-tnc"
+     "count": 1
     },
-    "note": "Capture the configured screen to document what the mandatory-T&C setting changes."
+    "note": "Assert that the requested product created one line item before inspecting the setting effect."
    },
    {
-    "step": "click",
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Inspect the single-stage RFQ create screen after enable_tnc_mandatory_button is On and record whether Terms and Conditions is preselected or mandatory and what opens or changes; stop on the resulting screen"
+    },
+    "note": "Observe the setting's screen-level behavior that no dedicated assertion step can otherwise describe."
+   },
+   {
+    "step": "expect_visible",
     "args": {
      "role": "button",
-     "name": "Terms & Conditions"
+     "name": "Terms & Conditions",
+     "visible": true
     },
-    "note": "Open the Terms and Conditions control to inspect the setting's visible effect."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that inspecting the Terms and Conditions control did not produce an application error or crash."
+    "note": "Assert that the Terms and Conditions control is present on the resulting create screen."
    }
   ]
  }

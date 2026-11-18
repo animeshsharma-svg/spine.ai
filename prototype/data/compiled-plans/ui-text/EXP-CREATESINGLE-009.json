@@ -4,7 +4,7 @@
   "title": "Single stage create screen (RFQ with a product): with can_add_ceil_price Off — blocked",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:43:31.333Z",
+  "compiledAt": "2026-11-13T14:00:49.651Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,7 +17,7 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 11,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -27,22 +27,21 @@
    "set_title",
    "select_template",
    "add_line_items",
-   "fill_sheet",
    "expect_sheet_cell",
-   "do_on_screen",
+   "probe_controls",
    "expect_screen_clean"
   ],
-  "ms": 21062
+  "ms": 21165
  },
  "plan": {
-  "title": "Single-stage RFQ ceiling-price control off",
+  "title": "Single-stage RFQ ceiling price control with setting off",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage create screen specified by the case."
+    "note": "Open the single-stage event creation screen specified by the case."
    },
    {
     "step": "require_setting",
@@ -50,7 +49,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Prevent vendor additions during event creation as required by the case."
+    "note": "Configure the required vendor-lock setting before creating the event."
    },
    {
     "step": "require_setting",
@@ -58,7 +57,7 @@
      "key": "can_add_ceil_price",
      "value": "Off"
     },
-    "note": "Set the ceiling-price feature to read-only/off for this scenario."
+    "note": "Put the tenant in the read-only ceiling-price configuration under test."
    },
    {
     "step": "require_setting",
@@ -66,7 +65,7 @@
      "key": "enable_tnc_mandatory_button",
      "value": "Off"
     },
-    "note": "Apply the case's required terms-and-conditions configuration."
+    "note": "Apply the required terms-and-conditions configuration."
    },
    {
     "step": "configure_single_stage",
@@ -74,17 +73,19 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set the event type to RFQ on the single-stage screen."
+    "note": "Set the event type to RFQ and use the required single-vendor awarding mode."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title needed to prepare a valid create screen."
+    "args": {
+     "title": "EXP-CREATESINGLE-009"
+    },
+    "note": "Provide the mandatory event title so the create screen is valid for inspection."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the available RFQ pricing template before adding the product."
+    "note": "Choose the first available RFQ pricing template, corresponding to choosing Buy Template."
    },
    {
     "step": "add_line_items",
@@ -93,12 +94,7 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the named product and set its quantity to 10."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Render and populate the RFQ pricing sheet after adding the product."
+    "note": "Add the specified product with quantity 10."
    },
    {
     "step": "expect_sheet_cell",
@@ -107,19 +103,22 @@
      "column": "Quantity Requested",
      "equals": "10"
     },
-    "note": "Verify the product quantity is 10 before testing the ceiling-price control."
+    "note": "Confirm the requested quantity was entered before inspecting the ceiling-price control."
    },
    {
-    "step": "do_on_screen",
+    "step": "probe_controls",
     "args": {
-     "goal": "On the single-stage RFQ create screen with can_add_ceil_price Off, click the can_add_ceil_price control and record what opens or changes; stop on the resulting screen."
+     "include": [
+      "can_add_ceil_price"
+     ],
+     "max": 1
     },
-    "note": "Perform and observe the requested control interaction when the catalog has no fixed expected outcome for it."
+    "note": "Click the matching ceiling-price control if offered and record what opens, changes, is disabled, or does nothing."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert the resulting screen has no crash, server error, raw values, or other rendering failure."
+    "note": "Assert the resulting screen has no crash, server error, raw identifiers, or invalid rendering."
    }
   ]
  }

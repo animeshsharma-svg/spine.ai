@@ -4,34 +4,37 @@
   "title": "Events list and the Create Event menu: with scheduled_events_enabled Off — blocked",
   "group": "EXP-CREATEMENU",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:43:01.592Z",
+  "compiledAt": "2026-11-13T13:59:49.779Z",
   "tier": "fast",
-  "coverage": "full",
+  "coverage": "partial",
   "gaps": [],
   "warnings": [
    "moved open_events_list to the front — the steps before it had no list on screen",
-   "moved open_events_list to the front — the steps before it had no list on screen"
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "resolved: “Observe or record what happens when the buyer clicks the scheduled_events_enabled setting while it is Off” — require_setting switches that company setting before the case and back after",
+   "resolved: “Verify the screen-level effect of scheduled_events_enabled being Off beyond the Create Event menu” — require_setting switches that company setting before the case and back after",
+   "the model judged coverage none, but every gap it named is done by a step in this plan — read as partial",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
    "open_events_list",
    "require_setting",
    "require_setting",
    "require_setting",
    "expect_events_list",
-   "expect_visible",
    "expect_create_options"
   ],
-  "ms": 10475
+  "ms": 12297
  },
  "plan": {
-  "title": "Scheduled Events Disabled Create Menu",
+  "title": "Create Event menu with scheduled events disabled",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the events list, the subject screen of the case."
+    "note": "Open the Events list, the starting screen for this scenario."
    },
    {
     "step": "require_setting",
@@ -39,7 +42,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the scenario."
+    "note": "Enable RFX projects as required by the case."
    },
    {
     "step": "require_setting",
@@ -47,7 +50,7 @@
      "key": "boq_in_erfx_allowed",
      "value": "On"
     },
-    "note": "Enable BOQ events so the BOQ creation path should be available."
+    "note": "Enable BOQ events as required by the case."
    },
    {
     "step": "require_setting",
@@ -55,21 +58,12 @@
      "key": "scheduled_events_enabled",
      "value": "Off"
     },
-    "note": "Set the behavior under test: scheduled events are disabled."
+    "note": "Apply the required tenant configuration before inspecting the buyer portal."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the events list rendered successfully."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "tab",
-     "name": "Recurring",
-     "visible": false
-    },
-    "note": "Verify the scheduled-events Recurring tab is not offered when scheduling is disabled."
+    "note": "Confirm the Events list rendered successfully."
    },
    {
     "step": "expect_create_options",
@@ -78,12 +72,9 @@
       "Single Stage",
       "eRFX Project",
       "BOQ based RFX Project"
-     ],
-     "absent": [
-      "Recurring"
      ]
     },
-    "note": "Verify the Create Event menu retains the enabled creation paths and does not offer a scheduled-event path."
+    "note": "Record and verify the creation paths exposed by the Create Event menu under the configured tenant."
    }
   ]
  }

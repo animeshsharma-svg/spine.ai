@@ -4,50 +4,54 @@
   "title": "Forward auction rejects bids submitted below the configured price cap",
   "group": "DRV-AUC",
   "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
-  "compiledAt": "2026-11-12T13:26:50.293Z",
+  "compiledAt": "2026-11-13T13:23:35.793Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that Vendor B's bid amount is not visible because the case does not provide a concrete competitor amount or a catalog assertion for hidden competitor bid data."
+   "Set up and verify both Vendor A and Vendor B bids in the converted auction state",
+   "Inspect the auction in a separate Vendor B session",
+   "Assert that Vendor B's bid amount is absent when that amount is not specified"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that Vendor B's bid amount is not visible because the case does not provide a concrete competitor amount or a catalog assertion for hidden competitor bid data."
+   "can only test part of this — no step for: Set up and verify both Vendor A and Vendor B bids in the converted auction state; Inspect the auction in a separate Vendor B session; Assert that Vendor B's bid amount is absent when that amount is not specified"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "expect_api_value"
+   "expect_api_value",
+   "expect_text"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 1085
+  "ms": 1695
  },
  "plan": {
-  "title": "Vendor sees only own auction bid",
+  "title": "Vendor sees only own copied auction bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared converted-RFQ auction without recreating or searching for the event."
+    "note": "Open the prepared converted RFQ-to-auction event."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Continue in the supplier portal as the invited QA vendor representing Vendor A."
+    "note": "Switch to Vendor A's supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the converted auction's pricing round where the copied bid is shown."
+    "note": "Open the converted auction's pricing round as Vendor A."
    },
    {
     "step": "expect_api_value",
@@ -55,7 +59,15 @@
      "key": "bidPrice",
      "within": "Price"
     },
-    "note": "Assert that the vendor portal shows Vendor A's copied bid price of 100."
+    "note": "Assert that Vendor A's own copied bid is shown in the auction pricing view."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Confirm Vendor A's active bid is submitted in the vendor portal."
    }
   ]
  }

@@ -4,35 +4,55 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"Price Components\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:44:14.236Z",
+  "compiledAt": "2026-11-13T14:05:18.639Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "moved open_events_list to the front — the steps before it had no list on screen",
-   "moved open_events_list to the front — the steps before it had no list on screen"
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 16,
   "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
    "open_events_list",
-   "require_setting",
-   "require_setting",
-   "require_setting",
-   "expect_events_list",
    "filter_events",
-   "open_first_event",
+   "expect_event_in_list",
+   "open_event",
    "expect_visible"
   ],
-  "ms": 9778
+  "ms": 18189
  },
  "plan": {
-  "title": "Price Components Hidden on eRFX Draft",
+  "title": "EXP-DRAFT-029 Price Components unavailable",
   "steps": [
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open the Events list to reach the saved draft."
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
    },
    {
     "step": "require_setting",
@@ -40,7 +60,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects for the draft flow."
+    "note": "Enable eRFX project creation for the test."
    },
    {
     "step": "require_setting",
@@ -48,7 +68,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Apply the setting whose effect on the Price Components offer is being tested."
+    "note": "Apply the company setting whose effect on Price Components is being tested."
    },
    {
     "step": "require_setting",
@@ -56,26 +76,69 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the additional configuration specified for this case."
+    "note": "Apply the additional configuration specified by the case."
    },
    {
-    "step": "expect_events_list",
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-029 Price Components"
+    },
+    "note": "Give the draft a known title so it can be reopened from Drafts."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Apply a pricing template required for a valid eRFX draft."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the draft's required line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the draft can be saved."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule for the saved draft."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Create the saved, unpublished eRFX draft under test."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the events list to follow the requested Drafts flow."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the Drafts tab as required by the scenario."
+    "note": "Open the Drafts tab."
    },
    {
-    "step": "open_first_event",
+    "step": "expect_event_in_list",
     "args": {
-     "tab": "Drafts"
+     "title": "EXP-DRAFT-029 Price Components"
     },
-    "note": "Open the first saved draft and land on its draft create screen."
+    "note": "Confirm the newly saved draft is present in Drafts."
+   },
+   {
+    "step": "open_event",
+    "args": {
+     "title": "EXP-DRAFT-029 Price Components"
+    },
+    "note": "Reopen the saved draft's create screen."
    },
    {
     "step": "expect_visible",
@@ -84,7 +147,7 @@
      "name": "Price Components",
      "visible": false
     },
-    "note": "Assert the Price Components control is not offered on the saved eRFX draft."
+    "note": "Assert that Price Components is not offered on the saved eRFX draft."
    }
   ]
  }

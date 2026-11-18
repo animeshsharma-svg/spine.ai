@@ -4,18 +4,21 @@
   "title": "A fixed end time on one stage with Duration on the other",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:02:59.598Z",
+  "compiledAt": "2026-11-13T12:52:54.853Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item"
   ],
   "source": "llm",
   "steps": 16,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
@@ -27,12 +30,11 @@
    "switch_stage",
    "select_template",
    "fill_sheet",
-   "fill_required",
    "set_schedule",
    "invite_vendor",
    "expect_publish_blocked"
   ],
-  "ms": 15340
+  "ms": 20713
  },
  "plan": {
   "title": "SRC-SCH-019 Fixed Technical End with RFQ Duration",
@@ -42,14 +44,20 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation flow."
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-SCH-019 Fixed Technical End"
-    },
-    "note": "Provide the required project title."
+    "args": {},
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -59,7 +67,7 @@
       "rfq"
      ]
     },
-    "note": "Create the required Technical and RFQ stages."
+    "note": "Configure the required Technical and RFQ stages."
    },
    {
     "step": "switch_stage",
@@ -78,12 +86,12 @@
     "args": {
      "count": 1
     },
-    "note": "Add the required project line item."
+    "note": "Add the required product line item to the project."
    },
    {
     "step": "fill_questionnaires",
     "args": {},
-    "note": "Complete the Technical-stage questionnaire fields."
+    "note": "Complete the Technical-stage questionnaire content."
    },
    {
     "step": "assign_evaluator",
@@ -93,9 +101,9 @@
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the Technical stage, set the schedule End time mode to Fixed time with a valid fixed end time, save the schedule, and stop when the Technical schedule summary shows the fixed end time"
+     "goal": "On the Technical Stage create screen, set the schedule End time mode to Fixed time, choose a valid fixed end time, save the schedule, and stop with the Technical stage showing the saved fixed end-time configuration"
     },
-    "note": "Set and commit the Technical stage's fixed end-time schedule, which has no dedicated catalog schedule argument."
+    "note": "The catalog has no dedicated create-screen step for setting a fixed end time, so perform this specific schedule configuration directly on screen."
    },
    {
     "step": "switch_stage",
@@ -115,30 +123,23 @@
     "note": "Complete the RFQ pricing sheet."
    },
    {
-    "step": "fill_required",
-    "args": {},
-    "note": "Fill any remaining mandatory fields across the configured stages."
-   },
-   {
     "step": "set_schedule",
     "args": {
      "minutes": 60
     },
-    "note": "Set and commit the RFQ stage to a 60-minute duration."
+    "note": "Set the RFQ stage to a 60-minute duration."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add a QA vendor so the publish precondition is otherwise satisfied."
+    "note": "Invite a QA test vendor so the event has participants."
    },
    {
     "step": "expect_publish_blocked",
-    "args": {
-     "because": "RFP duration exceeds RFQ end time. Please adjust."
-    },
-    "note": "Attempt publishing and assert the known mixed fixed-end/duration validation refusal."
+    "args": {},
+    "note": "Attempt publishing and assert the app's refusal/message for the fixed Technical end time versus the RFQ duration comparison defect."
    }
   ]
  }

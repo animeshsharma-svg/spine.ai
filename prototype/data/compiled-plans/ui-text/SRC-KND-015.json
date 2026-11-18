@@ -4,28 +4,31 @@
   "title": "eRFX Technical + RFQ project (RFQ stage): reject a bid during evaluation",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:30:16.559Z",
+  "compiledAt": "2026-11-13T12:12:53.007Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Reject Vendor A's bid during evaluation with a reason",
-   "Transition the prepared live RFQ into the evaluation state required by the case",
-   "Assert that the rejected bid leaves the ranking after rejection"
+   "Transition the prepared live Technical + RFQ event into the evaluation state or wait for evaluation to begin",
+   "Reject Vendor A's bid with a reason and verify that it leaves the ranking",
+   "Verify the rejected Vendor A bid is listed in Settings > Rejected Bids"
   ],
   "warnings": [
-   "can only test part of this — no step for: Reject Vendor A's bid during evaluation with a reason; Transition the prepared live RFQ into the evaluation state required by the case; Assert that the rejected bid leaves the ranking after rejection"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Transition the prepared live Technical + RFQ event into the evaluation state or wait for evaluation to begin; Reject Vendor A's bid with a reason and verify that it leaves the ranking; Verify the rejected Vendor A bid is listed in Settings > Rejected Bids"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "ask_tester",
+   "require_setting",
+   "do_on_screen",
    "event_menu",
-   "expect_visible"
+   "expect_text"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 9868
+  "ms": 19169
  },
  "plan": {
   "title": "Reject RFQ bid during evaluation",
@@ -35,29 +38,37 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared eRFX Technical + RFQ project's RFQ Responses screen, as required for prepared-state cases."
+    "note": "Open the prepared Technical + RFQ event directly on the RFQ Responses tab."
    },
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "as the buyer, reject Vendor A's RFQ bid during evaluation with a reason"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "The catalog has no step that performs bid rejection or supplies the evaluation-state transition."
+    "note": "Enable the required eRFX project configuration before accessing the prepared event."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "wait for the RFQ stage to enter evaluation, reject Vendor A's bid with a reason, and stop on the Responses screen showing the bid is rejected and no longer ranked"
+    },
+    "note": "No catalog step performs RFQ bid rejection or advances this prepared live event into evaluation, so attempt the missing buyer-side interaction in the current session."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Rejected Bids"
     },
-    "note": "Open the stage menu's Rejected Bids view after the tester performs the rejection."
+    "note": "Open the stage menu's Rejected Bids view, the available catalog path related to the expected result."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "Rejected Bids",
-     "visible": true
+     "present": true
     },
-    "note": "Confirm that the Rejected Bids view opened; this does not by itself verify the bid was rejected."
+    "note": "Confirm that the Rejected Bids view opened, without asserting that Vendor A was rejected."
    }
   ]
  }

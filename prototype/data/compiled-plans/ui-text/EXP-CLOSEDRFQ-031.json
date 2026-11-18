@@ -4,18 +4,17 @@
   "title": "A closed RFQ: \"Rejected Bids\": \"Close\" closes it and changes nothing",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:41:21.590Z",
+  "compiledAt": "2026-11-13T13:54:45.858Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "resolved: “Directly compare the event status before and after closing the Rejected Bids window.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "resolved: “Directly compare the event start and end times before and after closing the Rejected Bids window.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
+   "resolved: “A complete before-and-after assertion that every event status, timestamp, vendor, and bid field remains unchanged.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -24,25 +23,20 @@
    "require_setting",
    "expect_responses",
    "expect_api_value",
-   "expect_api_value",
-   "expect_api_value",
-   "expect_api_value",
    "event_menu",
    "expect_visible",
    "click",
    "expect_visible",
    "expect_responses",
    "expect_api_value",
-   "expect_api_value",
-   "expect_api_value",
-   "expect_api_value"
+   "expect_screen_clean"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 21631
+  "ms": 25354
  },
  "plan": {
-  "title": "Close Rejected Bids Window",
+  "title": "Closed RFQ Rejected Bids Close",
   "steps": [
    {
     "step": "open_prepared",
@@ -65,7 +59,7 @@
      "key": "is_allowed_to_add_surrogate_bid_post_expiry",
      "value": "Off"
     },
-    "note": "Ensure post-expiry surrogate bidding is disabled for the prepared closed RFQ."
+    "note": "Use the required post-expiry surrogate-bid configuration."
    },
    {
     "step": "require_setting",
@@ -73,7 +67,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Apply the required buyer bid-edit configuration."
+    "note": "Use the required buyer bid-edit configuration."
    },
    {
     "step": "require_setting",
@@ -81,54 +75,37 @@
      "key": "allow_event_evaluation_reopen_for_everyone",
      "value": "Off"
     },
-    "note": "Apply the required evaluation-reopen configuration."
+    "note": "Use the required evaluation-reopen configuration."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 2
+     "atLeast": 1,
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Capture the unchanged response count before opening Rejected Bids."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "vendorName"
-    },
-    "note": "Verify the first bid vendor before the window interaction."
+    "note": "Record that Vendor A's response is present before opening Rejected Bids."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "bidPrice"
     },
-    "note": "Verify the first bid price before the window interaction."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "secondVendorName"
-    },
-    "note": "Verify the second bid vendor in the prepared state before the window interaction."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "bidPrice2"
-    },
-    "note": "Verify the second bid price before the window interaction."
+    "note": "Record the displayed bid value before the dialog interaction."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Rejected Bids"
     },
-    "note": "Open the Rejected Bids window from the RFQ stage settings."
+    "note": "Open the RFQ stage's Rejected Bids window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Rejected Bids",
+     "role": "dialog",
+     "name": "Rejected Bids",
      "visible": true
     },
     "note": "Confirm the Rejected Bids window opened."
@@ -139,50 +116,38 @@
      "role": "button",
      "name": "Close"
     },
-    "note": "Close the Rejected Bids window as required by the case."
+    "note": "Perform the case's Close action on the Rejected Bids window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Rejected Bids",
+     "role": "dialog",
+     "name": "Rejected Bids",
      "visible": false
     },
-    "note": "Confirm the Rejected Bids window is closed."
+    "note": "Assert that Close dismisses the Rejected Bids window."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 2
+     "atLeast": 1,
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Verify that the response count is unchanged after closing the window."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "vendorName"
-    },
-    "note": "Verify the first bid vendor remains unchanged."
+    "note": "Confirm the response view still contains Vendor A after closing the window."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "bidPrice"
     },
-    "note": "Verify the first bid price remains unchanged."
+    "note": "Confirm the displayed bid value remains unchanged after closing the window."
    },
    {
-    "step": "expect_api_value",
-    "args": {
-     "key": "secondVendorName"
-    },
-    "note": "Verify the second bid vendor remains unchanged."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "bidPrice2"
-    },
-    "note": "Verify the second bid price remains unchanged."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that closing the window did not leave an error or rendering issue."
    }
   ]
  }

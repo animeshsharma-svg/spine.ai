@@ -4,63 +4,87 @@
   "title": "Request Best Offers after bidding ends",
   "group": "SRC-STR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:08:12.448Z",
+  "compiledAt": "2026-11-13T12:58:52.168Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Set the best-offer request window and send the request to each bidder",
-   "Verify each bidder is asked for a best and final offer and the status shows Best Offer Requested",
-   "Verify Edit Best Offer Request is offered later"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Set the best-offer request window and send the request to each bidder; Verify each bidder is asked for a best and final offer and the status shows Best Offer Requested; Verify Edit Best Offer Request is offered later"
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "expect_menu_item",
-   "event_menu",
-   "expect_visible"
+   "require_setting",
+   "require_setting",
+   "expect_settings_menu",
+   "do_on_screen",
+   "expect_text",
+   "expect_settings_menu"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10143
+  "ms": 20085
  },
  "plan": {
-  "title": "Request Best Offers after bidding ends",
+  "title": "Request Best Offers After Bidding Ends",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared event's summary page, which represents the closed RFQ with bids."
+    "note": "the API built this case's state"
    },
    {
-    "step": "expect_menu_item",
+    "step": "require_setting",
     "args": {
-     "item": "Request Best Offers",
-     "stage": "rfq",
-     "enabled": true
+     "key": "allow_request_for_best_offer_on_auction",
+     "value": "On"
     },
-    "note": "Assert that the buyer can request best offers after bidding has ended."
+    "note": "Enables best-offer requests on auctions as required by the case."
    },
    {
-    "step": "event_menu",
+    "step": "require_setting",
     "args": {
-     "item": "Request Best Offers",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the Request Best Offers workflow so its available dialog or controls can be inspected."
+    "note": "Enables eRFX projects as required by the case."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_settings_menu",
     "args": {
-     "text": "Request Best Offers",
-     "visible": true
+     "offered": [
+      "Request Best Offers"
+     ]
     },
-    "note": "Assert that the best-offer request workflow opened."
+    "note": "Verifies the closed event exposes the requested strategy action."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the buyer event page, open Settings, choose Request Best Offers, set the best-offer request window, send it to every bidder, and stop when the event shows Best Offer Requested"
+    },
+    "note": "Performs the buyer-only best-offer request flow and verifies the resulting state on screen."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Best Offer Requested"
+    },
+    "note": "Asserts the event status reflects that best offers were requested."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "offered": [
+      "Edit Best Offer Request"
+     ]
+    },
+    "note": "Verifies the follow-up edit action is offered after the request is sent."
    }
   ]
  }

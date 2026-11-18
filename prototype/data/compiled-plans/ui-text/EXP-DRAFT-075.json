@@ -4,57 +4,154 @@
   "title": "Savings Calculation: Add Custom Reference and save",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:10:52.526Z",
+  "compiledAt": "2026-11-13T14:09:54.085Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact label or locator of the newly opened custom-reference input is not specified in the catalog.",
-   "The underlying persisted storage record cannot be inspected directly; persistence is checked by reopening the draft and reading the displayed reference."
+   "The exact label of the newly opened custom reference input is not confirmed by the catalog."
   ],
   "warnings": [
-   "can only test part of this — no step for: The exact label or locator of the newly opened custom-reference input is not specified in the catalog.; The underlying persisted storage record cannot be inspected directly; persistence is checked by reopening the draft and reading the displayed reference."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: The exact label of the newly opened custom reference input is not confirmed by the catalog."
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 25,
   "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
+   "expect_no_error",
    "open_events_list",
    "filter_events",
-   "open_first_event",
+   "expect_event_in_list",
+   "open_event",
    "click",
    "expect_visible",
    "click",
    "fill",
    "click",
    "expect_visible",
-   "open_events_list",
-   "filter_events",
-   "open_first_event",
    "click",
+   "expect_visible",
    "expect_text"
   ],
-  "ms": 19754
+  "ms": 15554
  },
  "plan": {
-  "title": "EXP-DRAFT-075 Custom Savings Reference",
+  "title": "EXP-DRAFT-075 Savings Custom Reference",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start an eRFX draft creation flow."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration that prevents vendor addition during creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required tenant configuration for stage handling."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-075 Savings Custom Reference"
+    },
+    "note": "Provide the mandatory draft title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available template so savings and line items can be configured."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item required for the draft's pricing and savings configuration."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for the line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid schedule before saving the draft."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the configured eRFX as a draft."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the draft save did not show an application error."
+   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to locate the existing saved draft."
+    "note": "Navigate to the events list to reopen the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the Drafts tab required by the case."
+    "note": "Open the Drafts tab specified by the case."
    },
    {
-    "step": "open_first_event",
-    "args": {
-     "tab": "Drafts"
-    },
-    "note": "Open the first saved draft and land on its create screen."
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify the plan's saved draft appears in Drafts."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Reopen the draft created by this plan."
    },
    {
     "step": "click",
@@ -71,7 +168,7 @@
      "name": "Savings Calculation",
      "visible": true
     },
-    "note": "Confirm the Savings Calculation window opened."
+    "note": "Verify the Savings Calculation window opened."
    },
    {
     "step": "click",
@@ -79,7 +176,7 @@
      "text": "Add Custom Reference",
      "within": "dialog"
     },
-    "note": "Open the custom reference entry control."
+    "note": "Open the custom reference input."
    },
    {
     "step": "fill",
@@ -88,7 +185,7 @@
      "value": "QA_Test_Ref_001",
      "within": "dialog"
     },
-    "note": "Enter the requested custom reference; the exact field label is not cataloged."
+    "note": "Enter the requested custom reference; this field label is inferred because the catalog does not specify it."
    },
    {
     "step": "click",
@@ -106,26 +203,7 @@
      "name": "Savings Calculation",
      "visible": false
     },
-    "note": "Verify that saving closes the Savings Calculation window."
-   },
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Leave the draft and reopen it to check that the reference persisted."
-   },
-   {
-    "step": "filter_events",
-    "args": {
-     "tab": "Drafts"
-    },
-    "note": "Return to the Drafts tab."
-   },
-   {
-    "step": "open_first_event",
-    "args": {
-     "tab": "Drafts"
-    },
-    "note": "Reopen the saved draft."
+    "note": "Verify the Savings Calculation window closes after saving."
    },
    {
     "step": "click",
@@ -133,15 +211,25 @@
      "role": "button",
      "name": "Savings"
     },
-    "note": "Open the draft's Savings section again."
+    "note": "Reopen the draft's savings section to verify persistence."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "heading",
+     "name": "Savings Calculation",
+     "visible": true
+    },
+    "note": "Confirm the savings section is open for the saved draft."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "QA_Test_Ref_001",
-     "present": true
+     "present": true,
+     "within": "dialog"
     },
-    "note": "Assert that the saved custom reference is displayed after reopening the draft."
+    "note": "Verify the saved custom reference is displayed in the draft's savings section."
    }
   ]
  }

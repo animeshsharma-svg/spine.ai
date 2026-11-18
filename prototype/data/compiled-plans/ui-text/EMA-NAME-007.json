@@ -4,65 +4,147 @@
   "title": "Reminder shows the current name after the event is renamed",
   "group": "EMA-NAME",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:56:50.355Z",
+  "compiledAt": "2026-11-13T14:21:49.395Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create the event as Ravi and submit it into a two-step approval workflow with Asha and Bikram.",
-   "Rename the pending approval event to \"QA Email Approval - Office Chairs Nov (renamed)\".",
-   "Wait for and inspect Asha's external mailbox to verify the reminder shows the new name and distinguish it from the original request email."
+   "Submit the event into the approval workflow with Asha and Bikram as approvers and keep it pending",
+   "Verify in Asha's mailbox that the reminder email shows \"QA Email Approval - Office Chairs Nov (renamed)\" while the initial request email may retain the old name"
   ],
   "warnings": [
-   "can only test part of this — no step for: Create the event as Ravi and submit it into a two-step approval workflow with Asha and Bikram.; Rename the pending approval event to \"QA Email Approval - Office Chairs Nov (renamed)\".; Wait for and inspect Asha's external mailbox to verify the reminder shows the new name and distinguish it from the original request email."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Submit the event into the approval workflow with Asha and Bikram as approvers and keep it pending; Verify in Asha's mailbox that the reminder email shows \"QA Email Approval - Office Chairs Nov (renamed)\" while the initial request email may retain the old name"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 16,
   "stepNames": [
-   "open_event",
-   "event_menu",
-   "expect_text",
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "do_on_screen",
    "ask_tester",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 10650
+  "ms": 19985
  },
  "plan": {
   "title": "EMA-NAME-007 — Reminder uses renamed event name",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start creating the event in the multi-stage project flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the email approval prerequisite for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "the company's approval mailbox connected to Procol (Outlook mailbox with permission to send replies)",
+     "value": "On"
+    },
+    "note": "Require the connected approval mailbox needed for reminder delivery."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Require the approval workflow configuration before creating the event."
+   },
+   {
+    "step": "set_title",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named existing event as the closest available route to its approval and reminder controls."
+    "note": "Set the original event name whose renamed value the email should reflect."
    },
    {
-    "step": "event_menu",
+    "step": "compose_stages",
     "args": {
-     "item": "Send Reminders"
+     "stages": [
+      "rfq"
+     ]
     },
-    "note": "Open the event's reminder drawer to expose the available reminder flow without claiming that the external email was sent or inspected."
+    "note": "Create an RFQ event suitable for the approval workflow."
    },
    {
-    "step": "expect_text",
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
     "args": {
-     "text": "Offer submissions"
+     "count": 1
     },
-    "note": "Assert that the reminder drawer rendered, which is the closest observable reminder behavior in the catalog."
+    "note": "Add the required line item so the event can be completed."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Add the product-provided vendor audience required for publishing."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the prepared event so the buyer can proceed with approval submission."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real project page before the approval-specific actions."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "submit the event for approval with Asha as approver of step 1 and Bikram as approver of step 2, then rename it to \"QA Email Approval - Office Chairs Nov (renamed)\" while approval is pending; stop on the pending approval event screen"
+    },
+    "note": "Perform the buyer-side approval submission and rename actions that have no dedicated catalog step."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "rename the pending approval event, send or wait for the reminder, and inspect Asha's mailbox to verify the reminder shows \"QA Email Approval - Office Chairs Nov (renamed)\""
+     "need": "open Asha's mailbox, wait for the approval reminder, and verify the reminder shows \"QA Email Approval - Office Chairs Nov (renamed)\""
     },
-    "note": "External mailbox access, approval-state setup, and the rename are not expressible by catalog steps."
+    "note": "Mailbox access and verification require another user's mailbox, which the catalog cannot access."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "QA Email Approval - Office Chairs Nov (renamed)"
-    },
-    "note": "After the tester completes the mailbox flow, assert that the renamed event title is visible in the reminder evidence."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Leave the buyer session in a clean, non-error state after the unavailable mailbox check."
    }
   ]
  }

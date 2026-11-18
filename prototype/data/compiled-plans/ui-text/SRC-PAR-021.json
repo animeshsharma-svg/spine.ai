@@ -4,11 +4,11 @@
   "title": "An invited vendor sees the event; an uninvited one does not",
   "group": "SRC-PAR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:12:54.282Z",
+  "compiledAt": "2026-11-13T12:23:27.304Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A second vendor's own portal session for Vendor C to verify that the uninvited vendor cannot see or open the event and receives a not-authorised result."
+   "A second independent vendor portal session for Vendor C to verify the event is absent from the Live list and that opening its link shows not-authorised."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
@@ -20,7 +20,7 @@
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
    "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: A second vendor's own portal session for Vendor C to verify that the uninvited vendor cannot see or open the event and receives a not-authorised result."
+   "can only test part of this — no step for: A second independent vendor portal session for Vendor C to verify the event is absent from the Live list and that opening its link shows not-authorised."
   ],
   "source": "llm",
   "steps": 12,
@@ -40,10 +40,10 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 23536
+  "ms": 20980
  },
  "plan": {
-  "title": "Invited and uninvited vendor access",
+  "title": "SRC-PAR-021 Vendor access isolation",
   "steps": [
    {
     "step": "open_prepared",
@@ -59,12 +59,12 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ rather than the default auction stage."
+    "note": "Configure the event as an RFQ rather than the default auction."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template before adding line items."
+    "note": "Apply an RFQ pricing template."
    },
    {
     "step": "add_line_items",
@@ -83,42 +83,46 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding schedule before publishing."
+    "note": "Commit a live bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "count": 2
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
     },
-    "note": "Invite the two vendors required by the setup without inventing vendor names."
+    "note": "Invite Vendors A and B while leaving Vendor C uninvited."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Open the invited QA vendor's separate supplier-portal session while keeping the buyer session available."
+    "note": "Open the invited Vendor A portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
-     "overview": true
+     "stage": "pricing"
     },
-    "note": "Find the event in the vendor's portal list and open it, proving the invited vendor can see and access it."
+    "note": "Find and open this event from Vendor A's vendor Live list."
    },
    {
     "step": "expect_navigated",
     "args": {
-     "screen": "overview"
+     "screen": "vendor"
     },
-    "note": "Assert that the invited vendor landed on the event overview after opening it."
+    "note": "Confirm Vendor A successfully opened the event in the vendor portal."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the uninvited Vendor C in a second supplier-portal session, look for this event in the Live list, try to open it, and verify that it is not visible or shows not-authorised"
+     "need": "sign in to a separate vendor portal session as uninvited Vendor C, verify the event is absent from the Live list, and open the same event link to confirm it shows not-authorised"
     },
-    "note": "The catalog cannot create a second vendor's own portal session or verify uninvited-vendor authorization."
+    "note": "A separate Vendor C identity and portal session are required to test the uninvited-vendor behavior."
    },
    {
     "step": "expect_text",
@@ -126,7 +130,7 @@
      "text": "not-authorised",
      "present": true
     },
-    "note": "Assert the expected uninvited-vendor denial if the tester completes that portion on the current vendor screen."
+    "note": "Confirm the uninvited-vendor access refusal if the tester leaves Vendor C on the refusal screen."
    }
   ]
  }

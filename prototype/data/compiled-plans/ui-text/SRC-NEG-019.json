@@ -4,10 +4,13 @@
   "title": "Counter offer on a surrogate bid",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:37:59.981Z",
+  "compiledAt": "2026-11-13T12:18:37.285Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Open the specific existing RFQ in evaluation by its title; the case does not provide a title and no catalog step can search for the required surrogate-bid event state.",
+   "Reproduce the exact pre-existing RFQ-in-evaluation state rather than a newly published RFQ with a surrogate bid."
+  ],
   "warnings": [
    "added open_prepared(responses) — the API built this case's state",
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
@@ -17,13 +20,17 @@
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen"
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Open the specific existing RFQ in evaluation by its title; the case does not provide a title and no catalog step can search for the required surrogate-bid event state.; Reproduce the exact pre-existing RFQ-in-evaluation state rather than a newly published RFQ with a surrogate bid."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 16,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -33,14 +40,15 @@
    "place_surrogate_bid",
    "expect_bid_submitted",
    "go_to",
+   "expect_responses",
    "attempt"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 20297
+  "ms": 21422
  },
  "plan": {
-  "title": "Counter Offer on Surrogate Bid",
+  "title": "SRC-NEG-019 Counter Offer on Surrogate Bid",
   "steps": [
    {
     "step": "open_prepared",
@@ -50,29 +58,50 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure counter offers are not hidden on RFQ stages."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation required for the RFQ setup."
+   },
+   {
     "step": "compose_stages",
     "args": {
      "stages": [
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ."
+    "note": "Configure the event as an RFQ-only project."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Work on the RFQ stage before configuring its template and items."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply the RFQ pricing template before adding line items."
+    "note": "Apply the RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required RFQ line item."
+    "note": "Add the line item needed for the surrogate bid."
    },
    {
     "step": "fill_sheet",
-    "args": {},
     "note": "Complete the RFQ pricing sheet."
    },
    {
@@ -80,7 +109,7 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a bidding schedule so the event can be published."
+    "note": "Commit a bidding schedule before publishing."
    },
    {
     "step": "invite_vendor",
@@ -93,40 +122,52 @@
    },
    {
     "step": "open_participants",
-    "args": {},
-    "note": "Open the participant list where the buyer can place a surrogate bid."
+    "note": "Open the RFQ Participants list where surrogate bids are entered."
    },
    {
     "step": "place_surrogate_bid",
     "args": {
-     "vendor": "Vendor C"
+     "vendor": "Vendor C",
+     "price": 100
     },
-    "note": "Enter a bid for Vendor C from the buyer console."
+    "note": "Enter a buyer-side bid on behalf of Vendor C."
    },
    {
     "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify the surrogate bid was accepted."
+    "note": "Confirm the surrogate bid was accepted."
    },
    {
     "step": "go_to",
     "args": {
-     "screen": "responses"
+     "screen": "responses",
+     "stage": "rfq"
     },
-    "note": "Open the RFQ Responses tab to inspect the surrogate bid's counter-offer control."
+    "note": "Open the RFQ Responses tab containing Vendor C's bid."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "surrogate": 1,
+     "vendors": [
+      "Vendor C"
+     ],
+     "stage": "rfq"
+    },
+    "note": "Verify the response is identified as a surrogate bid before attempting the counter offer."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
+     "step": "place_counter_offer",
      "args": {
-      "role": "button",
-      "name": "Counter Offer"
+      "vendor": "Vendor C",
+      "price": 90
      },
-     "because": "You cannot send counter offer for bids added by you.",
-     "expect": "refused"
+     "expect": "refused",
+     "because": "You cannot send counter offer for bids added by you."
     },
-    "note": "Attempt the counter offer and require Procol's surrogate-bid refusal."
+    "note": "Try to counter the surrogate bid and require Procol's specific refusal."
    }
   ]
  }

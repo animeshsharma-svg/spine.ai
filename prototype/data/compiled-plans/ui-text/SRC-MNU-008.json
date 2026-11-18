@@ -4,16 +4,17 @@
   "title": "Settings menu on a closed Auction",
   "group": "SRC-MNU",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:01:56.430Z",
+  "compiledAt": "2026-11-13T12:15:19.568Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "The case allows Extend Submission Time to be either absent or present but greyed out depending on whether the company allows reopening events; the catalog cannot express this conditional either/or outcome."
+   "A prepared event that is specifically a closed reverse auction with two bids at 100 and 90; the prepared state is a closed RFQ with one bid.",
+   "The exact buyer navigation and title search for the named closed auction when its title is not supplied."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: The case allows Extend Submission Time to be either absent or present but greyed out depending on whether the company allows reopening events; the catalog cannot express this conditional either/or outcome."
+   "cannot test this case yet — no step can observe: A prepared event that is specifically a closed reverse auction with two bids at 100 and 90; the prepared state is a closed RFQ with one bid.; The exact buyer navigation and title search for the named closed auction when its title is not supplied."
   ],
   "source": "llm",
   "steps": 5,
@@ -26,7 +27,7 @@
   ],
   "state": "closed",
   "screen": "summary",
-  "ms": 13496
+  "ms": 16926
  },
  "plan": {
   "title": "Closed Auction Settings Menu",
@@ -36,7 +37,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing prepared closed auction event as required for prepared-state cases."
+    "note": "Open the prepared event without creating or searching for another event."
    },
    {
     "step": "require_setting",
@@ -44,7 +45,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "Off"
     },
-    "note": "Ensure Withdraw would be shown when permitted by the event state."
+    "note": "Ensure Withdraw is not hidden by the tenant setting."
    },
    {
     "step": "require_setting",
@@ -52,7 +53,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure eRFX project functionality is enabled for the tenant."
+    "note": "Ensure eRFX project functionality is enabled as required by the case."
    },
    {
     "step": "go_to",
@@ -60,7 +61,7 @@
      "screen": "stage",
      "stage": "auction"
     },
-    "note": "Navigate from the summary to the closed auction stage page where the Settings menu is available."
+    "note": "Navigate to the auction stage so its Settings menu can be inspected; this may not be reachable because the prepared event is an RFQ."
    },
    {
     "step": "expect_settings_menu",
@@ -77,10 +78,9 @@
       "Convert to Auction",
       "Edit Evaluation Time",
       "Send Bulk Counter Offer"
-     ],
-     "stage": "auction"
+     ]
     },
-    "note": "Assert the enabled actions and the actions that must not be offered on a closed auction; tooltip checks cover any greyed menu items that are present."
+    "note": "Check the closest available Settings menu against the expected enabled and absent actions."
    }
   ]
  }

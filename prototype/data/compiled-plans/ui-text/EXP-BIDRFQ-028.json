@@ -4,18 +4,23 @@
   "title": "A live RFQ with a vendor's bid: \"Recreate Order\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:19:26.946Z",
+  "compiledAt": "2026-11-13T13:47:33.752Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "resolved: “Directly compare the event's bidding times before and after cancellation.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "resolved: “Directly compare every event status field before and after cancellation.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 17,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "expect_responses",
@@ -30,17 +35,57 @@
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 10988
+  "ms": 15722
  },
  "plan": {
-  "title": "Cancel Recreate Order Without Changes",
+  "title": "Cancel Recreate Order on Live RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary as the buyer."
+    "note": "Open the prepared live RFQ summary with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Keep counter offers visible on RFQ stages as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Use the requested bid-rejection configuration while the RFQ is live."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable the requested buyer bid-editing configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable the requested counter-offer percentage configuration."
    },
    {
     "step": "go_to",
@@ -48,50 +93,55 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage requested by the case."
+    "note": "Open the RFQ stage specified by the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab."
+    "note": "Open the RFQ Responses tab where the existing vendor bid is visible."
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 1,
-     "direct": 1
+     "participation": "1/1",
+     "stage": "rfq"
     },
-    "note": "Verify before cancellation that the vendor's bid is present in the buyer's response view."
+    "note": "Record the existing single vendor response before opening Recreate Order."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "bidPrice"
+     "key": "bidPrice",
+     "within": "Responses"
     },
-    "note": "Record that the existing bid price is shown before opening Recreate Order."
+    "note": "Verify the existing bid value is present before the action."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open the Recreate Order window from the RFQ Settings menu."
+    "note": "Open the RFQ Settings action that the case asks to cancel."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
+     "name": "Recreate Order",
      "visible": true
     },
-    "note": "Verify that the Recreate Order window opened."
+    "note": "Confirm the Recreate Order window opened."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Cancel"
+     "name": "Cancel",
+     "within": "dialog"
     },
     "note": "Cancel the Recreate Order operation."
    },
@@ -99,29 +149,32 @@
     "step": "expect_visible",
     "args": {
      "role": "dialog",
+     "name": "Recreate Order",
      "visible": false
     },
-    "note": "Verify that the Recreate Order window closed."
+    "note": "Verify that cancelling closes the Recreate Order window."
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 1,
-     "direct": 1
+     "participation": "1/1",
+     "stage": "rfq"
     },
-    "note": "Verify that the vendor response and bid remain unchanged after cancellation."
+    "note": "Verify the vendor response and participation state are unchanged."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "bidPrice"
+     "key": "bidPrice",
+     "within": "Responses"
     },
-    "note": "Verify that the same bid price is still shown after cancellation."
+    "note": "Verify the existing bid remains after cancellation."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Verify that cancellation did not leave an error or broken screen state."
+    "note": "Confirm the event page remains healthy with no error or unintended change."
    }
   ]
  }

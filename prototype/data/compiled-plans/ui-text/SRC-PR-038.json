@@ -4,25 +4,24 @@
   "title": "Create a Single Stage RFQ from an open service PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:07:35.106Z",
+  "compiledAt": "2026-11-13T12:27:24.151Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Choose Single Stage from the PR flow and configure the resulting event as a single-stage RFQ; choose_stages can only express an RFQ stage, not single-stage mode.",
-   "Verify that service activities appear as separate rows and that the price column is specifically a rate per activity.",
-   "Verify the delivery location is locked to the PR; the catalog documents Delivery location as editable on an eRFX draft.",
-   "Verify the PR line moves to In Progress with this event's exact event number after publishing.",
-   "Verify the published event explicitly displays that it came from a PR."
+   "The PR line's delivery location is locked to the PR.",
+   "The service's activities are rendered as separate rows with the price column functioning as a rate per activity.",
+   "The specific PR line moves to In Progress with this event's number.",
+   "The published event visibly identifies that it originated from a PR."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items",
-   "can only test part of this — no step for: Choose Single Stage from the PR flow and configure the resulting event as a single-stage RFQ; choose_stages can only express an RFQ stage, not single-stage mode.; Verify that service activities appear as separate rows and that the price column is specifically a rate per activity.; Verify the delivery location is locked to the PR; the catalog documents Delivery location as editable on an eRFX draft.; Verify the PR line moves to In Progress with this event's exact event number after publishing.; Verify the published event explicitly displays that it came from a PR."
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: The PR line's delivery location is locked to the PR.; The service's activities are rendered as separate rows with the price column functioning as a rate per activity.; The specific PR line moves to In Progress with this event's number.; The published event visibly identifies that it originated from a PR."
   ],
   "source": "llm",
-  "steps": 20,
+  "steps": 23,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -34,21 +33,24 @@
    "fill_sheet",
    "require_setting",
    "require_setting",
+   "set_title",
+   "expect_sheet_columns",
    "expect_sheet_cells",
    "expect_api_value",
    "expect_api_value",
-   "set_title",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
+   "open_events_list",
+   "expect_event_status",
    "open_event",
    "expect_menu_item"
   ],
-  "ms": 19273
+  "ms": 22221
  },
  "plan": {
-  "title": "Create RFQ from Open Service PR",
+  "title": "Create Single-Stage RFQ from Service PR",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -88,7 +90,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation as required by the case."
+    "note": "Enable eRFX project creation for the test company."
    },
    {
     "step": "require_setting",
@@ -96,7 +98,26 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation so publishing is possible."
+    "note": "Allow vendors to be added during creation so publishing is possible."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-PR-038 Service PR RFQ"
+    },
+    "note": "Provide the mandatory event title required for publishing."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "Product",
+      "Quantity Requested",
+      "Delivery location",
+      "Price"
+     ]
+    },
+    "note": "Verify that the RFQ price sheet rendered the expected PR and pricing columns."
    },
    {
     "step": "expect_sheet_cells",
@@ -104,37 +125,33 @@
      "row": 1,
      "readonly": [
       "Product",
-      "Product Variant",
       "Quantity Requested"
      ]
     },
-    "note": "Assert that the imported PR product, variant, and requested quantity are read-only on the pricing sheet."
+    "note": "Verify that core PR-derived item fields are read-only on the create sheet."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "quantity"
+     "key": "quantity",
+     "within": "price sheet"
     },
-    "note": "Verify the imported PR quantity is shown on the create screen."
+    "note": "Verify that the transferred PR quantity is shown."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "unit"
+     "key": "unit",
+     "within": "price sheet"
     },
-    "note": "Verify the imported PR unit is shown on the create screen."
-   },
-   {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title required before publishing."
+    "note": "Verify that the transferred PR unit is shown."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the requested 30-minute schedule."
+    "note": "Commit the required 30-minute schedule."
    },
    {
     "step": "invite_vendor",
@@ -144,30 +161,46 @@
       "Vendor B"
      ]
     },
-    "note": "Add the two vendors named in the case."
+    "note": "Add the two vendors named by the test case."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed PR-based RFQ event."
+    "note": "Publish the configured RFQ event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publishing reached a real project page."
+    "note": "Confirm that publishing reached a real project page."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open the event list to verify the published event's list status."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "In Progress",
+     "title": "SRC-PR-038 Service PR RFQ"
+    },
+    "note": "Check the event's post-publish status in the events list."
    },
    {
     "step": "open_event",
-    "args": {},
-    "note": "Return to the event created by this plan for post-publish menu verification."
+    "args": {
+     "title": "SRC-PR-038 Service PR RFQ"
+    },
+    "note": "Return to the published event page for its PR-specific action state."
    },
    {
     "step": "expect_menu_item",
     "args": {
      "item": "Recreate Order",
-     "enabled": false
+     "enabled": false,
+     "stage": "rfq"
     },
-    "note": "Assert that Recreate Order is greyed out for this PR-created event."
+    "note": "Verify that Recreate Order is present but greyed out for this PR-created event."
    }
   ]
  }

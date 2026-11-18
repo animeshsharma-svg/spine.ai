@@ -4,21 +4,26 @@
   "title": "Upload Attachments: Uploading a file exceeding the maximum size limit fails",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:11:17.489Z",
+  "compiledAt": "2026-11-13T14:10:29.529Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Upload the specified large_document.pdf file with a size of 25 MB",
-   "Click Save after the large upload and observe or assert the resulting size-limit failure behavior"
+   "Upload the 25 MB large_document.pdf file and observe or record the application's response when it is saved."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Upload the specified large_document.pdf file with a size of 25 MB; Click Save after the large upload and observe or assert the resulting size-limit failure behavior"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Upload the 25 MB large_document.pdf file and observe or record the application's response when it is saved."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 19,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_title",
+   "compose_stages",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -26,40 +31,76 @@
    "open_events_list",
    "filter_events",
    "expect_event_in_list",
-   "open_event",
+   "expect_event_status",
+   "open_first_event",
    "click",
-   "expect_visible"
+   "expect_visible",
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 12141
+  "ms": 26187
  },
  "plan": {
-  "title": "eRFX Draft Attachment Size Limit",
+  "title": "Large Attachment Rejected on Draft",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create an eRFX draft so the attachment flow can be reached."
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-addition configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage-creation configuration."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Attachment Size Limit Draft"
+     "title": "EXP-DRAFT-080 Large Attachment"
     },
-    "note": "A title is required to save the draft and reopen it reliably."
+    "note": "A title is required to save and later find the draft."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the draft as an eRFX RFQ project."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a template required for a valid eRFX draft."
+    "note": "Apply the first available RFQ template so line items and the sheet can be configured."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the minimum line item needed for the draft."
+    "note": "Add the required draft line item."
    },
    {
     "step": "fill_sheet",
@@ -69,12 +110,12 @@
    {
     "step": "save_draft",
     "args": {},
-    "note": "Save the eRFX draft that will be used for the attachment flow."
+    "note": "Save the eRFX project as the draft required by the scenario."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to locate the saved draft."
+    "note": "Navigate to the events list to reopen the saved draft."
    },
    {
     "step": "filter_events",
@@ -85,17 +126,23 @@
    },
    {
     "step": "expect_event_in_list",
-    "args": {
-     "title": "Attachment Size Limit Draft"
-    },
-    "note": "Verify that the saved draft is available to open."
+    "args": {},
+    "note": "Verify that the newly saved draft appears in the Drafts list."
    },
    {
-    "step": "open_event",
+    "step": "expect_event_status",
     "args": {
-     "title": "Attachment Size Limit Draft"
+     "status": "Draft"
     },
-    "note": "Open the saved eRFX draft."
+    "note": "Verify the event is still a draft and was not published."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-080 Large Attachment"
+    },
+    "note": "Reopen the saved draft."
    },
    {
     "step": "click",
@@ -103,15 +150,27 @@
      "role": "button",
      "name": "Add Attachments"
     },
-    "note": "Open the attachment uploader window."
+    "note": "Open the draft's attachment upload window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Upload Attachments",
+     "role": "dialog",
      "visible": true
     },
-    "note": "Verify that the attachment upload window opened before the unavailable large-file action."
+    "note": "Verify that the attachment upload window opened before the missing large-file action."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide the 25 MB large_document.pdf, upload it in the open attachment window, click Save, and record the application's response"
+    },
+    "note": "The required 25 MB file is not an available upload fixture, so tester assistance is needed for the actual size-limit check."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check that the screen remains usable and shows no crash or raw server error after the tester's upload attempt."
    }
   ]
  }

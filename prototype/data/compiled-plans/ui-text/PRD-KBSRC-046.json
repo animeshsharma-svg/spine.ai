@@ -3,20 +3,18 @@
   "caseId": "PRD-KBSRC-046",
   "title": "L1 (lowest) price is highlighted in green per line item; savings icon vs previous bid",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:10:08.579Z",
+  "compiledAt": "2026-11-13T14:33:30.352Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the minimum price cell on each line item is highlighted green as L1 (Lowest).",
-   "Verify that the percentage icon next to the revised bid shows the correct savings compared with that vendor's previous bid.",
-   "unconfirmed label \"L1\" (expect_text) — not among the labels known from the app nor in the case"
+   "Directly assert that the lowest-price cell on each Responses line item is highlighted in green as L1.",
+   "Assert that the percentage icon shows the exact savings calculation compared with the vendor's previous bid."
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"L1\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Verify that the minimum price cell on each line item is highlighted green as L1 (Lowest).; Verify that the percentage icon next to the revised bid shows the correct savings compared with that vendor's previous bid."
+   "can only test part of this — no step for: Directly assert that the lowest-price cell on each Responses line item is highlighted in green as L1.; Assert that the percentage icon shows the exact savings calculation compared with the vendor's previous bid."
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 21,
   "stepNames": [
    "open_create",
    "set_title",
@@ -34,26 +32,28 @@
    "expect_bid_submitted",
    "place_bid",
    "expect_bid_submitted",
+   "go_to",
    "expect_responses",
    "expect_text",
-   "expect_screen_clean"
+   "open_master_qcs",
+   "expect_qcs_ranks"
   ],
-  "ms": 15460
+  "ms": 17659
  },
  "plan": {
-  "title": "PRD-KBSRC-046 L1 Highlight and Revised Bid Savings",
+  "title": "L1 Highlight and Revised Bid Savings",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a multi-stage event create flow for the RFQ."
+    "note": "Start a multi-stage event creation flow for the RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "L1 Highlight Revised Bid Savings Test"
+     "title": "PRD-KBSRC-046 L1 Savings"
     },
     "note": "Provide the required event title."
    },
@@ -64,19 +64,19 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ stage rather than the default Auction stage."
+    "note": "Configure the event as an RFQ rather than the default auction."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template before adding line items."
+    "note": "Apply an RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Create multiple line items so per-line lowest-price comparison can be exercised."
+    "note": "Create multiple line items so per-line lowest-price behavior can be exercised."
    },
    {
     "step": "fill_sheet",
@@ -88,24 +88,24 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule before publishing."
+    "note": "Commit a bidding schedule required for publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite the two vendors required for competing quotes."
+    "note": "Invite two vendors so their quoted prices can be compared."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so vendors can submit bids."
+    "note": "Publish the RFQ before collecting bids."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the RFQ reached a published project page."
+    "note": "Confirm the RFQ reached a real published project page."
    },
    {
     "step": "place_bid",
@@ -113,12 +113,12 @@
      "vendor": 1,
      "price": 100
     },
-    "note": "Submit the first vendor's initial quote."
+    "note": "Record the first vendor's initial bid, which will be revised later."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the first vendor's quote was accepted."
+    "note": "Confirm the initial vendor bid was accepted."
    },
    {
     "step": "place_bid",
@@ -126,12 +126,12 @@
      "vendor": 2,
      "price": 120
     },
-    "note": "Submit a competing quote from the second vendor."
+    "note": "Record a competing vendor bid for comparison."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the second vendor's quote was accepted."
+    "note": "Confirm the second vendor bid was accepted."
    },
    {
     "step": "place_bid",
@@ -139,12 +139,19 @@
      "vendor": 1,
      "price": 90
     },
-    "note": "Submit a revised quote from the first vendor, establishing a previous bid for comparison."
+    "note": "Submit a revision from the first vendor at a lower price to create a previous-bid comparison."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the revised quote was accepted."
+    "note": "Confirm the revised bid was accepted."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab where the per-vendor line-item comparison is displayed."
    },
    {
     "step": "expect_responses",
@@ -153,7 +160,7 @@
      "direct": 2,
      "stage": "rfq"
     },
-    "note": "Open the RFQ Responses view and confirm both vendor response columns are present."
+    "note": "Verify that both vendor responses are visible on the buyer's RFQ Responses view."
    },
    {
     "step": "expect_text",
@@ -161,12 +168,21 @@
      "text": "L1",
      "present": true
     },
-    "note": "Check for the response view's L1 labeling, while the catalog cannot assert its per-line green styling."
+    "note": "Check that the Responses view exposes the L1 designation, although the catalog cannot verify its green styling or per-cell placement."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "open_master_qcs",
     "args": {},
-    "note": "Ensure the comparison screen has no rendering errors or broken values."
+    "note": "Open the comparison grid to obtain the closest catalog assertion for lowest-price ordering per line."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify that rankings follow the lowest RFQ amount across the line items."
    }
   ]
  }

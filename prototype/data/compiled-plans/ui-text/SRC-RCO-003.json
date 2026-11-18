@@ -4,39 +4,42 @@
   "title": "Recreate with Event End Time Duration 30 Mins",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:09:42.939Z",
+  "compiledAt": "2026-11-13T12:35:22.067Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The recreated event's new RFX/stage code is not directly assertable.",
-   "The same product and delivery location cannot be asserted as dynamic copied values with the available API-value keys.",
-   "Keeping Evaluation Duration at 30 Mins and leaving scheduling unset cannot be fully asserted in the Recreate Order dialog."
+   "Verify the new event has a new RFX/stage code distinct from the old event",
+   "Verify the recreated event has the same product and delivery location as the old event",
+   "Verify the recreated event has exactly the same participants as the old event",
+   "Verify the old event remains unchanged after recreation",
+   "Verify the new event's Bidding Ends At equals its start time plus exactly 30 minutes",
+   "Verify that Evaluation Duration remains 30 Mins and that no schedule is applied in the created event"
   ],
   "warnings": [
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "resolved: “The complete participant set cannot be compared between the old and recreated events.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "resolved: “The old event remaining unchanged cannot be verified after creating the new event.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "resolved: “The exact Bidding Ends At value being exactly start plus 30 minutes cannot be calculated or compared with the available ” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "can only test part of this — no step for: The recreated event's new RFX/stage code is not directly assertable.; The same product and delivery location cannot be asserted as dynamic copied values with the available API-value keys.; Keeping Evaluation Duration at 30 Mins and leaving scheduling unset cannot be fully asserted in the Recreate Order dialog."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify the new event has a new RFX/stage code distinct from the old event; Verify the recreated event has the same product and delivery location as the old event; Verify the recreated event has exactly the same participants as the old event; Verify the old event remains unchanged after recreation; Verify the new event's Bidding Ends At equals its start time plus exactly 30 minutes; Verify that Evaluation Duration remains 30 Mins and that no schedule is applied in the created event"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
    "expect_visible",
+   "expect_visible",
+   "expect_visible",
+   "expect_visible",
    "expect_options",
-   "click",
-   "click",
-   "expect_api_value",
-   "expect_api_value",
-   "expect_text",
-   "expect_screen_clean"
+   "select",
+   "expect_visible",
+   "click"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 18242
+  "ms": 20201
  },
  "plan": {
   "title": "Recreate Closed RFQ with 30-Minute End Time",
@@ -46,23 +49,54 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ's summary page."
+    "note": "Open the prepared closed RFQ summary for the buyer-side recreate flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX project capability required by the case."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Open the Recreate Order dialog from the stage settings menu."
+    "note": "Open Recreate Order from the stage Settings menu."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Recreate Order",
+     "text": "Product Sheet",
      "visible": true
     },
-    "note": "Verify that the Recreate Order pop-up opened."
+    "note": "Assert that the Recreate Order pop-up opened with Product Sheet."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Auction Configurations",
+     "visible": true
+    },
+    "note": "Assert that the recreate configuration content is present."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Delivery Date",
+     "visible": true
+    },
+    "note": "Assert that the delivery-date control is present in the pop-up."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Schedule this event?",
+     "visible": true
+    },
+    "note": "Assert that the scheduling choice is available."
    },
    {
     "step": "expect_options",
@@ -72,51 +106,30 @@
       "30 Mins"
      ]
     },
-    "note": "Verify that the requested 30-minute end-time duration is offered."
+    "note": "Assert that the event end-time duration control offers the required 30 Mins option."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Event End Time Duration",
+     "option": "30 Mins"
+    },
+    "note": "Choose the required 30-minute end-time duration."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Create Order",
+     "visible": true
+    },
+    "note": "Assert that the recreate dialog exposes the final Create Order action."
    },
    {
     "step": "click",
     "args": {
-     "text": "30 Mins",
-     "within": "dialog"
+     "text": "Create Order"
     },
-    "note": "Select the 30-minute event end-time duration."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Order",
-     "within": "dialog"
-    },
-    "note": "Create the recreated event with the selected duration."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "quantity"
-    },
-    "note": "Verify that the recreated event retains the prepared RFQ quantity."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "unit"
-    },
-    "note": "Verify that the recreated event retains the prepared RFQ unit."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Bidding Ends At",
-     "present": true
-    },
-    "note": "Verify that the new live event displays its bidding end-time field."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Ensure the recreated event page has no rendering or server errors."
+    "note": "Create the recreated event using the selected duration and the unchanged default evaluation/scheduling choices."
    }
   ]
  }

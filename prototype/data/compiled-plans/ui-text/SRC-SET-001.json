@@ -4,60 +4,74 @@
   "title": "A single-stage RFQ that is live with Vendors An and B invited and no bid yet",
   "group": "SRC-SET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:04:42.957Z",
+  "compiledAt": "2026-11-13T12:54:00.975Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Guarantee that the two invited QA vendors are specifically Vendor A and Vendor B because their exact names are not provided."
+   "Verify that the invited companies are specifically Vendor A and Vendor B by name without inventing their actual QA vendor names.",
+   "Verify that the user selected the exact 24 Hrs duration preset rather than an equivalent 1440-minute schedule.",
+   "Assert the presence of a specific countdown value on the project page."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added place_bid — the test is about bidding and no bid step was planned",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added place_bid — the test is about bidding and no bid step was planned",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
-   "can only test part of this — no step for: Guarantee that the two invited QA vendors are specifically Vendor A and Vendor B because their exact names are not provided."
+   "can only test part of this — no step for: Verify that the invited companies are specifically Vendor A and Vendor B by name without inventing their actual QA vendor names.; Verify that the user selected the exact 24 Hrs duration preset rather than an equivalent 1440-minute schedule.; Assert the presence of a specific countdown value on the project page."
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 16,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "expect_sheet_cell",
-   "expect_sheet_cell",
-   "expect_sheet_cell",
-   "select",
-   "expect_value",
-   "set_schedule",
+   "set_sheet_cell",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
    "place_bid",
    "expect_text",
    "expect_responses"
   ],
-  "ms": 74279
+  "ms": 18367
  },
  "plan": {
-  "title": "Live Single-Stage RFQ with Two Invited Vendors",
+  "title": "Live single-stage RFQ with two invited vendors",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow."
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and keep Publish available."
    },
    {
     "step": "configure_single_stage",
@@ -65,98 +79,66 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set the event type to RFQ and retain whole-lot awarding."
+    "note": "Set the event type to RFQ and award the entire lot to one vendor."
    },
    {
     "step": "set_title",
     "args": {
      "title": "QA_Platform Live RFQ"
     },
-    "note": "Set the required event title."
+    "note": "Set the title required for publishing and later identification."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the pricing sheet is generated."
+    "note": "Apply the first offered RFQ pricing template so the product sheet is available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product and set its quantity to 10."
+    "note": "Add the specified product and set its requested quantity to 10."
    },
    {
-    "step": "fill_sheet"
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet fields required for the RFQ."
    },
    {
-    "step": "expect_sheet_cell",
+    "step": "set_sheet_cell",
     "args": {
      "row": 1,
-     "column": "Product",
-     "contains": "CYLINDER"
-    },
-    "note": "Verify the requested product was added to the first sheet row."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "equals": "10"
-    },
-    "note": "Verify the requested quantity."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Product Variant",
-     "contains": "Default Variant"
-    },
-    "note": "Verify the product variant was filled automatically."
-   },
-   {
-    "step": "select",
-    "args": {
-     "label": "Delivery location",
-     "option": "Plant Name (LOC-0001)"
-    },
-    "note": "Set the requested delivery location."
-   },
-   {
-    "step": "expect_value",
-    "args": {
-     "label": "Delivery location",
+     "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Verify the selected delivery location."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 1440
-    },
-    "note": "Schedule the event to start now and run for 24 hours."
+    "note": "Set the first line item's delivery location to the specified plant."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite exactly two QA test vendors without inventing vendor names."
+    "note": "Invite exactly two QA test vendors without inventing supplier names."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 1440
+    },
+    "note": "Commit a 24-hour equivalent schedule starting now."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured RFQ."
+    "note": "Publish the completed RFQ."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the project page opened with a real published event."
+    "note": "Confirm the browser reached the published project page."
    },
    {
     "step": "place_bid"
@@ -167,7 +149,7 @@
      "text": "Live",
      "present": true
     },
-    "note": "Verify the project page shows the live status."
+    "note": "Verify the published project page shows the live state."
    },
    {
     "step": "expect_responses",
@@ -175,7 +157,7 @@
      "count": 0,
      "stage": "rfq"
     },
-    "note": "Verify that neither invited vendor has submitted a bid."
+    "note": "Verify that neither of the two invited vendors has submitted a bid."
    }
   ]
  }

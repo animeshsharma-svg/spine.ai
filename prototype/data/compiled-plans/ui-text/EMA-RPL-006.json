@@ -4,45 +4,74 @@
   "title": "A plain reply (Reply in the mail app, not the button) still works when the Ref line is quoted",
   "group": "EMA-RPL",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:58:16.592Z",
+  "compiledAt": "2026-11-13T14:23:33.824Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Chetan's mailbox and use the mail app's normal Reply while retaining the quoted Ref line, send the answer, and verify whether it appears on the event or produces a clear bounce with no silent loss."
+   "Use the mail app as Chetan to reply to the consultation email with the Ref line quoted, send the message, and verify whether the answer is recorded on the event or produces a clear bounce with no silent loss."
   ],
   "warnings": [
-   "can only test part of this — no step for: Access Chetan's mailbox and use the mail app's normal Reply while retaining the quoted Ref line, send the answer, and verify whether it appears on the event or produces a clear bounce with no silent loss."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Use the mail app as Chetan to reply to the consultation email with the Ref line quoted, send the message, and verify whether the answer is recorded on the event or produces a clear bounce with no silent loss."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_no_error"
   ],
-  "ms": 8122
+  "ms": 12457
  },
  "plan": {
-  "title": "EMA-RPL-006 Plain Reply with Quoted Ref",
+  "title": "Plain reply with quoted Ref line",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the specified event so the tester can relate the mailbox reply outcome to the event."
+    "note": "Open the specified approval event in the buyer portal before the mailbox action."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required email approval capability."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "the company's approval mailbox connected to Procol with permission to send replies",
+     "value": "On"
+    },
+    "note": "Ensure the approval mailbox prerequisite is configured."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Ensure the approval workflow prerequisite is configured."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open Chetan's mailbox, use the mail app's normal Reply to the consultation email with the quoted Ref line, type an answer at the top, send it, and verify whether the answer appears on the event or Chetan receives a clear bounce without silent loss"
+     "need": "open Chetan's mailbox, use normal Reply on the consultation email with the Ref line quoted, type the answer at the top, send it, and report whether it is recorded on the event or produces a clear bounce"
     },
-    "note": "The catalog has no mailbox or email-reply capability, so this is the required missing part."
+    "note": "The catalog has no mailbox or email-reply step, so the tester must perform and observe this subject."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Assert the event screen remains free of crashes or server errors after the tester's email-reply attempt."
+    "note": "Assert that the buyer event page remains free of an application error after the delegated mailbox action."
    }
   ]
  }

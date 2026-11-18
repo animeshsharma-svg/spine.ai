@@ -3,42 +3,56 @@
   "caseId": "PRD-KBSRC-366",
   "title": "Closed line items move to Ended Bidding with no further action",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:17:55.819Z",
+  "compiledAt": "2026-11-13T14:41:32.440Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Wait for the active serial-bidding line item's duration to end and verify that this specific line item moves to Ended Bidding.",
-   "Verify that no enabled action of any kind is available for the specific ended line item."
+   "Wait for an active serial-bidding line item to expire and assert that no actions for that line item are enabled."
   ],
   "warnings": [
-   "can only test part of this — no step for: Wait for the active serial-bidding line item's duration to end and verify that this specific line item moves to Ended Bidding.; Verify that no enabled action of any kind is available for the specific ended line item."
+   "ask_tester → close_event{natural} — waiting for the bidding window to close is close_event's job, not a question for the tester",
+   "ask_tester → close_event{natural} — waiting for the bidding window to close is close_event's job, not a question for the tester",
+   "can only test part of this — no step for: Wait for an active serial-bidding line item to expire and assert that no actions for that line item are enabled."
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_event",
-   "go_to",
-   "expect_text",
-   "open_event_settings",
-   "expect_menu_item"
+   "switch_portal",
+   "vendor_open_event",
+   "close_event",
+   "expect_text"
   ],
-  "ms": 8762
+  "ms": 15790
  },
  "plan": {
-  "title": "Closed Line Item Ends Bidding",
+  "title": "Ended Bidding Line Item Behavior",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing live auction event as the closest available starting state."
+    "note": "Open an existing live auction event suitable for the vendor-side check."
    },
    {
-    "step": "go_to",
+    "step": "switch_portal",
     "args": {
-     "screen": "stage",
-     "stage": "auction"
+     "to": "vendor"
     },
-    "note": "Navigate to the auction stage where the line-item bidding state is displayed."
+    "note": "Move to the invited vendor's supplier-portal session, where the line-item bidding state is observed."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing round in the vendor portal."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true
+    },
+    "note": "No catalog step can wait for or inspect the individual serial-bidding line item's ended category and action availability."
    },
    {
     "step": "expect_text",
@@ -46,20 +60,7 @@
      "text": "Ended Bidding",
      "present": true
     },
-    "note": "Check that the stage exposes an Ended Bidding category."
-   },
-   {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the stage settings to inspect the available post-expiry action."
-   },
-   {
-    "step": "expect_menu_item",
-    "args": {
-     "item": "Reopen Line Items",
-     "enabled": false
-    },
-    "note": "Assert that reopening ended line items is not enabled, providing the closest available check that no further action is possible."
+    "note": "Assert the expected category label is visible after the tester completes the missing observation."
    }
   ]
  }

@@ -4,107 +4,127 @@
   "title": "Upload Attachments: Adding an attachment via a valid URL succeeds",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:14:09.090Z",
+  "compiledAt": "2026-11-13T14:10:29.393Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Select 'Add URL' from the dropdown in the upload attachments window",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "The catalog has no dedicated assertion that the URL is persisted specifically in the draft's attachment data after reopening; it can only verify the modal closes and the URL is visible on the current draft screen."
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: The catalog has no dedicated assertion that the URL is persisted specifically in the draft's attachment data after reopening; it can only verify the modal closes and the URL is visible on the current draft screen."
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 12,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "compose_stages",
-   "switch_stage",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "save_draft",
+   "open_event",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_navigated",
    "click",
-   "ask_tester"
+   "expect_visible",
+   "click",
+   "fill",
+   "click",
+   "expect_visible",
+   "expect_text"
   ],
-  "ms": 182961
+  "ms": 20562
  },
  "plan": {
-  "title": "EXP-DRAFT-081 Upload Attachments via valid URL",
+  "title": "Save attachment from URL on eRFX draft",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Start creating an eRFX event"
-   },
-   {
-    "step": "set_title",
+    "step": "open_event",
     "args": {},
-    "note": "Give the project a title"
+    "note": "Open an existing draft event without creating or publishing a new event."
    },
    {
-    "step": "compose_stages",
+    "step": "require_setting",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Set up an RFQ stage"
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "switch_stage",
+    "step": "require_setting",
     "args": {
-     "stage": "rfq"
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
     },
-    "note": "Switch to RFQ stage"
+    "note": "Apply the required vendor-lock configuration."
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Select template"
-   },
-   {
-    "step": "add_line_items",
+    "step": "require_setting",
     "args": {
-     "count": 1
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
     },
-    "note": "Add line item"
+    "note": "Apply the required stage-addition configuration."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Fill sheet"
-   },
-   {
-    "step": "set_schedule",
+    "step": "expect_navigated",
     "args": {
-     "minutes": 30
+     "screen": "draft"
     },
-    "note": "Set schedule"
+    "note": "Confirm the selected existing event is a draft create screen."
    },
    {
-    "step": "save_draft",
-    "args": {},
-    "note": "Save as draft to have an eRFX draft"
+    "step": "click",
+    "args": {
+     "text": "Add Attachments"
+    },
+    "note": "Open the Upload Attachments window."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Upload Attachments",
+     "visible": true
+    },
+    "note": "Verify the attachment window opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Add URL"
+    },
+    "note": "Choose the URL attachment path."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "URL",
+     "value": "https://www.example.com/document"
+    },
+    "note": "Enter the valid URL supplied by the case."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Add Attachments"
+     "name": "Save"
     },
-    "note": "Open Upload Attachments window"
+    "note": "Save the URL attachment to the draft."
    },
    {
-    "step": "ask_tester",
+    "step": "expect_visible",
     "args": {
-     "need": "Select 'Add URL' from the dropdown, enter the URL https://www.example.com/document, and click Save"
+     "text": "Upload Attachments",
+     "visible": false
     },
-    "note": "Handle the URL upload since no step directly selects 'Add URL' from the dropdown"
+    "note": "Verify the Upload Attachments window closed after saving."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "https://www.example.com/document",
+     "present": true
+    },
+    "note": "Verify the saved URL is visible in the draft attachments."
    }
   ]
  }

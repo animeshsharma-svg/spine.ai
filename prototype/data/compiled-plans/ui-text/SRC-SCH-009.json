@@ -4,7 +4,7 @@
   "title": "Start later with a time already passed",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:02:02.889Z",
+  "compiledAt": "2026-11-13T12:51:40.064Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,22 +17,24 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 11,
   "stepNames": [
    "open_create",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "fill_sheet",
+   "set_sheet_cell",
    "invite_vendor",
+   "click",
    "do_on_screen",
    "expect_message"
   ],
-  "ms": 14706
+  "ms": 16620
  },
  "plan": {
-  "title": "Reject past start time for single-stage RFQ",
+  "title": "Reject past start time in single-stage RFQ schedule",
   "steps": [
    {
     "step": "open_create",
@@ -42,21 +44,31 @@
     "note": "Open the single-stage event creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation as required by the case configuration."
+   },
+   {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ as required by the scenario."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title so the schedule test is not blocked by an unrelated missing-title validation."
+    "args": {
+     "title": "SRC-SCH-009 Past Start Time"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template before adding line items."
+    "note": "Apply an RFQ template so the pricing sheet and schedule controls can be used."
    },
    {
     "step": "add_line_items",
@@ -65,26 +77,40 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add the requested product and quantity needed for a usable RFQ setup."
+    "note": "Add the CYLINDER product and set the requested quantity to 10."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet so the event configuration is otherwise valid."
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the required delivery location on the first line item."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "count": 1
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Add the required QA vendor participant before testing the schedule."
+    "note": "Add the vendor required by the setup before opening the schedule."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Schedule"
+    },
+    "note": "Open the Schedule Event drawer."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "Open the Schedule Event drawer, choose Start later, set today's start time to one hour before the current time, press Save Schedule, and stop when the drawer shows the refusal for the past start time."
+     "goal": "In the Schedule Event drawer, choose Start later, set today's start time to one hour in the past, click Save Schedule, and stop after the application refuses to save the schedule."
     },
-    "note": "The catalog has no fixed or relative argument for a past start time in the create-screen schedule drawer, so perform this dynamic interaction directly on screen."
+    "note": "Perform the date and time interaction that the catalog cannot parameterize directly on the create-screen schedule drawer."
    },
    {
     "step": "expect_message",
@@ -92,7 +118,7 @@
      "kind": "error",
      "text": "Please enter a valid time"
     },
-    "note": "Assert that saving the past start time is refused with the expected validation message."
+    "note": "Assert that Procol refused the past start time with the expected error."
    }
   ]
  }

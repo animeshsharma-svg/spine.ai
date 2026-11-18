@@ -4,34 +4,85 @@
   "title": "Edit Evaluation Time: Enter an excessively large future date for evaluation end time",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:24:05.687Z",
+  "compiledAt": "2026-11-13T13:51:17.432Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Enter and submit the exact absolute evaluation end date 31 December 2100 23:59 using the custom duration control."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Enter and submit the exact absolute evaluation end date 31 December 2100 23:59 using the custom duration control."
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
    "go_to",
    "event_menu",
-   "expect_visible",
    "do_on_screen",
    "expect_screen_clean"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 16389
+  "ms": 18260
  },
  "plan": {
-  "title": "Edit Evaluation Time with Excessive Future Date",
+  "title": "Edit evaluation time with far-future date",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary with its existing vendor bid."
+    "note": "Open the prepared live RFQ with Vendor A's bid; prepared-state plans must start here."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bidding-time rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer editing of bidding fields as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
    },
    {
     "step": "go_to",
@@ -39,7 +90,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage where the evaluation-time settings action is available."
+    "note": "Move to the RFQ stage whose evaluation time is being edited."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the Responses view specified by the case."
    },
    {
     "step": "event_menu",
@@ -47,28 +105,19 @@
      "item": "Edit Evaluation Time",
      "stage": "rfq"
     },
-    "note": "Open the RFQ's Edit Evaluation Time window."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Edit Evaluation Time",
-     "visible": true
-    },
-    "note": "Confirm the expected evaluation-time dialog opened."
+    "note": "Open the RFQ Settings action and select Edit Evaluation Time."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "In the Edit Evaluation Time dialog, choose the custom duration option, enter an excessively large future evaluation end date of 31 December 2100 23:59, click Ok, and record the application's resulting refusal, validation message, or saved outcome on screen"
+     "goal": "In the open Edit Evaluation Time window, choose the custom duration option, enter the excessively large future evaluation end date 31 December 2100 23:59, click Ok, and stop with the resulting validation message, refusal, or saved result visible."
     },
-    "note": "Perform and observe the date-specific interaction that no structured catalog step can parameterize."
+    "note": "Perform the exact absolute-date interaction that no catalog step can parameterize."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the resulting screen has no crash, server error, or malformed values."
+    "note": "Assert that the resulting screen has no crash, server error, NaN, undefined, null, or raw-id rendering."
    }
   ]
  }

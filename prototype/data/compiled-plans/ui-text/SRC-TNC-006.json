@@ -4,7 +4,7 @@
   "title": "Single stage RFQ, Mark all mandatory: the vendor accepts one of the two clauses",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:11:30.552Z",
+  "compiledAt": "2026-11-13T13:02:14.931Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -12,20 +12,25 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet"
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 21,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "select",
+   "set_sheet_cell",
    "do_on_screen",
    "set_schedule",
    "invite_vendor",
@@ -34,32 +39,58 @@
    "switch_portal",
    "vendor_open_event",
    "expect_text",
+   "expect_text",
    "toggle",
    "attempt"
   ],
-  "ms": 20555
+  "ms": 17514
  },
  "plan": {
-  "title": "Single-stage RFQ mandatory terms block partial acceptance",
+  "title": "SRC-TNC-006 Single-Stage RFQ Mandatory Terms",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow."
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Ensure terms are not pre-selected as mandatory before the buyer marks all terms mandatory."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX/sourcing creation flow used by the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow the buyer to add the QA vendor during event creation."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
     "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Mandatory Terms Single Stage RFQ"
+     "title": "SRC-TNC-006 Single Stage RFQ"
     },
     "note": "Provide the required event title."
    },
@@ -75,41 +106,40 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product and quantity."
+    "note": "Add the specified product and requested quantity."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet so the event can be published."
+    "step": "fill_sheet"
    },
    {
-    "step": "select",
+    "step": "set_sheet_cell",
     "args": {
-     "label": "Delivery location",
-     "option": "Plant Name (LOC-0001)"
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested delivery location."
+    "note": "Set the requested delivery location in the pricing sheet."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "in the Terms & Conditions drawer, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", enable \"Mark all Terms & Conditions mandatory\", confirm both clauses show \"Overridden by Mark all mandatory\", click Done, and return to the single-stage create screen"
+     "goal": "open Terms & Conditions on the single-stage RFQ create screen, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", enable \"Mark all Terms & Conditions mandatory\" so both clauses show they are overridden by the mandatory setting, click Done, and stop on the create screen"
     },
-    "note": "Configure the two event terms and mark all terms mandatory; this buyer-side configuration has no dedicated domain step."
+    "note": "Configure the two event terms and the mark-all-mandatory behavior, which has no dedicated domain step."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the 30-minute event schedule."
+    "note": "Commit the 30-minute schedule required before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one QA test vendor without inventing a vendor name."
+    "note": "Add one QA test vendor to the event."
    },
    {
     "step": "publish",
@@ -119,28 +149,37 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a real published project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier-portal session."
+    "note": "Move to the invited vendor's supplier portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's RFQ bid sheet in the vendor portal."
+    "note": "Open the event's RFQ bid sheet as the vendor."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Terms & Conditions"
+     "text": "Payment within 45 days",
+     "present": true
     },
-    "note": "Confirm the vendor can see the terms block."
+    "note": "Confirm the first clause is visible to the vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery within 7 days",
+     "present": true
+    },
+    "note": "Confirm the second clause is visible to the vendor."
    },
    {
     "step": "toggle",
@@ -157,9 +196,10 @@
      "args": {
       "price": 100
      },
-     "expect": "refused"
+     "expect": "refused",
+     "because": "Terms & Conditions"
     },
-    "note": "Attempt to submit the quote and assert that submission is blocked because the second mandatory clause remains unaccepted."
+    "note": "Attempt to quote 100 and submit while the second mandatory clause remains unaccepted; submission must be blocked."
    }
   ]
  }

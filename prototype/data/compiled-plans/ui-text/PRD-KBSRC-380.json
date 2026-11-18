@@ -3,56 +3,52 @@
   "caseId": "PRD-KBSRC-380",
   "title": "Each round presents a fixed offer stepped by the tick size",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:18:43.661Z",
+  "compiledAt": "2026-11-13T14:42:26.073Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Observe the fixed offer in every knockout round and verify that each consecutive round differs by exactly the configured tick size."
+   "Observe the fixed offer in each successive knockout auction round.",
+   "Compare consecutive round offers and verify each difference equals the configured tick size."
   ],
   "warnings": [
-   "can only test part of this — no step for: Observe the fixed offer in every knockout round and verify that each consecutive round differs by exactly the configured tick size."
+   "cannot test this case yet — no step can observe: Observe the fixed offer in each successive knockout auction round.; Compare consecutive round offers and verify each difference equals the configured tick size."
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
-   "open_prepared",
+   "open_event",
+   "switch_portal",
    "vendor_open_event",
-   "expect_visible",
-   "ask_tester"
+   "expect_screen_clean"
   ],
-  "ms": 8624
+  "ms": 15282
  },
  "plan": {
-  "title": "Knockout Round Offer Tick Progression",
+  "title": "Knockout Round Fixed Offers",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "open_event",
+    "args": {},
+    "note": "Open the closest existing event view available when no event is named; this does not establish that it is the configured knockout auction."
+   },
+   {
+    "step": "switch_portal",
     "args": {
-     "screen": "vendor"
+     "to": "vendor"
     },
-    "note": "Open the prepared event in the vendor-side session."
+    "note": "Move to the supplier view, which is the closest available view for reading an auction offer."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the knockout auction pricing round where the current fixed offer is shown."
+    "note": "Open the event's pricing round; the catalog has no step for advancing through knockout rounds."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "Price",
-     "visible": true
-    },
-    "note": "Confirm that the vendor pricing view is rendered before the unsupported round-by-round check."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "observe each knockout auction round's fixed offer and verify that consecutive round offers differ by exactly the configured tick size"
-    },
-    "note": "The catalog has no step to advance through knockout rounds and compare the displayed offer values."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert the reachable screen is rendered cleanly, but this does not verify the round-offer oracle."
    }
   ]
  }

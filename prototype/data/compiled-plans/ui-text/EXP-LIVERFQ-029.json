@@ -4,33 +4,73 @@
   "title": "A live RFQ: \"Withdrawing Order...\": \"Yes\" with the fields as they open is refused",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:45:51.031Z",
+  "compiledAt": "2026-11-13T14:13:14.373Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “With hide_withdraw_in_intake_and_event set to On, the case's expected Withdraw dialog may be removed from the Settings m” — require_setting switches that company setting before the case and back after"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "withdraw_event",
-   "expect_text"
+   "expect_toast"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9910
+  "ms": 22194
  },
  "plan": {
-  "title": "Live RFQ blank withdrawal reason",
+  "title": "Live RFQ withdrawal requires a reason",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ as the buyer."
+    "note": "Open the prepared live RFQ; prepared-state cases must begin from the summary screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the case configuration that hides withdrawal in intake requests and events."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal while the live RFQ is accepting submissions."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the vendor-masking configuration required by the case."
    },
    {
     "step": "go_to",
@@ -45,23 +85,24 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the Responses tab before accessing Settings."
+    "note": "Reach the Responses tab where the case opens Settings."
    },
    {
     "step": "withdraw_event",
     "args": {
-     "scope": "project",
+     "scope": "stage",
+     "stage": "rfq",
      "noReason": true
     },
-    "note": "Open the withdrawal window and confirm without entering a reason to test the required-remark refusal."
+    "note": "Attempt withdrawal with the remark left blank to test the required-reason refusal."
    },
    {
-    "step": "expect_text",
+    "step": "expect_toast",
     "args": {
-     "text": "Please enter reason for withdrawing this event",
-     "present": true
+     "kind": "error",
+     "text": "Please enter reason for withdrawing this event"
     },
-    "note": "Verify the required withdrawal reason message remains visible and nothing was saved."
+    "note": "Assert that Procol refuses the withdrawal with the expected missing-reason message."
    }
   ]
  }

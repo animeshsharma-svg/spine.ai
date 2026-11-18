@@ -3,39 +3,41 @@
   "caseId": "PRD-PR-083",
   "title": "PR Approval: step 2 escalates to Department Head after 24h",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:39:12.550Z",
+  "compiledAt": "2026-11-13T15:22:18.559Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Submit a Purchase Requisition as an employee and route it to step 2 with the Requestor's Line Manager.",
-   "Leave the approval undecided for more than 24 hours and trigger or observe the SLA breach.",
-   "Verify that escalation adds or assigns the Department Head as approver and that approval history records the SLA breach."
+   "Submit a Purchase Requisition as an employee and route an item to step 2 (Requestor's Line Manager).",
+   "Leave the step 2 approval undecided for more than 24 hours and trigger the SLA escalation.",
+   "Verify in approval history that the SLA breach is recorded and the Department Head is a new or added approver."
   ],
   "warnings": [
-   "can only test part of this — no step for: Submit a Purchase Requisition as an employee and route it to step 2 with the Requestor's Line Manager.; Leave the approval undecided for more than 24 hours and trigger or observe the SLA breach.; Verify that escalation adds or assigns the Department Head as approver and that approval history records the SLA breach."
+   "can only test part of this — no step for: Submit a Purchase Requisition as an employee and route an item to step 2 (Requestor's Line Manager).; Leave the step 2 approval undecided for more than 24 hours and trigger the SLA escalation.; Verify in approval history that the SLA breach is recorded and the Department Head is a new or added approver."
   ],
   "source": "llm",
   "steps": 2,
   "stepNames": [
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 8804
+  "ms": 15710
  },
  "plan": {
-  "title": "PR Approval Escalation After SLA Breach",
+  "title": "PR approval escalation after 24 hours",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "submit a Purchase Requisition as an employee, route it to step 2 with the Requestor's Line Manager, leave it undecided for more than 24 hours, and verify the approval history shows the SLA breach and the Department Head as a new or added approver"
+     "need": "submit a Purchase Requisition, route an item to step 2, leave it undecided for more than 24 hours, and open the approval history showing the SLA breach and Department Head escalation"
     },
-    "note": "No catalog step can create or route the approval, advance 24 hours, or inspect the approval escalation history."
+    "note": "The catalog cannot perform or observe the approval workflow, SLA timer, escalation, or approval-history transition."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the resulting screen has no crash or server error after the tester performs the unavailable workflow."
+    "step": "expect_text",
+    "args": {
+     "text": "SLA breach"
+    },
+    "note": "After the tester completes the missing workflow, check for the expected SLA-breach record if that text is visible."
    }
   ]
  }

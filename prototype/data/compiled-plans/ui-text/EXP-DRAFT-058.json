@@ -4,40 +4,70 @@
   "title": "Configuration for Event: Event Type selection changes and saves successfully",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T01:45:55.406Z",
+  "compiledAt": "2026-11-13T14:08:10.270Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen"
+  ],
   "source": "llm",
-  "steps": 11,
+  "steps": 14,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
    "click",
    "expect_visible",
-   "click",
+   "select",
    "expect_value",
    "click",
    "expect_visible",
    "expect_text"
   ],
-  "ms": 11921
+  "ms": 18356
  },
  "plan": {
-  "title": "Update Draft Event Type to Auction",
+  "title": "EXP-DRAFT-058 Event Type Change on Saved Draft",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to access the saved draft."
+    "note": "Open the Events list to reach the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-lock configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage configuration."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Confirm the events list rendered without an error."
    },
    {
     "step": "filter_events",
@@ -51,15 +81,14 @@
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the saved eRFX draft."
+    "note": "Open the saved draft shown first in the Drafts list."
    },
    {
     "step": "click",
     "args": {
-     "role": "button",
-     "name": "RFQ"
+     "text": "RFQ"
     },
-    "note": "Open the draft's Configuration for Event window from the RFQ control."
+    "note": "Open the draft's event configuration control."
    },
    {
     "step": "expect_visible",
@@ -68,15 +97,15 @@
      "name": "Configuration for Event",
      "visible": true
     },
-    "note": "Verify that the configuration window opened."
+    "note": "Confirm the Configuration for Event window opened."
    },
    {
-    "step": "click",
+    "step": "select",
     "args": {
-     "role": "radio",
-     "name": "Auction"
+     "label": "Event Type",
+     "option": "Auction"
     },
-    "note": "Select Auction as the event type."
+    "note": "Change the event type from the default RFX to Auction."
    },
    {
     "step": "expect_value",
@@ -84,7 +113,7 @@
      "label": "Event Type",
      "value": "Auction"
     },
-    "note": "Confirm the configuration shows Auction selected before saving."
+    "note": "Verify the configuration control shows Auction before saving."
    },
    {
     "step": "click",
@@ -101,7 +130,7 @@
      "name": "Configuration for Event",
      "visible": false
     },
-    "note": "Verify that the configuration window closed after saving."
+    "note": "Verify that saving closes the configuration window."
    },
    {
     "step": "expect_text",
@@ -109,7 +138,7 @@
      "text": "Auction",
      "present": true
     },
-    "note": "Verify that the draft now displays Auction as its event type."
+    "note": "Verify the draft now displays the updated Auction event type."
    }
   ]
  }

@@ -4,27 +4,111 @@
   "title": "A saved eRFX draft: \"Price Components\" opens its menu",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:39:39.586Z",
+  "compiledAt": "2026-11-13T14:02:42.139Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 13,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "save_draft",
    "click",
    "expect_options"
   ],
-  "ms": 7496
+  "ms": 9851
  },
  "plan": {
-  "title": "Draft Price Components menu",
+  "title": "EXP-DRAFT-004 Price Components menu",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX project create screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the configured vendor-addition behavior for the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the requested stage configuration before creating the draft."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-004 Price Components"
+    },
+    "note": "Provide the required draft title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the draft with an RFQ stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage before configuring its template and sheet."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Open an existing saved draft event; no event title was provided."
+    "note": "Apply the first available RFQ template so the pricing sheet and controls are enabled."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the minimum line item required for a usable draft pricing sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before saving the draft."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the configured eRFX event as a draft."
    },
    {
     "step": "click",
@@ -32,16 +116,18 @@
      "role": "button",
      "name": "Price Components"
     },
-    "note": "Open the Price Components menu on the draft create screen."
+    "note": "Open the control under test on the saved draft."
    },
    {
     "step": "expect_options",
     "args": {
+     "role": "button",
+     "name": "Price Components",
      "options": [
       "Bulk Discount"
      ]
     },
-    "note": "Assert that the opened menu offers Bulk Discount."
+    "note": "Assert that the opened Price Components menu offers Bulk Discount."
    }
   ]
  }

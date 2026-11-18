@@ -4,61 +4,100 @@
   "title": "T&C attachment is not offered on a basket auction",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:16:23.765Z",
+  "compiledAt": "2026-11-13T13:08:49.440Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Explicitly configure or verify that the selected template is a basket auction template; the catalog has no basket-auction configuration argument or assertion."
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Explicitly configure or verify that the selected template is a basket auction template; the catalog has no basket-auction configuration argument or assertion."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
-   "do_on_screen",
+   "select_template",
+   "add_line_items",
+   "set_sheet_cell",
+   "click",
+   "expect_text",
    "expect_visible"
   ],
-  "ms": 13479
+  "ms": 19596
  },
  "plan": {
-  "title": "Basket auction T&C has no Upload option",
+  "title": "Basket Auction T&C Attachment Option",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow."
+    "note": "Open the single-stage event creation screen described by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction",
-     "auctionSubtype": "rank",
-     "awarding": "lot"
+     "eventType": "rfq"
     },
-    "note": "Configure the event as an auction before selecting the basket auction template."
+    "note": "Set the event type to RFQ as required before selecting the RFQ template."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Basket Auction T&C Upload Check"
+     "title": "SRC-TNC-056 Basket Auction T&C"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provide the mandatory event title for a create flow."
    },
    {
-    "step": "do_on_screen",
+    "step": "select_template",
     "args": {
-     "goal": "On the single-stage auction create screen, select the basket auction template, add the requested CYLINDER product, choose CYLINDER WITH KEY & KNOB so Product Variant shows Default Variant, set Quantity Requested to 10, choose Plant Name (LOC-0001) for Delivery location, open Terms & Conditions, and stop with the Terms & Conditions modal visible"
+     "name": "Basket"
     },
-    "note": "The catalog has no dedicated basket-template, product-selection, variant, or delivery-location steps, so perform these buyer-side actions on screen."
+    "note": "Select the template whose name contains the case's basket template wording."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "CYLINDER",
+     "quantity": "10"
+    },
+    "note": "Add the specified CYLINDER product and requested quantity."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the delivery location required by the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Terms & Conditions"
+    },
+    "note": "Open the Terms & Conditions modal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Terms & Conditions",
+     "present": true
+    },
+    "note": "Confirm that the Terms & Conditions surface opened or is visible."
    },
    {
     "step": "expect_visible",
@@ -66,7 +105,7 @@
      "text": "Upload",
      "visible": false
     },
-    "note": "Assert that the Terms & Conditions modal does not offer an Upload control."
+    "note": "Assert the modal does not offer an Upload control."
    }
   ]
  }

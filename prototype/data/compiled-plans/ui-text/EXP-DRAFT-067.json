@@ -4,38 +4,66 @@
   "title": "All Vendors: Selecting a vendor checkbox and saving records the vendor selection",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:55:16.727Z",
+  "compiledAt": "2026-11-13T14:09:02.199Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly asserting that the saved draft's participant record contains 12 - check@gmail.com as a participant"
+   "A dedicated assertion that vendor 12 - check@gmail.com remains selected in the saved draft's participant list after the All Vendors window is saved"
   ],
   "warnings": [
-   "can only test part of this — no step for: Directly asserting that the saved draft's participant record contains 12 - check@gmail.com as a participant"
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: A dedicated assertion that vendor 12 - check@gmail.com remains selected in the saved draft's participant list after the All Vendors window is saved"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 12,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
    "click",
-   "expect_visible",
    "toggle",
    "click",
    "expect_visible",
    "expect_text"
   ],
-  "ms": 11386
+  "ms": 20881
  },
  "plan": {
-  "title": "Draft vendor selection save",
+  "title": "Save vendor selection in eRFX draft",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to reach the saved draft."
+    "note": "Open the Events list to locate the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the tenant configuration required for vendor selection behavior."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the additional configuration specified for the draft scenario."
    },
    {
     "step": "expect_events_list",
@@ -54,7 +82,7 @@
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the available saved eRFX draft."
+    "note": "Open a saved draft, as the case does not provide a draft title."
    },
    {
     "step": "click",
@@ -62,15 +90,7 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the draft's participant selection window."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "All Vendors",
-     "visible": true
-    },
-    "note": "Confirm the All Vendors window opened."
+    "note": "Open the draft's participant selection area and All Vendors window."
    },
    {
     "step": "toggle",
@@ -78,7 +98,7 @@
      "label": "12 - check@gmail.com",
      "on": true
     },
-    "note": "Select the specified vendor checkbox and verify it is selected."
+    "note": "Select the specified vendor checkbox and confirm its enabled state."
    },
    {
     "step": "click",
@@ -94,7 +114,7 @@
      "text": "All Vendors",
      "visible": false
     },
-    "note": "Record whether the All Vendors window closes after saving."
+    "note": "Check whether the All Vendors window closes after saving."
    },
    {
     "step": "expect_text",
@@ -102,7 +122,7 @@
      "text": "12 - check@gmail.com",
      "present": true
     },
-    "note": "Check whether the selected vendor is shown on the saved draft screen."
+    "note": "Check that the selected vendor is still represented on the saved draft screen."
    }
   ]
  }

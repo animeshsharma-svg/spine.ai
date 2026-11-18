@@ -4,43 +4,82 @@
   "title": "Master QCS of a closed RFQ: the \"Master QCS\" tab can be opened",
   "group": "EXP-CLOSEDQCS",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:24:32.183Z",
+  "compiledAt": "2026-11-13T13:51:55.996Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_navigated",
-   "expect_no_error"
+   "expect_screen_clean"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 5027
+  "ms": 11624
  },
  "plan": {
-  "title": "Open Master QCS on Closed RFQ",
+  "title": "Open Master QCS for Closed RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly on its Master QCS screen."
+    "note": "Open the Master QCS screen for the prepared closed RFQ with a submitted bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Apply the required partial-awarding configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "restrict_unlock_bid_before_evaluation",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-unlock configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_over_awarding_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required over-awarding configuration."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Verify that the Master QCS tab opened or remained open."
+    "note": "Assert that the Master QCS tab opened and the browser is on the expected screen."
    },
    {
-    "step": "expect_no_error",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Verify that opening Master QCS did not produce an application error."
+    "note": "Assert that the opened Master QCS screen has no rendering errors, crash, or raw invalid values."
    }
   ]
  }

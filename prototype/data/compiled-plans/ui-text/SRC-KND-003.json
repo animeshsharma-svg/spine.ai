@@ -4,34 +4,32 @@
   "title": "Single stage reverse auction: reject a bid during evaluation",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:29:23.917Z",
+  "compiledAt": "2026-11-13T12:11:44.764Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "Wait for the live reverse auction to enter evaluation",
-   "Reject Vendor A's bid with a reason",
-   "Verify Vendor A's bid leaves the ranking",
-   "Verify the rejected bid entry and reason in the Rejected Bids list"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added open_prepared(responses) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — no step can observe: Wait for the live reverse auction to enter evaluation; Reject Vendor A's bid with a reason; Verify Vendor A's bid leaves the ranking; Verify the rejected bid entry and reason in the Rejected Bids list"
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "close_event",
+   "do_on_screen",
    "event_menu",
-   "expect_visible"
+   "expect_text"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 10359
+  "ms": 21501
  },
  "plan": {
-  "title": "Reject Auction Bid During Evaluation",
+  "title": "Reject auction bid during evaluation",
   "steps": [
    {
     "step": "open_prepared",
@@ -41,19 +39,50 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "event_menu",
+    "step": "require_setting",
     "args": {
-     "item": "Rejected Bids"
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
     },
-    "note": "Open the Rejected Bids view that the case expects to contain the rejected bid."
+    "note": "Allow bid rejection during evaluation."
    },
    {
-    "step": "expect_visible",
+    "step": "require_setting",
     "args": {
-     "text": "Rejected Bids",
-     "visible": true
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Assert that the Rejected Bids view opened, although the catalog cannot verify the rejected vendor or reason."
+    "note": "Ensure eRFX and auction project flows are enabled for the tenant."
+   },
+   {
+    "step": "close_event",
+    "args": {
+     "natural": true
+    },
+    "note": "Wait for the auction to end and enter the evaluation state."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "on the auction Responses screen during evaluation, reject Vendor A's bid with a reason and stop when the bid is rejected and no longer appears in the ranking"
+    },
+    "note": "Perform the buyer-side rejection action, which has no dedicated catalog step."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Rejected Bids",
+     "stage": "auction"
+    },
+    "note": "Open the auction Settings menu's Rejected Bids view."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendor A",
+     "present": true
+    },
+    "note": "Verify the rejected bid is listed for Vendor A."
    }
   ]
  }

@@ -4,37 +4,40 @@
   "title": "Participants — actions per vendor",
   "group": "SRC-STG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:17:10.408Z",
+  "compiledAt": "2026-11-13T12:55:52.695Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Prove that each specific vendor row, rather than the Participants screen overall, owns its own Add Price Cap control; the catalog can count or observe the controls but cannot associate that control with a named row."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Prove that each specific vendor row, rather than the Participants screen overall, owns its own Add Price Cap control; the catalog can count or observe the controls but cannot associate that control with a named row."
+  ],
   "source": "llm",
-  "steps": 9,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "search_participants",
    "expect_participant",
-   "expect_visible",
-   "search_participants",
    "expect_participant",
-   "expect_visible",
+   "expect_count",
    "expect_visible"
   ],
   "state": "two_bids",
   "screen": "participants",
-  "ms": 14777
+  "ms": 18967
  },
  "plan": {
-  "title": "Participants vendor actions",
+  "title": "Participants actions per vendor",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared RFQ with two bids directly on its Participants tab."
+    "note": "Open the prepared RFQ's Participants tab directly, as required for prepared states."
    },
    {
     "step": "require_setting",
@@ -42,14 +45,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure eRFX projects are enabled for the tenant as required by the case."
-   },
-   {
-    "step": "search_participants",
-    "args": {
-     "vendor": "Vendor A"
-    },
-    "note": "Locate Vendor A's participant row."
+    "note": "Enable the required eRFX project setting before accessing the prepared RFQ."
    },
    {
     "step": "expect_participant",
@@ -61,23 +57,6 @@
     "note": "Assert Vendor A is listed and offers Add Bid."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Add Price Cap",
-     "within": "Vendor A",
-     "visible": true
-    },
-    "note": "Assert Vendor A's row offers Add Price Cap."
-   },
-   {
-    "step": "search_participants",
-    "args": {
-     "vendor": "Vendor B"
-    },
-    "note": "Locate Vendor B's participant row."
-   },
-   {
     "step": "expect_participant",
     "args": {
      "vendor": "Vendor B",
@@ -87,14 +66,13 @@
     "note": "Assert Vendor B is listed and offers Add Bid."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_count",
     "args": {
      "role": "button",
      "name": "Add Price Cap",
-     "within": "Vendor B",
-     "visible": true
+     "min": 2
     },
-    "note": "Assert Vendor B's row offers Add Price Cap."
+    "note": "Assert the Participants screen exposes an Add Price Cap control for both vendor entries in aggregate."
    },
    {
     "step": "expect_visible",
@@ -103,7 +81,7 @@
      "name": "Add Weight Params",
      "visible": true
     },
-    "note": "Assert the stage-level Add Weight Params control is present at the top."
+    "note": "Assert the stage-level weight-parameter action is present at the top of Participants."
    }
   ]
  }

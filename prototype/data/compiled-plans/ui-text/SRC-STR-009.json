@@ -4,29 +4,27 @@
   "title": "Dynamic time extension (trigger 2 min, extend by 2 min) auction: what each side sees during bidding",
   "group": "SRC-STR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:17:43.950Z",
+  "compiledAt": "2026-11-13T12:57:49.430Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Configure a dynamic time-extension auction strategy with a 2-minute trigger and 2-minute extension on a fresh single-stage auction",
-   "Submit Vendor B's bid exactly one minute before the original auction end",
-   "Verify that the auction end time moves two minutes later for all vendors and the buyer",
-   "Inspect Vendor A's and Vendor B's screens in separate vendor sessions",
-   "Verify the participants panel's Dynamic time extended count"
+   "Configure a dynamic time extension with a 2-minute trigger and 2-minute extension; configure_single_stage supports only rank, price, or traffic-light strategies.",
+   "Submit Vendor B's bid exactly one minute before the auction ends.",
+   "Verify that the end time moves exactly 2 minutes later for everyone, including separate Vendor A and Vendor B portal sessions.",
+   "Inspect separate Vendor A and Vendor B screens; the catalog supports only one QA vendor portal session at a time.",
+   "Guarantee selection of the requested reverse buy auction template when its exact template name is not provided."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
-   "cannot test this case yet — no step can observe: Configure a dynamic time-extension auction strategy with a 2-minute trigger and 2-minute extension on a fresh single-stage auction; Submit Vendor B's bid exactly one minute before the original auction end; Verify that the auction end time moves two minutes later for all vendors and the buyer; Inspect Vendor A's and Vendor B's screens in separate vendor sessions; Verify the participants panel's Dynamic time extended count"
+   "cannot test this case yet — no step can observe: Configure a dynamic time extension with a 2-minute trigger and 2-minute extension; configure_single_stage supports only rank, price, or traffic-light strategies.; Submit Vendor B's bid exactly one minute before the auction ends.; Verify that the end time moves exactly 2 minutes later for everyone, including separate Vendor A and Vendor B portal sessions.; Inspect separate Vendor A and Vendor B screens; the catalog supports only one QA vendor portal session at a time.; Guarantee selection of the requested reverse buy auction template when its exact template name is not provided."
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -37,7 +35,6 @@
    "add_line_items",
    "fill_sheet",
    "set_sheet_cell",
-   "expect_sheet_cell",
    "invite_vendor",
    "set_schedule",
    "publish",
@@ -48,17 +45,17 @@
    "event_menu",
    "expect_text"
   ],
-  "ms": 15073
+  "ms": 16747
  },
  "plan": {
-  "title": "SRC-STR-009 Dynamic Auction Extension Visibility",
+  "title": "Dynamic auction time extension visibility",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the single-stage creation flow specified by the case."
    },
    {
     "step": "require_setting",
@@ -74,27 +71,28 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation."
+    "note": "Allow vendors to be added during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
+     "auctionSubtype": "rank",
      "awarding": "lot"
     },
-    "note": "Configure the event as a reverse auction; dynamic extension is not an available strategy argument."
+    "note": "Configure the closest supported auction type; the requested dynamic strategy is not available in the catalog."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-STR-009 Dynamic Extension Auction"
+     "title": "Dynamic Extension Auction"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provide the mandatory event title for publishing."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction pricing template."
+    "note": "Apply the first offered auction template; the exact reverse buy template cannot be identified without its name."
    },
    {
     "step": "add_line_items",
@@ -103,10 +101,12 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product with quantity 10."
+    "note": "Add the specified product and quantity."
    },
    {
-    "step": "fill_sheet"
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the auction pricing sheet so the event can be scheduled and published."
    },
    {
     "step": "set_sheet_cell",
@@ -115,40 +115,31 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested delivery location in the first row."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "equals": "Plant Name (LOC-0001)"
-    },
-    "note": "Verify the delivery location was selected."
+    "note": "Set the requested delivery location on the first line item."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 3
     },
-    "note": "Invite three available QA vendors corresponding to Vendors A, B and C."
+    "note": "Invite three QA vendors without inventing vendor names."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the 30-minute auction schedule."
+    "note": "Commit the 30-minute schedule before publishing."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured auction."
+    "note": "Publish the prepared auction."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publishing reached a real project page."
+    "note": "Confirm that publishing reached a real project page."
    },
    {
     "step": "place_bid",
@@ -156,35 +147,37 @@
      "vendor": 2,
      "price": 95
     },
-    "note": "Place the closest expressible approximation of Vendor B's bid; exact timing relative to expiry cannot be controlled."
+    "note": "Submit the closest available representation of Vendor B's bid at 95; precise one-minute-before-end timing is not supported."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the bid was accepted by the vendor portal."
+    "note": "Confirm that the bid was accepted by the vendor portal."
    },
    {
     "step": "expect_responses",
     "args": {
-     "atLeast": 1,
+     "count": 1,
      "direct": 1,
      "stage": "auction"
     },
-    "note": "Verify that the buyer's auction Responses view shows the submitted vendor response."
+    "note": "Verify that the buyer's auction Responses view shows the portal bid."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Order Activity"
+     "item": "Order Activity",
+     "stage": "auction"
     },
-    "note": "Open the buyer-side Order Activity drawer to inspect available activity records."
+    "note": "Open the auction activity drawer to inspect whether a dynamic-extension activity entry is present."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "You created the event"
+     "text": "Dynamic time extended",
+     "present": true
     },
-    "note": "Verify that the activity drawer contains a known event activity entry."
+    "note": "Check the activity drawer for the expected dynamic-extension log entry, if the configured behavior produced one."
    }
   ]
  }

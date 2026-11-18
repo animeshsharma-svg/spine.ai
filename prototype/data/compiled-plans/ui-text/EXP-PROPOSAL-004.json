@@ -4,39 +4,62 @@
   "title": "The award proposal page: \"Comparison Sheets\" — record what happens",
   "group": "EXP-PROPOSAL",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:51:04.062Z",
+  "compiledAt": "2026-11-13T14:16:39.387Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_navigated",
-   "probe_controls",
-   "expect_navigated"
+   "expect_visible",
+   "click",
+   "capture_screen",
+   "expect_navigated",
+   "expect_visible"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 12627
+  "ms": 11116
  },
  "plan": {
-  "title": "EXP-PROPOSAL-004 Comparison Sheets exploration",
+  "title": "Proposal Comparison Sheets exploration",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ's Master QCS as required."
+    "note": "Open the prepared closed RFQ's Master QCS as required for this state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "ntd_required_on_proposal",
+     "value": "On"
+    },
+    "note": "Enable the required Note to Director proposal configuration."
    },
    {
     "step": "click",
     "args": {
-     "role": "button",
-     "name": "Bid Selection Proposal"
+     "text": "Bid Selection Proposal"
     },
     "note": "Open the existing award proposal from Master QCS."
    },
@@ -45,17 +68,31 @@
     "args": {
      "screen": "proposal"
     },
-    "note": "Verify the award proposal page loaded."
+    "note": "Assert that the award proposal page is open."
    },
    {
-    "step": "probe_controls",
+    "step": "expect_visible",
     "args": {
-     "include": [
-      "Comparison Sheets"
-     ],
-     "max": 1
+     "role": "button",
+     "name": "Comparison Sheets",
+     "visible": true
     },
-    "note": "Click only Comparison Sheets and record what opens or changes without confirming any proposal action."
+    "note": "Confirm the Comparison Sheets control is available on the proposal page."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Comparison Sheets"
+    },
+    "note": "Perform the exploratory action requested by the case."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "after-comparison-sheets-click"
+    },
+    "note": "Record the proposal page after clicking Comparison Sheets to document any visible change."
    },
    {
     "step": "expect_navigated",
@@ -63,6 +100,15 @@
      "screen": "proposal"
     },
     "note": "Assert that the click leaves the browser on the award proposal page, matching the expected lack of visible navigation change."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Comparison Sheets",
+     "visible": true
+    },
+    "note": "Assert that the Comparison Sheets control remains visible after the click."
    }
   ]
  }

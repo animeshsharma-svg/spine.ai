@@ -3,43 +3,151 @@
   "caseId": "PRD-RFQ-009",
   "title": "Commercial Masking and RFQ Opening: RFQ never visible to evaluators/requisitioners",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:29:59.030Z",
+  "compiledAt": "2026-11-13T14:51:01.356Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enable Commercial Masking and RFQ Opening, configure automatic or OTP opening, and verify that evaluator and requisitioner views never expose RFQ commercials"
+   "Sign in as evaluator/requisitioner after RFQ opening and verify that the RFQ commercials remain invisible, including whether opening occurs automatically or by OTP."
   ],
   "warnings": [
-   "can only test part of this — no step for: Enable Commercial Masking and RFQ Opening, configure automatic or OTP opening, and verify that evaluator and requisitioner views never expose RFQ commercials"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Sign in as evaluator/requisitioner after RFQ opening and verify that the RFQ commercials remain invisible, including whether opening occurs automatically or by OTP."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 17,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 10102
+  "ms": 18809
  },
  "plan": {
   "title": "RFQ Commercial Masking Visibility",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start creating the RFQ under test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "commercial masking",
+     "value": "On"
+    },
+    "note": "Enable the tenant feature that should mask RFQ commercials."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "RFQ opening",
+     "value": "On"
+    },
+    "note": "Enable the tenant behavior governing RFQ opening after closure."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "PRD-RFQ-009 Commercial Masking"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ-only event so the commercial masking behavior is isolated."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Open the closest existing event page for the RFQ situation; no event or creation flow is specified."
+    "note": "Apply the RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a commercial line item for the bid."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit a bidding window so the RFQ can be published and closed."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a participant so the RFQ can be published and receive a bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ under the configured masking and opening settings."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the RFQ reached a real published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Submit a vendor commercial response to create masked commercial data."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the RFQ so the configured opening behavior can take effect."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "enable Commercial Masking and RFQ Opening, configure automatic or OTP opening, then verify in evaluator and requisitioner sessions that RFQ commercials remain hidden"
+     "need": "sign in as the evaluator or requisitioner after RFQ closing, verify whether the RFQ commercials remain invisible, and check whether opening occurs automatically or requires OTP"
     },
-    "note": "The catalog has no tenant-setting control, OTP opening flow, or evaluator/requisitioner session observation."
+    "note": "The catalog has no evaluator/requisitioner session or RFQ-opening observation step."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the resulting screen is usable and free of rendering or server errors, without treating this as proof of masking."
+    "note": "Confirm the resulting observed screen has no crash, server error, or raw rendering failure."
    }
   ]
  }

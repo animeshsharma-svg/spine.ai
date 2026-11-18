@@ -4,41 +4,52 @@
   "title": "Items from 5 PRs show the first PR and the count of the rest",
   "group": "PRA-NTX",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:04:04.008Z",
+  "compiledAt": "2026-11-13T14:27:49.536Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assign one item from each of PR-8 through PR-12 to User A",
-   "Log in as User A and open the top-right bell notifications",
-   "Verify the notification contains the PR manager's exact name and the exact PR-8 number"
+   "Tick one item from each of PR-8 through PR-12 and assign them to User A.",
+   "Log in as User A in a separate buyer session.",
+   "Verify the exact PR-8 number is always the oldest first PR and remains the same on repeated notifications."
   ],
   "warnings": [
-   "can only test part of this — no step for: Assign one item from each of PR-8 through PR-12 to User A; Log in as User A and open the top-right bell notifications; Verify the notification contains the PR manager's exact name and the exact PR-8 number"
+   "can only test part of this — no step for: Tick one item from each of PR-8 through PR-12 and assign them to User A.; Log in as User A in a separate buyer session.; Verify the exact PR-8 number is always the oldest first PR and remains the same on repeated notifications."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
-   "open_purchase_requisitions",
+   "require_setting",
    "ask_tester",
+   "do_on_screen",
    "expect_text",
    "expect_text"
   ],
-  "ms": 8939
+  "ms": 23549
  },
  "plan": {
-  "title": "PRA-NTX-008 PR assignment notification",
+  "title": "PRA-NTX-008 PR assignment notification aggregation",
   "steps": [
    {
-    "step": "open_purchase_requisitions",
-    "args": {},
-    "note": "Open the purchase requisitions area as the closest available starting point for the PR assignment scenario."
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team filtering configuration before the test."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "assign one item from each of PR-8 through PR-12 to User A, sign in as User A, open the top-right bell notifications, and leave the matching assignment notification visible"
+     "need": "provide the PR manager and User A sessions, assign one item from each of PR-8 through PR-12 to User A, then leave the User A buyer portal ready"
     },
-    "note": "These assignment, alternate-user login, and notification-opening actions are not expressible by catalog steps."
+    "note": "The catalog has no step for assigning multiple PRs or logging in as another buyer."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "click the top-right bell icon and open the notifications panel, leaving the notification for the five assigned PRs visible"
+    },
+    "note": "Open the notification panel in User A's session."
    },
    {
     "step": "expect_text",
@@ -46,12 +57,12 @@
      "text": "assigned PR No.",
      "present": true
     },
-    "note": "Assert the notification identifies the PR assignment."
+    "note": "Assert the notification identifies the assignment and includes a PR number."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "+ 4 more",
+     "text": "4 more to you.",
      "present": true
     },
     "note": "Assert the notification aggregates the remaining four PRs."

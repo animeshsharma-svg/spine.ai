@@ -3,91 +3,153 @@
   "caseId": "PRD-KBSRC-352",
   "title": "Vendor reduces the Sum Total by a fixed value",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:15:58.516Z",
+  "compiledAt": "2026-11-13T14:40:26.141Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert the revised current bid equals the Sum Total minus the entered fixed reduction.",
-   "Unconfirmed vendor bid-sheet field label for the reduction amount."
+   "Create or configure a cost-breakdown auction specifically",
+   "Use the vendor's Fixed Value reduction dropdown and enter ₹204.34",
+   "Click the vendor-side Revise Bid control"
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert the revised current bid equals the Sum Total minus the entered fixed reduction.; Unconfirmed vendor bid-sheet field label for the reduction amount."
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "can only test part of this — no step for: Create or configure a cost-breakdown auction specifically; Use the vendor's Fixed Value reduction dropdown and enter ₹204.34; Click the vendor-side Revise Bid control"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 16,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "set_title",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
    "switch_portal",
    "vendor_open_event",
+   "vendor_bid",
    "remember",
-   "select",
-   "fill",
-   "click",
-   "expect_text"
+   "ask_tester",
+   "expect_remembered"
   ],
-  "ms": 15837
+  "ms": 25123
  },
  "plan": {
-  "title": "Vendor fixed-value bid reduction",
+  "title": "Vendor Fixed-Value Bid Reduction",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Start a comparable single-stage auction setup."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Fixed Value Reduction Test"
+    },
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Open the existing live auction event described by the setup."
+    "note": "Apply the first available auction template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item so the auction has a bid sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor needed for the vendor-side bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction before opening it as the vendor."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the event reached a real published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier-portal session."
+    "note": "Move to the invited vendor portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's live pricing bid sheet."
+    "note": "Open the auction's vendor pricing screen."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 11204.34
+    },
+    "note": "Establish an initial bid using the example Sum Total value."
    },
    {
     "step": "remember",
     "args": {
-     "key": "original_sum_total",
+     "key": "initialSumTotal",
      "text": "Sum Total"
     },
-    "note": "Capture the displayed Sum Total before revising the bid."
+    "note": "Capture the current Sum Total before the requested reduction."
    },
    {
-    "step": "select",
+    "step": "ask_tester",
     "args": {
-     "label": "Fixed Value",
-     "option": "Fixed Value"
+     "need": "use the vendor's Fixed Value reduction control to enter ₹204.34, click Revise Bid, and leave the revised current bid visible"
     },
-    "note": "Keep the bid reduction mode set to Fixed Value; the control label is not catalog-confirmed."
+    "note": "The catalog has no step for the vendor's fixed-value reduction or Revise Bid controls."
    },
    {
-    "step": "fill",
+    "step": "expect_remembered",
     "args": {
-     "label": "Reduction",
-     "value": "204.34"
+     "key": "initialSumTotal",
+     "same": false,
+     "as": "number",
+     "delta": "-204.34"
     },
-    "note": "Enter the requested fixed reduction; this field label is not catalog-confirmed."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Revise Bid"
-    },
-    "note": "Submit the vendor's revised bid."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Current Bid",
-     "present": true
-    },
-    "note": "Confirm the vendor bid sheet presents the revised current-bid area after submission."
+    "note": "Assert that the visible current Sum Total decreased by exactly ₹204.34."
    }
   ]
  }

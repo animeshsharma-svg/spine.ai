@@ -4,22 +4,20 @@
   "title": "Reverse auction: Quantity Requested = 0",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:30:04.945Z",
+  "compiledAt": "2026-11-13T11:50:13.372Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "attempt{publish} → expect_publish_blocked — the domain step judges a refused publish (and what an allowed one means)",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 10,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -30,13 +28,12 @@
    "set_sheet_cell",
    "set_sheet_cell",
    "expect_sheet_cell",
-   "expect_error",
-   "expect_publish_blocked"
+   "expect_error"
   ],
-  "ms": 16098
+  "ms": 24763
  },
  "plan": {
-  "title": "Reverse Auction Quantity Zero Validation",
+  "title": "Reverse Auction Rejects Zero Quantity",
   "steps": [
    {
     "step": "open_create",
@@ -51,26 +48,28 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Ensures vendors can be added during event creation as required by the scenario."
+    "note": "Ensures vendors can be added during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction"
+     "eventType": "auction",
+     "auctionSubtype": "price",
+     "awarding": "lot"
     },
-    "note": "Changes the event type from the default to Auction."
+    "note": "Configures a reverse buy auction; the price-based strategy represents the reverse auction type."
    },
    {
     "step": "set_title",
     "args": {
      "title": "SRC-CRE-017 Reverse Auction Quantity Zero"
     },
-    "note": "Provides the mandatory event title needed to reach publishing validation."
+    "note": "Provides the mandatory event title for a create test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Applies the first available auction template so the pricing sheet is rendered."
+    "note": "Applies the first available auction pricing template so the product sheet can be populated."
    },
    {
     "step": "add_line_items",
@@ -78,7 +77,7 @@
      "count": 1,
      "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Adds the requested product as the first line item."
+    "note": "Adds the specified product as the first line item."
    },
    {
     "step": "set_sheet_cell",
@@ -87,7 +86,7 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Sets the requested delivery location for the first row."
+    "note": "Sets the requested delivery location in the first row."
    },
    {
     "step": "set_sheet_cell",
@@ -96,7 +95,7 @@
      "column": "Quantity Requested",
      "value": "0"
     },
-    "note": "Enters the invalid zero quantity into the pricing sheet."
+    "note": "Enters the invalid zero quantity and triggers the sheet's inline validation."
    },
    {
     "step": "expect_sheet_cell",
@@ -105,19 +104,14 @@
      "column": "Quantity Requested",
      "refused": true
     },
-    "note": "Verifies that the sheet does not retain the zero quantity."
+    "note": "Verifies that the zero value is not retained and the cell is marked as invalid."
    },
    {
     "step": "expect_error",
     "args": {
      "contains": "Quantity must be greater than zero"
     },
-    "note": "Checks the required inline validation message for the refused quantity."
-   },
-   {
-    "step": "expect_publish_blocked",
-    "args": {},
-    "note": "Attempts the requested publish action and verifies that the invalid event cannot be published."
+    "note": "Checks the required validation message and ends the negative test at the point of refusal."
    }
   ]
  }

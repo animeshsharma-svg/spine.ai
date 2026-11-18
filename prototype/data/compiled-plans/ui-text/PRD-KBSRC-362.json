@@ -3,23 +3,21 @@
   "caseId": "PRD-KBSRC-362",
   "title": "Create and publish a serial bidding auction",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:17:48.079Z",
+  "compiledAt": "2026-11-13T14:41:10.880Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "Enable the Serial Bidding toggle because no catalog step can configure or verify this control.",
-   "Enter a separate submission duration for each line item because no catalog step exposes per-line-item serial duration fields.",
-   "Verify that the vendor sees only one active line item at a time and that each line item has its own submission duration."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "added set_schedule — the schedule is displayed but not committed until saved",
    "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "added set_schedule — the schedule is displayed but not committed until saved",
    "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "cannot test this case yet — no step can observe: Enable the Serial Bidding toggle because no catalog step can configure or verify this control.; Enter a separate submission duration for each line item because no catalog step exposes per-line-item serial duration fields.; Verify that the vendor sees only one active line item at a time and that each line item has its own submission duration."
+   "resolved: “Assert on the vendor side that exactly one line item is active at a time and that each line item has its own submission ” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "set_title",
@@ -27,15 +25,16 @@
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "set_schedule",
+   "do_on_screen",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
    "switch_portal",
    "vendor_open_event",
    "expect_visible"
   ],
-  "ms": 77060
+  "ms": 19087
  },
  "plan": {
   "title": "Create and publish serial bidding auction",
@@ -45,14 +44,14 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage creation flow needed to choose Auction."
+    "note": "Open the single-stage creation screen used to choose Auction as the event type."
    },
    {
     "step": "set_title",
     "args": {
      "title": "Serial Bidding Auction"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provide the required event title."
    },
    {
     "step": "configure_single_stage",
@@ -64,33 +63,36 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction template before adding line items."
+    "note": "Apply an auction pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Add multiple line items so the requested one-at-a-time behavior would be meaningful."
+    "note": "Add multiple line items so serial bidding has separate items to sequence."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the auction pricing sheet."
+    "note": "Complete the pricing sheet required for publication."
    },
    {
-    "step": "set_schedule",
+    "step": "do_on_screen",
     "args": {
-     "minutes": 30
+     "goal": "On the auction create screen, enable the Serial Bidding toggle, enter and save a submission duration for each line item, and ensure the schedule is committed; stop when the screen visibly shows serial bidding enabled and the configured per-line durations."
     },
-    "note": "Commit a valid event schedule before publishing."
+    "note": "No catalog domain step directly configures serial bidding or per-line durations, so perform and verify those controls on the create screen."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the required vendor participant."
+    "note": "Add the required auction participant."
+   },
+   {
+    "step": "set_schedule"
    },
    {
     "step": "publish",
@@ -107,14 +109,14 @@
     "args": {
      "to": "vendor"
     },
-    "note": "Open the invited vendor session to inspect the supplier-side bid experience."
+    "note": "Move to the invited vendor portal to inspect the vendor-side auction view."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing round in the vendor portal."
+    "note": "Open the published auction's pricing round for the vendor."
    },
    {
     "step": "expect_visible",
@@ -123,7 +125,7 @@
      "name": "Submit Quote",
      "visible": true
     },
-    "note": "Assert that the vendor bid sheet is available, without claiming it proves serial bidding."
+    "note": "Assert that the vendor pricing screen rendered and is ready for a quote; the catalog cannot distinguish or count the active serial line item."
    }
   ]
  }

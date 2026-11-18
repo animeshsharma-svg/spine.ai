@@ -4,48 +4,84 @@
   "title": "Savings Calculation: Attempt to save with no column selected when dropdown is required",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:10:48.460Z",
+  "compiledAt": "2026-11-13T14:09:43.329Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "The case asks to record the exact application response, but it does not specify expected message text and the catalog can only assert that the save is refused."
+  ],
   "warnings": [
-   "added expect_events_list — opening the list without asserting it rendered tests nothing",
-   "added expect_events_list — opening the list without asserting it rendered tests nothing"
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: The case asks to record the exact application response, but it does not specify expected message text and the catalog can only assert that the save is refused."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 11,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_events_list",
    "filter_events",
    "open_first_event",
    "click",
+   "expect_visible",
    "select",
-   "attempt",
-   "expect_events_list"
+   "attempt"
   ],
-  "ms": 15693
+  "ms": 18465
  },
  "plan": {
-  "title": "Draft Savings Requires Column",
+  "title": "Draft Savings Save Without Column",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the events list to locate the saved draft."
+    "note": "Open the Events list to reach the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-lock configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage-creation configuration."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify the Events list rendered correctly."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the Drafts tab where the saved eRFX draft should appear."
+    "note": "Switch to the Drafts tab specified by the case."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first saved draft shown in the list."
+    "note": "Open the available saved eRFX draft."
    },
    {
     "step": "click",
@@ -56,12 +92,20 @@
     "note": "Open the Savings Calculation window."
    },
    {
+    "step": "expect_visible",
+    "args": {
+     "text": "Savings Calculation",
+     "visible": true
+    },
+    "note": "Confirm the Savings Calculation window opened."
+   },
+   {
     "step": "select",
     "args": {
      "label": "Choose column to calculate savings on",
      "option": "Column to calculate savings"
     },
-    "note": "Keep the required savings column unselected by choosing the placeholder option."
+    "note": "Select the placeholder rather than a real savings column."
    },
    {
     "step": "attempt",
@@ -69,14 +113,11 @@
      "step": "click",
      "args": {
       "role": "button",
-      "name": "Add Savings"
+      "name": "Save"
      },
      "expect": "refused"
     },
-    "note": "Attempt to save the savings configuration and assert that Procol refuses the missing-column submission."
-   },
-   {
-    "step": "expect_events_list"
+    "note": "Attempt to save with no real column selected and require positive evidence that Procol refuses the action."
    }
   ]
  }

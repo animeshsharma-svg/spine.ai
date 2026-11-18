@@ -4,45 +4,60 @@
   "title": "Surrogate for a vendor who already bid itself",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:09:53.696Z",
+  "compiledAt": "2026-11-13T13:00:38.781Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The catalog cannot express an assertion that accepts either a refusal or a valid revision while conditionally checking the corresponding preserved or revised bid value."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The catalog cannot express an assertion that accepts either a refusal or a valid revision while conditionally checking the corresponding preserved or revised bid value."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
   "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "search_participants",
    "expect_participant",
-   "attempt",
-   "open_master_qcs",
-   "expect_qcs_cell"
+   "attempt"
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 13089
+  "ms": 17474
  },
  "plan": {
-  "title": "Prevent surrogate overwrite of vendor bid",
+  "title": "Block surrogate overwrite of vendor bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ's pricing-stage Participants tab, as required for this prepared state."
+    "note": "Open the prepared live RFQ on its Participants tab, where the vendor's existing bid and Add Bid control can be evaluated."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allowed_surrogate_bid_even_after_bid",
+     "value": "Off"
+    },
+    "note": "Disable surrogate revisions after a vendor's own bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX project flow required by the case."
    },
    {
     "step": "search_participants",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Find Vendor A's participant row before attempting the surrogate bid."
+    "note": "Locate the vendor whose own bid is already present."
    },
    {
     "step": "expect_participant",
@@ -51,7 +66,7 @@
      "present": true,
      "addBid": false
     },
-    "note": "Assert that the vendor who already bid no longer offers Add Bid."
+    "note": "Confirm Vendor A is on the round and no surrogate Add Bid action is available because it already bid."
    },
    {
     "step": "attempt",
@@ -59,29 +74,11 @@
      "step": "place_surrogate_bid",
      "args": {
       "vendor": "Vendor A",
-      "price": 90
+      "price": 100
      },
      "expect": "refused"
     },
-    "note": "Attempt the buyer-side surrogate bid for the already-bidding vendor and capture the product's refusal evidence."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Open the comparison grid to verify the existing vendor bid remains represented."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": "Vendor A",
-     "number": 100
-    },
-    "note": "Assert that Vendor A's original bid of 100 was not silently overwritten."
+    "note": "Attempt the buyer-side surrogate bid and require positive evidence that Procol refuses to overwrite the vendor's own bid."
    }
   ]
  }

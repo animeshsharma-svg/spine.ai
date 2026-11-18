@@ -3,18 +3,18 @@
   "caseId": "PRD-VM-181",
   "title": "SAP MDG (Master Data Governance): on failure — retry 3x with exponential backoff",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T03:48:25.992Z",
+  "compiledAt": "2026-11-13T15:15:07.871Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure the SAP MDG integration and its tenant configuration dependencies.",
-   "Make the SAP MDG external endpoint fail or become unreachable.",
-   "Create or update a vendor in Procol to trigger synchronization.",
-   "Observe and verify exactly three retries with exponential backoff using integration state, alerts, logs, or retry records.",
-   "Verify that the vendor change is not silently dropped."
+   "Configure the SAP MDG bidirectional integration with its endpoint, OAuth 2.0 credentials, sync mode, and batch size.",
+   "Set or verify the integration.sap.pr.sync_mode and vendor.documents.required configuration gates with the required dependency values.",
+   "Make the external SAP MDG endpoint fail or become unreachable.",
+   "Create or update a vendor in Procol to trigger the SAP MDG synchronization.",
+   "Observe and assert exactly three retries with exponential backoff, visible failure evidence, and no silently dropped synchronization."
   ],
   "warnings": [
-   "can only test part of this — no step for: Configure the SAP MDG integration and its tenant configuration dependencies.; Make the SAP MDG external endpoint fail or become unreachable.; Create or update a vendor in Procol to trigger synchronization.; Observe and verify exactly three retries with exponential backoff using integration state, alerts, logs, or retry records.; Verify that the vendor change is not silently dropped."
+   "can only test part of this — no step for: Configure the SAP MDG bidirectional integration with its endpoint, OAuth 2.0 credentials, sync mode, and batch size.; Set or verify the integration.sap.pr.sync_mode and vendor.documents.required configuration gates with the required dependency values.; Make the external SAP MDG endpoint fail or become unreachable.; Create or update a vendor in Procol to trigger the SAP MDG synchronization.; Observe and assert exactly three retries with exponential backoff, visible failure evidence, and no silently dropped synchronization."
   ],
   "source": "llm",
   "steps": 2,
@@ -22,22 +22,22 @@
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 16285
+  "ms": 20142
  },
  "plan": {
-  "title": "SAP MDG Retry on Failure",
+  "title": "SAP MDG retry handling on vendor sync failure",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "configure SAP MDG, make its external endpoint fail, create or update a vendor to trigger synchronization, and verify evidence of exactly three retries with exponential backoff and no silently dropped change"
+     "need": "Configure SAP MDG and its required gates, make the external endpoint fail, create or update a vendor to trigger synchronization, and verify evidence of exactly three retries with exponential backoff and no silently dropped change."
     },
-    "note": "These integration setup, failure-injection, vendor-trigger, and retry-evidence actions cannot be performed or observed by catalog steps."
+    "note": "The required integration setup, failure injection, vendor trigger, and retry-record verification are outside the catalog."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the session has no visible crash or generic server error after the tester-executed workflow; this does not verify the retry behavior."
+    "note": "Assert that the current screen remains free of crashes or raw errors after the tester completes the unavailable workflow; this does not verify the retry behavior."
    }
   ]
  }

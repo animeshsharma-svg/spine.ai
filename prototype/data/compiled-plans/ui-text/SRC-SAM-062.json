@@ -4,49 +4,74 @@
   "title": "Withdraw when the event moves from evaluation to awarded",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:13:46.123Z",
+  "compiledAt": "2026-11-13T12:50:17.159Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Transition the event from evaluation to awarded in the same session",
-   "Check the settings menu after the award has been submitted"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Transition the event from evaluation to awarded in the same session; Check the settings menu after the award has been submitted"
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
-   "expect_menu_item"
+   "require_setting",
+   "expect_settings_menu",
+   "award_event",
+   "expect_awarded",
+   "expect_settings_menu"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 14537
+  "ms": 29156
  },
  "plan": {
-  "title": "Withdraw when the event moves from evaluation to awarded",
+  "title": "Withdraw availability from evaluation to awarded",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the pre-configured event in evaluation"
+    "note": "the API built this case's state"
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the event settings menu during evaluation"
-   },
-   {
-    "step": "expect_menu_item",
+    "step": "require_setting",
     "args": {
-     "item": "Withdraw",
-     "present": true
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Assert that Withdraw is offered while the event is in evaluation"
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "offered": [
+      "Withdraw"
+     ]
+    },
+    "note": "Verify Withdraw is offered while the event is in evaluation."
+   },
+   {
+    "step": "award_event",
+    "args": {},
+    "note": "Submit the award for the closed RFQ, moving it to the awarded state."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Confirm the award proposal was created and submitted."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "absent": [
+      "Withdraw"
+     ]
+    },
+    "note": "Verify Withdraw is no longer offered after the event is awarded."
    }
   ]
  }

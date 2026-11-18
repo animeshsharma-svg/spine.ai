@@ -3,35 +3,41 @@
   "caseId": "PRD-KBSRC-403",
   "title": "Buyer cannot see technical evaluations before ranks are submitted and approved",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:20:41.068Z",
+  "compiledAt": "2026-11-13T14:44:16.778Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify in the buyer view that technical rankings are hidden while approval is pending, provide all required technical-evaluation approvals, and verify that rankings become visible afterward."
+   "Provide and verify the necessary technical-evaluation approvals as the approving user before checking the buyer view",
+   "unconfirmed label \"Preference P1\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "unconfirmed label \"Preference P1\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify in the buyer view that technical rankings are hidden while approval is pending, provide all required technical-evaluation approvals, and verify that rankings become visible afterward."
+   "coverage partial: unconfirmed label \"Preference P1\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "coverage partial: unconfirmed label \"Preference P1\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Provide and verify the necessary technical-evaluation approvals as the approving user before checking the buyer view"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
    "open_event",
    "go_to",
+   "expect_text",
    "evaluate_technical",
    "ask_tester",
-   "expect_screen_clean"
+   "go_to",
+   "expect_text"
   ],
-  "ms": 14757
+  "ms": 14470
  },
  "plan": {
-  "title": "Technical evaluations hidden until approval",
+  "title": "Buyer sees technical evaluations only after approval",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "purpose": "evaluation"
     },
-    "note": "Open an existing event with a closed technical stage and a vendor response awaiting evaluation."
+    "note": "Open a prepared event whose technical stage has a submitted response awaiting evaluation."
    },
    {
     "step": "go_to",
@@ -39,24 +45,43 @@
      "screen": "stage",
      "stage": "rfp"
     },
-    "note": "Open the Technical Stage where the evaluation is pending."
+    "note": "Open the buyer's Technical Stage while evaluation is pending."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Preference P1",
+     "present": false
+    },
+    "note": "Assert that a known technical ranking label is not visible before evaluation approval."
    },
    {
     "step": "evaluate_technical",
     "args": {},
-    "note": "Submit the evaluator’s technical rankings before checking the approval-dependent buyer visibility."
+    "note": "Submit the evaluator's technical rankings and remarks."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "in the buyer view, verify technical rankings remain hidden while approval is pending, provide all required technical-evaluation approvals, and verify the rankings become visible afterward"
+     "need": "provide and complete the necessary technical-evaluation approvals as the approving user"
     },
-    "note": "The catalog has no step for technical-evaluation approvals or for asserting the buyer’s pre- and post-approval ranking visibility."
+    "note": "The catalog has no step for the separate approval workflow required before buyer visibility."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the current screen has no crash or server error after the manual verification."
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfp"
+    },
+    "note": "Return to the buyer's Technical Stage after approvals are completed."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Preference P1",
+     "present": true
+    },
+    "note": "Assert that a technical ranking label is visible to the buyer after submission and approval."
    }
   ]
  }

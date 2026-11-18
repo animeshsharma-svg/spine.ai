@@ -4,56 +4,59 @@
   "title": "Upload Attachments: Uploading a valid file via drag and drop succeeds",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:45:40.982Z",
+  "compiledAt": "2026-11-13T14:10:17.628Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Perform the upload specifically via drag-and-drop into the upload area rather than through the upload control.",
-   "Use the exact valid_document.pdf fixture with its stated 2 MB size; the catalog provides only sample.pdf.",
-   "unconfirmed label \"sample.pdf\" (expect_text) — not among the labels known from the app nor in the case"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "coverage partial: unconfirmed label \"sample.pdf\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Perform the upload specifically via drag-and-drop into the upload area rather than through the upload control.; Use the exact valid_document.pdf fixture with its stated 2 MB size; the catalog provides only sample.pdf."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 21,
+  "steps": 20,
   "stepNames": [
    "open_create",
+   "compose_stages",
    "require_setting",
    "require_setting",
    "require_setting",
    "set_title",
-   "compose_stages",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_schedule",
    "save_draft",
    "open_events_list",
    "filter_events",
    "expect_event_in_list",
-   "open_event",
+   "open_first_event",
    "click",
    "expect_visible",
-   "upload",
-   "expect_text",
-   "click",
+   "do_on_screen",
    "expect_visible",
    "expect_text"
   ],
-  "ms": 23304
+  "ms": 15799
  },
  "plan": {
-  "title": "EXP-DRAFT-079 Attachment Upload",
+  "title": "Upload attachment to saved eRFX draft",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation screen."
+    "note": "Start creating the saved eRFX draft."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
    },
    {
     "step": "require_setting",
@@ -69,7 +72,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Apply the required vendor-addition configuration."
+    "note": "Apply the required tenant configuration for vendor addition during event creation."
    },
    {
     "step": "require_setting",
@@ -77,71 +80,70 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the required stage configuration."
+    "note": "Apply the required tenant configuration for stage addition."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "EXP-DRAFT-079 Attachment Upload"
+     "title": "EXP-DRAFT-079 Attachment Draft"
     },
-    "note": "Give the draft a searchable title."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Create an eRFX draft with an RFQ stage."
+    "note": "Provide the mandatory draft title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the draft has a valid stage configuration."
+    "note": "Apply a pricing template so the draft can contain line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required line item to the draft."
+    "note": "Add the required line item to make the draft valid."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet before saving the draft."
+    "note": "Complete the pricing sheet before saving the draft."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid schedule for the draft."
    },
    {
     "step": "save_draft",
     "args": {},
-    "note": "Save the event as a draft rather than publishing it."
+    "note": "Create the saved, unpublished eRFX draft used by the attachment scenario."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the events list to reopen the saved draft."
+    "note": "Navigate to the Events list to locate the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show saved drafts."
+    "note": "Open the Drafts tab specified by the case."
    },
    {
     "step": "expect_event_in_list",
     "args": {
-     "title": "EXP-DRAFT-079 Attachment Upload"
+     "title": "EXP-DRAFT-079 Attachment Draft"
     },
-    "note": "Confirm the created event appears in Drafts."
+    "note": "Confirm the newly saved draft is listed before opening it."
    },
    {
-    "step": "open_event",
+    "step": "open_first_event",
     "args": {
-     "title": "EXP-DRAFT-079 Attachment Upload"
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-079 Attachment Draft"
     },
-    "note": "Open the saved eRFX draft."
+    "note": "Reopen the saved eRFX draft."
    },
    {
     "step": "click",
@@ -149,59 +151,38 @@
      "role": "button",
      "name": "Add Attachments"
     },
-    "note": "Open the Upload Attachments window."
+    "note": "Open the draft's attachment upload window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Upload Attachments",
+     "text": "Upload Attachments",
      "visible": true
     },
-    "note": "Verify that the attachment window opened."
+    "note": "Confirm the upload window opened."
    },
    {
-    "step": "upload",
+    "step": "do_on_screen",
     "args": {
-     "label": "Click or drag file to this area to upload",
-     "file": "sample.pdf"
+     "goal": "in the Upload Attachments window, drag and drop the provided valid_document.pdf file (2 MB, under 20 MB) onto the area labeled \"Click or drag file to this area to upload\", click Save, and stop when the eRFX draft shows the uploaded file in its attachments section"
     },
-    "note": "Upload the available valid PDF fixture through the attachment control."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "sample.pdf",
-     "present": true,
-     "within": "dialog"
-    },
-    "note": "Confirm the selected file is shown in the upload window."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Save",
-     "within": "dialog"
-    },
-    "note": "Save the uploaded attachment and close the window."
+    "note": "Perform the required drag-and-drop upload and save operation."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Upload Attachments",
+     "text": "Upload Attachments",
      "visible": false
     },
-    "note": "Verify that the upload window closed after saving."
+    "note": "Verify that saving the upload closes the window."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "sample.pdf",
+     "text": "valid_document.pdf",
      "present": true
     },
-    "note": "Confirm the uploaded file is listed in the eRFX draft attachments section."
+    "note": "Verify that the uploaded file is listed in the draft attachments section."
    }
   ]
  }

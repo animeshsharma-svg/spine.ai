@@ -3,21 +3,20 @@
   "caseId": "PRD-KBSRC-307",
   "title": "Entire-lot award option runs the auction at lot level",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:12:34.273Z",
+  "compiledAt": "2026-11-13T14:36:29.599Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly assert that the live auction's bidding and ranking are aggregated for the entire lot rather than calculated per line item."
+   "Directly assert from the live auction that bidding and ranks are calculated for the lot as a whole rather than separately per line item."
   ],
   "warnings": [
-   "can only test part of this — no step for: Directly assert that the live auction's bidding and ranking are aggregated for the entire lot rather than calculated per line item."
+   "can only test part of this — no step for: Directly assert from the live auction that bidding and ranks are calculated for the lot as a whole rather than separately per line item."
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "configure_single_stage",
-   "expect_text",
    "set_title",
    "select_template",
    "add_line_items",
@@ -31,17 +30,17 @@
    "open_master_qcs",
    "expect_qcs_ranks"
   ],
-  "ms": 11637
+  "ms": 16444
  },
  "plan": {
-  "title": "Auction Entire-Lot Awarding",
+  "title": "Entire-Lot Auction Award Mode",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage auction creation flow."
+    "note": "Open the single-stage creation flow required for auction strategy and awarding configuration."
    },
    {
     "step": "configure_single_stage",
@@ -50,31 +49,26 @@
      "auctionSubtype": "rank",
      "awarding": "lot"
     },
-    "note": "Select an auction with rank strategy and the entire-lot-to-one-vendor awarding mode."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Rank on lot"
-    },
-    "note": "Verify the create screen reflects the lot-level awarding configuration."
+    "note": "Select an auction with rank-based bidding and the entire-lot award option."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title before publishing."
+    "args": {
+     "title": "PRD-KBSRC-307 Entire Lot Auction"
+    },
+    "note": "Provide the required event title before publishing."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the auction pricing template."
+    "note": "Apply the first available auction pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Add multiple line items so lot-level behavior can be exercised beyond a single-item case."
+    "note": "Create multiple line items so the lot-level auction has a whole lot to operate on."
    },
    {
     "step": "fill_sheet",
@@ -86,14 +80,14 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit the auction schedule."
+    "note": "Commit a valid bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite a vendor so the auction can be published and bid on."
+    "note": "Add a participant so the auction can be published and bid on."
    },
    {
     "step": "publish",
@@ -103,22 +97,24 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publishing reached a real project page."
+    "note": "Verify that publication reached a real project page."
    },
    {
     "step": "place_surrogate_bid",
-    "args": {},
-    "note": "Submit a live auction bid on behalf of the invited vendor."
+    "args": {
+     "price": 100
+    },
+    "note": "Place a buyer-entered bid for the invited vendor to create live auction ranking data."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that the auction bid was accepted."
+    "note": "Verify that the bid was accepted."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's live comparison view to inspect the auction ranking data."
+    "note": "Open the live comparison view containing the auction bid and ranking information."
    },
    {
     "step": "expect_qcs_ranks",
@@ -127,7 +123,7 @@
      "order": "lowest",
      "atLeast": 1
     },
-    "note": "Assert that the live auction exposes a valid rank based on the bid amount."
+    "note": "Verify that the live auction exposes ranking data ordered by the lowest amount."
    }
   ]
  }

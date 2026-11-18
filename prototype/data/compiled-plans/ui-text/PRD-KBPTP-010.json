@@ -3,55 +3,43 @@
   "caseId": "PRD-KBPTP-010",
   "title": "Approver rejects an intake; workflow records who rejected and when",
   "group": "PRD-KBPTP",
-  "compiledAt": "2026-11-10T06:49:44.543Z",
+  "compiledAt": "2026-11-13T15:41:40.315Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the submitted intake request as the current approver because no catalog step reaches intake requests.",
-   "Assert the workflow records the exact rejecting approver identity and rejection timestamp.",
-   "unconfirmed label \"Rejecting this intake because the submitted information is incomplete.\" (expect_text) — not among the labels known from the app nor in the case"
+   "Open a submitted intake request",
+   "Enter a rejection remark and click Reject",
+   "Verify the workflow shows the rejecting approver and timestamp",
+   "Verify the rejection remark appears in the Comments tab"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Rejecting this intake because the submitted information is incomplete.\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Open the submitted intake request as the current approver because no catalog step reaches intake requests.; Assert the workflow records the exact rejecting approver identity and rejection timestamp."
+   "can only test part of this — no step for: Open a submitted intake request; Enter a rejection remark and click Reject; Verify the workflow shows the rejecting approver and timestamp; Verify the rejection remark appears in the Comments tab"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 3,
   "stepNames": [
+   "open_prepared",
    "ask_tester",
-   "fill",
-   "click",
-   "expect_visible",
-   "click",
-   "expect_text"
+   "expect_visible"
   ],
-  "ms": 13822
+  "ms": 14579
  },
  "plan": {
-  "title": "Reject Intake as Approver",
+  "title": "Approver rejects intake request",
   "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Closest available prepared approval-related screen, but it is not an intake request."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the current approver, open the submitted intake request, and stop on its approval screen"
+     "need": "open the submitted intake request, enter a rejection remark, click Reject, and verify the rejection shows the approver name and timestamp and the remark appears in the Comments tab"
     },
-    "note": "The catalog has no intake-request screen or approver-session navigation."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Enter remarks",
-     "value": "Rejecting this intake because the submitted information is incomplete."
-    },
-    "note": "Enter the rejection explanation required by the case."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Reject"
-    },
-    "note": "Submit the rejection as the current approver."
+    "note": "The catalog cannot perform or observe intake approval rejection."
    },
    {
     "step": "expect_visible",
@@ -60,23 +48,7 @@
      "name": "Comments",
      "visible": true
     },
-    "note": "Verify that the request exposes the Comments tab after rejection."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "tab",
-     "name": "Comments"
-    },
-    "note": "Open the comments history to inspect the recorded remark."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Rejecting this intake because the submitted information is incomplete.",
-     "present": true
-    },
-    "note": "Verify that the rejection remark appears in Comments."
+    "note": "Checks for the known Comments tab after the tester's action, without claiming the intake rejection details were verified."
    }
   ]
  }

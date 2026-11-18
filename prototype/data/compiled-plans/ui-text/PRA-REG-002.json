@@ -4,54 +4,60 @@
   "title": "Who sees which PR in the PR list is unchanged",
   "group": "PRA-REG",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:06:15.803Z",
+  "compiledAt": "2026-11-13T14:29:38.501Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as each of Users A-I and compare the PRs visible to each user with the pre-release baseline or setup rules"
+   "Sign in as each Buyer portal user and compare the PRs visible to each user with the pre-release baseline or setup rules."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as each of Users A-I and compare the PRs visible to each user with the pre-release baseline or setup rules"
+   "can only test part of this — no step for: Sign in as each Buyer portal user and compare the PRs visible to each user with the pre-release baseline or setup rules."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
-   "pr_tab",
    "expect_table",
-   "ask_tester"
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 10809
+  "ms": 11074
  },
  "plan": {
-  "title": "PR list visibility regression",
+  "title": "PR List Visibility Regression",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team-category filtering configuration before checking visibility."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions list, the subject screen of the test."
-   },
-   {
-    "step": "pr_tab",
-    "args": {
-     "tab": "Open"
-    },
-    "note": "Show the Open PRs that users are expected to see."
+    "note": "Open the Purchase Requisitions area as the current buyer; this reaches the PR list but does not establish per-user visibility."
    },
    {
     "step": "expect_table",
     "args": {
-     "within": "Purchase Requisitions",
      "min": 1
     },
-    "note": "Confirm that the PR list contains visible data before the user-by-user comparison."
+    "note": "Confirm that the PR list renders with at least one row as the closest available observation."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as each of Users A-I and compare the PRs visible to each user with the pre-release baseline or setup rules"
+     "need": "sign in as each Buyer portal user and compare the PRs visible to each user with the pre-release baseline or setup rules"
     },
-    "note": "User-specific authentication and cross-user regression comparison are not expressible by catalog steps."
+    "note": "Multiple-user authentication and cross-user baseline comparison are not available as catalog steps."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the current screen remains rendered without errors after the manual visibility comparison."
    }
   ]
  }

@@ -4,25 +4,21 @@
   "title": "Master QCS with one bid",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:08:33.235Z",
+  "compiledAt": "2026-11-13T12:33:15.366Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the Sum Total specifically includes GST rather than only asserting that the total is populated."
+   "Whether the Sum Total specifically includes GST, because the catalog does not expose a GST-specific assertion for the Master QCS total."
   ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Verify that the Sum Total specifically includes GST rather than only asserting that the total is populated."
+   "can only test part of this — no step for: Whether the Sum Total specifically includes GST, because the catalog does not expose a GST-specific assertion for the Master QCS total."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "require_setting",
-   "go_to",
+   "open_prepared",
    "expect_qcs_vendors",
-   "expect_qcs_cell",
    "expect_qcs_cell",
    "expect_qcs_cell",
    "expect_qcs_cell",
@@ -31,91 +27,77 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 12550
+  "ms": 13242
  },
  "plan": {
-  "title": "Master QCS with One Bid",
+  "title": "Master QCS with one bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing prepared live RFQ summary as required for prepared-state cases."
+    "note": "Open the prepared event's summary page as required for prepared-state cases."
    },
    {
-    "step": "require_setting",
-    "args": {
-     "key": "rfx_project_enabled",
-     "value": "On"
-    },
-    "note": "Enable eRFX projects as required by the case configuration."
-   },
-   {
-    "step": "go_to",
+    "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Navigate to the event’s Master QCS comparison grid."
+    "note": "Navigate to the Master QCS comparison grid."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
      "count": 1,
+     "vendors": [
+      "Vendor A"
+     ],
      "realNames": true
     },
-    "note": "Assert that exactly one real vendor column is present."
+    "note": "Verify that exactly one real vendor column for Vendor A is shown."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "Qty Offer",
-     "vendor": 1,
-     "number": 10
+     "vendor": "Vendor A",
+     "key": "quantity"
     },
-    "note": "Verify the single bid is for 10 units."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": 1,
-     "number": 100
-    },
-    "note": "Verify the vendor’s unit bid rate is 100."
+    "note": "Verify the vendor's offered quantity matches the prepared event quantity."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "Rank",
-     "vendor": 1,
+     "vendor": "Vendor A",
      "number": 1
     },
-    "note": "Verify the only bid is ranked first."
+    "note": "Verify the single bid is ranked first."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Amount",
-     "vendor": 1,
-     "number": 1000
+     "vendor": "Vendor A",
+     "equals": "1000"
     },
-    "note": "Verify the displayed amount is 1,000 for 10 units at 100 each."
+    "note": "Verify the displayed amount is 1,000 for the 10-unit bid at 100 per unit."
    },
    {
     "step": "expect_qcs_amounts",
     "args": {
-     "vendor": 1
+     "vendor": "Vendor A"
     },
-    "note": "Verify the Master QCS arithmetic, including the line amount and populated sum total."
+    "note": "Verify the Master QCS line amount and sum total arithmetic for the vendor."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "Sum Total",
-     "vendor": 1
+     "vendor": "Vendor A"
     },
-    "note": "Assert that the vendor’s sum total is present in the comparison grid."
+    "note": "Verify that a sum total is displayed for Vendor A, while the GST-specific composition remains outside the catalog's assertions."
    }
   ]
  }

@@ -3,45 +3,46 @@
   "caseId": "PRD-PR-064",
   "title": "PR Ageing Auto-Lock: refused for a user without the Procurement Manager role",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:34:01.743Z",
+  "compiledAt": "2026-11-13T15:21:11.734Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Role-specific sign-in or switching between a non-Procurement Manager and Procurement Manager in the same tenant",
-   "Enterprise plan and RBAC configuration verification",
-   "Finding and using the PR Ageing Auto-Lock control, including refusal or availability by role"
+   "The PR Ageing Auto-Lock action and its refusal or availability for a user without the Procurement Manager role.",
+   "Repeating the action as a Procurement Manager in the same tenant and comparing the outcomes.",
+   "Verifying that the tenant is on the Enterprise plan because no tenant identifier or plan-inspection step is available."
   ],
   "warnings": [
-   "can only test part of this — no step for: Role-specific sign-in or switching between a non-Procurement Manager and Procurement Manager in the same tenant; Enterprise plan and RBAC configuration verification; Finding and using the PR Ageing Auto-Lock control, including refusal or availability by role"
+   "can only test part of this — no step for: The PR Ageing Auto-Lock action and its refusal or availability for a user without the Procurement Manager role.; Repeating the action as a Procurement Manager in the same tenant and comparing the outcomes.; Verifying that the tenant is on the Enterprise plan because no tenant identifier or plan-inspection step is available."
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_purchase_requisitions",
-   "ask_tester",
-   "expect_screen_clean"
+   "expect_text",
+   "ask_tester"
   ],
-  "ms": 10801
+  "ms": 10706
  },
  "plan": {
-  "title": "PR Ageing Auto-Lock role access",
+  "title": "PR Ageing Auto-Lock Role Access",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Opens the closest available PR-related screen, but does not expose or assert PR Ageing Auto-Lock."
+    "note": "Closest available navigation to the purchase-request area; it does not expose or test PR Ageing Auto-Lock."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Purchase Requisitions"
+    },
+    "note": "Confirms the purchase-request area is visible before the role-specific action is attempted."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "provide access to the same Enterprise tenant as a non-Procurement Manager and a Procurement Manager, then try PR Ageing Auto-Lock with each user and record whether it is absent, refused, or available"
-    },
-    "note": "The role-specific sessions and PR Ageing Auto-Lock action are not represented by catalog steps."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirms the resulting screen has no crash or server error after the tester's exploration; it does not assert the role-based access outcome."
+     "need": "sign in as the non-Procurement Manager user and then as a Procurement Manager on the specified Enterprise tenant, attempt PR Ageing Auto-Lock for PRs older than the threshold, and record whether the action is refused, absent, or available"
+    }
    }
   ]
  }

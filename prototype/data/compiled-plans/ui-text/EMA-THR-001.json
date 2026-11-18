@@ -4,54 +4,125 @@
   "title": "The confirmation sits under the original approval request, not as a new email",
   "group": "EMA-THR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:58:49.499Z",
+  "compiledAt": "2026-11-13T14:24:12.888Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create the event and submit it into a two-step approval workflow with Asha as step-one approver and Bikram as step-two approver.",
-   "Log in to Asha's mailbox, open the Procol approval email, approve it, and send the generated email without changing its subject.",
-   "Wait for Procol to process the mailbox email and verify the confirmation appears in the original conversation without creating a separate inbox conversation."
+   "Submit the event for the configured two-step email approval workflow.",
+   "Log in as Asha, open the Procol approval email, approve it, send the generated email without changing its subject, and wait for mailbox processing.",
+   "Verify in Asha's conversation-view inbox that the 'has been recorded' reply is inside the original approval request and that no separate conversation exists.",
+   "Access the named UAT company and user mailboxes, including the connected Outlook approval mailbox."
   ],
   "warnings": [
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Create the event and submit it into a two-step approval workflow with Asha as step-one approver and Bikram as step-two approver.; Log in to Asha's mailbox, open the Procol approval email, approve it, and send the generated email without changing its subject.; Wait for Procol to process the mailbox email and verify the confirmation appears in the original conversation without creating a separate inbox conversation."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Submit the event for the configured two-step email approval workflow.; Log in as Asha, open the Procol approval email, approve it, send the generated email without changing its subject, and wait for mailbox processing.; Verify in Asha's conversation-view inbox that the 'has been recorded' reply is inside the original approval request and that no separate conversation exists.; Access the named UAT company and user mailboxes, including the connected Outlook approval mailbox."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 13,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 11677
+  "ms": 18322
  },
  "plan": {
-  "title": "EMA-THR-001 Approval Reply Thread",
+  "title": "Email approval reply threading",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    }
+    },
+    "note": "Open the event creation flow."
    },
    {
-    "step": "set_title"
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the email-approval capability required by the scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the event approval workflow prerequisite."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "QA Email Approval - Office Chairs Nov"
+    },
+    "note": "Create the named test event."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template so the event can be configured."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a representative line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the event pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Add the event participants required for publication."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the representative event before the missing approval and mailbox actions."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event was created successfully before handing off the approval-email portion."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "create or open the specified approval request, approve it from Asha's mailbox by sending the generated Action:Approve email unchanged, wait for processing, and verify the confirmation is inside the original conversation with no separate conversation"
+     "need": "sign in as Ravi and submit this event for the two-step email approval workflow, then use Asha's mailbox to approve from the Procol email, send the generated Action:Approve email unchanged, wait for processing, and verify the recorded reply is in the original conversation with no separate conversation"
     },
-    "note": "The approval workflow, mailbox interaction, email sending, processing wait, and conversation-thread assertion are not available in the catalog."
+    "note": "The approval submission and external mailbox conversation test require credentials and mailbox interaction unavailable to catalog steps."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Final catalog assertion confirming the current browser screen has no visible crash or server error after the tester's intervention."
+    "step": "expect_text",
+    "args": {
+     "text": "has been recorded",
+     "present": true
+    },
+    "note": "Check for the expected recorded-confirmation text if the tester returns to a screen where it is visible."
    }
   ]
  }

@@ -1,75 +1,56 @@
 {
  "meta": {
   "caseId": "DRV-CO-009",
-  "title": "Bid revision is read‑only in History view after award",
+  "title": "Counter Offer button unavailable on a converted auction stage",
   "group": "DRV-CO",
   "sheet": "derived-buyer-can-send-a-counter-offer-on-an-act",
-  "compiledAt": "2026-11-09T23:03:28.475Z",
+  "compiledAt": "2026-11-13T13:34:06.665Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Directly verify all revised price and total values in the Responses tab.",
+   "unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Directly verify all revised price and total values in the Responses tab."
+  ],
   "source": "llm",
-  "steps": 16,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
-   "open_participants",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
    "open_master_qcs",
    "place_counter_offer",
    "expect_counter_offer_sent",
    "accept_counter_offer",
    "expect_counter_offer_accepted",
-   "expect_qcs_vendors",
+   "open_master_qcs",
    "expect_qcs_cell",
    "expect_qcs_cell",
    "expect_qcs_amounts",
    "expect_qcs_ranks",
    "go_to",
-   "expect_responses"
+   "expect_responses",
+   "expect_text"
   ],
-  "state": "live",
+  "state": "two_bids",
   "screen": "responses",
-  "ms": 14926
+  "ms": 13558
  },
  "plan": {
-  "title": "Accepted Counter Offer Recomputes Ranking",
+  "title": "Accepted counter offer recomputes ranking",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses tab."
-   },
-   {
-    "step": "open_participants",
-    "args": {},
-    "note": "Reach the Participants list to add the second vendor bid."
-   },
-   {
-    "step": "place_surrogate_bid",
-    "args": {
-     "vendor": "Vendor B",
-     "price": 95
-    },
-    "note": "Create Vendor B's 95 bid so the ranking comparison has both vendors."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the surrogate bid was accepted."
+    "note": "Open the prepared live RFQ Responses view as required for this state."
    },
    {
     "step": "open_master_qcs",
-    "args": {
-     "vendors": [
-      "Vendor A",
-      "Vendor B"
-     ]
-    },
-    "note": "Open the comparison grid containing both vendor bids."
+    "args": {},
+    "note": "Open Master QCS before initiating the counter offer, which is the supported buyer negotiation flow."
    },
    {
     "step": "place_counter_offer",
@@ -77,40 +58,33 @@
      "vendor": "Vendor A",
      "price": 90
     },
-    "note": "Send the buyer's 90 counter offer to Vendor A."
+    "note": "Send the buyer’s counter offer of 90 to Vendor A."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Confirm the counter offer is marked as initiated for Vendor A."
+    "note": "Verify that the counter offer was initiated for Vendor A."
    },
    {
     "step": "accept_counter_offer",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Have Vendor A accept the pending counter offer."
+    "note": "Have Vendor A accept the pending counter offer through the vendor-side flow."
    },
    {
     "step": "expect_counter_offer_accepted",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Confirm the buyer grid marks Vendor A's counter offer as accepted."
+    "note": "Verify that the buyer view marks Vendor A’s counter offer as accepted."
    },
    {
-    "step": "expect_qcs_vendors",
-    "args": {
-     "count": 2,
-     "vendors": [
-      "Vendor A",
-      "Vendor B"
-     ],
-     "realNames": true
-    },
-    "note": "Verify both real vendor columns are present in Master QCS."
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Reload the comparison grid so the accepted counter offer’s revised values and ranking are visible."
    },
    {
     "step": "expect_qcs_cell",
@@ -119,7 +93,7 @@
      "vendor": "Vendor A",
      "equals": "90"
     },
-    "note": "Verify Vendor A's revised rate is 90."
+    "note": "Assert Vendor A’s revised rate is 90."
    },
    {
     "step": "expect_qcs_cell",
@@ -128,14 +102,12 @@
      "vendor": "Vendor A",
      "number": 1
     },
-    "note": "Verify the accepted counter makes Vendor A rank L1."
+    "note": "Assert the accepted counter offer makes Vendor A rank L1."
    },
    {
     "step": "expect_qcs_amounts",
-    "args": {
-     "vendor": "Vendor A"
-    },
-    "note": "Verify Vendor A's line amount and total recompute correctly from the revised rate."
+    "args": {},
+    "note": "Verify that each vendor’s line amount and total are recalculated from the displayed rates and quantities."
    },
    {
     "step": "expect_qcs_ranks",
@@ -144,27 +116,33 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Verify ranking follows the updated RFQ amounts across both vendors."
+    "note": "Verify that ranking follows the recomputed RFQ amounts across both vendors."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Return to the Responses tab to verify the response records."
+    "note": "Return to the Responses tab named in the test case."
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 2,
-     "surrogate": 1,
-     "direct": 1,
      "vendors": [
       "Vendor A",
       "Vendor B"
      ]
     },
-    "note": "Confirm both responses are shown, with the expected direct and surrogate bid types."
+    "note": "Verify that both vendor responses remain present after the accepted counter offer."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "90",
+     "present": true
+    },
+    "note": "Confirm that the Responses view visibly reflects the counter price, while the catalog lacks a dedicated structured assertion for its associated totals."
    }
   ]
  }

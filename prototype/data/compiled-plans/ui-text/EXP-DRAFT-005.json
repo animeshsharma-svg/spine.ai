@@ -4,118 +4,154 @@
   "title": "A saved eRFX draft: \"Participants\" opens the \"All Vendors\" window",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:39:47.789Z",
+  "compiledAt": "2026-11-13T14:02:53.641Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
   "source": "llm",
-  "steps": 20,
+  "steps": 24,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_title",
+   "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
    "save_draft",
-   "expect_no_error",
    "open_events_list",
+   "expect_events_list",
    "filter_events",
    "expect_event_in_list",
-   "open_event",
+   "open_first_event",
    "click",
    "expect_visible",
    "expect_visible",
    "expect_visible",
    "expect_visible",
    "expect_visible",
-   "expect_visible"
+   "expect_visible",
+   "expect_no_error"
   ],
-  "ms": 14412
+  "ms": 19283
  },
  "plan": {
-  "title": "EXP-DRAFT-005 Participants opens All Vendors",
+  "title": "Saved Draft Participants Window",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start an eRFX draft creation flow."
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects for the draft creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the tenant configuration required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the remaining configuration required by the case."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "EXP-DRAFT-005 Participants Test"
+     "title": "EXP-DRAFT-005 Participants Window"
     },
-    "note": "Provide the required draft title."
+    "note": "Give the draft a known title so it can be found in Drafts."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the eRFX draft with the RFQ stage required by the case."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage before adding its template and items."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template so the draft can be completed and saved."
+    "note": "Apply the first available RFQ template so the draft can contain a pricing sheet."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required line item to the draft."
+    "note": "Add a line item to make the draft a usable eRFX draft."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet for the line item."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a valid schedule before saving the draft."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Provide a valid participant setup for the saved draft."
+    "note": "Complete the RFQ pricing sheet before saving the draft."
    },
    {
     "step": "save_draft",
     "args": {},
-    "note": "Save the eRFX event as an unpublished draft."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the draft save did not produce an application error."
+    "note": "Save the eRFX project as the draft under test."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the Events list to reopen the saved draft."
+    "note": "Return to the events list to reopen the saved draft through the buyer flow."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify the events list rendered before selecting Drafts."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab."
+    "note": "Open the Drafts tab where the saved eRFX draft should appear."
    },
    {
     "step": "expect_event_in_list",
     "args": {
-     "title": "EXP-DRAFT-005 Participants Test"
+     "title": "EXP-DRAFT-005 Participants Window"
     },
-    "note": "Confirm the saved draft appears in Drafts."
+    "note": "Confirm the saved draft is present in the Drafts list."
    },
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Reopen this plan's saved draft, which returns to its create screen."
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-005 Participants Window"
+    },
+    "note": "Open the saved draft and return to its create screen."
    },
    {
     "step": "click",
@@ -123,7 +159,7 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the Participants control on the draft."
+    "note": "Open the Participants control on the saved draft."
    },
    {
     "step": "expect_visible",
@@ -136,11 +172,10 @@
    {
     "step": "expect_visible",
     "args": {
-     "role": "textbox",
-     "placeholder": "Search Vendors",
+     "label": "Search Vendors",
      "visible": true
     },
-    "note": "Verify that the window provides Search Vendors."
+    "note": "Verify the vendor search field is available in the window."
    },
    {
     "step": "expect_visible",
@@ -149,7 +184,7 @@
      "name": "Invite",
      "visible": true
     },
-    "note": "Verify the Invite button is present."
+    "note": "Verify the Invite action is present."
    },
    {
     "step": "expect_visible",
@@ -158,7 +193,7 @@
      "name": "Filters",
      "visible": true
     },
-    "note": "Verify the Filters button is present."
+    "note": "Verify the Filters action is present."
    },
    {
     "step": "expect_visible",
@@ -167,7 +202,7 @@
      "name": "Cancel",
      "visible": true
     },
-    "note": "Verify the Cancel button is present."
+    "note": "Verify the Cancel action is present without pressing it."
    },
    {
     "step": "expect_visible",
@@ -176,7 +211,12 @@
      "name": "Save",
      "visible": true
     },
-    "note": "Verify the Save button is present without pressing it."
+    "note": "Verify the Save action is present without pressing it, leaving the event unchanged."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm opening the Participants window did not produce an application error."
    }
   ]
  }

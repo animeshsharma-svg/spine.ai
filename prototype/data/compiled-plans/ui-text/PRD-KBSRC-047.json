@@ -3,13 +3,13 @@
   "caseId": "PRD-KBSRC-047",
   "title": "Reject Quote removes the quote from the comparison view and the QCS",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:10:09.389Z",
+  "compiledAt": "2026-11-13T14:33:35.299Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 17,
+  "steps": 19,
   "stepNames": [
    "open_create",
    "compose_stages",
@@ -23,23 +23,25 @@
    "expect_published",
    "place_bid",
    "expect_bid_submitted",
+   "go_to",
    "do_on_screen",
-   "switch_portal",
-   "vendor_open_event",
-   "vendor_bid",
+   "expect_responses",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "place_bid",
    "expect_bid_submitted"
   ],
-  "ms": 12268
+  "ms": 19425
  },
  "plan": {
-  "title": "Reject Quote and Rebid",
+  "title": "Reject Quote and Allow Rebidding",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the event creation flow."
+    "note": "Start a new multi-stage event so the RFQ stage can be configured."
    },
    {
     "step": "compose_stages",
@@ -48,26 +50,26 @@
       "rfq"
      ]
     },
-    "note": "Create an RFQ stage for quote comparison and rejection."
+    "note": "Create the required RFQ-only event."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Reject Quote and Rebid"
+     "title": "Reject Quote Rebidding Test"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template before adding line items."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a product for the vendor quote."
+    "note": "Add a quote line for the vendor to bid on."
    },
    {
     "step": "fill_sheet",
@@ -79,69 +81,81 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule."
+    "note": "Commit a bidding schedule before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite a vendor who will submit and revise the quote."
+    "note": "Invite one vendor whose quote will be rejected and resubmitted."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so the vendor can bid."
+    "note": "Publish the RFQ so the vendor can submit a quote."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a published project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "place_bid",
     "args": {
-     "price": 100
+     "vendor": 1
     },
-    "note": "Have the invited vendor submit the initial quote."
+    "note": "Have the first vendor submit the quote that will be rejected."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the initial vendor quote was submitted."
+    "note": "Confirm the initial vendor quote was accepted."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the buyer’s quote comparison view where the vendor quote and its three-dot menu are available."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the buyer's RFQ quote comparison view, open the three-dot menu next to the vendor's quote, select Reject Quote with the option allowing the seller to bid again left checked, and prove that the quote disappears from both the comparison view and the Quote Comparison Sheet (QCS)."
+     "goal": "open the three-dot menu next to the vendor quote, select Reject Quote, leave the seller-allowed-to-bid-again box checked, confirm the rejection, and stop with the quote removed from the comparison view"
     },
-    "note": "Perform and observe the quote rejection flow, including removal from both buyer comparison surfaces."
+    "note": "Perform the product-specific Reject Quote interaction and preserve the rebidding option."
    },
    {
-    "step": "switch_portal",
+    "step": "expect_responses",
     "args": {
-     "to": "vendor"
+     "count": 0
     },
-    "note": "Continue in the invited vendor's supplier portal to verify rebidding is allowed."
+    "note": "Verify the rejected quote no longer appears in the buyer’s Responses comparison view."
    },
    {
-    "step": "vendor_open_event",
-    "args": {
-     "stage": "pricing"
-    },
-    "note": "Open the event's RFQ bid sheet as the vendor."
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the Quote Comparison Sheet after rejection."
    },
    {
-    "step": "vendor_bid",
+    "step": "expect_qcs_vendors",
     "args": {
-     "price": 110
+     "count": 0
     },
-    "note": "Submit a new quote after rejection."
+    "note": "Verify the rejected vendor quote is absent from Master QCS."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "vendor": 1
+    },
+    "note": "Have the same seller submit a new bid after rejection."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the vendor can submit the replacement bid."
+    "note": "Confirm the seller was allowed to rebid successfully."
    }
   ]
  }

@@ -4,24 +4,32 @@
   "title": "A live RFQ: the \"Overview\" tab opens",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:14:38.222Z",
+  "compiledAt": "2026-11-13T14:11:22.166Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_navigated",
+   "expect_text",
    "expect_text",
    "expect_text",
    "expect_no_error"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 6253
+  "ms": 11228
  },
  "plan": {
   "title": "Live RFQ Overview Tab",
@@ -31,7 +39,39 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ directly on its Responses tab."
+    "note": "Open the prepared live RFQ on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the requested withdrawal visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal during submission time as required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the requested vendor-masking configuration."
    },
    {
     "step": "click",
@@ -39,35 +79,40 @@
      "role": "tab",
      "name": "Overview"
     },
-    "note": "Open the Overview tab as described by the test case."
+    "note": "Open the Overview tab from the live RFQ."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "overview"
     },
-    "note": "Verify navigation reached the Overview screen."
+    "note": "Verify that the Overview screen opened."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Order Details",
-     "present": true
+     "text": "Order Details"
     },
-    "note": "Confirm Overview content is rendered."
+    "note": "Verify representative Overview content is visible."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Event Title",
-     "present": true
+     "text": "Edit"
     },
-    "note": "Confirm the event details content is visible."
+    "note": "Verify the Overview screen exposes its edit control."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Event Title"
+    },
+    "note": "Verify the event details content is rendered."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Verify no application error is shown after opening Overview."
+    "note": "Confirm the Overview screen opened without an application error."
    }
   ]
  }

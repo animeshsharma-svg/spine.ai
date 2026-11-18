@@ -4,35 +4,32 @@
   "title": "Recreate Order from the RFQ stage of a closed eRFX RFQ project",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:11:17.525Z",
+  "compiledAt": "2026-11-13T12:38:58.588Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the recreated event has the same products as the source event, beyond confirming the line-item count.",
-   "Verify that the recreated event has the same participants.",
-   "Verify that the recreated event has the same settings.",
-   "Determine whether the RFQ stage is recreated as a single-stage event or as a new eRFX project.",
-   "Verify the complete Create Order result beyond reaching the create screen without an error."
+   "Verify the recreated event has the same products, participants, and settings.",
+   "Determine whether the recreated RFQ is created as a single-stage event or as a new eRFX project."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Verify that the recreated event has the same products as the source event, beyond confirming the line-item count.; Verify that the recreated event has the same participants.; Verify that the recreated event has the same settings.; Determine whether the RFQ stage is recreated as a single-stage event or as a new eRFX project.; Verify the complete Create Order result beyond reaching the create screen without an error."
+   "can only test part of this — no step for: Verify the recreated event has the same products, participants, and settings.; Determine whether the recreated RFQ is created as a single-stage event or as a new eRFX project."
   ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
    "open_prepared",
    "require_setting",
+   "go_to",
    "event_menu",
    "expect_visible",
    "click",
-   "expect_navigated",
    "expect_no_error"
   ],
   "state": "closed",
   "screen": "summary",
-  "ms": 24313
+  "ms": 16665
  },
  "plan": {
   "title": "Recreate Order from Closed RFQ",
@@ -42,7 +39,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed eRFX RFQ project's summary page."
+    "note": "Open the existing prepared closed RFQ project instead of searching or creating another event."
    },
    {
     "step": "require_setting",
@@ -50,7 +47,15 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project configuration for the buyer session."
+    "note": "Enable the required eRFX project configuration before accessing the prepared event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage whose Settings menu contains Recreate Order."
    },
    {
     "step": "event_menu",
@@ -58,7 +63,7 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage Settings menu and choose Recreate Order."
+    "note": "Open the RFQ stage action and leave the Recreate Order dialog open."
    },
    {
     "step": "expect_visible",
@@ -67,7 +72,7 @@
      "name": "Create Order",
      "visible": true
     },
-    "note": "Confirm the recreate-order flow presents its Create Order action."
+    "note": "Confirm the Recreate Order dialog offers the expected Create Order action."
    },
    {
     "step": "click",
@@ -75,19 +80,12 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Keep the defaults and create the recreated order."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "create"
-    },
-    "note": "Verify that the flow reaches the new event creation screen."
+    "note": "Submit the action with its defaults."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the recreated event flow did not show an application error."
+    "note": "Verify the recreate action did not produce an application error."
    }
   ]
  }

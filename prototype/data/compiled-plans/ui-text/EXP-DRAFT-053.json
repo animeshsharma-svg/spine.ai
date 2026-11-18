@@ -4,119 +4,110 @@
   "title": "Manage Line Items: Save fails when Quantity contains letters",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:45:26.460Z",
+  "compiledAt": "2026-11-13T14:07:35.358Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused"
+  ],
   "source": "llm",
-  "steps": 17,
+  "steps": 13,
   "stepNames": [
    "open_create",
+   "compose_stages",
    "set_title",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "save_draft",
-   "expect_no_error",
-   "open_events_list",
-   "filter_events",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "open_first_event",
    "click",
+   "expect_visible",
+   "do_on_screen",
    "fill",
    "fill",
-   "click",
-   "expect_toast"
+   "attempt"
   ],
-  "ms": 12948
+  "ms": 20880
  },
  "plan": {
-  "title": "Draft Line Item Letter Quantity",
+  "title": "Draft line item rejects letter quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    },
-    "note": "Create the eRFX draft needed as the starting state."
+    }
    },
    {
-    "step": "set_title",
+    "step": "compose_stages",
     "args": {
-     "title": "EXP-DRAFT-053 Quantity Letters"
-    },
-    "note": "Provide the mandatory draft title."
+     "stages": [
+      "rfq"
+     ]
+    }
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply a pricing template before adding line items."
+    "step": "set_title"
    },
    {
-    "step": "add_line_items",
+    "step": "require_setting",
     "args": {
-     "count": 1
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Add the initial valid line item to the draft."
+    "note": "Enable eRFX projects required by the saved draft."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet so the draft can be saved."
-   },
-   {
-    "step": "set_schedule",
+    "step": "require_setting",
     "args": {
-     "minutes": 30
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
     },
-    "note": "Commit a valid schedule for the draft."
+    "note": "Apply the requested tenant configuration."
    },
    {
-    "step": "invite_vendor",
+    "step": "require_setting",
     "args": {
-     "count": 1
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
     },
-    "note": "Complete the draft setup with a participant."
-   },
-   {
-    "step": "save_draft",
-    "args": {},
-    "note": "Save the valid eRFX draft so the Manage Line Items flow can be tested after reopening."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the draft was saved without an application error."
-   },
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Return to the events list to locate the saved draft."
-   },
-   {
-    "step": "filter_events",
-    "args": {
-     "tab": "Drafts"
-    },
-    "note": "Show saved drafts."
+    "note": "Apply the requested tenant configuration."
    },
    {
     "step": "open_first_event",
     "args": {
-     "tab": "Drafts",
-     "containing": "EXP-DRAFT-053 Quantity Letters"
+     "tab": "Drafts"
     },
-    "note": "Open the draft created by this plan."
+    "note": "Open the first existing saved draft from the Drafts tab."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Items"
+     "name": "Items 1"
     },
-    "note": "Open the Manage Line Items window from the draft."
+    "note": "Open the draft's Manage Line Items window."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Manage Line Items",
+     "visible": true
+    },
+    "note": "Confirm the line-item management window opened."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "select a product from the product dropdown in the Manage Line Items window"
+    },
+    "note": "Select the product requested by the case without inventing a product name."
    },
    {
     "step": "fill",
@@ -125,7 +116,7 @@
      "value": "abc",
      "within": "Manage Line Items"
     },
-    "note": "Enter letters into the line item's Quantity field."
+    "note": "Enter the invalid alphabetic quantity."
    },
    {
     "step": "fill",
@@ -134,24 +125,20 @@
      "value": "1200",
      "within": "Manage Line Items"
     },
-    "note": "Enter the specified price before attempting to save."
+    "note": "Enter the requested price before attempting to save."
    },
    {
-    "step": "click",
+    "step": "attempt",
     "args": {
-     "role": "button",
-     "name": "Save",
-     "within": "Manage Line Items"
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Save",
+      "within": "Manage Line Items"
+     },
+     "expect": "refused"
     },
-    "note": "Attempt to save the invalid line item."
-   },
-   {
-    "step": "expect_toast",
-    "args": {
-     "kind": "error",
-     "text": "Please fill valid quantity on every line item"
-    },
-    "note": "Assert that the Manage Line Items save is rejected because the quantity is non-numeric."
+    "note": "Assert that saving is refused or remains disabled because Quantity contains letters."
    }
   ]
  }

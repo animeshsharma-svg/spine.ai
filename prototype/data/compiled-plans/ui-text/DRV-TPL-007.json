@@ -1,10 +1,10 @@
 {
  "meta": {
   "caseId": "DRV-TPL-007",
-  "title": "Template edit during technical stage creation respects configuration toggle",
+  "title": "Benchmarking variance calculates correctly against the hidden baseline price",
   "group": "DRV-TPL",
   "sheet": "derived-provide-configurable-rfq-templates-line-",
-  "compiledAt": "2026-11-12T13:39:11.646Z",
+  "compiledAt": "2026-11-13T13:42:32.168Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -24,17 +24,17 @@
    "do_on_screen",
    "expect_screen_clean"
   ],
-  "ms": 11846
+  "ms": 9917
  },
  "plan": {
-  "title": "Technical template editing respects toggle",
+  "title": "DRV-TPL-007 Technical Template Edit Lock",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a new RFX project."
+    "note": "Start a new RFX project on the multi-stage creation flow."
    },
    {
     "step": "require_setting",
@@ -42,12 +42,14 @@
      "key": "is_rfp_template_edit_allowed_during_creation",
      "value": "Off"
     },
-    "note": "Configure the tenant as required before opening the creation flow."
+    "note": "Disable technical-stage template editing during creation as required by the case."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required project title."
+    "args": {
+     "title": "DRV-TPL-007 Technical Template Edit Lock"
+    },
+    "note": "Provide the mandatory project title for the create flow."
    },
    {
     "step": "compose_stages",
@@ -56,31 +58,31 @@
       "rfp"
      ]
     },
-    "note": "Create a technical-stage-only RFX project."
+    "note": "Configure the project with a Technical Stage."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Open the Technical Stage creation screen."
+    "note": "Open the Technical Stage creation screen where the questionnaire template fields are configured."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the pre-loaded questionnaire template whose editing controls are under test."
+    "note": "Apply the pre-loaded technical questionnaire template so its fields are available for inspection."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the Technical Stage creation screen, attempt to modify the pre-loaded questionnaire template fields and verify that the template editing controls are disabled or locked; stop when the screen proves the controls cannot be edited"
+     "goal": "On the Technical Stage creation screen, attempt to modify the pre-loaded questionnaire template fields and verify that the template editing controls are visibly disabled or locked because is_rfp_template_edit_allowed_during_creation is Off; stop with the locked controls shown"
     },
-    "note": "Directly tests the configuration-governed lock because no catalog assertion names the questionnaire template editing controls."
+    "note": "Inspect and exercise the specific template editing controls that have no dedicated catalog assertion."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the resulting screen has no crash or application error."
+    "note": "Confirm the technical creation screen remains rendered without an error or crash after the locked-edit inspection."
    }
   ]
  }

@@ -4,40 +4,41 @@
   "title": "No event name for the auction",
   "group": "SRC-CVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T12:58:32.562Z",
+  "compiledAt": "2026-11-13T11:55:43.544Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the conversion pop-up offers options to reuse RFQ quotes, participants, and weights"
+   "The conversion pop-up's individual reuse options for RFQ quotes, participants, and weights are not directly asserted by convert_to_auction."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Assert that the conversion pop-up offers options to reuse RFQ quotes, participants, and weights"
+   "can only test part of this — no step for: The conversion pop-up's individual reuse options for RFQ quotes, participants, and weights are not directly asserted by convert_to_auction."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "go_to",
    "convert_to_auction",
+   "expect_navigated",
    "fill",
    "expect_publish_blocked"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 10914
+  "ms": 15443
  },
  "plan": {
-  "title": "Convert RFQ Without Auction Name",
+  "title": "Convert RFQ to Auction Without Event Name",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ instead of searching the events list."
+    "note": "Open the prepared closed RFQ instead of searching or recreating it."
    },
    {
     "step": "require_setting",
@@ -53,12 +54,18 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Reach the RFQ stage page containing the Settings menu."
+    "note": "Reach the RFQ stage page containing the Settings menu and conversion action."
    },
    {
     "step": "convert_to_auction",
-    "args": {},
-    "note": "Convert the published RFQ to an auction and continue to the converted auction create screen."
+    "note": "Open the RFQ-to-Auction conversion flow and continue to the converted auction create screen."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "create"
+    },
+    "note": "Verify that conversion reached the auction create screen."
    },
    {
     "step": "fill",
@@ -66,14 +73,14 @@
      "label": "Enter the title of the project",
      "value": ""
     },
-    "note": "Clear the converted auction's event name."
+    "note": "Clear the converted auction's event name before attempting to publish."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Please add a event name"
     },
-    "note": "Assert that publishing is refused because the auction has no event name."
+    "note": "Press Publish and assert that Procol refuses the nameless auction with the expected message."
    }
   ]
  }

@@ -3,22 +3,22 @@
   "caseId": "PRD-RFQ-038",
   "title": "Baseline / Historical Price: not available on the Growth plan",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:31:27.164Z",
+  "compiledAt": "2026-11-13T14:52:26.111Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Compare Baseline / Historical Price availability between a Growth-plan tenant and an Enterprise-plan tenant because the plan-specific tenant identities or company IDs are not provided and no catalog step can inspect or change a tenant's plan.",
-   "Complete the same baseline-price workflow on both plan tenants and verify refusal on Growth versus success on Enterprise."
+   "Comparing the capability between the unnamed Growth-plan and Enterprise-plan tenants.",
+   "Proving that the same user can successfully use the baseline price workflow on the Enterprise tenant."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Compare Baseline / Historical Price availability between a Growth-plan tenant and an Enterprise-plan tenant because the plan-specific tenant identities or company IDs are not provided and no catalog step can inspect or change a tenant's plan.; Complete the same baseline-price workflow on both plan tenants and verify refusal on Growth versus success on Enterprise."
+   "can only test part of this — no step for: Comparing the capability between the unnamed Growth-plan and Enterprise-plan tenants.; Proving that the same user can successfully use the baseline price workflow on the Enterprise tenant."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 7,
   "stepNames": [
    "open_create",
    "compose_stages",
@@ -26,21 +26,19 @@
    "select_template",
    "add_line_items",
    "click",
-   "expect_text",
-   "ask_tester",
-   "expect_text"
+   "expect_options"
   ],
-  "ms": 15111
+  "ms": 17762
  },
  "plan": {
-  "title": "Baseline Historical Price Plan Availability",
+  "title": "Baseline Historical Price plan availability",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open an event create screen where the Savings configuration can be inspected."
+    "note": "Open an eRFX create screen where the savings configuration is available."
    },
    {
     "step": "compose_stages",
@@ -55,19 +53,19 @@
     "args": {
      "title": "Baseline Historical Price Availability Test"
     },
-    "note": "Provide the mandatory event title for this create flow."
+    "note": "Provide the required event title for a create-screen test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a template before opening the Savings configuration."
+    "note": "Apply a template so the savings configuration can be opened."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item so the Savings configuration is available."
+    "note": "Add a line item to make the savings configuration applicable."
    },
    {
     "step": "click",
@@ -75,30 +73,17 @@
      "role": "button",
      "name": "Savings"
     },
-    "note": "Open the Savings Calculation drawer where historical-price baselines are configured."
+    "note": "Open the savings configuration where baseline methods are offered."
    },
    {
-    "step": "expect_text",
+    "step": "expect_options",
     "args": {
-     "text": "Historical Price",
-     "present": true
+     "label": "How do you want to measure savings?",
+     "options": [
+      "Historical Price"
+     ]
     },
-    "note": "Assert that the current tenant's Savings UI offers Historical Price."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "provide access to the named Growth-plan and Enterprise-plan tenants, repeat the Historical Price baseline workflow on both, and report whether Growth refuses or omits it while Enterprise allows it"
-    },
-    "note": "The plan comparison and plan-specific outcome cannot be performed by the catalog without tenant identities or plan access."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Historical Price",
-     "present": true
-    },
-    "note": "After tester assistance, confirm the Enterprise-side Savings UI visibly offers Historical Price."
+    "note": "Assert whether Historical Price is available as a baseline method on the current tenant."
    }
   ]
  }

@@ -4,20 +4,24 @@
   "title": "Split lots on a closed RFQ",
   "group": "SRC-LOT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:31:39.179Z",
+  "compiledAt": "2026-11-13T12:13:45.987Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 16,
   "stepNames": [
    "open_create",
-   "compose_stages",
+   "require_setting",
    "set_title",
+   "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -25,20 +29,37 @@
    "invite_vendor",
    "publish",
    "expect_published",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
    "close_event",
    "expect_settings_menu"
   ],
-  "ms": 9533
+  "ms": 10675
  },
  "plan": {
-  "title": "Split lots disabled on closed RFQ",
+  "title": "Split Lots Disabled on Closed RFQ",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX event creation screen."
+    "note": "Start creating the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_lot_creation_enabled",
+     "value": "On"
+    },
+    "note": "Enable lot creation for the tenant as required by the case."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-LOT-003 Closed RFQ"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -47,24 +68,26 @@
       "rfq"
      ]
     },
-    "note": "Create an RFQ-only event so the lot-splitting control is applicable."
+    "note": "Configure the event as an RFQ rather than the default auction."
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title."
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Work on the RFQ stage before configuring its template and items."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template."
+    "note": "Apply an available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required RFQ line item."
+    "note": "Add a line item so the RFQ can be published and closed."
    },
    {
     "step": "fill_sheet",
@@ -76,29 +99,41 @@
     "args": {
      "minutes": 3
     },
-    "note": "Commit a short schedule so the event can be published."
+    "note": "Commit a bidding schedule required for publication."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add the required QA vendor participant."
+    "note": "Add a QA vendor so the RFQ is usable and can receive a bid."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ before closing it."
+    "note": "Publish the RFQ."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a published project page."
+    "note": "Confirm the event reached its published project page."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Create a buyer-side bid so the closed RFQ has bid activity without requiring another login."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the bid was accepted."
    },
    {
     "step": "close_event",
     "args": {},
-    "note": "Close the published RFQ so its closed-state Settings menu can be checked."
+    "note": "Close the published RFQ before inspecting its Settings menu."
    },
    {
     "step": "expect_settings_menu",
@@ -107,7 +142,7 @@
       "Split line items into lots"
      ]
     },
-    "note": "Assert that the lot-splitting menu item is present but disabled on the closed RFQ."
+    "note": "Assert that the lots action is present but disabled on the closed RFQ."
    }
   ]
  }

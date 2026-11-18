@@ -4,84 +4,60 @@
   "title": "Withdraw an event that is a draft project (option is labelled \"Cancel Event\") and press Cancel in the pop-up",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:25:17.043Z",
+  "compiledAt": "2026-11-13T13:16:49.583Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Open the draft project's Settings menu and select the option specifically labelled \"Cancel Event\"; prepared drafts open on the create screen, which has no Settings menu.",
-   "Verify the event's unchanged draft state through the events list after cancellation without leaving the prepared-state flow.",
-   "unconfirmed label \"Withdrawing Order…\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "coverage partial: unconfirmed label \"Withdrawing Order…\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Open the draft project's Settings menu and select the option specifically labelled \"Cancel Event\"; prepared drafts open on the create screen, which has no Settings menu.; Verify the event's unchanged draft state through the events list after cancellation without leaving the prepared-state flow."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "do_on_screen",
    "expect_visible",
-   "click",
-   "expect_text",
-   "expect_text",
-   "click",
-   "expect_visible",
-   "expect_no_error"
+   "expect_navigated"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 132843
+  "ms": 10315
  },
  "plan": {
-  "title": "Cancel draft withdrawal",
+  "title": "Cancel draft event withdrawal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "draft"
     },
-    "note": "Open the prepared draft project on its draft create screen."
+    "note": "Open the setup draft directly on its draft create screen."
    },
    {
-    "step": "expect_visible",
+    "step": "require_setting",
     "args": {
-     "role": "button",
-     "name": "Withdraw",
-     "visible": true
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
     },
-    "note": "Confirm the draft screen exposes the available withdrawal control."
+    "note": "Ensure withdrawal actions are visible for events."
    },
    {
-    "step": "click",
+    "step": "require_setting",
     "args": {
-     "role": "button",
-     "name": "Withdraw"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the draft withdrawal confirmation dialog as the closest available path to the requested Cancel Event action."
+    "note": "Ensure the draft eRFX project flow is enabled."
    },
    {
-    "step": "expect_text",
+    "step": "do_on_screen",
     "args": {
-     "text": "Withdrawing Order…",
-     "present": true
+     "goal": "On the buyer draft project screen, open Settings, choose Cancel Event, verify the 'Withdrawing Order…' confirmation asks 'Are you sure you want to withdraw this event?', click Cancel, and stop with the confirmation pop-up closed and the draft unchanged."
     },
-    "note": "Verify the withdrawal confirmation pop-up is open."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Are you sure you want to withdraw this event?",
-     "present": true
-    },
-    "note": "Verify the dialog asks for confirmation of withdrawing the event."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Cancel"
-    },
-    "note": "Cancel the withdrawal instead of confirming it."
+    "note": "Perform the draft withdrawal cancellation flow that has no dedicated catalog action."
    },
    {
     "step": "expect_visible",
@@ -90,12 +66,14 @@
      "name": "Withdrawing Order…",
      "visible": false
     },
-    "note": "Assert that cancelling closes the withdrawal pop-up."
+    "note": "Assert the withdrawal confirmation pop-up closed after Cancel."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm cancellation did not produce an error."
+    "step": "expect_navigated",
+    "args": {
+     "screen": "draft"
+    },
+    "note": "Assert the browser remains on the draft screen rather than changing event state or navigating away."
    }
   ]
  }

@@ -4,44 +4,54 @@
   "title": "Add a surrogate bid on an upcoming RFQ",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:09:30.807Z",
+  "compiledAt": "2026-11-13T13:00:20.080Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enter or verify the \"Surrogate Bid Reference\" value \"Phone quote 27 Oct\""
+   "Entering the surrogate bid reference \"Phone quote 27 Oct\" because place_surrogate_bid has no reference-field argument."
   ],
   "warnings": [
-   "can only test part of this — no step for: Enter or verify the \"Surrogate Bid Reference\" value \"Phone quote 27 Oct\""
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Entering the surrogate bid reference \"Phone quote 27 Oct\" because place_surrogate_bid has no reference-field argument."
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "search_participants",
    "expect_participant",
-   "place_surrogate_bid",
-   "expect_bid_submitted"
+   "attempt"
   ],
   "state": "upcoming",
   "screen": "participants",
-  "ms": 7928
+  "ms": 16005
  },
  "plan": {
-  "title": "SRC-SUR-007 Upcoming RFQ Surrogate Bid",
+  "title": "Surrogate bid on upcoming RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared upcoming RFQ directly on its Participants tab as the buyer."
+    "note": "Open the prepared upcoming RFQ directly on its Participants tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "search_participants",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Find the named vendor's participant row."
+    "note": "Locate Vendor A's participant row."
    },
    {
     "step": "expect_participant",
@@ -50,20 +60,19 @@
      "present": true,
      "addBid": true
     },
-    "note": "Assert that Add Bid is offered for Vendor A before the RFQ starts."
+    "note": "Assert that Add Bid is offered before the RFQ starts."
    },
    {
-    "step": "place_surrogate_bid",
+    "step": "attempt",
     "args": {
-     "vendor": "Vendor A",
-     "price": 95
+     "step": "place_surrogate_bid",
+     "args": {
+      "vendor": "Vendor A",
+      "price": 95
+     },
+     "expect": "refused"
     },
-    "note": "Submit the buyer's surrogate bid of 95 for every line to test whether the product permits it before start."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Assert that the surrogate bid was accepted and submitted."
+    "note": "Attempt the surrogate bid and require evidence that the upcoming event refuses it unless the tenant permits pre-start surrogate bidding."
    }
   ]
  }

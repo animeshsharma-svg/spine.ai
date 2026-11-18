@@ -3,56 +3,65 @@
   "caseId": "PRD-ANL-003",
   "title": "Price-Trend Dashboard: refused for a user without the Category Manager role",
   "group": "PRD-ANL",
-  "compiledAt": "2026-11-10T06:35:09.453Z",
+  "compiledAt": "2026-11-13T15:30:02.969Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as both the non-Category Manager user and the Category Manager in the same Enterprise tenant",
-   "Verify or change the tenant's Enterprise plan and RBAC role configuration",
-   "Observe and compare the role-specific refusal or availability of the Price-Trend Dashboard"
+   "Sign in as a Category Manager on the same Enterprise tenant and repeat the Price-Trend Dashboard access check to compare role-based availability."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as both the non-Category Manager user and the Category Manager in the same Enterprise tenant; Verify or change the tenant's Enterprise plan and RBAC role configuration; Observe and compare the role-specific refusal or availability of the Price-Trend Dashboard"
+   "can only test part of this — no step for: Sign in as a Category Manager on the same Enterprise tenant and repeat the Price-Trend Dashboard access check to compare role-based availability."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_event",
-   "go_to",
+   "attempt",
    "ask_tester",
-   "expect_visible"
+   "go_to",
+   "expect_navigated"
   ],
-  "ms": 21221
+  "ms": 17616
  },
  "plan": {
-  "title": "Price Trend Dashboard Role Access",
+  "title": "Price-Trend Dashboard Role Access",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing event as the closest available route to the Price Trends area."
+    "note": "Open an existing event that provides access to the Price Trends dashboard."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "go_to",
+     "args": {
+      "screen": "price_trends"
+     },
+     "expect": "refused"
+    },
+    "note": "Verify that the current user without the Category Manager role is refused or cannot access the Price-Trend Dashboard."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the Category Manager user on the same Enterprise tenant and repeat the Price-Trend Dashboard access check"
+    },
+    "note": "A second role-specific session is required to verify the permitted comparison case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "price_trends"
     },
-    "note": "Navigate to the event's Price Trends view, which is the closest catalog representation of the requested dashboard."
+    "note": "Navigate to the Price-Trend Dashboard after the Category Manager session is provided."
    },
    {
-    "step": "ask_tester",
+    "step": "expect_navigated",
     "args": {
-     "need": "sign in as the non-Category Manager user and the Category Manager in the same Enterprise tenant, then attempt Price-Trend Dashboard access and compare the refusal or availability"
+     "screen": "analytics"
     },
-    "note": "Role-specific sign-in and access comparison are not expressible by the catalog."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Price Trends",
-     "visible": true
-    },
-    "note": "Confirm the Price Trends view remains identifiable after the role comparison."
+    "note": "Assert that the Category Manager can reach the analytics dashboard."
    }
   ]
  }

@@ -4,16 +4,16 @@
   "title": "Publish without correct values in validation columns",
   "group": "SRC-PUB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:08:36.210Z",
+  "compiledAt": "2026-11-13T12:32:53.628Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "That the entire Events list is unchanged after the refused publish"
+   "The catalog cannot target or identify the specific validation columns whose correct values must remain missing; omitting fill_sheet leaves the pricing sheet generally incomplete."
   ],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: That the entire Events list is unchanged after the refused publish"
+   "can only test part of this — no step for: The catalog cannot target or identify the specific validation columns whose correct values must remain missing; omitting fill_sheet leaves the pricing sheet generally incomplete."
   ],
   "source": "llm",
   "steps": 13,
@@ -23,19 +23,19 @@
    "require_setting",
    "set_title",
    "compose_stages",
-   "expect_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "set_sheet_cell",
-   "skip",
    "set_schedule",
    "invite_vendor",
+   "skip",
    "expect_publish_blocked"
   ],
-  "ms": 19249
+  "ms": 12412
  },
  "plan": {
-  "title": "Publish Refused for Missing Validation Values",
+  "title": "Publish blocked by missing validation values",
   "steps": [
    {
     "step": "open_create",
@@ -65,7 +65,7 @@
     "args": {
      "title": "QA_Platform eRFX"
     },
-    "note": "Set the project title required for publishing."
+    "note": "Set the required project title."
    },
    {
     "step": "compose_stages",
@@ -77,18 +77,16 @@
     "note": "Configure the project with an RFQ-only stage."
    },
    {
-    "step": "expect_stages",
+    "step": "switch_stage",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "stage": "rfq"
     },
-    "note": "Verify that only the RFQ stage remains."
+    "note": "Work on the RFQ stage before selecting its template."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the offered RFQ pricing template."
+    "note": "Apply the first available RFQ template."
    },
    {
     "step": "add_line_items",
@@ -97,7 +95,7 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add the CYLINDER WITH KEY & KNOB line item with quantity 10."
+    "note": "Add the requested CYLINDER product with quantity 10."
    },
    {
     "step": "set_sheet_cell",
@@ -106,36 +104,36 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested delivery location while leaving other validation-column values incomplete."
-   },
-   {
-    "step": "skip",
-    "args": {
-     "step": "fill_sheet",
-     "reason": "Leave the correct validation-column values missing as required by the negative test."
-    },
-    "note": "Deliberately omit completion of the pricing-sheet validation values."
+    "note": "Set the specified delivery location while leaving validation-column values unfilled."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Complete the scheduling prerequisite so validation-column refusal is reached."
+    "note": "Commit a valid event schedule so the validation-column omission is the remaining publish issue."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add one QA test vendor as the event participant."
+    "note": "Add one QA test vendor to satisfy the participant prerequisite."
+   },
+   {
+    "step": "skip",
+    "args": {
+     "step": "fill_sheet",
+     "reason": "Leave the correct validation-column values missing as required by the test case."
+    },
+    "note": "Deliberately omit filling the pricing sheet validation values."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Please fill correct values in the validation columns"
     },
-    "note": "Verify that publishing is refused with the expected validation-column message."
+    "note": "Assert that Publish is refused with the specified validation-column message."
    }
   ]
  }

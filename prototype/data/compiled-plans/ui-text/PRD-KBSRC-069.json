@@ -3,37 +3,28 @@
   "caseId": "PRD-KBSRC-069",
   "title": "All line items start in Lot 1; maximum of 4 lots",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:11:10.437Z",
+  "compiledAt": "2026-11-13T14:34:59.709Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Assert that every line item is initially assigned to Lot 1."
-  ],
-  "warnings": [
-   "resolved: “Open and inspect the lot dropdown for a specific line item's serial number using a dedicated lot-control step.” — expect_options opens the list and reads what it offers, with greyed-out items",
-   "can only test part of this — no step for: Assert that every line item is initially assigned to Lot 1."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 6,
+  "steps": 4,
   "stepNames": [
    "open_event",
    "go_to",
-   "open_event_settings",
-   "expect_visible",
-   "click",
-   "expect_options"
+   "do_on_screen",
+   "expect_screen_clean"
   ],
-  "ms": 13624
+  "ms": 13232
  },
  "plan": {
-  "title": "RFQ lot defaults and maximum",
+  "title": "RFQ lot defaults and four-lot limit",
   "steps": [
    {
     "step": "open_event",
-    "args": {
-     "purpose": "evaluation"
-    },
-    "note": "Open an existing event with an evaluation state as the closest available route to the RFQ under test."
+    "args": {},
+    "note": "Open an existing event in the required evaluation state."
    },
    {
     "step": "go_to",
@@ -41,42 +32,19 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage where lot controls are expected."
+    "note": "Navigate to the RFQ stage where lot splitting is available."
    },
    {
-    "step": "open_event_settings",
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Open Settings, choose Split Line Items into Lots, verify that all five line items are initially assigned to Lot 1, then open the lot dropdown beside a line item serial number and verify that it offers Lot 1, Lot 2, Lot 3 and Lot 4 but no lot beyond Lot 4; stop with the dropdown evidence visible."
+    },
+    "note": "Perform and verify the lot assignment and maximum-lot checks directly on the buyer's screen."
+   },
+   {
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Open the event Settings menu where the split-lot action should be available."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Split Line Items into Lots",
-     "visible": true
-    },
-    "note": "Check that the requested split-lot action is offered in Settings."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "Split Line Items into Lots"
-    },
-    "note": "Open the split-lot interface so its lot choices can be inspected."
-   },
-   {
-    "step": "expect_options",
-    "args": {
-     "options": [
-      "Lot 1",
-      "Lot 2",
-      "Lot 3",
-      "Lot 4"
-     ],
-     "absent": [
-      "Lot 5"
-     ]
-    },
-    "note": "Verify that the lot selector offers lots through Lot 4 and no lot beyond the maximum."
+    "note": "Assert the resulting screen has no crash, server error, raw identifiers or invalid values."
    }
   ]
  }

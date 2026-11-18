@@ -4,31 +4,34 @@
   "title": "Recreate Order: Creating an order with the available fields left empty shows the app response",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:21:16.103Z",
+  "compiledAt": "2026-11-13T13:49:11.174Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly verify whether a new order record was created without a dedicated order-list or creation-result assertion.",
-   "Enumerate every field-level validation error when the application provides unspecified or dynamically named errors."
+   "Assert an unspecified app response and determine generically whether the Recreate Order window remains open or a new order is created without a known expected message or state."
   ],
   "warnings": [
-   "can only test part of this — no step for: Directly verify whether a new order record was created without a dedicated order-list or creation-result assertion.; Enumerate every field-level validation error when the application provides unspecified or dynamically named errors."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Assert an unspecified app response and determine generically whether the Recreate Order window remains open or a new order is created without a known expected message or state."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "go_to",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "event_menu",
    "expect_visible",
-   "click",
-   "expect_message",
-   "expect_visible"
+   "do_on_screen",
+   "expect_screen_clean"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 10518
+  "ms": 22058
  },
  "plan": {
   "title": "Recreate Order with Empty Optional Fields",
@@ -38,22 +41,47 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared live RFQ with one vendor bid."
+    "note": "Open the prepared live RFQ summary for the buyer-side case."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the RFQ stage specified by the case."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
     },
-    "note": "Reach the Responses tab where the Settings menu is available."
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Allow buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
    },
    {
     "step": "event_menu",
@@ -61,7 +89,7 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the Recreate Order window from the RFQ Settings menu."
+    "note": "Open the RFQ Settings menu and choose Recreate Order."
    },
    {
     "step": "expect_visible",
@@ -70,31 +98,19 @@
      "name": "Recreate Order",
      "visible": true
     },
-    "note": "Confirm the Recreate Order window is open before submitting the empty form."
+    "note": "Confirm that the Recreate Order window opened."
    },
    {
-    "step": "click",
+    "step": "do_on_screen",
     "args": {
-     "role": "button",
-     "name": "Create Order"
+     "goal": "In the open Recreate Order window, leave the custom duration number empty, the field with placeholder \"10\" empty, Delivery Date empty, the field with placeholder \"Select date\" empty, Schedule this event? unchecked, and the field with placeholder \"Select time\" empty; click Create Order and record any field error, message, whether the window remains open, and whether a new order is created."
     },
-    "note": "Submit with the dialog's optional fields left at their empty defaults."
+    "note": "Perform the requested empty-input submission and observe the app's response, which has no fixed expected wording or state in the case."
    },
    {
-    "step": "expect_message",
-    "args": {
-     "kind": "any"
-    },
-    "note": "Observe any validation, warning, success, or other application message produced by the empty submission."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Recreate Order",
-     "visible": true
-    },
-    "note": "Check whether the Recreate Order window remains open after the empty submission."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Ensure the resulting screen has no crash, server error, raw identifiers, or rendering corruption."
    }
   ]
  }

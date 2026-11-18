@@ -4,50 +4,95 @@
   "title": "Increase Event Time: Increase event time by default 15 minutes succeeds",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:22:47.845Z",
+  "compiledAt": "2026-11-13T13:49:54.541Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
-   "extend_time",
+   "extend_submission_time",
    "expect_toast"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 10211
+  "ms": 17124
  },
  "plan": {
-  "title": "Increase RFQ Submission Time by 15 Minutes",
+  "title": "Extend RFQ Time by 15 Minutes",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with a vendor bid."
+    "note": "Open the prepared live RFQ with one vendor bid, as required for this case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Use the required RFQ counter-offer visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Use the required bidding-time rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable the required buyer bid-editing configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable the required percentage counter-offer configuration."
    },
    {
     "step": "go_to",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "screen": "responses"
     },
-    "note": "Navigate to the RFQ stage where submission time can be extended."
+    "note": "Reach the RFQ Responses view where the stage Settings menu is available."
    },
    {
-    "step": "extend_time",
+    "step": "extend_submission_time",
     "args": {
-     "which": "submission",
-     "option": "preset",
-     "preset": "15 minutes",
-     "expect": "saved"
+     "by": "15 minutes",
+     "stage": "rfq"
     },
-    "note": "Open Settings, choose the 15-minute Increase Event Time option, confirm it, and verify the end time moves 15 minutes later."
+    "note": "Open the RFQ Settings action, select the default 15-minute increase, confirm it, and verify the event end time moves 15 minutes later."
    },
    {
     "step": "expect_toast",
@@ -55,7 +100,7 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Assert the expected success confirmation after the extension is saved."
+    "note": "Assert the expected success toast after the time extension."
    }
   ]
  }

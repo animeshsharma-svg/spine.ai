@@ -4,31 +4,60 @@
   "title": "An awarded event: \"Order Activity\" opens the \"Activity\" window",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:14:22.117Z",
+  "compiledAt": "2026-11-13T13:44:15.346Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
+   "go_to",
    "event_menu",
-   "expect_visible"
+   "expect_text"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 7010
+  "ms": 8523
  },
  "plan": {
-  "title": "Awarded Event Order Activity",
+  "title": "Awarded RFQ Order Activity window",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared awarded event on its project summary page."
+    "note": "Open the already awarded event's summary as required for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure the required eRFX project configuration is enabled for the buyer tenant."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the event's RFQ stage."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses view before accessing its Settings menu."
    },
    {
     "step": "event_menu",
@@ -36,15 +65,15 @@
      "item": "Order Activity",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage Settings menu and choose Order Activity."
+    "note": "Open the RFQ Settings menu and choose Order Activity, leaving the resulting Activity window open."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "Activity",
-     "visible": true
+     "present": true
     },
-    "note": "Assert that the Activity window or drawer is open."
+    "note": "Assert that the Activity window opened."
    }
   ]
  }

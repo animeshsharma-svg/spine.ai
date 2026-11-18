@@ -4,55 +4,66 @@
   "title": "A live RFQ withdrawn by the buyer",
   "group": "SRC-SET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:04:59.428Z",
+  "compiledAt": "2026-11-13T12:55:18.081Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "added place_bid — the test is about bidding and no bid step was planned",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "added place_bid — the test is about bidding and no bid step was planned"
   ],
   "source": "llm",
-  "steps": 21,
+  "steps": 20,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
    "compose_stages",
-   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
    "set_sheet_cell",
-   "expect_sheet_cell",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
    "place_bid",
    "withdraw_event",
+   "expect_toast",
    "expect_withdrawn",
-   "expect_text",
    "open_events_list",
    "filter_events",
    "expect_event_in_list",
    "expect_event_status"
   ],
-  "ms": 14372
+  "ms": 24388
  },
  "plan": {
-  "title": "Withdraw a live RFQ",
+  "title": "Live RFQ Withdrawal",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage event creation screen."
+    "note": "Starts creation of the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensures the Withdraw action is available on the live event."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title."
+    "args": {
+     "title": "SRC-SET-012 Live RFQ Withdrawal"
+    },
+    "note": "Provides the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -61,19 +72,12 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ rather than the default Auction stage."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Move to the RFQ stage before configuring its template and sheet."
+    "note": "Configures the event as an RFQ rather than the default auction."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Applies the first available RFQ template before adding line items."
    },
    {
     "step": "add_line_items",
@@ -82,12 +86,12 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product with quantity 10."
+    "note": "Adds the specified product with quantity 10."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the RFQ pricing sheet so the event can be published."
+    "note": "Completes the RFQ pricing sheet."
    },
    {
     "step": "set_sheet_cell",
@@ -96,40 +100,31 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested delivery location on the line item."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "equals": "Plant Name (LOC-0001)"
-    },
-    "note": "Verify the specified delivery location is shown in the sheet."
+    "note": "Sets the requested delivery location for the line item."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding schedule."
+    "note": "Commits a live bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "count": 2
+     "count": 1
     },
-    "note": "Invite two QA test vendors without naming or selecting a real supplier."
+    "note": "Invites one QA test vendor without selecting a real supplier."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so it is live and can be withdrawn."
+    "note": "Publishes the RFQ so it is live and withdrawable."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a published project page."
+    "note": "Confirms the event reached a real published project page."
    },
    {
     "step": "place_bid"
@@ -141,43 +136,44 @@
      "stage": "rfq",
      "reason": "QA test"
     },
-    "note": "Use the RFQ stage Settings withdrawal action with the required remark."
+    "note": "Uses the RFQ stage Settings menu to withdraw the live round with the required remark."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "Order withdrawn"
+    },
+    "note": "Checks the expected withdrawal confirmation."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Verify Procol records the RFQ as withdrawn."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Order withdrawn"
-    },
-    "note": "Verify the expected withdrawal confirmation appears."
+    "note": "Verifies Procol records the RFQ as withdrawn."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to verify the post-withdrawal listing."
+    "note": "Returns to the events list to verify the resulting status."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Open the History tab where withdrawn events should appear."
+    "note": "Opens the History tab where withdrawn events should appear."
    },
    {
     "step": "expect_event_in_list",
     "args": {},
-    "note": "Verify this plan's withdrawn RFQ appears in History."
+    "note": "Confirms this plan's withdrawn RFQ is present in History."
    },
    {
     "step": "expect_event_status",
     "args": {
      "status": "Withdrawn"
     },
-    "note": "Verify the event's History row has the Withdrawn status."
+    "note": "Confirms the event row has the Withdrawn status."
    }
   ]
  }

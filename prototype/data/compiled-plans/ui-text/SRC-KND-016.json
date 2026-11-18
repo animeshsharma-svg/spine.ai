@@ -4,23 +4,25 @@
   "title": "eRFX Technical + RFQ project (RFQ stage): add a surrogate bid for Vendor A",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:01:28.327Z",
+  "compiledAt": "2026-11-13T12:12:43.327Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Entering and saving a bid reference with the surrogate bid"
+   "Entering or asserting the bid reference value"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Entering and saving a bid reference with the surrogate bid"
+   "can only test part of this — no step for: Entering or asserting the bid reference value"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
+   "search_participants",
+   "expect_participant",
    "place_surrogate_bid",
    "expect_bid_submitted",
    "expect_responses",
@@ -29,17 +31,17 @@
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 19605
+  "ms": 8137
  },
  "plan": {
-  "title": "Add Surrogate Bid on Tech+RFQ RFQ Stage",
+  "title": "Surrogate bid on RFQ stage",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the existing Tech+RFQ project's RFQ Participants screen."
+    "note": "Open the prepared project's RFQ Participants screen, as required for prepared-state cases."
    },
    {
     "step": "require_setting",
@@ -47,7 +49,7 @@
      "key": "allowed_surrogate_bid_even_after_bid",
      "value": "On"
     },
-    "note": "Enable surrogate bids as required by the case."
+    "note": "Enable surrogate bidding as required by the case."
    },
    {
     "step": "require_setting",
@@ -55,40 +57,63 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure eRFX projects are enabled for the tenant."
+    "note": "Ensure eRFX projects are enabled for the configured tenant."
+   },
+   {
+    "step": "search_participants",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Locate Vendor A's participant row."
+   },
+   {
+    "step": "expect_participant",
+    "args": {
+     "vendor": "Vendor A",
+     "present": true,
+     "addBid": true
+    },
+    "note": "Verify Vendor A is present and eligible for a surrogate bid."
    },
    {
     "step": "place_surrogate_bid",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Add the buyer-entered surrogate bid for Vendor A on the RFQ stage."
+    "note": "Enter and submit the buyer-side surrogate bid for Vendor A."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the surrogate bid was accepted and submitted."
+    "note": "Assert that the surrogate bid was accepted."
    },
    {
     "step": "expect_responses",
     "args": {
-     "atLeast": 1,
+     "count": 1,
      "surrogate": 1,
+     "vendors": [
+      "Vendor A"
+     ],
      "stage": "rfq"
     },
-    "note": "Verify the RFQ responses identify at least one submitted response as a surrogate bid."
+    "note": "Verify the RFQ Responses view attributes the bid to Vendor A and marks it as a surrogate bid."
    },
    {
     "step": "open_master_qcs",
-    "args": {},
-    "note": "Open Master QCS to inspect the bid ranking."
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open the buyer's Master QCS comparison grid."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
      "atLeast": 1
     },
-    "note": "Verify the submitted bid is ranked in the Master QCS grid."
+    "note": "Assert that the submitted bid is ranked in Master QCS."
    }
   ]
  }

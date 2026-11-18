@@ -4,23 +4,30 @@
   "title": "A live RFQ: \"Project Details\" opens the Project Details page",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:14:32.880Z",
+  "compiledAt": "2026-11-13T14:11:15.710Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "go_to",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "click",
+   "click",
    "click",
    "expect_url_contains"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 8158
+  "ms": 10921
  },
  "plan": {
   "title": "Live RFQ Project Details Navigation",
@@ -30,22 +37,55 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ on the buyer's summary page."
+    "note": "Open the prepared live RFQ summary without creating or searching for another event."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the RFQ stage tab."
+    "note": "Enable eRFX projects as required for the live RFQ."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
     },
-    "note": "Navigate to the RFQ Responses tab."
+    "note": "Apply the required withdrawal visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Apply the required live-event withdrawal configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor masking configuration."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "tab",
+     "name": "RFQ"
+    },
+    "note": "Open the RFQ stage specified by the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "tab",
+     "name": "Responses"
+    },
+    "note": "Navigate to the RFQ Responses view before testing Project Details."
    },
    {
     "step": "click",
@@ -53,14 +93,14 @@
      "role": "tab",
      "name": "Project Details"
     },
-    "note": "Activate the Project Details control being tested."
+    "note": "Activate the Project Details control whose navigation is under test."
    },
    {
     "step": "expect_url_contains",
     "args": {
      "text": "/details"
     },
-    "note": "Verify that navigation reached the project's details route."
+    "note": "Verify that Project Details opened at the expected project details route."
    }
   ]
  }

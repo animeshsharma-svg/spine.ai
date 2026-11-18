@@ -4,17 +4,25 @@
   "title": "A live RFQ with a vendor's bid: \"1 / 1 100%\" opens the \"Participation Summary 1 Invited 1 Seen 1 Bid Placed 0 Bid Not Placed 0 Unregistered Poc Bids\" window",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:17:34.775Z",
+  "compiledAt": "2026-11-13T13:45:54.123Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 9,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "click",
-   "expect_text",
+   "expect_visible",
    "expect_text",
    "expect_text",
    "expect_text",
@@ -24,64 +32,110 @@
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 8334
+  "ms": 12025
  },
  "plan": {
-  "title": "Participation Summary for Bid Response",
+  "title": "RFQ Participation Summary",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses tab with one vendor bid."
+    "note": "Open the prepared live RFQ Responses screen with one invited vendor who has bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the RFQ scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Keep counter offers visible on RFQs as required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Use the required buyer bid-rejection setting for the live bidding state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case configuration."
    },
    {
     "step": "click",
     "args": {
      "text": "1 / 1 100%"
     },
-    "note": "Open the participation summary from the response counter."
+    "note": "Click the participation percentage control named in the case."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
-     "text": "Participation Summary"
+     "text": "Participation Summary",
+     "visible": true
     },
-    "note": "Verify the Participation Summary window opened."
+    "note": "Verify that the Participation Summary window opens."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "1 Invited"
+     "text": "1 Invited",
+     "present": true
     },
-    "note": "Verify the invited-vendor count."
+    "note": "Verify the invited-vendor count in the summary."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "1 Seen"
+     "text": "1 Seen",
+     "present": true
     },
-    "note": "Verify the seen count."
+    "note": "Verify the seen-vendor count in the summary."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "1 Bid Placed"
+     "text": "1 Bid Placed",
+     "present": true
     },
-    "note": "Verify the bid-placed count."
+    "note": "Verify the bid-placed count in the summary."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "0 Bid Not Placed"
+     "text": "0 Bid Not Placed",
+     "present": true
     },
-    "note": "Verify the bid-not-placed count."
+    "note": "Verify that no invited vendor is shown as not having placed a bid."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "0 Unregistered Poc Bids"
+     "text": "0 Unregistered Poc Bids",
+     "present": true
     },
     "note": "Verify the unregistered POC bid count."
    },
@@ -92,7 +146,7 @@
      "name": "Notify",
      "visible": true
     },
-    "note": "Verify the drawer offers the Notify button without pressing it."
+    "note": "Verify that the Notify button is available in the opened summary without pressing it."
    }
   ]
  }

@@ -3,38 +3,42 @@
   "caseId": "PRD-INV-029",
   "title": "Fuzzy Line-Item Matching: refused for a user without the AP Executive role",
   "group": "PRD-INV",
-  "compiledAt": "2026-11-10T06:42:18.408Z",
+  "compiledAt": "2026-11-13T15:36:02.574Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Fuzzy Line-Item Matching between invoice and purchase-order line descriptions, including refusal or absence for a user without the AP Executive role and availability for an AP Executive",
-   "Signing in as and comparing a non-AP Executive user with an AP Executive in the same tenant"
+   "Sign in as a user without the AP Executive role and attempt Fuzzy Line-Item Matching between invoice and PO line-item descriptions.",
+   "Repeat the action as an AP Executive and compare whether the capability is offered and succeeds.",
+   "Ensure or verify that the tenant is on the Growth plan."
   ],
   "warnings": [
-   "can only test part of this — no step for: Fuzzy Line-Item Matching between invoice and purchase-order line descriptions, including refusal or absence for a user without the AP Executive role and availability for an AP Executive; Signing in as and comparing a non-AP Executive user with an AP Executive in the same tenant"
+   "can only test part of this — no step for: Sign in as a user without the AP Executive role and attempt Fuzzy Line-Item Matching between invoice and PO line-item descriptions.; Repeat the action as an AP Executive and compare whether the capability is offered and succeeds.; Ensure or verify that the tenant is on the Growth plan."
   ],
   "source": "llm",
   "steps": 2,
   "stepNames": [
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 8659
+  "ms": 16244
  },
  "plan": {
-  "title": "PRD-INV-029 Fuzzy Matching Role Access",
+  "title": "Fuzzy Line-Item Matching RBAC",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a user without the AP Executive role and as an AP Executive in the same Growth tenant, attempt Fuzzy Line-Item Matching for an invoice and purchase-order line description, and report whether the action is refused or absent for the first user and available for the second"
+     "need": "sign in as both the non-AP-Executive user and the AP Executive in the same Growth tenant, attempt Fuzzy Line-Item Matching between invoice and PO line-item descriptions for each user, and report whether the action is refused, absent, or available"
     },
-    "note": "The catalog cannot access the invoice/PO matching feature or perform role-specific user sign-ins."
+    "note": "The catalog cannot navigate invoice/PO matching or switch between role-specific user sessions, so the tester must perform and compare both permission checks."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the session remains free of crashes or raw errors after the tester's comparison."
+    "step": "expect_text",
+    "args": {
+     "text": "Continue with email",
+     "present": true
+    },
+    "note": "Assert that the available Procol session exposes its known sign-in entry point after the tester interaction."
    }
   ]
  }

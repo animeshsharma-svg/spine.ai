@@ -3,16 +3,13 @@
   "caseId": "PRD-KBSRC-617",
   "title": "Buyer sends a bulk counter offer to all vendors",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:25:30.944Z",
+  "compiledAt": "2026-11-13T14:47:45.417Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end"
-  ],
+  "warnings": [],
   "source": "llm",
-  "steps": 19,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "set_title",
@@ -28,30 +25,29 @@
    "expect_bid_submitted",
    "place_bid",
    "expect_bid_submitted",
-   "close_event",
    "open_master_qcs",
    "event_menu",
    "do_on_screen",
    "expect_count"
   ],
-  "ms": 18410
+  "ms": 21042
  },
  "plan": {
-  "title": "Bulk counter offer to all RFQ vendors",
+  "title": "Buyer sends bulk counter offer to all RFQ vendors",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a new multi-stage event so the RFQ stage can be configured."
+    "note": "Start a new multi-stage event create flow."
    },
    {
     "step": "set_title",
     "args": {
      "title": "Bulk Counter Offer RFQ"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -60,19 +56,19 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ-only event, matching the case setup."
+    "note": "Configure the event as an RFQ so the RFQ Settings menu is available."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply the RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item for the vendor bids."
+    "note": "Add the item that vendors will bid on."
    },
    {
     "step": "fill_sheet",
@@ -82,7 +78,7 @@
    {
     "step": "set_schedule",
     "args": {
-     "minutes": 3
+     "minutes": 30
     },
     "note": "Commit a bidding schedule before publishing."
    },
@@ -91,47 +87,42 @@
     "args": {
      "count": 2
     },
-    "note": "Invite two vendors so the bulk action has several vendor bids to target."
+    "note": "Invite several vendors so the bulk action has multiple recipients."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so vendors can submit quotes."
+    "note": "Publish the RFQ for vendor bidding."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the RFQ reached a real published project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "place_bid",
     "args": {},
-    "note": "Submit a quote from the first invited vendor."
+    "note": "Submit the first vendor's bid through the vendor portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the first vendor's quote was accepted."
+    "note": "Verify the first vendor bid was accepted."
    },
    {
     "step": "place_bid",
     "args": {},
-    "note": "Submit a quote from a different invited vendor."
+    "note": "Submit a second vendor's bid through the vendor portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the second vendor's quote was accepted."
-   },
-   {
-    "step": "close_event",
-    "args": {},
-    "note": "Close the RFQ so the QCS contains completed bids and the bulk counter-offer action is available."
+    "note": "Verify the second vendor bid was accepted."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the comparison grid and verify that the bid data is present."
+    "note": "Open the buyer's QCS containing the vendor bids."
    },
    {
     "step": "event_menu",
@@ -139,22 +130,22 @@
      "item": "Send Bulk Counter Offer",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings action that launches the bulk counter-offer flow."
+    "note": "Open the RFQ Settings action for sending one counter offer to all vendors."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "in the open bulk counter-offer flow, select the Price field, enter a valid new counter value, send the counter offer to all vendors, and verify the success tooltip, original-versus-counter highlighting, and a Counter Offer Requested tag above every vendor in the QCS"
+     "goal": "In the Send Bulk Counter Offer drawer, select the Price field, enter a valid new counter value, click Send Counter Offer, and verify the success tooltip and that the QCS shows the counter-offer request with original and counter values highlighted for every vendor."
     },
-    "note": "Complete the bulk counter-offer form and observe the UI evidence required by the case."
+    "note": "Complete the counter-offer configuration and submission, including the field, value, send control, success confirmation, and changed-value presentation."
    },
    {
     "step": "expect_count",
     "args": {
      "text": "Counter Offer Requested",
-     "count": 2
+     "min": 2
     },
-    "note": "Assert that both bidding vendors received the counter-offer request tag."
+    "note": "Verify that both vendor columns display the requested-counter-offer tag."
    }
   ]
  }

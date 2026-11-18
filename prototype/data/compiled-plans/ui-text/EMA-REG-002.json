@@ -4,46 +4,64 @@
   "title": "Approval emails sent before this release still work",
   "group": "EMA-REG",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:56:57.969Z",
+  "compiledAt": "2026-11-13T14:22:01.644Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Asha's mailbox and find a pending pre-release approval email in the old format without an event name",
-   "Click Approve in the email, send the approval, and verify that the approval is recorded and a \"has been recorded\" reply arrives in the same thread"
+   "Open Asha's mailbox, find a pending pre-release approval email without an event name, click Approve and send it, and verify the approval is recorded with a has-been-recorded reply in the same thread."
   ],
   "warnings": [
-   "can only test part of this — no step for: Access Asha's mailbox and find a pending pre-release approval email in the old format without an event name; Click Approve in the email, send the approval, and verify that the approval is recorded and a \"has been recorded\" reply arrives in the same thread"
+   "can only test part of this — no step for: Open Asha's mailbox, find a pending pre-release approval email without an event name, click Approve and send it, and verify the approval is recorded with a has-been-recorded reply in the same thread."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
-   "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 7613
+  "ms": 12133
  },
  "plan": {
-  "title": "Approval email regression",
+  "title": "Old Approval Email Regression",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "require_setting",
     "args": {
-     "screen": "proposal"
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
     },
-    "note": "Open the closest available prepared pending-approval context in the buyer portal before the mailbox-dependent action."
+    "note": "Enable the company-level email approval configuration required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "the company's approval mailbox connected to Procol",
+     "value": "On"
+    },
+    "note": "Ensure the approval mailbox connection required for sending and receiving approval replies is configured."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow configuration needed for the pending email request."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open Asha's mailbox, find the old pending approval email sent before the release, click Approve and send it, then verify the approval is recorded and the \"has been recorded\" reply arrives in the same thread"
+     "need": "open Asha's mailbox, find a pending pre-release approval email without an event name, click Approve and send it, and verify the approval is recorded with a has-been-recorded reply in the same thread"
     },
-    "note": "Mailbox access and email-thread approval are not available through catalog steps."
+    "note": "Mailbox access, the old email format, approval action, and reply verification are not expressible by catalog steps."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the available browser session remains free of application errors after the tester's mailbox-dependent action."
+    "note": "Assert that the resulting session has no crash or server error after the tester's mailbox workflow."
    }
   ]
  }

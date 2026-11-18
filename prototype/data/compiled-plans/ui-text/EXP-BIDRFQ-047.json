@@ -4,36 +4,37 @@
   "title": "Recreate Order: A past delivery date and an incomplete scheduled event show the app response",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:22:37.632Z",
+  "compiledAt": "2026-11-13T13:49:48.132Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Whether a new order was created after each Create Order attempt.",
-   "The exact refusal or validation message when the application does not expose it as a field error or known message."
+   "A dedicated assertion that no new order was created after each refused attempt.",
+   "A fixed validation message, because the case does not specify the exact wording and no catalog step can assert an unspecified message."
   ],
   "warnings": [
-   "can only test part of this — no step for: Whether a new order was created after each Create Order attempt.; The exact refusal or validation message when the application does not expose it as a field error or known message."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: A dedicated assertion that no new order was created after each refused attempt.; A fixed validation message, because the case does not specify the exact wording and no catalog step can assert an unspecified message."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
    "event_menu",
    "expect_visible",
-   "fill",
-   "click",
-   "expect_field_error",
-   "expect_visible",
-   "fill",
-   "toggle",
-   "expect_text",
-   "expect_text",
-   "click",
+   "do_on_screen",
    "expect_visible"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 14289
+  "ms": 36957
  },
  "plan": {
   "title": "Recreate Order validation responses",
@@ -43,7 +44,62 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary as the buyer; the event and bid already exist."
+    "note": "Open the prepared live RFQ with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Allow buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage named by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab before using its Settings menu."
    },
    {
     "step": "event_menu",
@@ -51,7 +107,7 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and choose Recreate Order."
+    "note": "Open the Recreate Order window from the RFQ stage Settings menu."
    },
    {
     "step": "expect_visible",
@@ -60,32 +116,14 @@
      "name": "Recreate Order",
      "visible": true
     },
-    "note": "Confirm the Recreate Order window opened."
+    "note": "Confirm the Recreate Order window is open for the live RFQ."
    },
    {
-    "step": "fill",
+    "step": "do_on_screen",
     "args": {
-     "label": "Delivery Date",
-     "value": "2000-01-01",
-     "within": "dialog"
+     "goal": "In the open Recreate Order window, first enter a delivery date before today and click Create Order, recording any visible field error or refusal, whether the window remains open, and whether a new order appears; then reopen the window if needed, clear Delivery Date, enable Schedule this event?, leave Select date and Select time empty, click Create Order, and record the visible response, window state, and whether a new order appears."
     },
-    "note": "Enter the specified past delivery date."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Order",
-     "within": "dialog"
-    },
-    "note": "Submit the first recreate-order attempt."
-   },
-   {
-    "step": "expect_field_error",
-    "args": {
-     "field": "Delivery Date"
-    },
-    "note": "Check for a field-level refusal of the past delivery date without inventing message text."
+    "note": "Perform both invalid attempts exactly as specified and capture the app's visible responses without inventing message text."
    },
    {
     "step": "expect_visible",
@@ -94,61 +132,7 @@
      "name": "Recreate Order",
      "visible": true
     },
-    "note": "Verify the dialog remains open after the invalid-date attempt."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Delivery Date",
-     "value": "",
-     "within": "dialog"
-    },
-    "note": "Clear the delivery date for the second attempt."
-   },
-   {
-    "step": "toggle",
-    "args": {
-     "label": "Schedule this event?",
-     "on": true,
-     "within": "dialog"
-    },
-    "note": "Enable event scheduling while leaving the scheduled date and time empty."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Select date",
-     "present": true,
-     "within": "dialog"
-    },
-    "note": "Confirm the scheduled date remains empty with its placeholder."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Select time",
-     "present": true,
-     "within": "dialog"
-    },
-    "note": "Confirm the scheduled time remains empty with its placeholder."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Order",
-     "within": "dialog"
-    },
-    "note": "Submit the incomplete scheduled-event attempt."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Recreate Order",
-     "visible": true
-    },
-    "note": "Verify the recreate-order window remains open when required scheduling fields are empty."
+    "note": "Assert that the incomplete scheduled-event attempt leaves the Recreate Order dialog available for inspection rather than silently navigating away."
    }
   ]
  }

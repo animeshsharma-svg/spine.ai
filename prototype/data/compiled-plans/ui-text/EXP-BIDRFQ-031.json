@@ -4,73 +4,96 @@
   "title": "A live RFQ with a vendor's bid: \"Increase Event Time\": \"Ok\" with the values it opens with goes through",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:39:42.221Z",
+  "compiledAt": "2026-11-13T13:47:48.949Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 7,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "go_to",
-   "open_event_settings",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "event_menu",
    "click",
-   "extend_time",
    "expect_toast"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 19680
+  "ms": 15196
  },
  "plan": {
-  "title": "Extend submission time with default window values on a live RFQ with a vendor bid",
+  "title": "Extend RFQ time with defaults",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared event summary page"
+    "note": "Open the API-prepared live RFQ summary containing one vendor bid."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bidding-time rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer editing of bidding fields as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Extend Submission Time",
      "stage": "rfq"
     },
-    "note": "Go to the RFQ stage tab"
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Go to the Responses sub-tab"
-   },
-   {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the event Settings menu"
+    "note": "Open the RFQ stage's submission-time dialog from Settings."
    },
    {
     "step": "click",
     "args": {
-     "role": "menuitem",
-     "name": "Extend Submission Time"
+     "role": "button",
+     "name": "Ok"
     },
-    "note": "Click Extend Submission Time from the settings menu"
-   },
-   {
-    "step": "extend_time",
-    "args": {
-     "which": "submission",
-     "option": "preset",
-     "preset": "15 minutes",
-     "expect": "saved"
-    },
-    "note": "Extend submission time using default preset and save"
+    "note": "Accept the values already present in the dialog without changing them."
    },
    {
     "step": "expect_toast",
@@ -78,7 +101,7 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Assert the success toast confirms the time update"
+    "note": "Verify that Procol saved the extension and displayed the expected confirmation."
    }
   ]
  }

@@ -3,29 +3,33 @@
   "caseId": "PRD-KBSRC-397",
   "title": "Assign a technical evaluator to a line item",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:20:18.312Z",
+  "compiledAt": "2026-11-13T14:43:53.154Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the intended evaluator's specific name appears under the first line item."
+   "Assert that the selected evaluator's name appears under the first line item; the case does not provide the user's name and no catalog step can assert an assigned evaluator name."
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert that the intended evaluator's specific name appears under the first line item."
+   "can only test part of this — no step for: Assert that the selected evaluator's name appears under the first line item; the case does not provide the user's name and no catalog step can assert an assigned evaluator name."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
    "switch_stage",
    "select_template",
+   "switch_stage",
+   "select_template",
    "add_line_items",
+   "fill_sheet",
+   "switch_stage",
    "fill_questionnaires",
    "assign_evaluator",
    "expect_no_error"
   ],
-  "ms": 9561
+  "ms": 15585
  },
  "plan": {
   "title": "Assign technical evaluator to line item",
@@ -35,57 +39,82 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Start a multi-stage event creation flow."
+    "note": "Open the eRFX create flow needed for a technical stage with line items."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Technical Evaluator Assignment Test"
+     "title": "Technical evaluator line item test"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title for a create test."
    },
    {
     "step": "compose_stages",
     "args": {
      "stages": [
-      "rfp"
+      "rfp",
+      "rfq"
      ]
     },
-    "note": "Create the Technical Stage needed for line-item evaluator assignment."
+    "note": "Create a technical stage alongside an RFQ stage so the event has line items and technical questionnaires."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Work on the technical stage where the line-item evaluator control exists."
+    "note": "Configure the technical stage before adding its questionnaire and evaluator."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available technical template before configuring its questions and line items."
+    "note": "Apply a template to the technical stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the pricing stage where project line items are added."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Create the first line item whose technical section should receive an evaluator."
+    "note": "Add the first line item that will receive the technical questionnaire and evaluator."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet so the line item is valid."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Return to the technical stage to configure the first line-item section."
    },
    {
     "step": "fill_questionnaires",
     "args": {},
-    "note": "Populate the technical questionnaire sections so the evaluator controls are configured."
+    "note": "Create and fill the technical questionnaire sections for the line item."
    },
    {
     "step": "assign_evaluator",
     "args": {},
-    "note": "Assign an available organization user to the technical evaluator control for the line item."
+    "note": "Assign an organizational user to each required technical evaluator control, including the first line item."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the assignment flow completed without an application error."
+    "note": "Verify that the evaluator assignment completed without an application error."
    }
   ]
  }

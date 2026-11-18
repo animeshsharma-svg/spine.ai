@@ -3,42 +3,123 @@
   "caseId": "PRD-KBSRC-656",
   "title": "Buyer enables Show Best Prices and the QCS gains a best-price row",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:29:36.055Z",
+  "compiledAt": "2026-11-13T14:50:14.713Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that each Best Price value equals the lowest vendor bid for its corresponding line item across all vendors."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Verify that each Best Price value equals the lowest vendor bid for its corresponding line item across all vendors."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 7,
+  "steps": 18,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
    "go_to",
    "click",
    "click",
    "open_master_qcs",
-   "expect_count",
    "expect_qcs_cell"
   ],
-  "ms": 72043
+  "ms": 15911
  },
  "plan": {
   "title": "QCS Best Price Row",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage event creation screen, whose default stage is Auction."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Best Price QCS Test"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Open an existing event suitable for the case, with bids available."
+    "note": "Apply a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create the line item whose best price will be calculated."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two vendors so the QCS can compare several bids."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so vendors can submit bids."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the event reached a real published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the first vendor bid at 100."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the first vendor bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Submit a second vendor bid at 90, which should be the lowest bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the second vendor bid was accepted."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the event's comparison screen where the Actions control is available."
+    "note": "Open the buyer's response view where the Actions control is available."
    },
    {
     "step": "click",
@@ -46,7 +127,7 @@
      "role": "button",
      "name": "Actions"
     },
-    "note": "Open the actions menu."
+    "note": "Open the buyer actions menu."
    },
    {
     "step": "click",
@@ -54,27 +135,20 @@
      "role": "menuitem",
      "name": "Show Best Prices"
     },
-    "note": "Enable the best-price display."
+    "note": "Enable the best-price display requested by the test."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the QCS after enabling best prices and assert that the comparison grid rendered."
-   },
-   {
-    "step": "expect_count",
-    "args": {
-     "text": "Best Price",
-     "min": 1
-    },
-    "note": "Assert that the QCS contains at least one Best Price row label."
+    "note": "Open the buyer's QCS after enabling best prices."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
-     "row": "Best Price"
+     "row": "Best Price",
+     "number": 90
     },
-    "note": "Assert that a Best Price QCS cell is populated."
+    "note": "Assert that the added best-price row for the line item shows the lowest vendor bid, 90."
    }
   ]
  }

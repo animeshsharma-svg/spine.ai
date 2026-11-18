@@ -4,11 +4,11 @@
   "title": "Product that is not in the catalogue",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-13T11:31:55.164Z",
+  "compiledAt": "2026-11-13T11:52:43.464Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog cannot directly verify that the event cannot be published as a consequence of the invalid product without attempting publication; the invalid-value rules require stopping after the inline rejection."
+   "That the incomplete event cannot be published without attempting publication after the rejected product entry."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -17,25 +17,22 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: The catalog cannot directly verify that the event cannot be published as a consequence of the invalid product without attempting publication; the invalid-value rules require stopping after the inline rejection."
+   "can only test part of this — no step for: That the incomplete event cannot be published without attempting publication after the rejected product entry."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 6,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
-   "add_line_items",
-   "set_sheet_cell",
-   "set_sheet_cell",
    "set_sheet_cell",
    "expect_sheet_cell"
   ],
-  "ms": 12531
+  "ms": 28963
  },
  "plan": {
-  "title": "SRC-CRE-040 — Reject product not in catalogue",
+  "title": "Single-stage RFQ rejects unknown catalogue product",
   "steps": [
    {
     "step": "open_create",
@@ -49,45 +46,19 @@
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ."
+    "note": "Set the event type to RFQ as required by the case."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-CRE-040 Missing Catalogue Product"
+     "title": "Unknown Catalogue Product Test"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provide the mandatory event title for a create test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the available RFQ template so the pricing sheet is rendered."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB"
-    },
-    "note": "Add the mapped catalogue product and establish the sheet row used by the case."
-   },
-   {
-    "step": "set_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "value": "10"
-    },
-    "note": "Enter the requested quantity from the scenario."
-   },
-   {
-    "step": "set_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "value": "Plant Name (LOC-0001)"
-    },
-    "note": "Select the specified delivery location."
+    "note": "Apply the RFQ template so the product sheet is available."
    },
    {
     "step": "set_sheet_cell",
@@ -96,7 +67,7 @@
      "column": "Product",
      "value": "no-such-product-xyz"
     },
-    "note": "Search the Product dropdown for the nonexistent product; the step records that no matching option is offered."
+    "note": "Search the first Product cell for the nonexistent product; the dropdown should offer no matching product and reject the selection."
    },
    {
     "step": "expect_sheet_cell",
@@ -106,7 +77,7 @@
      "refused": true,
      "empty": true
     },
-    "note": "Assert that the invalid product is not retained and the product cell remains empty."
+    "note": "Verify that the unknown product was not retained and the Product cell remains empty."
    }
   ]
  }

@@ -4,36 +4,91 @@
   "title": "Increase Event Time: Increase event time using Custom Fixed time with valid future datetime succeeds",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:22:58.047Z",
+  "compiledAt": "2026-11-13T13:50:05.445Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enter the exact absolute custom date-time 30 October 2026 04:30 AM in the fixed-time picker",
-   "Assert that the RFQ end time equals exactly 04:30 AM on 30 October 2026"
+   "Enter and verify the exact absolute custom datetime 30 October 2026 04:30 AM; extend_time only accepts relative fixed-time expressions such as E+30m."
   ],
   "warnings": [
-   "can only test part of this — no step for: Enter the exact absolute custom date-time 30 October 2026 04:30 AM in the fixed-time picker; Assert that the RFQ end time equals exactly 04:30 AM on 30 October 2026"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Enter and verify the exact absolute custom datetime 30 October 2026 04:30 AM; extend_time only accepts relative fixed-time expressions such as E+30m."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
    "extend_time",
    "expect_toast"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 10202
+  "ms": 10903
  },
  "plan": {
-  "title": "Increase RFQ Time with Custom Fixed Time",
+  "title": "Increase RFQ End Time with Custom Fixed Time",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with the vendor's bid on the buyer side."
+    "note": "Open the existing prepared live RFQ with one vendor bid; prepared-state cases must start here."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required percentage counter-offer configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage where submission time can be extended."
    },
    {
     "step": "extend_time",
@@ -43,7 +98,7 @@
      "at": "E+30m",
      "expect": "saved"
     },
-    "note": "Exercise the available fixed future-time extension flow and verify that Procol saves the new end time."
+    "note": "Exercise the supported custom fixed-time extension using a valid future time relative to the current end."
    },
    {
     "step": "expect_toast",
@@ -51,7 +106,7 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Verify the success confirmation requested by the case."
+    "note": "Verify the expected success notification after the time update."
    }
   ]
  }

@@ -4,7 +4,7 @@
   "title": "Payment terms are mandatory for the company",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:20:41.126Z",
+  "compiledAt": "2026-11-13T13:09:02.368Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,7 +17,7 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -27,24 +27,23 @@
    "set_title",
    "select_template",
    "add_line_items",
-   "fill_sheet",
    "set_sheet_cell",
    "do_on_screen",
    "invite_vendor",
    "set_schedule",
    "expect_publish_blocked"
   ],
-  "ms": 14599
+  "ms": 12927
  },
  "plan": {
-  "title": "Payment Terms Mandatory on Publish",
+  "title": "Payment terms mandatory on publish",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen specified by the case."
+    "note": "Open the single-stage event creation screen reached from Create Event."
    },
    {
     "step": "require_setting",
@@ -52,7 +51,7 @@
      "key": "is_payment_tnc_enabled",
      "value": "On"
     },
-    "note": "Enable payment terms for the company as required by the case."
+    "note": "Enable payment terms enforcement for the company."
    },
    {
     "step": "require_setting",
@@ -60,7 +59,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation for the test company."
+    "note": "Enable the eRFX/sourcing event creation capability required by the case."
    },
    {
     "step": "require_setting",
@@ -68,26 +67,27 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation so the publish validation reaches payment terms."
+    "note": "Allow vendors to be added during event creation."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "Set the single-stage event type to RFQ."
+    "note": "Set the initial event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-TNC-059 Payment Terms Mandatory"
+     "title": "Payment Terms Mandatory Test"
     },
     "note": "Provide the required event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply the first available RFQ template so the pricing sheet can be configured."
    },
    {
     "step": "add_line_items",
@@ -99,46 +99,41 @@
     "note": "Add the CYLINDER product and set its requested quantity to 10."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete remaining mandatory pricing-sheet fields."
-   },
-   {
     "step": "set_sheet_cell",
     "args": {
      "row": 1,
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Choose the delivery location required by the case."
+    "note": "Select the required delivery location for the line item."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the event create screen, open Payment Terms, remove the payment clause so the payment terms are empty, save the change, and return to the create screen showing the updated payment terms state"
+     "goal": "on the event create screen, open Payment Terms and remove the payment clause, leaving the payment terms configuration empty so the screen shows the missing mandatory payment terms state"
     },
-    "note": "Remove the payment clause, which has no dedicated catalog action."
+    "note": "Perform the case-specific removal of the payment clause, which has no dedicated catalog action."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add one QA test vendor so the event is otherwise publishable."
+    "note": "Add one available QA vendor so the publish check reaches payment terms validation."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the 30-minute start-now schedule."
+    "note": "Commit the 30-minute schedule."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Payment Terms and Conditions are mandatory"
     },
-    "note": "Verify publishing is refused specifically because payment terms are mandatory."
+    "note": "Assert that publishing is refused with the required payment-terms message."
    }
   ]
  }

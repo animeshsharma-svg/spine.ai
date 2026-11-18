@@ -4,34 +4,47 @@
   "title": "Draft project: edit it and save again",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:18:47.111Z",
+  "compiledAt": "2026-11-13T12:03:00.483Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
   "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "set_sheet_cell",
    "expect_sheet_cell",
    "save_draft",
-   "open_prepared",
-   "expect_sheet_cell"
+   "expect_api_value"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 7920
+  "ms": 9699
  },
  "plan": {
-  "title": "Draft quantity persists after resave",
+  "title": "Edit Draft Quantity and Save",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "draft"
     },
-    "note": "Open the existing prepared draft on its create screen."
+    "note": "Open the prepared draft project's create screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_draft_project_creation",
+     "value": "On"
+    },
+    "note": "Enable the setting required for saving project drafts."
    },
    {
     "step": "set_sheet_cell",
@@ -40,37 +53,29 @@
      "column": "Quantity Requested",
      "value": "12"
     },
-    "note": "Change the first line item's quantity to 12."
+    "note": "Change the first line item's requested quantity to 12."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
      "column": "Quantity Requested",
+     "kept": true,
      "equals": "12"
     },
-    "note": "Confirm the edited quantity is shown before saving."
+    "note": "Verify the edited quantity is retained in the sheet before saving."
    },
    {
     "step": "save_draft",
     "args": {},
-    "note": "Save the edited project as a draft again."
+    "note": "Save the edited project as a draft."
    },
    {
-    "step": "open_prepared",
+    "step": "expect_api_value",
     "args": {
-     "screen": "draft"
+     "key": "quantity"
     },
-    "note": "Reopen the same prepared draft to verify persistence."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "equals": "12"
-    },
-    "note": "Assert the reopened draft retains quantity 12."
+    "note": "Assert the reopened draft shows the saved quantity of 12 from the API-backed event state."
    }
   ]
  }

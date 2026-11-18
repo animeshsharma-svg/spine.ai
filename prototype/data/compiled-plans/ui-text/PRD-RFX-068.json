@@ -3,62 +3,52 @@
   "caseId": "PRD-RFX-068",
   "title": "Open / Public Tender: refused for a user without the Buyer role",
   "group": "PRD-RFX",
-  "compiledAt": "2026-11-10T01:36:03.808Z",
+  "compiledAt": "2026-11-13T14:56:19.424Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "sign in as a user without the Buyer role and attempt to publish an Open / Public Tender",
-   "repeat the action as a Buyer on the same tenant and compare availability",
-   "verify tenant RBAC configuration when access is granted to additional roles"
+   "Sign in as a user without the Buyer role and as a Buyer on the same Enterprise tenant, then verify whether Open/Public Tender is offered and whether publishing is refused or allowed"
   ],
   "warnings": [
-   "added set_title — publishing without a title is refused",
-   "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: sign in as a user without the Buyer role and attempt to publish an Open / Public Tender; repeat the action as a Buyer on the same tenant and compare availability; verify tenant RBAC configuration when access is granted to additional roles"
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer on the same Enterprise tenant, then verify whether Open/Public Tender is offered and whether publishing is refused or allowed"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "expect_visible",
+   "open_events_list",
+   "expect_events_list",
    "ask_tester",
-   "expect_no_error"
+   "expect_text"
   ],
-  "ms": 16235
+  "ms": 10575
  },
  "plan": {
-  "title": "Open Tender role access",
+  "title": "Open Tender role permission",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Reach the closest screen where the Open / Public Tender publishing control may be offered."
+    "step": "open_events_list",
+    "args": {},
+    "note": "Reach the event creation entry point on the tenant."
    },
    {
-    "step": "set_title"
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Publish as open tender",
-     "visible": true
-    },
-    "note": "Observe whether the create screen exposes the known open-tender publishing control, without claiming this proves role-based authorization."
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list loaded before attempting the role-specific flow."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a user without the Buyer role, attempt to publish an Open / Public Tender, then repeat the same action as a Buyer on the same Enterprise tenant and record whether each role is refused or allowed"
+     "need": "sign in as the non-Buyer user and the Buyer user on the same Enterprise tenant, test whether Open/Public Tender is offered, and attempt to publish it for both roles"
     },
-    "note": "Role-specific sign-in and the comparative permission check are not expressible by catalog steps."
+    "note": "The catalog cannot change user roles or operate the Open/Public Tender flow, so the permission comparison must be performed by the tester."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "End with an assertion that the current screen did not show an application error after the tester interaction."
+    "step": "expect_text",
+    "args": {
+     "text": "Create Event",
+     "present": true
+    },
+    "note": "Confirm the event list remains available after the tester's role comparison."
    }
   ]
  }

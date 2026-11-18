@@ -3,55 +3,68 @@
   "caseId": "PRD-KBPR-024",
   "title": "Remove an item from the cart with the trash icon",
   "group": "PRD-KBPR",
-  "compiledAt": "2026-11-10T06:48:59.865Z",
+  "compiledAt": "2026-11-13T15:41:04.308Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the deleted item no longer appears in the cart side panel.",
+   "Assert that the cart item count drops by exactly one.",
+   "unconfirmed label \"🗑️\" (click) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"🗑️\" (click) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Assert that the deleted item no longer appears in the cart side panel.; Assert that the cart item count drops by exactly one."
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
-   "do_on_screen",
-   "expect_no_error"
+   "purchase_items",
+   "click",
+   "expect_screen_clean"
   ],
-  "ms": 9657
+  "ms": 14362
  },
  "plan": {
-  "title": "Remove PR cart item with trash icon",
+  "title": "Remove a PR cart item with the trash icon",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the purchase requisitions area where the PR cart is available."
+    "note": "Open the purchase requisitions area required to begin from a PR cart."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Use an open PR, which is the eligible source for the cart flow."
+    "note": "Use the Open tab because only open PRs can be used to enter sourcing."
    },
    {
     "step": "select_pr",
     "args": {
      "items": 2
     },
-    "note": "Select a PR with at least two line items so one can be removed while another remains."
+    "note": "Select a PR containing at least two line items so one can be removed."
    },
    {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "in the buyer's purchase-request cart, click the trash icon next to one line item and stop with that item absent from the side panel and the item count visibly decreased by one"
-    },
-    "note": "Perform the cart-specific trash action and verify both the removed line and the decremented count on screen."
-   },
-   {
-    "step": "expect_no_error",
+    "step": "purchase_items",
     "args": {},
-    "note": "Confirm the cart removal completed without an application error."
+    "note": "Open the selected PR's purchase-items cart where the line-item trash controls are available."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "🗑️"
+    },
+    "note": "Click the trash icon for one cart line, exercising the requested removal action."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the cart remains rendered without an application error after the removal."
    }
   ]
  }

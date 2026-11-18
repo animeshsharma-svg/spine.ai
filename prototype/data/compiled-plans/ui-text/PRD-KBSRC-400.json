@@ -3,25 +3,26 @@
   "caseId": "PRD-KBSRC-400",
   "title": "Send vendor submissions to evaluation",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:20:30.002Z",
+  "compiledAt": "2026-11-13T14:44:05.243Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the technical evaluator independently received the notification."
+   "Whether the technical evaluator receives the notification and can access the stage in a separate evaluator session"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the technical evaluator independently received the notification."
+   "can only test part of this — no step for: Whether the technical evaluator receives the notification and can access the stage in a separate evaluator session"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_event",
    "go_to",
    "do_on_screen",
-   "evaluate_technical",
+   "expect_text",
+   "ask_tester",
    "expect_text"
   ],
-  "ms": 17168
+  "ms": 18814
  },
  "plan": {
   "title": "Send Technical Submissions to Evaluation",
@@ -31,7 +32,7 @@
     "args": {
      "purpose": "evaluation"
     },
-    "note": "Open a suitable existing event with a closed technical stage and submitted vendor responses."
+    "note": "Open an existing published event with a closed technical stage and submitted vendor responses."
    },
    {
     "step": "go_to",
@@ -39,26 +40,37 @@
      "screen": "stage",
      "stage": "rfp"
     },
-    "note": "Navigate to the Technical Stage where Send to Evaluation is available."
+    "note": "Navigate to the Technical Stage as required by the case."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "click the blue Send to Evaluation button for the Technical Stage and stop on the buyer screen showing the send confirmation and the Evaluation time"
+     "goal": "on the Technical Stage, click the blue Send to Evaluation button and stop when the screen shows that evaluation has started with an Evaluation time displayed"
     },
-    "note": "Perform the catalog-missing Send to Evaluation action and observe its buyer-side result."
-   },
-   {
-    "step": "evaluate_technical",
-    "args": {},
-    "note": "Use the evaluator flow to confirm the technical stage is available for evaluator scoring after submissions are sent to evaluation."
+    "note": "Perform the buyer-side action that has no dedicated catalog step and verify the resulting evaluation state on screen."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Evaluation time"
+     "text": "Evaluation time",
+     "present": true
     },
-    "note": "Assert that an Evaluation time is displayed after the stage enters evaluation."
+    "note": "Assert that the Technical Stage displays an Evaluation time after submission to evaluation."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "verify that the assigned technical evaluator receives the notification, signs in as the evaluator, and can open the Technical Stage for evaluation"
+    },
+    "note": "The evaluator's separate login, notification receipt, and access cannot be performed by the catalog."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Evaluation time",
+     "present": true
+    },
+    "note": "Keep a final assertion confirming the evaluation-time state after the evaluator-access check."
    }
   ]
  }

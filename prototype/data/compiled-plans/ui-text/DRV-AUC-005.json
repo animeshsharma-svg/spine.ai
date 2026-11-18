@@ -1,44 +1,84 @@
 {
  "meta": {
   "caseId": "DRV-AUC-005",
-  "title": "Non-auction team user is blocked from publishing a routed auction stage",
+  "title": "Rank-based auction handles tied vendor scores correctly by shifting rank numbers",
   "group": "DRV-AUC",
   "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
-  "compiledAt": "2026-11-12T13:26:44.229Z",
+  "compiledAt": "2026-11-13T13:22:51.757Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A prepared state with two distinct vendor quotes totaling exactly 440 from an RFQ prior to conversion"
+   "Perform the conversion from a live RFQ with existing bids and observe the transition into the new auction."
   ],
   "warnings": [
-   "can only test part of this — no step for: A prepared state with two distinct vendor quotes totaling exactly 440 from an RFQ prior to conversion"
+   "can only test part of this — no step for: Perform the conversion from a live RFQ with existing bids and observe the transition into the new auction."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "expect_text",
+   "expect_api_value",
+   "expect_api_value",
+   "expect_api_value",
+   "expect_api_value",
    "expect_api_value"
   ],
   "state": "two_bids",
   "screen": "overview",
-  "ms": 31952
+  "ms": 7187
  },
  "plan": {
-  "title": "Auction starting total equals sum of copied RFQ bid totals",
+  "title": "Auction starting total preserves RFQ bids",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "overview"
     },
-    "note": "Open the prepared event overview page"
+    "note": "Open the prepared converted auction's Overview screen."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "440"
+    },
+    "note": "Assert that the Overview shows the expected combined starting total of 200 + 240."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "quantity"
+    },
+    "note": "Assert that the Overview shows the copied RFQ quantity for the line item."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Assert that the first vendor's copied RFQ price is shown."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice2"
+    },
+    "note": "Assert that the second vendor's copied RFQ price is shown."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "bidTotal"
     },
-    "note": "Verify the bid total matches the expected API value"
+    "note": "Assert that the first vendor's copied RFQ bid total is 200."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidTotal2"
+    },
+    "note": "Assert that the second vendor's copied RFQ bid total is 240."
    }
   ]
  }

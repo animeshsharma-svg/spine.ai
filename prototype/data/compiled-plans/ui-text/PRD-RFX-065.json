@@ -3,74 +3,63 @@
   "caseId": "PRD-RFX-065",
   "title": "Recurring Events: refused for a user without the Buyer role",
   "group": "PRD-RFX",
-  "compiledAt": "2026-11-10T01:35:55.740Z",
+  "compiledAt": "2026-11-13T14:56:11.206Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as the non-Buyer user and attempt to schedule a recurring event.",
-   "Sign in as a Buyer in the same tenant and repeat the recurring-event scheduling attempt.",
-   "Verify whether the tenant's RBAC configuration intentionally grants recurring-event access to roles other than Buyer."
+   "Sign in as a non-Buyer on the specified Enterprise tenant and verify that recurring-event scheduling is refused or absent.",
+   "Sign in as a Buyer on the same tenant and verify that recurring-event scheduling is available, then compare the two role outcomes.",
+   "Verify that the tenant is Enterprise because no tenant identifier or plan-inspection step is provided."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as the non-Buyer user and attempt to schedule a recurring event.; Sign in as a Buyer in the same tenant and repeat the recurring-event scheduling attempt.; Verify whether the tenant's RBAC configuration intentionally grants recurring-event access to roles other than Buyer."
+   "can only test part of this — no step for: Sign in as a non-Buyer on the specified Enterprise tenant and verify that recurring-event scheduling is refused or absent.; Sign in as a Buyer on the same tenant and verify that recurring-event scheduling is available, then compare the two role outcomes.; Verify that the tenant is Enterprise because no tenant identifier or plan-inspection step is provided."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 5,
   "stepNames": [
    "open_events_list",
    "expect_events_list",
    "filter_events",
-   "expect_text",
    "ask_tester",
-   "open_events_list",
-   "expect_events_list"
+   "expect_visible"
   ],
-  "ms": 13054
+  "ms": 9280
  },
  "plan": {
-  "title": "Recurring Events RBAC Access",
+  "title": "Recurring Events Role Access",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Reach the events list where the Recurring Events area is available."
+    "note": "Open the events list where the Recurring Events area is available."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered successfully before inspecting recurring events."
+    "note": "Confirm the events list rendered before inspecting recurring events."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Recurring"
     },
-    "note": "Open the Recurring Events view relevant to the case."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Recurring",
-     "present": true
-    },
-    "note": "Confirm the recurring-events area is visibly present; this does not assert role-based permission."
+    "note": "Navigate to the Recurring Events area that is the subject of the access check."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "provide the non-Buyer and Buyer user sessions in the same Enterprise tenant, attempt to schedule a recurring event with each, and report whether the non-Buyer is refused or the action is absent while the Buyer can proceed"
+     "need": "sign in as the non-Buyer and then the Buyer on the same Enterprise tenant, attempt to schedule a recurring event in each session, and record whether the action is refused or unavailable for the non-Buyer and available for the Buyer"
     },
-    "note": "Alternate-role authentication and the recurring scheduling permission comparison are not expressible by the catalog."
+    "note": "Alternate role credentials and the tenant context are required to test the RBAC comparison."
    },
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Return to a known screen after the tester's role comparison."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Assert that the events list is available after the comparison."
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Recurring",
+     "visible": true
+    },
+    "note": "Leave a known Recurring Events control as the final screen assertion."
    }
   ]
  }

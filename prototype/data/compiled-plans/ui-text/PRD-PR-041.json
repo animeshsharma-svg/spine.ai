@@ -3,68 +3,81 @@
   "caseId": "PRD-PR-041",
   "title": "Add to Draft RFX from PR: not available on plans below Growth",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:28:50.393Z",
+  "compiledAt": "2026-11-13T15:20:10.425Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Switching tenant subscription plans between below-Growth and Growth",
-   "Add to Draft RFX from PR feature action",
-   "unconfirmed label \"Add to Draft RFX from PR\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "Switch to or verify a tenant on a plan below Growth and a tenant on Growth",
+   "Observe whether Add to Draft RFX from PR is absent or refused on the lower-plan tenant",
+   "Perform and verify appending PR line items to an existing draft RFX on the Growth tenant"
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 3 step(s) that would open a blank event or replace the PR's items",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 3 step(s) that would open a blank event or replace the PR's items",
-   "coverage partial: unconfirmed label \"Add to Draft RFX from PR\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Switching tenant subscription plans between below-Growth and Growth; Add to Draft RFX from PR feature action"
+   "can only test part of this — no step for: Switch to or verify a tenant on a plan below Growth and a tenant on Growth; Observe whether Add to Draft RFX from PR is absent or refused on the lower-plan tenant; Perform and verify appending PR line items to an existing draft RFX on the Growth tenant"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
+   "open_events_list",
+   "expect_events_list",
+   "filter_events",
+   "open_first_event",
    "open_purchase_requisitions",
    "pr_tab",
-   "select_pr",
-   "purchase_items",
-   "choose_stages",
-   "expect_pr_items",
-   "expect_visible"
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 205994
+  "ms": 12693
  },
  "plan": {
-  "title": "Add to Draft RFX from PR not available on plans below Growth",
+  "title": "Add to Draft RFX Plan Gating",
   "steps": [
    {
-    "step": "open_purchase_requisitions"
+    "step": "open_events_list",
+    "args": {},
+    "note": "Reach the events list to locate an existing draft RFX."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list is available before inspecting drafts."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Show existing draft RFX events."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the first available draft as the closest catalog-supported route to an existing draft RFX."
+   },
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Reach the purchase-requisition flow from which PR lines would be added."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
-    }
-   },
-   {
-    "step": "select_pr",
-    "args": {
-     "items": 1
-    }
-   },
-   {
-    "step": "purchase_items"
-   },
-   {
-    "step": "choose_stages",
-    "args": {}
-   },
-   {
-    "step": "expect_pr_items"
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "visible": false,
-     "name": "Add to Draft RFX from PR"
     },
-    "note": "Assert that the Add to Draft RFX from PR option is absent or unavailable on a lower plan"
+    "note": "Show open PRs that could supply line items."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide access to the named lower-plan and Growth tenants, then attempt Add to Draft RFX from PR on the existing draft and verify refusal or absence below Growth and successful append on Growth"
+    },
+    "note": "Tenant plan comparison and the Add to Draft RFX capability are not expressible by catalog steps."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Ensure the final observed screen has no crash or server error after the assisted check."
    }
   ]
  }

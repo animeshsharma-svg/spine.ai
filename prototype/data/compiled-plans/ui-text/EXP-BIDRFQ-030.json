@@ -4,16 +4,18 @@
   "title": "A live RFQ with a vendor's bid: \"Increase Event Time\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:39:42.201Z",
+  "compiledAt": "2026-11-13T13:47:47.492Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Prove that the event's exact submission start and end times are unchanged after cancellation.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "resolved: “Prove that every vendor and bid on the event, rather than the prepared vendor and bid values, remains unchanged.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
   ],
   "source": "llm",
-  "steps": 21,
+  "steps": 17,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -21,35 +23,31 @@
    "require_setting",
    "require_setting",
    "require_setting",
-   "remember",
    "go_to",
-   "go_to",
-   "expect_responses",
+   "expect_text",
+   "expect_api_value",
+   "expect_api_value",
    "event_menu",
    "expect_visible",
    "click",
    "expect_visible",
-   "open_prepared",
-   "expect_remembered",
    "expect_text",
    "expect_api_value",
-   "go_to",
-   "go_to",
-   "expect_responses"
+   "expect_api_value"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 21082
+  "ms": 14638
  },
  "plan": {
-  "title": "Cancel Increase Event Time",
+  "title": "Cancel Extend Submission Time",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary with one vendor bid."
+    "note": "Open the API-prepared live RFQ with one vendor bid."
    },
    {
     "step": "require_setting",
@@ -73,7 +71,7 @@
      "key": "disable_reject_bid_in_bidding_time",
      "value": "Off"
     },
-    "note": "Apply the required bid-rejection configuration."
+    "note": "Apply the required bidding-time rejection configuration."
    },
    {
     "step": "require_setting",
@@ -81,7 +79,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Apply the required buyer bid-edit configuration."
+    "note": "Apply the required buyer bid-editing configuration."
    },
    {
     "step": "require_setting",
@@ -92,40 +90,37 @@
     "note": "Apply the required percentage counter-offer configuration."
    },
    {
-    "step": "remember",
-    "args": {
-     "key": "originalEndTime",
-     "text": "Bidding Ends At"
-    },
-    "note": "Capture the current displayed bidding end-time region before opening the dialog."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "stage",
-     "stage": "rfq"
-    },
-    "note": "Open the RFQ stage."
-   },
-   {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open Responses, the screen named by the case."
+    "note": "Reach the RFQ Responses tab where the buyer opens Settings."
    },
    {
-    "step": "expect_responses",
+    "step": "expect_text",
     "args": {
-     "count": 1
+     "text": "Live"
     },
-    "note": "Verify the existing vendor response is present before the cancellation."
+    "note": "Record the event's visible live state before opening the time dialog."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName"
+    },
+    "note": "Verify the prepared vendor is present before cancellation."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Verify the prepared bid price before cancellation."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Extend Submission Time",
-     "stage": "rfq"
+     "item": "Extend Submission Time"
     },
     "note": "Open the Increase Event Time window from the RFQ Settings menu."
    },
@@ -135,7 +130,7 @@
      "text": "Increase Event Time",
      "visible": true
     },
-    "note": "Confirm the expected time-extension window opened."
+    "note": "Confirm the time-extension dialog opened."
    },
    {
     "step": "click",
@@ -143,7 +138,7 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the time-extension operation."
+    "note": "Cancel the time change without saving it."
    },
    {
     "step": "expect_visible",
@@ -151,60 +146,28 @@
      "text": "Increase Event Time",
      "visible": false
     },
-    "note": "Verify that cancelling closes the window."
-   },
-   {
-    "step": "open_prepared",
-    "args": {
-     "screen": "summary"
-    },
-    "note": "Return to the prepared event summary to verify unchanged event state."
-   },
-   {
-    "step": "expect_remembered",
-    "args": {
-     "key": "originalEndTime",
-     "text": "Bidding Ends At",
-     "same": true
-    },
-    "note": "Verify the bidding end-time display did not change."
+    "note": "Confirm cancellation closes the dialog."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Live",
-     "present": true
+     "text": "Live"
     },
-    "note": "Verify the event remains live."
+    "note": "Verify the event remains live after cancellation."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName"
+    },
+    "note": "Verify the prepared vendor value is unchanged."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "bidPrice"
     },
-    "note": "Verify the existing bid price remains unchanged."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "stage",
-     "stage": "rfq"
-    },
-    "note": "Return to the RFQ stage for the response check."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Return to Responses to verify vendor and bid visibility."
-   },
-   {
-    "step": "expect_responses",
-    "args": {
-     "count": 1
-    },
-    "note": "Verify the same single vendor response remains present after cancellation."
+    "note": "Verify the prepared bid price is unchanged."
    }
   ]
  }

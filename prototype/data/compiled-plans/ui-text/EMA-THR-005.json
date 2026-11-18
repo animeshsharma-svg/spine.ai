@@ -4,36 +4,37 @@
   "title": "An out-of-office auto-reply never gets a reply back (no loop)",
   "group": "EMA-THR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:59:01.455Z",
+  "compiledAt": "2026-11-13T14:24:32.083Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set an out-of-office auto-reply on Asha's mailbox.",
-   "Log in as Ravi and create the named event with the specified two-step approval workflow.",
-   "Submit the event for approval and deliver the approval email to Asha.",
-   "Wait for and inspect the auto-reply in the approval mailbox.",
-   "Observe the mailbox for 10 minutes and verify that no bounce-back, approval action, or email ping-pong occurs.",
-   "Use the specified DLF Hospitality UAT users and separate mailboxes."
+   "Set an out-of-office auto-reply on Asha's mailbox",
+   "Log in as Ravi and submit the named event into the two-step email approval workflow",
+   "Wait for the auto-reply to reach the connected approval mailbox",
+   "Watch the approval mailbox for 10 minutes and verify that no bounce-back, recorded action, or email ping-pong occurs"
   ],
   "warnings": [
    "added open_create — every create test has to start somewhere",
    "added set_title — publishing without a title is refused",
    "added open_create — every create test has to start somewhere",
    "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Set an out-of-office auto-reply on Asha's mailbox.; Log in as Ravi and create the named event with the specified two-step approval workflow.; Submit the event for approval and deliver the approval email to Asha.; Wait for and inspect the auto-reply in the approval mailbox.; Observe the mailbox for 10 minutes and verify that no bounce-back, approval action, or email ping-pong occurs.; Use the specified DLF Hospitality UAT users and separate mailboxes."
+   "can only test part of this — no step for: Set an out-of-office auto-reply on Asha's mailbox; Log in as Ravi and submit the named event into the two-step email approval workflow; Wait for the auto-reply to reach the connected approval mailbox; Watch the approval mailbox for 10 minutes and verify that no bounce-back, recorded action, or email ping-pong occurs"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 7,
   "stepNames": [
    "open_create",
    "set_title",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 11955
+  "ms": 15969
  },
  "plan": {
-  "title": "Out-of-office auto-reply does not loop",
+  "title": "EMA-THR-005 Auto-Reply Loop Prevention",
   "steps": [
    {
     "step": "open_create",
@@ -45,16 +46,40 @@
     "step": "set_title"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Configure the company prerequisite for email approvals."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "the company's approval mailbox connected to Procol with permission to send replies",
+     "value": "On"
+    },
+    "note": "Configure the connected approval mailbox prerequisite if it is available as a company setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Configure the approval-workflow prerequisite for the scenario."
+   },
+   {
     "step": "ask_tester",
     "args": {
-     "need": "set Asha's out-of-office auto-reply, submit Ravi's event for the specified two-step approval workflow, then monitor both mailboxes for 10 minutes and verify that no bounce-back, approval action, or email loop occurs"
+     "need": "set Asha's out-of-office auto-reply, submit the named event as Ravi for the two-step email approval workflow, wait for the auto-reply, and monitor the approval mailbox for 10 minutes to verify no bounce-back or approval action is recorded"
     },
-    "note": "No catalog step can access mailboxes, configure auto-replies, submit approval workflows, or observe email-thread behavior."
+    "note": "Mailbox configuration, email delivery, approval submission, and mailbox observation are not expressible by catalog steps."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Final assertion that the session remains free of an application error after the tester performs the unavailable workflow; this does not assert the email behavior."
+    "note": "Provide a final assertion after the tester interaction without claiming that it verifies the mailbox behavior."
    }
   ]
  }

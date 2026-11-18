@@ -4,24 +4,30 @@
   "title": "A closed RFQ: \"Actions\" opens its menu",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:25:54.733Z",
+  "compiledAt": "2026-11-13T13:52:27.735Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "click",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_options"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 67200
+  "ms": 10138
  },
  "plan": {
-  "title": "Closed RFQ Actions Menu",
+  "title": "Closed RFQ Actions menu options",
   "steps": [
    {
     "step": "open_prepared",
@@ -31,16 +37,42 @@
     "note": "Open the prepared closed RFQ directly on its Responses tab."
    },
    {
-    "step": "click",
+    "step": "require_setting",
     "args": {
-     "role": "button",
-     "name": "Actions"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the Actions menu on the Responses screen."
+    "note": "Enable eRFX projects for the RFQ flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Set the post-expiry surrogate-bid setting required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Restrict evaluation reopening as required by the case configuration."
    },
    {
     "step": "expect_options",
     "args": {
+     "role": "button",
+     "name": "Actions",
      "options": [
       "Show Best Prices",
       "Enable English Auction",
@@ -48,7 +80,7 @@
      ],
      "only": true
     },
-    "note": "Assert that the Actions menu lists exactly the three expected options."
+    "note": "Open the Actions menu and assert that it lists exactly the three expected controls."
    }
   ]
  }

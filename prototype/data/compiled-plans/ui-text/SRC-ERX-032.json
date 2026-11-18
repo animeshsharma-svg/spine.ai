@@ -4,26 +4,30 @@
   "title": "eRFX Items drawer: quantity letters",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:19:19.641Z",
+  "compiledAt": "2026-11-13T12:03:37.621Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
    "compose_stages",
-   "switch_stage",
    "select_template",
    "add_line_items",
+   "set_sheet_cell",
    "expect_error"
   ],
-  "ms": 13588
+  "ms": 14374
  },
  "plan": {
-  "title": "eRFX Quantity Rejects Letters",
+  "title": "eRFX quantity rejects letters",
   "steps": [
    {
     "step": "open_create",
@@ -33,11 +37,19 @@
     "note": "Open the eRFX project creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
     "step": "set_title",
     "args": {
-     "title": "SRC-ERX-032 Quantity Letters"
+     "title": "Quantity Letters Validation"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provide the mandatory project title before configuring the event."
    },
    {
     "step": "compose_stages",
@@ -46,35 +58,36 @@
       "rfq"
      ]
     },
-    "note": "Change the default Auction stage to RFQ only."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Work on the RFQ stage before selecting its template and item."
+    "note": "Configure the project with an RFQ-only stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply the first available RFQ template before adding items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB",
-     "quantity": "abc"
+     "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the requested product and enter the invalid alphabetic quantity."
+    "note": "Add the specified product as the sheet line item."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "abc"
+    },
+    "note": "Enter letters into the quantity cell to trigger its validation."
    },
    {
     "step": "expect_error",
     "args": {
-     "contains": "quantity"
+     "contains": "Quantity"
     },
-    "note": "Assert that Procol rejects the alphabetic quantity inline."
+    "note": "Assert that the application rejects the alphabetic quantity with a quantity-related error."
    }
   ]
  }

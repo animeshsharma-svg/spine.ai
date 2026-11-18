@@ -4,17 +4,17 @@
   "title": "Vendor e-mail when its bid is rejected",
   "group": "SRC-MAIL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:32:36.616Z",
+  "compiledAt": "2026-11-13T12:14:35.691Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the QA mailboxes and verify that each concerned vendor receives exactly one rejection email containing the buyer's reason.",
-   "Verify that no other vendor or real supplier receives the rejection email."
+   "Open QA vendor mailboxes and verify each concerned vendor receives exactly one rejection email containing the buyer's reason",
+   "Verify no other vendor receives the rejection email and no real supplier receives any email"
   ],
   "warnings": [
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: Open the QA mailboxes and verify that each concerned vendor receives exactly one rejection email containing the buyer's reason.; Verify that no other vendor or real supplier receives the rejection email."
+   "can only test part of this — no step for: Open QA vendor mailboxes and verify each concerned vendor receives exactly one rejection email containing the buyer's reason; Verify no other vendor receives the rejection email and no real supplier receives any email"
   ],
   "source": "llm",
   "steps": 18,
@@ -36,24 +36,26 @@
    "close_event",
    "do_on_screen",
    "ask_tester",
-   "expect_no_error"
+   "expect_screen_clean"
   ],
-  "ms": 17953
+  "ms": 11218
  },
  "plan": {
-  "title": "Vendor email when bid is rejected",
+  "title": "Vendor email on rejected bid",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create a test event for the rejection scenario."
+    "note": "Create a buyer-side event for the rejection scenario."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Every publishable event requires a title."
+    "args": {
+     "title": "SRC-MAIL-006 Rejected Bid Email"
+    },
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -62,19 +64,19 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ stage so vendor bids can be submitted and rejected."
+    "note": "Use an RFQ stage so vendors can submit bids that the buyer can reject."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template before adding line items."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Provide a product for the vendor bids."
+    "note": "Add one line item for the vendor bids."
    },
    {
     "step": "fill_sheet",
@@ -93,17 +95,17 @@
     "args": {
      "count": 2
     },
-    "note": "Invite two QA vendors so one rejection can be compared with an unaffected vendor."
+    "note": "Invite two QA vendors so one can be rejected and the other can verify non-receipt."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the test event before collecting bids."
+    "note": "Publish the event so vendors can bid."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a real published project page."
+    "note": "Confirm the event is a real published project before bidding."
    },
    {
     "step": "place_bid",
@@ -118,7 +120,7 @@
    {
     "step": "place_bid",
     "args": {},
-    "note": "Submit a bid from a second QA vendor so another vendor remains unaffected by the rejection."
+    "note": "Submit a bid from a different QA vendor."
    },
    {
     "step": "expect_bid_submitted",
@@ -133,21 +135,21 @@
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the buyer's Responses screen, reject exactly one QA vendor bid with a buyer reason while leaving the other vendor's bid active; stop when the rejection is visibly saved"
+     "goal": "On the buyer's Responses screen, reject exactly one submitted QA vendor bid using the buyer's rejection action, enter a buyer reason, submit the rejection, and stop when the screen shows the rejection succeeded."
     },
-    "note": "The catalog has no dedicated bid-rejection action, so use the buyer screen to perform and verify the rejection."
+    "note": "The catalog has no dedicated bid-rejection action, but the buyer can perform this on the Responses screen in the current session."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open the QA mailboxes, verify the rejected vendor received exactly one rejection email containing the buyer's reason, and verify no other vendor or real supplier received it"
+     "need": "open the QA mailboxes for both invited vendors and verify that only the rejected vendor received exactly one rejection email containing the buyer's reason, while the other vendor and all real suppliers received none"
     },
-    "note": "Mailbox access and email-recipient verification are not available in the catalog."
+    "note": "Mailbox access and email-recipient/content verification are outside the Procol screen catalog."
    },
    {
-    "step": "expect_no_error",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the buyer session has no application error after the rejection workflow."
+    "note": "End with an observable assertion that the current screen remains healthy after the mailbox verification handoff."
    }
   ]
  }

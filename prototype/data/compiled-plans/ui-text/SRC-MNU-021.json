@@ -4,24 +4,31 @@
   "title": "Request for Re-evaluation",
   "group": "SRC-MNU",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:35:17.119Z",
+  "compiledAt": "2026-11-13T12:16:17.909Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot deterministically locate an existing Tech+RFQ project that has already completed technical scoring; open_event purpose evaluation selects a technical evaluation candidate instead."
+  ],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: The catalog cannot deterministically locate an existing Tech+RFQ project that has already completed technical scoring; open_event purpose evaluation selects a technical evaluation candidate instead."
+  ],
   "source": "llm",
   "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
-   "open_event_settings",
-   "click",
+   "expect_settings_menu",
    "do_on_screen",
    "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 12525
+  "ms": 20414
  },
  "plan": {
   "title": "Request for Re-evaluation",
@@ -31,7 +38,15 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing prepared Tech+RFQ event without creating or searching for another event."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "go_to",
@@ -39,27 +54,23 @@
      "screen": "stage",
      "stage": "rfp"
     },
-    "note": "Navigate to the Technical Stage where re-evaluation is requested."
+    "note": "Move to the technical stage where re-evaluation is requested."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the stage Settings menu."
-   },
-   {
-    "step": "click",
+    "step": "expect_settings_menu",
     "args": {
-     "role": "menuitem",
-     "name": "Request for Re-evaluation"
+     "offered": [
+      "Request for Re-evaluation"
+     ]
     },
-    "note": "Open the re-evaluation request flow."
+    "note": "Assert that the gear menu offers the requested action."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "select the required technical line items and send the re-evaluation request; then request re-evaluation again and verify the screen shows \"Reevaluation already Requested\"; finally attempt to send with no line items selected and verify the screen shows \"Select correct line items for reevaluation\""
+     "goal": "On the buyer's technical stage, click Settings, choose Request for Re-evaluation, select valid line items and send; then request re-evaluation again and verify the screen shows \"Reevaluation already Requested\"; finally open the request again, select no line items, send, and stop when the screen shows \"Select correct line items for reevaluation\"."
     },
-    "note": "Execute and observe the complete request, duplicate-request, and no-line validation behavior on screen."
+    "note": "Perform and observe the re-evaluation request flow, including duplicate-request and no-line validation outcomes that no dedicated catalog step exposes."
    },
    {
     "step": "expect_text",
@@ -67,7 +78,7 @@
      "text": "Select correct line items for reevaluation",
      "present": true
     },
-    "note": "Assert the final no-line-items validation message is visible."
+    "note": "Assert the final no-line-items validation message."
    }
   ]
  }

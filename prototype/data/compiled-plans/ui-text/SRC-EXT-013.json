@@ -4,45 +4,60 @@
   "title": "Extend is greyed out on a closed RFQ",
   "group": "SRC-EXT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:26:56.191Z",
+  "compiledAt": "2026-11-13T12:08:47.648Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
-   "expect_menu_item"
+   "require_setting",
+   "go_to",
+   "expect_settings_menu"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 65586
+  "ms": 8234
  },
  "plan": {
-  "title": "Closed RFQ Extend Submission Time Disabled",
+  "title": "Extend Submission Time disabled on closed RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ's project summary."
+    "note": "Open the prepared closed RFQ event summary."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the current RFQ stage's Settings menu."
-   },
-   {
-    "step": "expect_menu_item",
+    "step": "require_setting",
     "args": {
-     "item": "Extend Submission Time",
-     "enabled": false,
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case setup."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Assert that Extend Submission Time is offered but greyed out on the closed RFQ."
+    "note": "Navigate to the RFQ stage page where the stage Settings menu is available."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "greyed": [
+      "Extend Submission Time"
+     ]
+    },
+    "note": "Assert that Extend Submission Time is offered in the Settings menu but disabled for the closed RFQ."
    }
   ]
  }

@@ -4,14 +4,14 @@
   "title": "Vendor fills a dropdown column \"Make\": leave it unselected when it is required",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:27:56.407Z",
+  "compiledAt": "2026-11-13T11:47:58.060Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog cannot explicitly assert that the Make dropdown remains unselected or that it is required before submission."
+   "Select or verify the required buyer-added Make dropdown column is left unselected while submitting a quote of 100."
   ],
   "warnings": [
-   "can only test part of this — no step for: The catalog cannot explicitly assert that the Make dropdown remains unselected or that it is required before submission."
+   "can only test part of this — no step for: Select or verify the required buyer-added Make dropdown column is left unselected while submitting a quote of 100."
   ],
   "source": "llm",
   "steps": 5,
@@ -19,18 +19,18 @@
    "open_event",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
+   "ask_tester",
    "attempt"
   ],
-  "ms": 16204
+  "ms": 29281
  },
  "plan": {
-  "title": "Required Make dropdown blocks vendor bid",
+  "title": "Required Make Dropdown Validation",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open a suitable existing live RFQ with bids still open."
+    "note": "Open a suitable existing live event for the vendor-side test."
    },
    {
     "step": "switch_portal",
@@ -45,26 +45,26 @@
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the RFQ pricing sheet in the vendor portal."
+    "note": "Open the event's RFQ bid sheet in the vendor portal."
    },
    {
-    "step": "expect_text",
+    "step": "ask_tester",
     "args": {
-     "text": "Make",
-     "present": true
+     "need": "leave the required Make dropdown unselected, enter a quote of 100, and submit the quote"
     },
-    "note": "Confirm the buyer-added Make column is present on the vendor's bid sheet."
+    "note": "The catalog has no step that can target or confirm the required Make dropdown state."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "vendor_bid",
+     "step": "click",
      "args": {
-      "price": 100
+      "role": "button",
+      "name": "Submit Quote"
      },
      "expect": "refused"
     },
-    "note": "Enter the quote price without selecting Make and submit; the attempt must be refused or remain disabled."
+    "note": "Confirm that submission remains refused when the required Make option is still unselected."
    }
   ]
  }

@@ -3,39 +3,78 @@
   "caseId": "PRD-VM-081",
   "title": "Vendor Form Sections (vendor.form.sections) = default without Banking",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T02:56:48.759Z",
+  "compiledAt": "2026-11-13T15:09:53.698Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set the tenant setting vendor.form.sections to Basic Info, Documents, Tax",
-   "Import vendors directly from the enterprise VMS/VRP as an Implementation Partner",
-   "Verify that Banking is absent while Basic Info, Documents, and Tax remain visible and required on the vendor onboarding form"
+   "Use VMS / VRP Import as an Implementation Partner in the required separate persona session",
+   "unconfirmed label \"Banking\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "can only test part of this — no step for: Set the tenant setting vendor.form.sections to Basic Info, Documents, Tax; Import vendors directly from the enterprise VMS/VRP as an Implementation Partner; Verify that Banking is absent while Basic Info, Documents, and Tax remain visible and required on the vendor onboarding form"
+   "coverage partial: unconfirmed label \"Banking\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Use VMS / VRP Import as an Implementation Partner in the required separate persona session"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text"
   ],
-  "ms": 17978
+  "ms": 13559
  },
  "plan": {
   "title": "Vendor Form Sections Without Banking",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "set vendor.form.sections to Basic Info, Documents, Tax, import vendors from the enterprise VMS/VRP as an Implementation Partner, and inspect the onboarding form to verify Banking is absent while the other sections remain visible and required"
+     "key": "vendor.form.sections",
+     "value": "Basic Info, Documents, Tax"
     },
-    "note": "No catalog step can change this tenant setting, perform the VMS/VRP import, or observe the vendor onboarding form sections."
+    "note": "Configure the tenant's vendor form sections without Banking."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the final inspected screen has no visible crash, server error, raw identifiers, or malformed values."
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as an Implementation Partner, use VMS / VRP Import to import a vendor, and leave the vendor onboarding form open"
+    },
+    "note": "The catalog has no step for the VMS/VRP Import flow or the required Implementation Partner session."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Basic Info",
+     "present": true
+    },
+    "note": "Verify the remaining Basic Info section is visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Documents",
+     "present": true
+    },
+    "note": "Verify the remaining Documents section is visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Tax",
+     "present": true
+    },
+    "note": "Verify the remaining Tax section is visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Banking",
+     "present": false
+    },
+    "note": "Verify the Banking section is no longer visible or applicable."
    }
   ]
  }

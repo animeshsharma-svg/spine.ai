@@ -4,11 +4,11 @@
   "title": "Single stage reverse auction: award it after the close",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:29:32.845Z",
+  "compiledAt": "2026-11-13T12:11:58.593Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the specific reverse-auction event is the one shown in History after PO creation because no event title or project ID is provided."
+   "Verify that the specific live reverse auction moves to History after the PO is created, because the case does not provide the event title or project ID needed to match its row."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
@@ -16,12 +16,13 @@
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Assert that the specific reverse-auction event is the one shown in History after PO creation because no event title or project ID is provided."
+   "can only test part of this — no step for: Verify that the specific live reverse auction moves to History after the PO is created, because the case does not provide the event title or project ID needed to match its row."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "close_event",
    "open_master_qcs",
    "award_event",
@@ -32,7 +33,7 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 12098
+  "ms": 18391
  },
  "plan": {
   "title": "Single-Stage Reverse Auction Award After Close",
@@ -45,43 +46,51 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project capability before accessing the event."
+   },
+   {
     "step": "close_event",
     "args": {},
-    "note": "Close the live auction so its final bids can be awarded."
+    "note": "Close the live auction so its final bid can be awarded."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the comparison grid to verify the bids are available for awarding."
+    "note": "Open the comparison grid where the auction bids and final ranking are shown."
    },
    {
     "step": "award_event",
     "args": {
      "vendor": "lowest"
     },
-    "note": "Allocate all items to the best final bid, defined for a reverse auction as the lowest bid, and submit the award proposal."
+    "note": "Award the entire event to the lowest-ranked final bid and submit the proposal."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Confirm the award proposal was created and submitted."
+    "note": "Verify that the award proposal was created and submitted."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete the approval flow and create the purchase order for the awarded vendor."
+    "note": "Complete the award approval flow and create the purchase order."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Open the History tab where a completed event should appear."
+    "note": "Open the History tab where completed events should appear."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the History list rendered without an error, though the specific event cannot be matched without its title or ID."
+    "note": "Verify that the History events list rendered without an error."
    }
   ]
  }

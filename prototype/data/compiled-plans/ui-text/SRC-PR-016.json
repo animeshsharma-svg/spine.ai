@@ -4,27 +4,34 @@
   "title": "Try to purchase a rejected PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:29:17.849Z",
+  "compiledAt": "2026-11-13T12:25:10.054Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "select_pr",
-   "expect_disabled",
    "hover",
    "expect_message",
    "attempt"
   ],
-  "ms": 9434
+  "ms": 9791
  },
  "plan": {
-  "title": "Rejected PR Purchase Block",
+  "title": "Rejected PR line cannot be purchased",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "pr_reject_enabled",
+     "value": "On"
+    },
+    "note": "Enable rejected PR-line handling required by the case."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
@@ -35,27 +42,14 @@
     "args": {
      "tab": "Rejected"
     },
-    "note": "Navigate to the rejected PR lines specified by the case."
-   },
-   {
-    "step": "select_pr",
-    "args": {},
-    "note": "Attempt to tick the first rejected PR line and verify that it cannot enable purchasing."
-   },
-   {
-    "step": "expect_disabled",
-    "args": {
-     "control": "Purchase Items"
-    },
-    "note": "Assert that rejected lines do not enable the Purchase Items control."
+    "note": "Show the rejected PR line specified by the test data."
    },
    {
     "step": "hover",
     "args": {
-     "role": "button",
-     "name": "Purchase Items"
+     "text": "Purchase Items"
     },
-    "note": "Reveal the control's explanation for why rejected lines cannot be purchased."
+    "note": "Reveal the product's explanation for why rejected lines cannot be purchased."
    },
    {
     "step": "expect_message",
@@ -64,20 +58,16 @@
      "text": "Rejected or Send Back Pending PR cannot be purchased",
      "on": "Purchase Items"
     },
-    "note": "Assert the required refusal message."
+    "note": "Verify the expected refusal message."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Purchase Items"
-     },
-     "because": "Rejected or Send Back Pending PR cannot be purchased",
-     "expect": "refused"
+     "step": "select_pr",
+     "expect": "refused",
+     "because": "Rejected or Send Back Pending PR cannot be purchased"
     },
-    "note": "Confirm clicking the disabled Purchase Items control is refused."
+    "note": "Try selecting the rejected line and require Procol to refuse the purchase selection."
    }
   ]
  }

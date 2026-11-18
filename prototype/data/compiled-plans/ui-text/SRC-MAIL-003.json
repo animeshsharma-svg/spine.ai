@@ -4,23 +4,21 @@
   "title": "Vendor e-mail when the submission time is extended",
   "group": "SRC-MAIL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:33:06.465Z",
+  "compiledAt": "2026-11-13T12:14:18.518Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the QA mailboxes of the concerned vendors and verify that each receives exactly one email announcing the new end time.",
-   "Verify that no other vendor receives the email and that no real supplier receives it."
+   "Open QA vendor mailboxes and verify that each concerned vendor receives exactly one new-end-time email, while no other vendor or real supplier receives it."
   ],
   "warnings": [
-   "can only test part of this — no step for: Open the QA mailboxes of the concerned vendors and verify that each receives exactly one email announcing the new end time.; Verify that no other vendor receives the email and that no real supplier receives it."
+   "can only test part of this — no step for: Open QA vendor mailboxes and verify that each concerned vendor receives exactly one new-end-time email, while no other vendor or real supplier receives it."
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
-   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -29,11 +27,10 @@
    "publish",
    "expect_published",
    "extend_submission_time",
-   "expect_no_error",
    "ask_tester",
    "expect_no_error"
   ],
-  "ms": 71416
+  "ms": 9196
  },
  "plan": {
   "title": "Vendor email after submission-time extension",
@@ -43,14 +40,14 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Create a test event for the email trigger."
+    "note": "Start a multi-stage-capable event creation flow for the test event."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-MAIL-003 Submission Extension"
+     "title": "SRC-MAIL-003 Submission Time Extension"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the required event title so the event can be published."
    },
    {
     "step": "compose_stages",
@@ -59,50 +56,43 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ stage so its submission time can be extended."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Configure the RFQ stage."
+    "note": "Use a submission-based RFQ stage whose time can be extended."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template before adding line items."
+    "note": "Apply the first available RFQ template required before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required product line."
+    "note": "Add one product so the event has a valid pricing sheet."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
+    "note": "Complete the RFQ pricing sheet before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a published submission window."
+    "note": "Commit a live submission window that can be extended."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two QA vendors so recipient inclusion and exclusion can be checked externally."
+    "note": "Invite two QA vendors so recipient and non-recipient behavior can be checked externally."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event before extending its submission time."
+    "note": "Publish the event to make its submission window active."
    },
    {
     "step": "expect_published",
@@ -112,27 +102,22 @@
    {
     "step": "extend_submission_time",
     "args": {
-     "by": "30 minutes",
+     "by": "15 minutes",
      "stage": "rfq"
     },
-    "note": "Trigger the submission-time extension that should generate vendor email notifications."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the extension action completed without an application error."
+    "note": "Trigger the submission-time extension that should generate vendor notification emails."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open the QA mailboxes of the concerned and other vendors and verify exactly one new-end-time email per concerned vendor, none for other vendors, and none for real suppliers"
+     "need": "open the QA mailboxes of both concerned vendors and verify that each receives exactly one email announcing the new submission end time, while no other vendor or real supplier receives it"
     },
-    "note": "Mailbox access and email recipient verification are not available through the catalog."
+    "note": "Mailbox access and cross-recipient email verification are outside the catalog."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Keep a terminal assertion after the tester intervention."
+    "note": "Assert that the Procol session remained free of application errors after the extension and mailbox verification task."
    }
   ]
  }

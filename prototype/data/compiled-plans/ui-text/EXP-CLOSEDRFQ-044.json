@@ -4,46 +4,49 @@
   "title": "Recreate Order: Enter zero and negative numbers in numeric fields",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:42:15.448Z",
+  "compiledAt": "2026-11-13T13:56:22.665Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The conditional fallback of selecting 0 from the Event End Time Duration dropdown only if offered, otherwise typing 0 into a custom duration field cannot be expressed as one conditional catalog flow.",
-   "The case does not specify the exact expected message or whether zero event-end duration should be accepted, so the precise outcome for that field cannot be asserted."
+   "If zero is not offered in the Event End Time Duration dropdown, conditionally switch to the custom-duration input and type 0.",
+   "The exact Recreate Order dialog field labels and validation wording are not confirmed in the catalog.",
+   "The bid-row three-dots path to Recreate Order is not separately observable; the available step opens the equivalent stage Settings action."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: The conditional fallback of selecting 0 from the Event End Time Duration dropdown only if offered, otherwise typing 0 into a custom duration field cannot be expressed as one conditional catalog flow.; The case does not specify the exact expected message or whether zero event-end duration should be accepted, so the precise outcome for that field cannot be asserted."
+   "can only test part of this — no step for: If zero is not offered in the Event End Time Duration dropdown, conditionally switch to the custom-duration input and type 0.; The exact Recreate Order dialog field labels and validation wording are not confirmed in the catalog.; The bid-row three-dots path to Recreate Order is not separately observable; the available step opens the equivalent stage Settings action."
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 13,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
    "require_setting",
    "require_setting",
+   "go_to",
+   "go_to",
    "event_menu",
-   "fill",
+   "expect_visible",
+   "select",
    "fill",
    "pick_date",
-   "click",
-   "expect_field_error"
+   "attempt"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 18086
+  "ms": 23459
  },
  "plan": {
-  "title": "Recreate Order Numeric Validation",
+  "title": "Closed RFQ Recreate Order Numeric Validation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ with Vendor A's bid; no creation or event-list steps are needed."
+    "note": "Open the API-prepared closed RFQ with Vendor A's bid, as required for prepared-state cases."
    },
    {
     "step": "require_setting",
@@ -59,7 +62,7 @@
      "key": "is_allowed_to_add_surrogate_bid_post_expiry",
      "value": "Off"
     },
-    "note": "Apply the required post-expiry surrogate-bidding configuration."
+    "note": "Ensure post-expiry surrogate bidding is disabled."
    },
    {
     "step": "require_setting",
@@ -67,7 +70,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Enable buyer editing of bidding fields as required."
+    "note": "Enable buyer editing of bid fields as required."
    },
    {
     "step": "require_setting",
@@ -75,7 +78,22 @@
      "key": "allow_event_evaluation_reopen_for_everyone",
      "value": "Off"
     },
-    "note": "Apply the required evaluation-reopen permission configuration."
+    "note": "Apply the required evaluation permission configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Reach the Responses view containing the bid and stage Settings action."
    },
    {
     "step": "event_menu",
@@ -83,15 +101,24 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage menu and launch the Recreate Order window."
+    "note": "Open the Recreate Order window from the RFQ stage Settings menu."
    },
    {
-    "step": "fill",
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Assert that the Recreate Order window opened."
+   },
+   {
+    "step": "select",
     "args": {
      "label": "Event End Time Duration",
-     "value": "0"
+     "option": "0"
     },
-    "note": "Enter the requested zero event-end duration in the available duration control."
+    "note": "Attempt to set the event-end duration to zero using the available duration control."
    },
    {
     "step": "fill",
@@ -99,30 +126,27 @@
      "label": "Evaluation Duration",
      "value": "-5"
     },
-    "note": "Enter the requested negative evaluation duration."
+    "note": "Enter the negative evaluation duration from the case."
    },
    {
     "step": "pick_date",
     "args": {
      "label": "Delivery Date",
-     "date": "20 April 2027"
+     "date": "2027-04-20"
     },
-    "note": "Set the future delivery date specified by the case."
+    "note": "Set the requested future delivery date."
    },
    {
-    "step": "click",
+    "step": "attempt",
     "args": {
-     "role": "button",
-     "name": "Create Order"
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Create Order"
+     },
+     "expect": "refused"
     },
-    "note": "Submit the Recreate Order form to observe how the numeric values are handled."
-   },
-   {
-    "step": "expect_field_error",
-    "args": {
-     "field": "Evaluation Duration"
-    },
-    "note": "Assert that the negative evaluation duration is rejected at the relevant field."
+    "note": "Assert that Create Order is refused because the numeric durations are invalid."
    }
   ]
  }

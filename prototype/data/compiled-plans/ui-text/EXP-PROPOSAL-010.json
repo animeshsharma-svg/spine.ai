@@ -4,43 +4,85 @@
   "title": "The award proposal page: \"Submit Proposal\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-PROPOSAL",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:51:29.619Z",
+  "compiledAt": "2026-11-13T14:17:20.822Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Directly verify that the event status and times remain unchanged after cancellation."
+  ],
   "warnings": [
-   "resolved: “Exact before-and-after equality for all event status, schedule times, vendors, and bids after cancelling the Submit Prop” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Directly verify that the event status and times remain unchanged after cancellation."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 17,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "expect_qcs_vendors",
+   "expect_qcs_amounts",
+   "expect_qcs_ranks",
    "click",
    "expect_navigated",
-   "expect_api_value",
-   "expect_api_value",
    "click",
    "expect_visible",
    "click",
-   "expect_visible",
    "expect_navigated",
-   "expect_api_value",
-   "expect_api_value",
-   "expect_visible"
+   "expect_visible",
+   "go_to",
+   "expect_qcs_vendors",
+   "expect_qcs_amounts",
+   "expect_qcs_ranks"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 15233
+  "ms": 19502
  },
  "plan": {
-  "title": "Cancel Submit Proposal",
+  "title": "Cancel Submit Proposal Without Changes",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ's Master QCS as required for this proposal scenario."
+    "note": "Open the prepared closed RFQ with its draft award proposal."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "ntd_required_on_proposal",
+     "value": "On"
+    },
+    "note": "Require the Note to Director configuration specified for the proposal flow."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Record that the original two real vendor columns are present before opening the proposal."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify the original bid amounts and totals before the cancellation attempt."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {},
+    "note": "Verify the original ranking before the cancellation attempt."
    },
    {
     "step": "click",
@@ -48,28 +90,14 @@
      "role": "button",
      "name": "Bid Selection Proposal"
     },
-    "note": "Open the existing award proposal from Master QCS."
+    "note": "Open the existing draft award proposal from Master QCS."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "proposal"
     },
-    "note": "Confirm navigation reached the award proposal page."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "vendorName"
-    },
-    "note": "Record the proposal's vendor value before opening Submit Proposal."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "bidPrice"
-    },
-    "note": "Record the proposal's bid price before opening Submit Proposal."
+    "note": "Confirm navigation to the award proposal page."
    },
    {
     "step": "click",
@@ -83,10 +111,9 @@
     "step": "expect_visible",
     "args": {
      "role": "dialog",
-     "name": "Submit Proposal",
      "visible": true
     },
-    "note": "Confirm the Submit Proposal window opened."
+    "note": "Confirm that the Submit Proposal window opened."
    },
    {
     "step": "click",
@@ -95,37 +122,14 @@
      "name": "Cancel",
      "within": "dialog"
     },
-    "note": "Cancel submission without submitting the proposal."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Submit Proposal",
-     "visible": false
-    },
-    "note": "Verify the Submit Proposal window closed."
+    "note": "Cancel the submission without submitting or changing the proposal."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "proposal"
     },
-    "note": "Verify cancellation left the buyer on the same award proposal page."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "vendorName"
-    },
-    "note": "Verify the proposal still shows the same vendor value after cancellation."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "bidPrice"
-    },
-    "note": "Verify the proposal still shows the same bid price after cancellation."
+    "note": "Confirm the Submit Proposal window closed while remaining on the proposal page."
    },
    {
     "step": "expect_visible",
@@ -134,7 +138,32 @@
      "name": "Submit Proposal",
      "visible": true
     },
-    "note": "Confirm the proposal remains unsubmitted and the Submit Proposal action is still available."
+    "note": "Confirm the proposal remains available for submission and was not submitted."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Return to Master QCS to recheck the event's vendors and bids."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Verify the vendor columns are unchanged after cancellation."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify bid amounts and totals are unchanged after cancellation."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {},
+    "note": "Verify bid rankings are unchanged after cancellation."
    }
   ]
  }

@@ -4,44 +4,80 @@
   "title": "A live RFQ: \"Recreate Order\" opens the \"Recreate Order\" window",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:30:03.048Z",
+  "compiledAt": "2026-11-13T14:11:55.510Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Prove that no event data changes in every respect until a button in the Recreate Order window is pressed."
+   "Directly verify that the event's backend data remains unchanged until a Recreate Order dialog button is pressed"
   ],
   "warnings": [
-   "can only test part of this — no step for: Prove that no event data changes in every respect until a button in the Recreate Order window is pressed."
+   "can only test part of this — no step for: Directly verify that the event's backend data remains unchanged until a Recreate Order dialog button is pressed"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 16,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "event_menu",
    "expect_visible",
-   "expect_text",
    "expect_options",
    "expect_visible",
    "expect_visible",
    "expect_visible",
    "expect_visible",
-   "expect_visible"
+   "expect_visible",
+   "expect_navigated"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 22195
+  "ms": 19004
  },
  "plan": {
-  "title": "Live RFQ Recreate Order window",
+  "title": "Live RFQ Recreate Order Window",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ on the buyer's summary page."
+    "note": "Open the prepared live RFQ summary as required for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled for the tenant."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required withdrawal-visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Apply the required live-event withdrawal configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
    },
    {
     "step": "go_to",
@@ -49,14 +85,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage."
+    "note": "Open the RFQ stage named by the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the Responses tab where the stage Settings menu is available."
+    "note": "Navigate to the RFQ Responses tab before opening Settings."
    },
    {
     "step": "event_menu",
@@ -64,7 +100,7 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Choose Recreate Order from the RFQ Settings menu and leave its window open."
+    "note": "Open Recreate Order from the RFQ stage Settings menu."
    },
    {
     "step": "expect_visible",
@@ -73,16 +109,7 @@
      "name": "Recreate Order",
      "visible": true
     },
-    "note": "Assert that the Recreate Order window opened."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Event End Time Duration",
-     "present": true,
-     "within": "dialog"
-    },
-    "note": "Verify the duration selector is present in the window."
+    "note": "Verify that the Recreate Order window opened."
    },
    {
     "step": "expect_options",
@@ -97,15 +124,14 @@
      ],
      "count": 14
     },
-    "note": "Verify the five named duration options and the expected total of 14 options, representing the nine additional choices."
+    "note": "Verify the required five duration options and the stated nine additional options are offered."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Details",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
     "note": "Verify the Details button is present."
    },
@@ -114,8 +140,7 @@
     "args": {
      "role": "button",
      "name": "Clear",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
     "note": "Verify the Clear button is present."
    },
@@ -124,8 +149,7 @@
     "args": {
      "role": "button",
      "name": "Edit More Details",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
     "note": "Verify the Edit More Details button is present."
    },
@@ -134,8 +158,7 @@
     "args": {
      "role": "button",
      "name": "Cancel",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
     "note": "Verify the Cancel button is present."
    },
@@ -144,10 +167,16 @@
     "args": {
      "role": "button",
      "name": "Create Order",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
     "note": "Verify the Create Order button is present."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Verify the underlying event remains on the Responses screen while the untouched dialog is open."
    }
   ]
  }

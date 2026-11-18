@@ -3,26 +3,66 @@
   "caseId": "PRD-RA-005",
   "title": "TNA and Regret Gating: not available on plans below Growth",
   "group": "PRD-RA",
-  "compiledAt": "2026-11-10T01:36:35.700Z",
+  "compiledAt": "2026-11-13T14:57:05.494Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Determine the tenant's subscription plan or compare a below-Growth tenant with a Growth tenant",
-   "Enable or invoke TNA and Regret Gating",
-   "Mark vendors as technically rejected or commercially regretted",
-   "Assert that technically rejected or regretted vendors are barred from bidding specific lines",
-   "Assert that the capability is absent or refused on the lower-plan tenant and available on the Growth tenant"
+   "Compare a below-Growth tenant with a Growth tenant when tenant identifiers are not provided",
+   "Inspect whether TNA and Regret Gating is absent or refused on the lower-plan tenant",
+   "Use TNA and Regret Gating to technically reject and commercially regret vendors, then verify those vendors are barred from bidding the relevant lines"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Determine the tenant's subscription plan or compare a below-Growth tenant with a Growth tenant; Enable or invoke TNA and Regret Gating; Mark vendors as technically rejected or commercially regretted; Assert that technically rejected or regretted vendors are barred from bidding specific lines; Assert that the capability is absent or refused on the lower-plan tenant and available on the Growth tenant"
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Compare a below-Growth tenant with a Growth tenant when tenant identifiers are not provided; Inspect whether TNA and Regret Gating is absent or refused on the lower-plan tenant; Use TNA and Regret Gating to technically reject and commercially regret vendors, then verify those vendors are barred from bidding the relevant lines"
   ],
   "source": "llm",
-  "steps": 0,
-  "stepNames": [],
-  "ms": 7976
+  "steps": 5,
+  "stepNames": [
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "ask_tester",
+   "expect_screen_clean"
+  ],
+  "ms": 8834
  },
  "plan": {
   "title": "TNA and Regret Gating by Plan",
-  "steps": []
+  "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    }
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    }
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as a buyer on a below-Growth tenant and a Growth tenant, check whether TNA and Regret Gating is absent or refused below Growth, then use it on Growth to technically reject and regret vendors and verify they are barred from bidding the relevant lines"
+    },
+    "note": "The required plan-tier comparison and TNA/regret gating workflow are not expressible by the catalog."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the resulting screen is not showing a crash or server error after the tester's comparison."
+   }
+  ]
  }
 }

@@ -3,7 +3,7 @@
   "caseId": "PRD-KBSRC-012",
   "title": "Project cart: edit quantity, change UOM, remove items, item count on Create Project",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:07:20.500Z",
+  "compiledAt": "2026-11-13T14:30:54.868Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -14,20 +14,21 @@
    "added set_title — publishing without a title is refused"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_create",
    "set_title",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
+   "purchase_items",
    "do_on_screen",
-   "expect_visible"
+   "expect_screen_clean"
   ],
-  "ms": 13507
+  "ms": 25367
  },
  "plan": {
-  "title": "PR cart quantity, UOM, removal, and count",
+  "title": "PR project cart edits",
   "steps": [
    {
     "step": "open_create",
@@ -41,37 +42,38 @@
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the purchase requisitions flow containing the project cart."
+    "note": "Open the Purchase Requisitions flow for creating a project from a PR."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Use an open purchase request, which can be selected for project creation."
+    "note": "Use an open PR, which is eligible to start a project."
    },
    {
     "step": "select_pr",
     "args": {
      "items": 2
     },
-    "note": "Select a purchase request with at least two line items so quantity, UOM, removal, and remaining-count behavior can be tested."
+    "note": "Select a PR with at least two line items so the cart has multiple rows to edit and remove."
+   },
+   {
+    "step": "purchase_items",
+    "args": {},
+    "note": "Open the selected PR items and start the project flow."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "open the selected purchase request's eRFX Project cart, edit one line's quantity, open its UOM dropdown, search for and select a different UOM, remove another line with its trash control, and stop with the cart showing the updated quantity and UOM, the removed row absent, and the Create Project button count matching the remaining selected rows"
+     "goal": "In the eRFX Project cart, edit one line's quantity, open the UOM dropdown, search for and select a different UOM, remove a different line with its trash control, and stop on the cart showing the updated quantity and UOM, the removed row absent, and the Create Project button displaying a count equal to the remaining selected rows"
     },
-    "note": "Perform and verify the cart-only interactions that no dedicated catalog step can express."
+    "note": "Perform and visually verify the cart behaviors that have no dedicated catalog step."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Create Project",
-     "visible": true
-    },
-    "note": "Confirm the cart ends with the Create Project control visible for the remaining items."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the resulting cart screen has no UI errors, crashes, undefined values, or raw IDs."
    }
   ]
  }

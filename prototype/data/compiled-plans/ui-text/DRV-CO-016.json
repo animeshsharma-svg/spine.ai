@@ -4,16 +4,15 @@
   "title": "Post-auction negotiation counter offer is visible and actionable for vendor after Dutch auction",
   "group": "DRV-CO",
   "sheet": "derived-buyer-can-send-a-counter-offer-on-an-act",
-  "compiledAt": "2026-11-12T13:36:15.625Z",
+  "compiledAt": "2026-11-13T13:35:16.927Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Complete the Dutch auction before raising the counter offer; the prepared state is fixed and has no Dutch-auction completion step.",
-   "Verify that the vendor's Reject and Modify controls are actionable; no catalog step performs those vendor responses.",
-   "Verify successful resolution of RCA tickets 2946863624, 337415503568, and 208623700706."
+   "Complete or independently verify the Dutch auction before sending the counter offer; the prepared state supplies a converted live auction instead.",
+   "Verify RCA tickets 2946863624, 337415503568, and 208623700706 because no catalog step can inspect ticket resolution."
   ],
   "warnings": [
-   "can only test part of this — no step for: Complete the Dutch auction before raising the counter offer; the prepared state is fixed and has no Dutch-auction completion step.; Verify that the vendor's Reject and Modify controls are actionable; no catalog step performs those vendor responses.; Verify successful resolution of RCA tickets 2946863624, 337415503568, and 208623700706."
+   "can only test part of this — no step for: Complete or independently verify the Dutch auction before sending the counter offer; the prepared state supplies a converted live auction instead.; Verify RCA tickets 2946863624, 337415503568, and 208623700706 because no catalog step can inspect ticket resolution."
   ],
   "source": "llm",
   "steps": 10,
@@ -24,64 +23,55 @@
    "expect_counter_offer_sent",
    "switch_portal",
    "vendor_open_event",
-   "expect_visible",
    "expect_text",
    "expect_visible",
-   "expect_visible"
+   "expect_text",
+   "expect_text"
   ],
   "state": "converted",
   "screen": "responses",
-  "ms": 16130
+  "ms": 16844
  },
  "plan": {
-  "title": "Dutch Auction Counter Offer Visibility",
+  "title": "Post-Auction Counter Offer Visible to Vendor",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared converted-auction event's pricing Responses screen as required for this state."
+    "note": "Open the prepared converted-auction event on the buyer's Responses tab."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer comparison grid where a counter offer can be initiated for the active vendor bid."
+    "note": "Open the buyer's comparison grid for the active auction bid."
    },
    {
     "step": "place_counter_offer",
     "args": {
      "price": 85
     },
-    "note": "Send the buyer's counter offer at the required price of 85 per unit."
+    "note": "Send the buyer's counter offer at the specified price."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Assert that the buyer grid marks the vendor bid as having a counter offer initiated."
+    "note": "Assert that the buyer grid records the counter offer as initiated."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Switch to the invited vendor's supplier-portal session."
+    "note": "Continue in the invited vendor's supplier portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the auction pricing round in the vendor portal so the pending counter offer is displayed."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Accept Counter Offer",
-     "visible": true
-    },
-    "note": "Assert that the vendor has a visible control to accept the counter offer."
+    "note": "Open the vendor's auction pricing round where the pending counter offer is shown."
    },
    {
     "step": "expect_text",
@@ -89,25 +79,31 @@
      "text": "Counter Offer",
      "present": true
     },
-    "note": "Assert that the vendor view visibly identifies the pending counter offer."
+    "note": "Assert that the vendor can see the pending counter offer."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "Reject",
+     "text": "Accept Counter Offer",
      "visible": true
     },
-    "note": "Check for the expected vendor rejection option; its exact control label is not catalog-confirmed."
+    "note": "Assert that the vendor has an Accept action."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "button",
-     "name": "Modify",
-     "visible": true
+     "text": "Reject",
+     "present": true
     },
-    "note": "Check for the expected vendor modification option; its exact control label is not catalog-confirmed."
+    "note": "Assert that the vendor has a Reject option."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Modify",
+     "present": true
+    },
+    "note": "Assert that the vendor has a Modify option."
    }
   ]
  }

@@ -4,57 +4,66 @@
   "title": "Recognise a BOQ-based PR",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:33:40.092Z",
+  "compiledAt": "2026-11-13T12:29:33.945Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Directly assert that the selected PR's Item Type is BOQ",
+   "Assert that a BOQ PR can only be purchased alone, one BOQ PR at a time",
+   "Assert the BOQ's sections and items as structured PR data",
+   "Directly assert that opening the PR creates a BOQ project"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Directly assert that the selected PR's Item Type is BOQ; Assert that a BOQ PR can only be purchased alone, one BOQ PR at a time; Assert the BOQ's sections and items as structured PR data; Directly assert that opening the PR creates a BOQ project"
+  ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "do_on_screen",
-   "expect_url_contains",
    "expect_text"
   ],
-  "ms": 14214
+  "ms": 21186
  },
  "plan": {
-  "title": "Recognise BOQ-based purchase requisition",
+  "title": "Recognise a BOQ-based purchase requisition",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "boq_in_erfx_allowed",
+     "value": "On"
+    },
+    "note": "Enable BOQ-based events as required by the test configuration."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions area as the required starting screen."
+    "note": "Open the Purchase Requisitions area, the required starting screen for a PR-based test."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Ensure the PR list is on the Open tab where purchasable requisitions are shown."
+    "note": "Ensure the PR list is on the Open tab where the required PR can be selected."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "find a purchase requisition row whose Item Type is BOQ, open it, verify that its bill of quantities shows sections and items and that it can only be selected as one BOQ PR at a time, then start purchasing it and stop on the resulting BOQ project create screen"
+     "goal": "find an open purchase requisition whose Item Type is BOQ, open it, and inspect that it shows the BOQ sections and items; stop on the BOQ PR details screen"
     },
-    "note": "Identify the BOQ-specific PR and perform the on-screen inspection and transition that the catalog has no dedicated step for."
-   },
-   {
-    "step": "expect_url_contains",
-    "args": {
-     "text": "/orders/quick-create"
-    },
-    "note": "Confirm the BOQ PR opened a project creation screen rather than a normal PR or event list."
+    "note": "No catalog step can identify a PR by Item Type or inspect its BOQ sections and items, so perform the buyer-side inspection in the current session."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Upload Sheet"
+     "text": "BOQ",
+     "present": true
     },
-    "note": "Verify the resulting create screen has the BOQ-specific sheet upload control."
+    "note": "Assert that the resulting screen visibly identifies the requisition or its content as BOQ."
    }
   ]
  }

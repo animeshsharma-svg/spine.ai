@@ -4,20 +4,21 @@
   "title": "Order Activity records the event withdrawn",
   "group": "SRC-ACT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:12:26.486Z",
+  "compiledAt": "2026-11-13T11:35:02.292Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the withdrawal entry shows the specific acting buyer and exact date and time.",
-   "Verify that no other activity entries are missing from the complete history."
+   "Verify the withdrawal entry includes the exact buyer identity who performed it.",
+   "Verify the withdrawal entry shows the exact date and time.",
+   "Verify that no earlier activity entries are missing from the complete history."
   ],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Verify the withdrawal entry shows the specific acting buyer and exact date and time.; Verify that no other activity entries are missing from the complete history."
+   "can only test part of this — no step for: Verify the withdrawal entry includes the exact buyer identity who performed it.; Verify the withdrawal entry shows the exact date and time.; Verify that no earlier activity entries are missing from the complete history."
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 16,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -34,11 +35,9 @@
    "expect_withdrawn",
    "event_menu",
    "expect_text",
-   "expect_text",
-   "expect_text",
    "expect_order"
   ],
-  "ms": 12542
+  "ms": 10639
  },
  "plan": {
   "title": "Order Activity records withdrawal",
@@ -48,7 +47,7 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Start the buyer-side event creation flow."
+    "note": "Start creating a test event."
    },
    {
     "step": "require_setting",
@@ -56,12 +55,14 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "Off"
     },
-    "note": "Ensure the Withdraw option is available as required by the case configuration."
+    "note": "Ensure the event's Withdraw action is available."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title so the event can be published."
+    "args": {
+     "title": "SRC-ACT-010 Order Activity Withdrawal"
+    },
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -70,19 +71,19 @@
       "rfq"
      ]
     },
-    "note": "Create an RFQ stage, which is the stage used for Order Activity."
+    "note": "Create the RFQ stage whose activity will be inspected."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template."
+    "note": "Apply an RFQ template so line items and the pricing sheet can be configured."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required line item for a publishable event."
+    "note": "Add one line item to make the event publishable."
    },
    {
     "step": "fill_sheet",
@@ -94,24 +95,22 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule before publishing."
+    "note": "Commit the event schedule required for publishing."
    },
    {
     "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Add a QA vendor so the event is usable."
+    "args": {},
+    "note": "Add the available QA vendor audience."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the test event whose activity will be checked."
+    "note": "Publish the event so it can be withdrawn."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a real published project page."
+    "note": "Confirm the event reached its published project page."
    },
    {
     "step": "withdraw_event",
@@ -119,12 +118,12 @@
      "scope": "project",
      "reason": "SRC-ACT-010 withdrawal test"
     },
-    "note": "Withdraw the project with a remark so the withdrawal is recorded."
+    "note": "Withdraw the project and create the activity being tested."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Confirm Procol records the project as withdrawn."
+    "note": "Confirm the event is recorded as withdrawn before inspecting its activity."
    },
    {
     "step": "event_menu",
@@ -137,36 +136,21 @@
    {
     "step": "expect_text",
     "args": {
-     "text": "Activity",
-     "present": true
+     "text": "withdrawn",
+     "within": "Activity"
     },
-    "note": "Confirm the Order Activity drawer is open."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "event withdrawn",
-     "present": true
-    },
-    "note": "Verify the activity history contains the withdrawal entry."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "You created the event",
-     "present": true
-    },
-    "note": "Verify an earlier event-creation activity remains visible."
+    "note": "Verify the activity drawer contains the withdrawal record."
    },
    {
     "step": "expect_order",
     "args": {
      "items": [
       "You created the event",
-      "event withdrawn"
-     ]
+      "withdrawn"
+     ],
+     "within": "Activity"
     },
-    "note": "Check that the creation activity appears before the withdrawal activity."
+    "note": "Verify the withdrawal activity appears after the earlier event-creation activity."
    }
   ]
  }

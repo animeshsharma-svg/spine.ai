@@ -4,23 +4,23 @@
   "title": "Order Activity records Edit Evaluation Time",
   "group": "SRC-ACT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:12:13.002Z",
+  "compiledAt": "2026-11-13T11:34:39.045Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the new entry includes the specific buyer who performed Edit Evaluation Time.",
-   "Verify the entry's exact date and time.",
-   "Verify all activity lines are in chronological order and that no earlier activity is missing."
+   "Assert the exact actor identity and exact date/time recorded for the Edit Evaluation Time entry.",
+   "Assert that every prior activity entry is present and that all activity lines are chronologically ordered."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify the new entry includes the specific buyer who performed Edit Evaluation Time.; Verify the entry's exact date and time.; Verify all activity lines are in chronological order and that no earlier activity is missing."
+   "can only test part of this — no step for: Assert the exact actor identity and exact date/time recorded for the Edit Evaluation Time entry.; Assert that every prior activity entry is present and that all activity lines are chronologically ordered."
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 16,
   "stepNames": [
    "open_create",
-   "set_title",
    "compose_stages",
+   "set_title",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -31,26 +31,20 @@
    "extend_time",
    "event_menu",
    "expect_text",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 11951
+  "ms": 16515
  },
  "plan": {
-  "title": "SRC-ACT-005 — Order Activity records Edit Evaluation Time",
+  "title": "SRC-ACT-005 Order Activity Edit Evaluation Time",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create a test event so the evaluation-time edit and resulting activity entry belong to this plan's event."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "SRC-ACT-005 Order Activity Evaluation Time"
-    },
-    "note": "Provide the required event title."
+    "note": "Create a controlled event for the activity-history test."
    },
    {
     "step": "compose_stages",
@@ -59,7 +53,21 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ stage, which supports evaluation-time configuration and the stage Settings menu."
+    "note": "Use an RFQ stage because Edit Evaluation Time is a stage Settings action."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "SRC-ACT-005 Order Activity Test"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage before its stage-specific actions."
    },
    {
     "step": "select_template",
@@ -71,48 +79,46 @@
     "args": {
      "count": 1
     },
-    "note": "Add the required line item for the event."
+    "note": "Add the required line item for the pricing sheet."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet before publishing."
+    "note": "Complete the RFQ pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the event schedule so it can be published."
+    "note": "Commit a schedule so the event can be published."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add a QA vendor participant as required for a usable event."
+    "note": "Add one QA test vendor required for publishing."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so its stage actions and activity history are available."
+    "note": "Publish the controlled test event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a published project page."
+    "note": "Confirm the event reached a real project page before editing evaluation time."
    },
    {
     "step": "extend_time",
     "args": {
      "which": "evaluation",
-     "option": "custom",
-     "amount": 1,
-     "unit": "hours",
-     "direction": "increase",
+     "option": "preset",
+     "preset": "15 minutes",
      "expect": "saved"
     },
-    "note": "Perform the Edit Evaluation Time action whose audit entry is being tested."
+    "note": "Perform the Edit Evaluation Time action that should create the activity record."
    },
    {
     "step": "event_menu",
@@ -120,23 +126,28 @@
      "item": "Order Activity",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage's Order Activity drawer."
+    "note": "Open the RFQ stage's Activity drawer from Settings."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Activity",
-     "present": true
+     "text": "Activity"
     },
     "note": "Confirm the Order Activity drawer opened."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Edit Evaluation Time",
-     "present": true
+     "text": "Edit Evaluation Time"
     },
-    "note": "Verify the activity history contains the entry for the evaluation-time edit."
+    "note": "Assert that Order Activity contains the new Edit Evaluation Time entry."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "You created the event"
+    },
+    "note": "Confirm an earlier activity entry remains visible rather than being replaced."
    }
   ]
  }

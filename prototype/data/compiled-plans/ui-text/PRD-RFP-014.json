@@ -3,57 +3,75 @@
   "caseId": "PRD-RFP-014",
   "title": "Weighted Technical Scoring: refused for a user without the Technical Evaluator role",
   "group": "PRD-RFP",
-  "compiledAt": "2026-11-10T01:39:49.119Z",
+  "compiledAt": "2026-11-13T15:00:04.389Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Technical Evaluator role and as a Technical Evaluator in the same tenant",
-   "Locate or execute the Weighted Technical Scoring action",
-   "Compare whether the action is refused or absent for the unprivileged user and available to the Technical Evaluator",
-   "Verify or report tenant RBAC configuration when additional roles are deliberately granted access"
+   "The Weighted Technical Scoring action or control and whether it is refused or absent for a user without the Technical Evaluator role.",
+   "Repeating the same action as a Technical Evaluator and comparing the two users' access in the same tenant."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Technical Evaluator role and as a Technical Evaluator in the same tenant; Locate or execute the Weighted Technical Scoring action; Compare whether the action is refused or absent for the unprivileged user and available to the Technical Evaluator; Verify or report tenant RBAC configuration when additional roles are deliberately granted access"
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "can only test part of this — no step for: The Weighted Technical Scoring action or control and whether it is refused or absent for a user without the Technical Evaluator role.; Repeating the same action as a Technical Evaluator and comparing the two users' access in the same tenant."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
-   "open_event",
-   "go_to",
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "select_template",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 10849
+  "ms": 19005
  },
  "plan": {
   "title": "Weighted Technical Scoring RBAC",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
     "args": {
-     "purpose": "evaluation"
+     "path": "erfx"
     },
-    "note": "Open an existing event with a closed technical stage and a vendor response, the closest available starting point for technical evaluation testing."
+    "note": "Open the technical event creation screen as the closest available route to technical scoring configuration."
    },
    {
-    "step": "go_to",
+    "step": "compose_stages",
     "args": {
-     "screen": "stage",
-     "stage": "rfp"
-    },
-    "note": "Navigate to the technical stage where evaluation-related controls would be exposed."
+     "stages": [
+      "rfp"
+     ]
+    }
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title for a valid technical event setup."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the available technical template so the technical stage can be configured."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the user without the Technical Evaluator role and as the Technical Evaluator in the same tenant, attempt Weighted Technical Scoring for both, and record whether it is refused or absent for the first user and available for the second"
+     "need": "Sign in as a user without the Technical Evaluator role, verify whether Weighted Technical Scoring is refused or absent, then repeat as a Technical Evaluator in the same tenant and compare the result."
     },
-    "note": "Alternate-role sign-ins and the Weighted Technical Scoring action are not expressible by catalog steps."
+    "note": "No catalog step can perform the role-specific sign-ins or observe the Weighted Technical Scoring control and its RBAC behavior."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the current screen remains usable after the tester's role-comparison work."
+    "note": "Confirm the session remains usable after the tester performs the unavailable role-comparison check."
    }
   ]
  }

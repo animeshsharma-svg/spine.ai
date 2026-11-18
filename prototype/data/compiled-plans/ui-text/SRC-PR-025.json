@@ -4,24 +4,26 @@
   "title": "Purchase Items → Purchase Contract",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:30:49.418Z",
+  "compiledAt": "2026-11-13T12:25:51.262Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
-   "do_on_screen",
+   "click",
+   "click",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 7901
+  "ms": 12544
  },
  "plan": {
-  "title": "Purchase Contract Eligibility from PR",
+  "title": "Purchase Contract from Open PR",
   "steps": [
    {
     "step": "open_purchase_requisitions",
@@ -33,19 +35,35 @@
     "args": {
      "tab": "Open"
     },
-    "note": "Ensure the PR list is on the Open tab."
+    "note": "Ensure the selectable requisition is on the Open tab."
    },
    {
     "step": "select_pr",
     "args": {},
-    "note": "Select one open PR line for sourcing."
+    "note": "Select one open PR line so Purchase Items becomes available."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "click Purchase Items, choose Purchase Contract, and stop on the Purchase Contract drawer showing the selected line's eligibility result"
+     "role": "button",
+     "name": "Purchase Items"
     },
-    "note": "Perform the Purchase Contract path that has no dedicated catalog step."
+    "note": "Open the actions available for the selected PR line."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Purchase Contract"
+    },
+    "note": "Choose the Purchase Contract path from the Purchase Items menu."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Purchase Contract",
+     "present": true
+    },
+    "note": "Verify that the Purchase Contract drawer or view opened."
    },
    {
     "step": "expect_text",
@@ -53,7 +71,7 @@
      "text": "Items not eligible for purchase contract",
      "present": true
     },
-    "note": "Assert that lines without a contract show the expected eligibility message."
+    "note": "Verify the expected eligibility message for lines without a contract."
    }
   ]
  }

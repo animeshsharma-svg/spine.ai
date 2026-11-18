@@ -4,45 +4,58 @@
   "title": "Recipient typed in CAPITALS or mixed case is accepted",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:34.358Z",
+  "compiledAt": "2026-11-13T14:20:02.102Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in to Asha's mailbox, open the Procol approval email, use Consult, enter a comment and Chetan's uppercase email, send without changing the subject, wait for processing, and verify the consultation is created and received by Chetan."
+   "Connect and configure the company's approval mailbox and two-step email approval workflow.",
+   "Sign in to Asha's mailbox, open the Procol approval email, use Consult, enter Chetan's uppercase address and comment, send without changing the subject, and wait for processing.",
+   "Verify that Procol creates the consultation and Chetan receives it."
   ],
   "warnings": [
-   "can only test part of this — no step for: Log in to Asha's mailbox, open the Procol approval email, use Consult, enter a comment and Chetan's uppercase email, send without changing the subject, wait for processing, and verify the consultation is created and received by Chetan."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Connect and configure the company's approval mailbox and two-step email approval workflow.; Sign in to Asha's mailbox, open the Procol approval email, use Consult, enter Chetan's uppercase address and comment, send without changing the subject, and wait for processing.; Verify that Procol creates the consultation and Chetan receives it."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
+   "require_setting",
    "ask_tester",
    "expect_no_error"
   ],
-  "ms": 7927
+  "ms": 16963
  },
  "plan": {
-  "title": "EMA-CON-010 — Uppercase consultation recipient accepted",
+  "title": "EMA-CON-010 — Uppercase consultation recipient",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named approval event as the closest available route to the related workflow."
+    "note": "Open the named event that was sent for approval."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the company setting required by the case."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "log in to Asha's mailbox, send the Consult email with Chetan's uppercase address, wait for Procol to process it, and verify the consultation is created and received by Chetan"
+     "need": "sign in to Asha's mailbox, send the Consult email with CHETAN@DLF-HOSPITALITY.COM without changing the subject, wait for Procol to process it, and verify that the consultation is created and Chetan receives it"
     },
     "note": "Mailbox access, email sending, asynchronous processing, and recipient delivery are not expressible by catalog steps."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Perform the minimal available post-action health check; this does not verify the email consultation outcome."
+    "note": "Assert that the buyer event page remains free of an application error after the tester completes the mailbox action."
    }
   ]
  }

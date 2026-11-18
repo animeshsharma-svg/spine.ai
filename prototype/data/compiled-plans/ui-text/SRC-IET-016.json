@@ -4,35 +4,52 @@
   "title": "Extend twice: 15 minutes, then 15 minutes again",
   "group": "SRC-IET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:28:03.407Z",
+  "compiledAt": "2026-11-13T12:10:40.552Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
    "extend_time",
    "extend_time"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 8393
+  "ms": 16779
  },
  "plan": {
-  "title": "Extend Submission Time Twice by 15 Minutes",
+  "title": "Extend submission time twice by 15 minutes",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ without recreating or searching for the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case setup."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage where the submission-time setting is available."
    },
    {
     "step": "extend_time",
@@ -40,9 +57,10 @@
      "which": "submission",
      "option": "custom",
      "amount": 15,
-     "unit": "minutes"
+     "unit": "minutes",
+     "expect": "saved"
     },
-    "note": "Apply the first custom 15-minute submission-time extension and verify the end moves forward by 15 minutes."
+    "note": "Apply the first 15-minute custom extension and verify the new end is 15 minutes after the original end."
    },
    {
     "step": "extend_time",
@@ -50,9 +68,10 @@
      "which": "submission",
      "option": "custom",
      "amount": 15,
-     "unit": "minutes"
+     "unit": "minutes",
+     "expect": "saved"
     },
-    "note": "Apply the second custom 15-minute extension from the already extended end time and verify another 15-minute increase, totaling 30 minutes."
+    "note": "Apply the second 15-minute extension and verify it adds 15 minutes to the already extended end, yielding E plus 30 minutes cumulatively."
    }
   ]
  }

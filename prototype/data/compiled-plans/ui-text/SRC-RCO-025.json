@@ -4,41 +4,42 @@
   "title": "Recreate Order from a closed reverse auction",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:10:34.195Z",
+  "compiledAt": "2026-11-13T12:37:31.032Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the recreated auction preserves the original auction strategy and tick size.",
-   "Verify that the recreated auction preserves the chosen times from the original event."
+   "The prepared state is a closed RFQ pricing event rather than a closed reverse auction.",
+   "Verify that the recreated event preserves the reverse auction strategy and tick size.",
+   "Verify that the recreated event preserves the chosen start and end times."
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify that the recreated auction preserves the original auction strategy and tick size.; Verify that the recreated auction preserves the chosen times from the original event."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The prepared state is a closed RFQ pricing event rather than a closed reverse auction.; Verify that the recreated event preserves the reverse auction strategy and tick size.; Verify that the recreated event preserves the chosen start and end times."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "event_menu",
+   "expect_visible",
    "click",
    "expect_no_error"
   ],
   "state": "closed",
   "screen": "summary",
-  "ms": 11420
+  "ms": 20627
  },
  "plan": {
-  "title": "Recreate closed reverse auction",
+  "title": "Recreate Order from Closed Reverse Auction",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the existing prepared closed event on the buyer's summary page."
    },
    {
     "step": "require_setting",
@@ -46,14 +47,23 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the eRFX project capability required by the case."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Open the stage Settings menu and choose Recreate Order if it is offered."
+    "note": "Open the event's Settings menu and choose Recreate Order, leaving the confirmation dialog open."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Create Order",
+     "visible": true
+    },
+    "note": "Verify that the Recreate Order confirmation offers the Create Order action."
    },
    {
     "step": "click",
@@ -66,7 +76,7 @@
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Verify that the recreation did not produce an application error."
+    "note": "Verify that the recreation action does not produce an application error."
    }
   ]
  }

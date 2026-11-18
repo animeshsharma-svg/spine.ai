@@ -4,45 +4,59 @@
   "title": "Typing @ in Gmail does not break the consultation",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:42.495Z",
+  "compiledAt": "2026-11-13T14:20:12.491Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Opening the approval email in Gmail, clicking Consult, typing @, selecting Chetan, sending the consultation, and verifying that the consultation is created once with no duplicate consultation or bounce email."
+   "Connect the company's approval mailbox and configure the two-step email approval workflow with Asha and Bikram.",
+   "Open the approval email in Gmail and click Consult to create the Action:Consult reply.",
+   "Type @ in Gmail, select Chetan from the mention suggestions, and send the consultation.",
+   "Verify that exactly one consultation is created for Chetan and that any mentioned-you email does not create a duplicate consultation or bounce."
   ],
   "warnings": [
-   "can only test part of this — no step for: Opening the approval email in Gmail, clicking Consult, typing @, selecting Chetan, sending the consultation, and verifying that the consultation is created once with no duplicate consultation or bounce email."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Connect the company's approval mailbox and configure the two-step email approval workflow with Asha and Bikram.; Open the approval email in Gmail and click Consult to create the Action:Consult reply.; Type @ in Gmail, select Chetan from the mention suggestions, and send the consultation.; Verify that exactly one consultation is created for Chetan and that any mentioned-you email does not create a duplicate consultation or bounce."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
+   "require_setting",
    "ask_tester",
    "expect_no_error"
   ],
-  "ms": 8136
+  "ms": 17912
  },
  "plan": {
-  "title": "Gmail @ Mention Consultation",
+  "title": "EMA-CON-012 Gmail @ consultation",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named approval event to provide the closest available buyer-portal context."
+    "note": "Open the existing event named in the test data as the closest available portal-side preparation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the email-approval configuration required by the case."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open the approval email in Gmail, click Consult, type @, select Chetan from the suggestion, send the consultation, and verify one consultation is created with no duplicate consultation or bounce"
+     "need": "open the approval email in Gmail, click Consult, type @ and select Chetan, send the reply, and verify that exactly one consultation is created for Chetan with no duplicate consultation or bounce"
     },
-    "note": "Gmail and email-delivery behavior are not expressible by catalog steps."
+    "note": "Gmail access, email composition, mention selection, sending, and consultation/bounce verification are not supported by catalog steps."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the buyer portal event page remains free of an application error after the external email flow."
+    "note": "Assert that the Procol event page remains free of an application error after the tester completes the email-side actions."
    }
   ]
  }

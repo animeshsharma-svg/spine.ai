@@ -4,34 +4,58 @@
   "title": "Rejected Bids is offered on an RFQ whose bidding has ended and is in its evaluation time",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:58:16.327Z",
+  "compiledAt": "2026-11-13T12:48:39.301Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the RFQ is specifically in evaluation time rather than merely in the prepared closed RFQ state."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that the RFQ is specifically in evaluation time rather than merely in the prepared closed RFQ state."
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
    "expect_menu_item",
    "event_menu",
    "expect_visible",
    "click",
    "expect_visible"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 70926
+  "ms": 11706
  },
  "plan": {
-  "title": "Rejected Bids available during RFQ evaluation",
+  "title": "Rejected Bids offered after RFQ bidding ends",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared RFQ event in its evaluation state."
+    "note": "Open the prepared RFQ event's summary page as required for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before accessing the prepared RFQ."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage whose Settings menu is under test."
    },
    {
     "step": "expect_menu_item",
@@ -40,7 +64,7 @@
      "stage": "rfq",
      "enabled": true
     },
-    "note": "Verify Rejected Bids is present and enabled in the RFQ Settings menu."
+    "note": "Assert that Rejected Bids is present and enabled in the RFQ Settings menu."
    },
    {
     "step": "event_menu",
@@ -48,7 +72,7 @@
      "item": "Rejected Bids",
      "stage": "rfq"
     },
-    "note": "Open the Rejected Bids window without confirming any action."
+    "note": "Click Rejected Bids to verify that its window opens."
    },
    {
     "step": "expect_visible",
@@ -57,7 +81,7 @@
      "name": "Rejected Bids",
      "visible": true
     },
-    "note": "Verify selecting the menu item opens the Rejected Bids window."
+    "note": "Assert that the Rejected Bids window is open."
    },
    {
     "step": "click",
@@ -66,7 +90,7 @@
      "name": "Cancel",
      "within": "dialog"
     },
-    "note": "Cancel the window so no bid state is changed."
+    "note": "Cancel the window so no rejection change is committed."
    },
    {
     "step": "expect_visible",
@@ -75,7 +99,7 @@
      "name": "Rejected Bids",
      "visible": false
     },
-    "note": "Verify the Rejected Bids window closes after cancellation."
+    "note": "Assert that cancelling closes the Rejected Bids window."
    }
   ]
  }

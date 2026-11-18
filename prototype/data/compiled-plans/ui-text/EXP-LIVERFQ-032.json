@@ -4,46 +4,83 @@
   "title": "A live RFQ: \"Edit Evaluation Time\": \"Ok\" with the values it opens with goes through",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:46:02.921Z",
+  "compiledAt": "2026-11-13T14:13:25.350Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "A live RFQ with bidding open and no bids; the prepared live state may already contain one bid.",
+   "Verifying that the saved values are exactly unchanged from the values initially shown in the dialog, because no catalog step can capture and compare both sets of evaluation-time field values."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: A live RFQ with bidding open and no bids; the prepared live state may already contain one bid.; Verifying that the saved values are exactly unchanged from the values initially shown in the dialog, because no catalog step can capture and compare both sets of evaluation-time field values."
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "event_menu",
-   "do_on_screen",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "extend_time",
    "expect_toast"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 9164
+  "ms": 19782
  },
  "plan": {
-  "title": "Live RFQ Edit Evaluation Time Save",
+  "title": "Live RFQ Edit Evaluation Time Default Save",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ directly on its Responses tab."
+    "note": "Open the prepared live RFQ directly on its Responses tab, as required for an existing prepared event."
    },
    {
-    "step": "event_menu",
+    "step": "require_setting",
     "args": {
-     "item": "Edit Evaluation Time"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the RFQ Settings action that launches the Edit Evaluation Time dialog."
+    "note": "Enable eRFX projects for the RFQ event flow."
    },
    {
-    "step": "do_on_screen",
+    "step": "require_setting",
     "args": {
-     "goal": "in the Edit Evaluation Time dialog, leave all fields at the values they opened with, click Ok, and stop when the dialog closes and the screen shows the save result"
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
     },
-    "note": "Confirm the unchanged evaluation-time values and complete the save action."
+    "note": "Apply the requested tenant configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Apply the requested live-event withdrawal configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the requested vendor-masking configuration."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "evaluation",
+     "option": "custom",
+     "expect": "saved"
+    },
+    "note": "Open Edit Evaluation Time, retain the dialog's default evaluation-time values as far as the step supports, save them, and verify Procol reports a successful update."
    },
    {
     "step": "expect_toast",
@@ -51,7 +88,7 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Verify the expected success confirmation after saving."
+    "note": "Assert the expected confirmation message after saving the evaluation time."
    }
   ]
  }

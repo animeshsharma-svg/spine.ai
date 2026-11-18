@@ -4,21 +4,29 @@
   "title": "Withdrawing Order...: Withdrawing live RFQ succeeds with very long text in the reason field",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:23:28.168Z",
+  "compiledAt": "2026-11-13T13:50:44.011Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "withdraw_event",
    "expect_withdrawn"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 8542
+  "ms": 10616
  },
  "plan": {
   "title": "Withdraw live RFQ with long reason",
@@ -28,21 +36,61 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared live RFQ with a vendor bid."
+    "note": "Open the prepared live RFQ with a vendor bid without searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
    },
    {
     "step": "withdraw_event",
     "args": {
-     "scope": "project",
-     "reason": "Withdrawal requested after extensive review of the sourcing event, supplier participation, commercial requirements, delivery considerations, internal approvals, budget alignment, and operational constraints. This deliberately long explanation verifies that the withdrawal reason field accepts and processes a large amount of text without crashing or blocking the withdrawal.",
-     "noReason": false
+     "scope": "stage",
+     "stage": "rfq",
+     "reason": "This extremely long withdrawal reason explains in extensive detail that the live RFQ is being withdrawn for validation of long-text handling, character limits, persistence, and successful processing of a substantial buyer-provided explanation."
     },
-    "note": "Withdraw the live RFQ through the project menu while submitting a very long reason."
+    "note": "Withdraw the live RFQ stage through its Settings menu using a very long reason."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Verify that Procol records the RFQ as withdrawn."
+    "note": "Assert that Procol recorded the RFQ stage as withdrawn."
    }
   ]
  }

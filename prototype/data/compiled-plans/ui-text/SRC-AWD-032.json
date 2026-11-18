@@ -4,41 +4,43 @@
   "title": "Three bids: award a three-way split 4 / 3 / 3 to B, C and A; approver rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:20:52.031Z",
+  "compiledAt": "2026-11-13T11:41:49.608Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A closed RFQ with three bids from vendors A, B, and C at the specified prices is not available in the prepared state, which has only two bids.",
-   "Allocating 4 units to B, 3 to C, and 3 to A and verifying the resulting three-vendor totals cannot be performed without the third bid.",
-   "Signing in as the approver and rejecting the proposal with a remark cannot be performed by the catalog.",
-   "Verifying that no purchase order is created after rejection and that the buyer can restart awarding is not expressible."
+   "A third bid from vendor C at 95 and the exact three-way allocation of 4 units to B, 3 to C, and 3 to A totaling 945",
+   "Sign in as the approver and reject the submitted proposal with a remark",
+   "Assert that no purchase order was created after proposal rejection"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: A closed RFQ with three bids from vendors A, B, and C at the specified prices is not available in the prepared state, which has only two bids.; Allocating 4 units to B, 3 to C, and 3 to A and verifying the resulting three-vendor totals cannot be performed without the third bid.; Signing in as the approver and rejecting the proposal with a remark cannot be performed by the catalog.; Verifying that no purchase order is created after rejection and that the buyer can restart awarding is not expressible."
+   "can only test part of this — no step for: A third bid from vendor C at 95 and the exact three-way allocation of 4 units to B, 3 to C, and 3 to A totaling 945; Sign in as the approver and reject the submitted proposal with a remark; Assert that no purchase order was created after proposal rejection"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 17,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_ranks",
    "start_awarding",
    "allocate_award",
    "allocate_award",
    "expect_award_counters",
    "click",
    "expect_navigated",
-   "fill_required",
-   "click",
-   "expect_text",
+   "do_on_screen",
    "ask_tester",
-   "expect_screen_clean"
+   "go_to",
+   "expect_visible"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 19643
+  "ms": 26346
  },
  "plan": {
   "title": "Three-way split award rejection",
@@ -48,7 +50,7 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ's Master QCS instead of creating or searching for an event."
+    "note": "Open the prepared closed RFQ with the available bids directly in Master QCS."
    },
    {
     "step": "require_setting",
@@ -56,7 +58,7 @@
      "key": "is_partial_awarding_enabled",
      "value": "On"
     },
-    "note": "Enable split awarding as required by the case."
+    "note": "Enable partial awarding required for split allocation."
    },
    {
     "step": "require_setting",
@@ -64,39 +66,72 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX projects required by the case configuration."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Confirm the prepared event has two real vendor columns; the required third vendor is unavailable."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "equals": "100"
+    },
+    "note": "Verify vendor A's bid rate."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 2,
+     "equals": "90"
+    },
+    "note": "Verify vendor B's bid rate."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify the available vendor ranks follow the bid amounts."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen for the prepared closed event."
+    "note": "Open the awarding screen for the closed prepared event."
    },
    {
     "step": "allocate_award",
     "args": {
      "vendor": 2,
-     "quantity": 4,
-     "line": 1
+     "quantity": 4
     },
-    "note": "Allocate four units to the second prepared bidder as the closest available part of the requested split."
+    "note": "Allocate four units to the lower-bidding vendor B as the closest available split."
    },
    {
     "step": "allocate_award",
     "args": {
      "vendor": 1,
-     "quantity": 6,
-     "line": 1
+     "quantity": 6
     },
-    "note": "Allocate the remaining six units to the first prepared bidder so the available two-bid event is fully allocated."
+    "note": "Allocate the remaining six units to vendor A because only two bids are available."
    },
    {
     "step": "expect_award_counters",
     "args": {
      "items": "1/1",
      "vendors": "2/2",
-     "proposal": 940
+     "proposal": 960
     },
-    "note": "Verify the closest available two-vendor allocation is complete and totals 4×90 plus 6×100."
+    "note": "Assert the two-vendor split is fully allocated and totals 4 × 90 plus 6 × 100 = 960."
    },
    {
     "step": "click",
@@ -111,40 +146,37 @@
     "args": {
      "screen": "proposal"
     },
-    "note": "Verify that the proposal page opened."
+    "note": "Confirm the proposal page opened."
    },
    {
-    "step": "fill_required",
-    "args": {},
-    "note": "Fill mandatory proposal fields before submission."
-   },
-   {
-    "step": "click",
+    "step": "do_on_screen",
     "args": {
-     "role": "button",
-     "name": "Submit Proposal"
+     "goal": "fill the required proposal fields and submit the award proposal; stop when the proposal is submitted"
     },
-    "note": "Submit the proposal so the unavailable approver step would have a proposal to act on."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Approval in Progress",
-     "present": true
-    },
-    "note": "Verify that the submitted proposal is awaiting approval."
+    "note": "Complete the buyer-side proposal submission, which has no dedicated catalog step."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "provide the third bid if needed, then sign in as the approver, open the submitted proposal, reject it with a remark, verify no purchase order is created, and confirm the buyer can start awarding again"
+     "need": "sign in as the approver and reject the submitted proposal with a remark"
     },
-    "note": "The catalog cannot create the third prepared bid or perform the approver rejection and downstream checks."
+    "note": "The catalog cannot switch to or operate as another approver."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the resulting screen remains rendered without an application error."
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Return to Master QCS after the rejection task to check whether awarding can be restarted."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Start Awarding",
+     "visible": true
+    },
+    "note": "Assert that the buyer can start awarding again after rejection."
    }
   ]
  }

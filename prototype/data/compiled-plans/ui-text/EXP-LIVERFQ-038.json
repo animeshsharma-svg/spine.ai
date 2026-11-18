@@ -4,37 +4,73 @@
   "title": "Recreate Order: Enter negative quantity and verify rejection",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:47:21.866Z",
+  "compiledAt": "2026-11-13T14:13:50.589Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "event_menu",
+   "expect_visible",
    "fill",
    "click",
    "expect_field_error"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 68397
+  "ms": 10121
  },
  "plan": {
-  "title": "Recreate Order Negative Quantity",
+  "title": "Recreate Order Rejects Negative Quantity",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ as the buyer without recreating its state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the live RFQ flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required withdrawal visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Ensure live-event withdrawal behavior matches the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
    },
    {
     "step": "event_menu",
@@ -42,31 +78,42 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and launch the Recreate Order window."
+    "note": "Open the RFQ stage Settings menu and choose Recreate Order."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify that the Recreate Order window opened before entering the invalid value."
    },
    {
     "step": "fill",
     "args": {
      "label": "Quantity Requested*",
-     "value": "-5"
+     "value": "-5",
+     "within": "dialog"
     },
-    "note": "Enter the invalid negative quantity in the requested quantity field."
+    "note": "Enter the negative quantity specified by the test in the Recreate Order dialog."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Create Order"
+     "name": "Create Order",
+     "within": "dialog"
     },
-    "note": "Attempt to create the order so the validation behavior is triggered."
+    "note": "Attempt to create the order so the application validates the negative quantity."
    },
    {
     "step": "expect_field_error",
     "args": {
-     "field": "Quantity Requested*",
-     "message": "Quantity must be a positive number"
+     "field": "Quantity Requested",
+     "message": "positive number"
     },
-    "note": "Verify the negative quantity is rejected with an inline field error."
+    "note": "Verify the dialog stays open and reports the negative quantity validation error."
    }
   ]
  }

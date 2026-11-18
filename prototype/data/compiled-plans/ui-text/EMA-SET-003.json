@@ -4,19 +4,25 @@
   "title": "Create the test event and send it for approval",
   "group": "EMA-SET",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:58:43.968Z",
+  "compiledAt": "2026-11-13T14:24:08.060Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that Asha receives the approval-request email in her mailbox within a couple of minutes."
+   "Verify that Asha receives the approval request email within a couple of minutes in the connected Outlook mailbox.",
+   "Configure or verify the approval workflow participants are exactly Asha for step 1 and Bikram for step 2.",
+   "Verify the requester is logged in specifically as Ravi and the tenant is specifically DLF Hospitality on UAT."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that Asha receives the approval-request email in her mailbox within a couple of minutes."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Verify that Asha receives the approval request email within a couple of minutes in the connected Outlook mailbox.; Configure or verify the approval workflow participants are exactly Asha for step 1 and Bikram for step 2.; Verify the requester is logged in specifically as Ravi and the tenant is specifically DLF Hospitality on UAT."
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 15,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "select_template",
    "add_line_items",
@@ -26,103 +32,109 @@
    "publish",
    "expect_published",
    "open_event",
-   "expect_text",
-   "expect_text",
+   "expect_event_status",
    "ask_tester",
-   "expect_text"
+   "expect_event_status"
   ],
-  "ms": 10935
+  "ms": 15566
  },
  "plan": {
-  "title": "Create Event and Submit for Email Approval",
+  "title": "Create event and submit for email approval",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the buyer event creation flow."
+    "note": "Open the multi-stage event creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the company-level email approval prerequisite before creating the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow prerequisite required for the event to enter pending approval."
    },
    {
     "step": "set_title",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Create the event with the exact title from the case."
+    "note": "Create the specifically named test event."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template so line items and publication can proceed."
+    "note": "Apply the first available template so the event can be configured and published."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required event item."
+    "note": "Add the required event line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet for the added item."
+    "note": "Complete the pricing sheet for the line item."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule before submission."
+    "note": "Commit a valid event schedule before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {},
-    "note": "Add the product-provided participant audience required for publication."
+    "note": "Add the product's available vendor audience so the event is publishable."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Submit the completed event; in a configured approval workflow this is the available action that sends it for approval."
+    "note": "Submit the completed event into the configured approval workflow."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event was created and the project page is available."
+    "note": "Confirm Procol created the event project successfully."
    },
    {
     "step": "open_event",
-    "args": {
-     "title": "QA Email Approval - Office Chairs Nov"
-    },
-    "note": "Reopen the named event to check its resulting approval state."
+    "args": {},
+    "note": "Reopen the event in Procol to inspect its resulting approval state."
    },
    {
-    "step": "expect_text",
+    "step": "expect_event_status",
     "args": {
-     "text": "Pending approval"
+     "status": "Pending approval"
     },
-    "note": "Assert that the event shows the expected pending-approval status."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Asha"
-    },
-    "note": "Assert that the first approval step identifies Asha as the waiting approver."
+    "note": "Verify the event is shown as awaiting approval."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open Asha's mailbox and verify that she received the approval request email for QA Email Approval - Office Chairs Nov within a couple of minutes"
+     "need": "open the connected approval mailbox and verify that Asha received the approval request email within a couple of minutes"
     },
-    "note": "Mailbox access is not available through the catalog and is required to verify the email expectation."
+    "note": "The catalog cannot access or assert mailbox delivery."
    },
    {
-    "step": "expect_text",
+    "step": "expect_event_status",
     "args": {
-     "text": "Pending approval"
+     "status": "Pending approval"
     },
-    "note": "Reassert the in-product approval status after the mailbox verification step."
+    "note": "Reconfirm the event remains in the expected approval state after the mailbox check."
    }
   ]
  }

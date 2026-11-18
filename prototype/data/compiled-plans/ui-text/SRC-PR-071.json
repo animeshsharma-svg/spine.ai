@@ -4,20 +4,25 @@
   "title": "A line on the Deleted tab cannot be sourced",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:35:04.552Z",
+  "compiledAt": "2026-11-13T12:30:53.433Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Purchase Items\" (expect_disabled) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"Purchase Items\" (expect_disabled) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
-   "do_on_screen",
-   "expect_text"
+   "attempt",
+   "expect_disabled"
   ],
-  "ms": 10389
+  "ms": 15240
  },
  "plan": {
   "title": "Deleted PR line cannot be sourced",
@@ -25,29 +30,29 @@
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen as the buyer."
+    "note": "Open the Purchase Requisitions list in the buyer console."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Deleted"
     },
-    "note": "Switch to the Deleted tab, which is the subject of the test."
+    "note": "Navigate to the Deleted requisitions tab, where the target line resides."
    },
    {
-    "step": "do_on_screen",
+    "step": "attempt",
     "args": {
-     "goal": "on the Deleted Purchase Requisitions tab, try to tick a deleted PR line and verify it remains unticked and that Purchase Items cannot be used"
+     "step": "select_pr",
+     "expect": "refused"
     },
-    "note": "Perform and verify the unavailable selection and purchasing actions directly on the buyer screen."
+    "note": "Attempt to tick the deleted PR line and require Procol to refuse the selection."
    },
    {
-    "step": "expect_text",
+    "step": "expect_disabled",
     "args": {
-     "text": "Deleted",
-     "present": true
+     "control": "Purchase Items"
     },
-    "note": "Assert that the final screen is still the Deleted requisitions view."
+    "note": "Verify deleted requisitions cannot be advanced into sourcing."
    }
   ]
  }

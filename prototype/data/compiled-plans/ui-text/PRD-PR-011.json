@@ -3,30 +3,69 @@
   "caseId": "PRD-PR-011",
   "title": "PR Status Buckets: not available on plans below Growth",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:23:41.077Z",
+  "compiledAt": "2026-11-13T15:18:42.037Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Switch tenant plan level from below Growth to Growth to compare feature availability",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "Verify capability availability on a tenant below Growth",
+   "Repeat the same check on a Growth tenant and compare the outcomes",
+   "Determine the tenant's plan tier or enforce the same user across both tenants",
+   "Access or assert the Hold status bucket",
+   "Access or assert the Draft status bucket",
+   "Assert that the PR Status Buckets capability is refused or absent on the lower-plan tenant",
+   "unconfirmed label \"Purchase Items\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "coverage partial: unconfirmed label \"Purchase Items\" (expect_text) — not among the labels known from the app nor in the case",
+   "cannot test this case yet — no step can observe: Verify capability availability on a tenant below Growth; Repeat the same check on a Growth tenant and compare the outcomes; Determine the tenant's plan tier or enforce the same user across both tenants; Access or assert the Hold status bucket; Access or assert the Draft status bucket; Assert that the PR Status Buckets capability is refused or absent on the lower-plan tenant; unconfirmed label \"Purchase Items\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "source": "llm",
-  "steps": 1,
+  "steps": 5,
   "stepNames": [
-   "open_purchase_requisitions"
+   "open_purchase_requisitions",
+   "pr_tab",
+   "pr_tab",
+   "pr_tab",
+   "expect_text"
   ],
-  "ms": 267636
+  "ms": 17563
  },
  "plan": {
-  "title": "PRD-PR-011 PR Status Buckets not available on plans below Growth",
+  "title": "PR Status Buckets by Plan",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open purchase requisitions to inspect PR status buckets capability"
+    "note": "Open the closest available screen for inspecting purchase requisition status buckets."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Inspect the available Open requisition bucket."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "In Progress"
+    },
+    "note": "Inspect the available In-Progress requisition bucket."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Completed"
+    },
+    "note": "Inspect the available Completed requisition bucket."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Purchase Items",
+     "present": true
+    },
+    "note": "Assert that the purchase requisitions screen remained available after navigating the supported buckets; this does not verify plan-based capability gating."
    }
   ]
  }

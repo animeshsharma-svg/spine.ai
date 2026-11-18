@@ -4,26 +4,24 @@
   "title": "Create a Single Stage RFP from an open service PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:07:36.755Z",
+  "compiledAt": "2026-11-13T12:27:34.014Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Selecting specifically a service-type PR line rather than the first suitable open PR line",
-   "Verifying the PR line's delivery location is filled and locked",
-   "Verifying service activities appear as rows with a rate-per-activity price column",
-   "Verifying the PR moves to In Progress with this event's number",
-   "Verifying the published event explicitly displays that it came from a PR",
-   "Verifying that the PR-derived quantity, unit, and other fields are locked to the PR rather than merely present"
+   "Verify that the original PR line moves to In Progress with this event's number.",
+   "Verify that the published event explicitly shows it came from a PR.",
+   "Verify the PR item's exact product, quantity, unit, and delivery location values and that those fields are locked to the PR.",
+   "Verify that the service's activities appear as rows with a rate per activity."
   ],
   "warnings": [
    "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 10 step(s) that would open a blank event or replace the PR's items",
    "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 10 step(s) that would open a blank event or replace the PR's items",
-   "can only test part of this — no step for: Selecting specifically a service-type PR line rather than the first suitable open PR line; Verifying the PR line's delivery location is filled and locked; Verifying service activities appear as rows with a rate-per-activity price column; Verifying the PR moves to In Progress with this event's number; Verifying the published event explicitly displays that it came from a PR; Verifying that the PR-derived quantity, unit, and other fields are locked to the PR rather than merely present"
+   "can only test part of this — no step for: Verify that the original PR line moves to In Progress with this event's number.; Verify that the published event explicitly shows it came from a PR.; Verify the PR item's exact product, quantity, unit, and delivery location values and that those fields are locked to the PR.; Verify that the service's activities appear as rows with a rate per activity."
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 18,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -37,13 +35,14 @@
    "require_setting",
    "require_setting",
    "set_title",
+   "expect_text",
    "invite_vendor",
    "set_schedule",
    "publish",
    "expect_published",
    "expect_menu_item"
   ],
-  "ms": 20017
+  "ms": 31202
  },
  "plan": {
   "title": "Create Single-Stage RFP from Service PR",
@@ -89,7 +88,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation as required by the case."
+    "note": "Enable eRFX project creation for the tenant."
    },
    {
     "step": "require_setting",
@@ -97,14 +96,20 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation and publishing."
+    "note": "Allow vendors to be added during event creation and keep Publish available."
    },
    {
     "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title before publishing."
+   },
+   {
+    "step": "expect_text",
     "args": {
-     "title": "SRC-PR-039 Service RFP"
+     "text": "Price",
+     "present": false
     },
-    "note": "Provide the mandatory event title."
+    "note": "Assert that the RFP create screen does not show a pricing column."
    },
    {
     "step": "invite_vendor",
@@ -114,19 +119,19 @@
       "Vendor B"
      ]
     },
-    "note": "Add both vendors named in the case."
+    "note": "Add the two vendors named in the case to the event."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the 30-minute schedule while retaining the default immediate start."
+    "note": "Commit the 30-minute schedule while keeping the event starting now."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed single-stage RFP."
+    "note": "Publish the completed single-stage RFP and confirm the publish flow."
    },
    {
     "step": "expect_published",
@@ -139,7 +144,7 @@
      "item": "Recreate Order",
      "enabled": false
     },
-    "note": "Verify that Recreate Order is greyed out for an event created from a PR."
+    "note": "Assert that Recreate Order is greyed out for an event created from a PR."
    }
   ]
  }

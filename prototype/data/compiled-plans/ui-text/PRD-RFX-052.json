@@ -3,49 +3,53 @@
   "caseId": "PRD-RFX-052",
   "title": "Share-of-Business / Award via Sheet: not available on the Growth plan",
   "group": "PRD-RFX",
-  "compiledAt": "2026-11-10T01:35:16.226Z",
+  "compiledAt": "2026-11-13T14:55:24.699Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Switch between the unspecified Growth and Enterprise tenants for the same buyer.",
-   "Assert that Share-of-Business is absent or refused specifically because the tenant is on the Growth plan.",
-   "Execute Share-of-Business / Award via Sheet and verify that the award is split across vendors on Enterprise.",
-   "Compare the capability outcome across the two plans."
+   "Switching between the unnamed Growth and Enterprise plan tenants because no tenant IDs are provided and the catalog cannot change a tenant's plan.",
+   "Observing or using the Share-of-Business / Award via Sheet capability and asserting that it is absent or refused on Growth and available on Enterprise."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Switch between the unspecified Growth and Enterprise tenants for the same buyer.; Assert that Share-of-Business is absent or refused specifically because the tenant is on the Growth plan.; Execute Share-of-Business / Award via Sheet and verify that the award is split across vendors on Enterprise.; Compare the capability outcome across the two plans."
+   "can only test part of this — no step for: Switching between the unnamed Growth and Enterprise plan tenants because no tenant IDs are provided and the catalog cannot change a tenant's plan.; Observing or using the Share-of-Business / Award via Sheet capability and asserting that it is absent or refused on Growth and available on Enterprise."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
-   "open_prepared",
-   "start_awarding",
+   "open_event",
+   "open_master_qcs",
+   "ask_tester",
    "expect_visible"
   ],
-  "ms": 8258
+  "ms": 19028
  },
  "plan": {
-  "title": "Growth vs Enterprise Share-of-Business Award Availability",
+  "title": "Share-of-Business Award Availability by Plan",
   "steps": [
    {
-    "step": "open_prepared",
-    "args": {
-     "screen": "master_qcs"
-    },
-    "note": "Open a prepared event with bids at the closest available awarding entry point."
+    "step": "open_event",
+    "args": {},
+    "note": "Open a suitable existing event with bids so the award workflow can be reached."
    },
    {
-    "step": "start_awarding",
+    "step": "open_master_qcs",
     "args": {},
-    "note": "Reach the awarding screen where sheet-based awarding options may be exposed."
+    "note": "Reach the comparison and award entry screen, which is the closest available screen for inspecting award capabilities."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "switch to the Growth and Enterprise plan tenants and verify that Share-of-Business / Award via Sheet is absent or refused on Growth and available and usable on Enterprise for the same buyer"
+    },
+    "note": "The plan comparison and feature-specific availability check cannot be performed by catalog steps."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Awarding with Excel",
+     "text": "Master QCS",
      "visible": true
     },
-    "note": "Check for the closest catalog-observable sheet-awarding control, though this does not establish Share-of-Business or plan gating."
+    "note": "Assert that the closest reachable award comparison screen is present."
    }
   ]
  }

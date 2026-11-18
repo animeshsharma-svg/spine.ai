@@ -4,23 +4,30 @@
   "title": "A live RFQ with a vendor's bid: \"Settings\" opens its menu",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:16:19.653Z",
+  "compiledAt": "2026-11-13T13:45:34.989Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
-   "open_event_settings",
-   "expect_options"
+   "expect_settings_menu"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 8887
+  "ms": 10050
  },
  "plan": {
   "title": "Live RFQ Settings Menu Options",
@@ -30,7 +37,47 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ event with the vendor's bid."
+    "note": "Open the API-prepared live RFQ with one vendor bid, as required for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure counter-offer functionality is not hidden on RFQs."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Use the requested buyer bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing for the requested scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case configuration."
    },
    {
     "step": "go_to",
@@ -38,24 +85,19 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage."
+    "note": "Open the RFQ stage before inspecting its Responses view."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses tab as specified."
+    "note": "Navigate to the buyer's Responses tab where the Settings control is available."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the event's Settings menu."
-   },
-   {
-    "step": "expect_options",
+    "step": "expect_settings_menu",
     "args": {
-     "options": [
+     "offered": [
       "Recreate Order",
       "Shared With",
       "Extend Submission Time",
@@ -65,10 +107,9 @@
       "Order Activity",
       "Edit Evaluation Time",
       "Send Bulk Counter Offer"
-     ],
-     "only": true
+     ]
     },
-    "note": "Assert that the Settings menu lists exactly the expected actions."
+    "note": "Open the current event Settings menu and assert that every expected action is offered."
    }
   ]
  }

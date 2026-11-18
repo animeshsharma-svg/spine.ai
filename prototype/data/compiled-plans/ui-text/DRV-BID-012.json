@@ -1,21 +1,19 @@
 {
  "meta": {
   "caseId": "DRV-BID-012",
-  "title": "Vendor cannot view competing vendor's submitted bid details on live page",
+  "title": "Huge numbers in loading factor and bid amounts calculate without numeric overflow",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-12T13:34:56.292Z",
+  "compiledAt": "2026-11-13T13:31:21.807Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Establishing that the selected RFQ is live with Vendor A's bid rejected earlier",
-   "Opening the vendor-side Rejected Bids tab and asserting that it specifically shows \"No data\""
+   "Verify buyer-only restricted UI directly via backend company setting check"
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Establishing that the selected RFQ is live with Vendor A's bid rejected earlier; Opening the vendor-side Rejected Bids tab and asserting that it specifically shows \"No data\""
+   "resolved: “Sign in as Vendor A specifically when only the default QA test vendor is configured in this portal session” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Verify buyer-only restricted UI directly via backend company setting check"
   ],
   "source": "llm",
   "steps": 4,
@@ -23,14 +21,14 @@
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "expect_visible"
+   "expect_text"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 8622
+  "ms": 11186
  },
  "plan": {
-  "title": "Vendor rejected-bids visibility",
+  "title": "Rejected-bids list is visible only to buyer users for vendor",
   "steps": [
    {
     "step": "open_prepared",
@@ -44,22 +42,22 @@
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the supplier portal as the invited QA vendor."
+    "note": "Sign in to the vendor portal as the invited vendor"
    },
    {
     "step": "vendor_open_event",
     "args": {
-     "overview": true
+     "stage": "pricing"
     },
-    "note": "Open the event in the vendor portal without entering a bidding round."
+    "note": "Open the RFQ event on the vendor portal"
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Rejected Bids",
-     "visible": false
+     "present": false,
+     "text": "Rejected Bids"
     },
-    "note": "Verify that the vendor portal does not expose a Rejected Bids control."
+    "note": "Assert the rejected bids tab or section is not visible to the vendor"
    }
   ]
  }

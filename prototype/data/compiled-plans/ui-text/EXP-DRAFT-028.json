@@ -4,7 +4,7 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"Buy Template\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:44:17.849Z",
+  "compiledAt": "2026-11-13T14:05:12.517Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -15,7 +15,7 @@
    "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "compose_stages",
@@ -27,25 +27,26 @@
    "add_line_items",
    "fill_sheet",
    "set_schedule",
+   "invite_vendor",
    "save_draft",
    "expect_no_error",
    "open_events_list",
    "filter_events",
    "expect_event_in_list",
-   "open_event",
+   "open_first_event",
    "expect_visible"
   ],
-  "ms": 18008
+  "ms": 15584
  },
  "plan": {
-  "title": "Saved eRFX draft hides Buy Template when vendor locking is Off",
+  "title": "Draft Buy Template availability with vendor lock off",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation screen."
+    "note": "Open the eRFX create screen."
    },
    {
     "step": "compose_stages",
@@ -61,7 +62,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation for the draft."
+    "note": "Enable eRFX project creation for the test tenant."
    },
    {
     "step": "require_setting",
@@ -69,7 +70,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Apply the setting under test."
+    "note": "Set the configuration whose effect on Buy Template is being tested."
    },
    {
     "step": "require_setting",
@@ -77,19 +78,19 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the additional configuration specified by the case."
+    "note": "Apply the additional configuration required by the test case."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "EXP-DRAFT-028 Buy Template Visibility"
+     "title": "EXP-DRAFT-028 Buy Template Check"
     },
-    "note": "Give the draft the required project title."
+    "note": "Give the draft a known title so it can be found in Drafts."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a template so the draft has a valid configured stage."
+    "note": "Configure a template so the eRFX draft is valid enough to save."
    },
    {
     "step": "add_line_items",
@@ -101,29 +102,36 @@
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet for the draft line item."
+    "note": "Complete the pricing sheet before saving the draft."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a schedule so the draft can be saved."
+    "note": "Commit a schedule for the saved draft."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Complete the draft setup with a participant."
    },
    {
     "step": "save_draft",
     "args": {},
-    "note": "Save the configured eRFX project as a draft."
+    "note": "Save the eRFX event as an unpublished draft."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the draft save did not produce an application error."
+    "note": "Confirm saving the draft did not produce an application error."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to locate the saved draft."
+    "note": "Navigate to the Events list to reopen the saved draft."
    },
    {
     "step": "filter_events",
@@ -134,13 +142,18 @@
    },
    {
     "step": "expect_event_in_list",
-    "args": {},
-    "note": "Verify this plan's saved draft appears in the Drafts tab."
+    "args": {
+     "title": "EXP-DRAFT-028 Buy Template Check"
+    },
+    "note": "Confirm the created event appears as a draft before opening it."
    },
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Reopen this plan's draft on its create screen."
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-028 Buy Template Check"
+    },
+    "note": "Open the saved draft's create screen."
    },
    {
     "step": "expect_visible",
@@ -149,7 +162,7 @@
      "name": "Buy Template",
      "visible": false
     },
-    "note": "Assert that Buy Template is not offered on the saved eRFX draft."
+    "note": "Assert that Buy Template is not offered on the saved eRFX draft when vendor addition locking is Off."
    }
   ]
  }

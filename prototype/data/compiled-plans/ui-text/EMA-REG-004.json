@@ -4,22 +4,22 @@
   "title": "A company WITHOUT email approvals is not affected",
   "group": "EMA-REG",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-12T13:47:19.113Z",
+  "compiledAt": "2026-11-13T14:22:12.975Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open Asha's mailbox and verify the in-app/plain-email notification, absence of Approve and Reject buttons, and absence of bounce-backs.",
-   "Verify the exact DLF Hospitality UAT company context and the second test company without a named QA company ID."
+   "Send the event for approval through the company approval workflow",
+   "Verify that approvers receive in-app notifications or plain email",
+   "Verify that no Approve or Reject buttons appear",
+   "Verify that no bounce-backs occur"
   ],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: Open Asha's mailbox and verify the in-app/plain-email notification, absence of Approve and Reject buttons, and absence of bounce-backs.; Verify the exact DLF Hospitality UAT company context and the second test company without a named QA company ID."
+   "can only test part of this — no step for: Send the event for approval through the company approval workflow; Verify that approvers receive in-app notifications or plain email; Verify that no Approve or Reject buttons appear; Verify that no bounce-backs occur"
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -32,25 +32,20 @@
    "invite_vendor",
    "publish",
    "expect_published",
-   "place_bid",
-   "expect_bid_submitted",
-   "close_event",
-   "award_event",
-   "expect_awarded",
    "ask_tester",
-   "expect_text"
+   "expect_no_error"
   ],
-  "ms": 22766
+  "ms": 12987
  },
  "plan": {
-  "title": "Email approvals off does not add mailbox approval actions",
+  "title": "EMA-REG-004 Email Approvals Off",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a minimal event that can proceed through award approval."
+    "note": "Open the event creation flow needed to prepare the approval test event."
    },
    {
     "step": "require_setting",
@@ -58,14 +53,14 @@
      "phrase": "Email approvals",
      "value": "Off"
     },
-    "note": "Configure the company as required before creating the approval-triggering event."
+    "note": "Configure the company with email approvals disabled before creating the test event."
    },
    {
     "step": "set_title",
     "args": {
      "title": "EMA-REG-004 Email Approvals Off"
     },
-    "note": "Provide the mandatory project title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -74,82 +69,58 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ stage so the event can receive a bid and be awarded."
+    "note": "Create an RFQ event, matching the procurement event needed for the approval workflow."
    },
    {
     "step": "select_template",
-    "note": "Configure the RFQ pricing template."
+    "args": {},
+    "note": "Apply the first available RFQ template so line items and publishing can proceed."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required line item."
+    "note": "Add the required event line item."
    },
    {
     "step": "fill_sheet",
+    "args": {},
     "note": "Complete the RFQ pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
-     "minutes": 3
+     "minutes": 30
     },
-    "note": "Commit a valid bidding schedule."
+    "note": "Commit a valid event schedule before publishing."
    },
    {
     "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the participant required for publishing and bidding."
+    "args": {},
+    "note": "Add the product-provided vendor audience so the event is publishable."
    },
    {
     "step": "publish",
-    "note": "Publish the event so it can receive a response."
+    "args": {},
+    "note": "Publish the prepared event as the closest catalog-supported setup for the approval test."
    },
    {
     "step": "expect_published",
-    "note": "Confirm the event reached a real project page."
-   },
-   {
-    "step": "place_bid",
-    "note": "Submit the vendor response needed for awarding."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "note": "Confirm the bid was accepted."
-   },
-   {
-    "step": "close_event",
-    "note": "Close bidding so the event is eligible for awarding."
-   },
-   {
-    "step": "award_event",
-    "args": {
-     "vendor": "lowest"
-    },
-    "note": "Create and submit the award proposal, the closest catalog action to sending an event for approval."
-   },
-   {
-    "step": "expect_awarded",
-    "note": "Confirm the award proposal was created and submitted."
+    "args": {},
+    "note": "Confirm that the event was successfully created and is ready for the missing approval workflow step."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open Asha's mailbox and the approver notification, then verify the expected notification appears without Approve or Reject buttons and without any bounce-back"
+     "need": "send the published event for approval, then inspect Asha's approver mailbox and the buyer portal to verify the notifications, absence of Approve/Reject buttons, and absence of bounce-backs"
     },
-    "note": "Mailbox and notification behavior require access to another user's mailbox, which the catalog cannot provide."
+    "note": "The approval submission, mailbox access, and cross-user notification and control checks require credentials and screens unavailable to the catalog."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Submit Proposal",
-     "present": true
-    },
-    "note": "Keep a final assertion on the approval proposal screen after the mailbox check."
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the buyer-side session remains free of an application error after the tester completes or skips the unavailable workflow check."
    }
   ]
  }

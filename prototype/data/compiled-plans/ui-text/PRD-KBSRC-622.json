@@ -3,21 +3,23 @@
   "caseId": "PRD-KBSRC-622",
   "title": "Counter Offer Banner shown to the vendor on receipt of a counter offer",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:25:57.179Z",
+  "compiledAt": "2026-11-13T14:48:06.301Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "The catalog can verify that the vendor-facing page displays 'Counter Offer', but cannot specifically assert that it is rendered as a banner above the line-item or quote sheet rather than another vendor-page mention."
+  ],
   "warnings": [
    "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids"
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "can only test part of this — no step for: The catalog can verify that the vendor-facing page displays 'Counter Offer', but cannot specifically assert that it is rendered as a banner above the line-item or quote sheet rather than another vendor-page mention."
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 17,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
-   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -26,30 +28,29 @@
    "publish",
    "expect_published",
    "expect_bid_submitted",
-   "switch_portal",
    "open_master_qcs",
    "place_counter_offer",
    "expect_counter_offer_sent",
    "switch_portal",
    "vendor_open_event",
-   "expect_visible"
+   "expect_text"
   ],
-  "ms": 9354
+  "ms": 12981
  },
  "plan": {
-  "title": "Vendor Counter Offer Banner",
+  "title": "Vendor sees counter offer banner",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage event creation flow."
+    "note": "Open the eRFX creation screen for the RFQ event."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Counter Offer Banner Test"
+     "title": "Vendor Counter Offer Banner Test"
     },
     "note": "Provide the required event title."
    },
@@ -60,26 +61,19 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ so the counter-offer flow is available."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Move to the RFQ pricing stage."
+    "note": "Configure the event with an RFQ pricing stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply the RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a product for the vendor quote sheet."
+    "note": "Add a product for the vendor quote."
    },
    {
     "step": "fill_sheet",
@@ -91,24 +85,24 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding schedule."
+    "note": "Commit a valid bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor who will receive the counter offer."
+    "note": "Invite one QA vendor who can submit the quote and receive the counter offer."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ event."
+    "note": "Publish the RFQ so the vendor can bid."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a real published project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "expect_bid_submitted",
@@ -116,50 +110,42 @@
     "note": "Confirm the vendor quote was accepted."
    },
    {
-    "step": "switch_portal",
-    "args": {
-     "to": "buyer"
-    },
-    "note": "Return to the buyer console to send the counter offer."
-   },
-   {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer comparison grid containing the vendor bid."
+    "note": "Open the buyer's comparison grid containing the vendor bid."
    },
    {
     "step": "place_counter_offer",
     "args": {
      "price": 90
     },
-    "note": "Send a counter offer to the bidding vendor."
+    "note": "Send a buyer counter offer against the vendor's live quote."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Confirm the buyer grid records the pending counter offer."
+    "note": "Confirm the buyer grid records the counter offer as initiated."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Open the vendor's separate supplier-portal session."
+    "note": "Continue in the vendor-facing supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the RFQ pricing sheet where the counter-offer banner should appear."
+    "note": "Open this event's RFQ pricing view as the vendor."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Counter Offer",
-     "visible": true
+     "text": "Counter Offer"
     },
-    "note": "Assert that the vendor sees the Counter Offer banner or its visible pending-counter-offer label above the quote sheet."
+    "note": "Verify the vendor-facing page displays the pending counter offer notification."
    }
   ]
  }

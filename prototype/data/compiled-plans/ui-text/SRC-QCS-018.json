@@ -4,28 +4,34 @@
   "title": "Download Report after award",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:40:17.338Z",
+  "compiledAt": "2026-11-13T12:34:33.556Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the downloaded report contains the awarded vendor, awarded quantity, and awarded amount when those values are dynamic and not stated in the case."
+   "Verify that the downloaded report itself contains the awarded vendor, awarded quantity, and awarded amount as dynamic values from the prepared event."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the downloaded report contains the awarded vendor, awarded quantity, and awarded amount when those values are dynamic and not stated in the case."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that the downloaded report itself contains the awarded vendor, awarded quantity, and awarded amount as dynamic values from the prepared event."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
    "click",
    "expect_download"
   ],
   "state": "awarded",
   "screen": "master_qcs",
-  "ms": 7825
+  "ms": 13394
  },
  "plan": {
-  "title": "Download Awarded Master QCS Report",
+  "title": "Download Master QCS Report After Award",
   "steps": [
    {
     "step": "open_prepared",
@@ -35,17 +41,51 @@
     "note": "Open the prepared awarded event directly on its Master QCS screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Verify the Master QCS identifies the awarded vendor with a real company name."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Qty Offer",
+     "vendor": 1,
+     "key": "quantity"
+    },
+    "note": "Verify the awarded line quantity is present in the comparison grid."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Sum Total",
+     "vendor": 1,
+     "key": "bidTotal"
+    },
+    "note": "Verify the awarded amount is present in the comparison grid."
+   },
+   {
     "step": "click",
     "args": {
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Start downloading the Master QCS report."
+    "note": "Download the Master QCS report from the buyer's view."
    },
    {
     "step": "expect_download",
     "args": {},
-    "note": "Assert that the report file was saved successfully."
+    "note": "Verify that the report file was successfully saved and can be opened by the runner."
    }
   ]
  }

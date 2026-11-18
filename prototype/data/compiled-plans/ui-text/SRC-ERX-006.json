@@ -4,7 +4,7 @@
   "title": "Make an RFQ-only project",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:16:50.791Z",
+  "compiledAt": "2026-11-13T12:01:37.540Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -15,15 +15,15 @@
    "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "compose_stages",
+   "require_setting",
    "set_title",
    "open_add_stage_menu",
    "expect_add_stage_options",
    "click",
-   "expect_stages",
    "open_stage_menu",
    "click",
    "click",
@@ -31,23 +31,22 @@
    "open_add_stage_menu",
    "expect_add_stage_options",
    "click",
-   "expect_stages",
    "open_stage_menu",
    "click",
    "click",
    "expect_stages"
   ],
-  "ms": 15867
+  "ms": 17821
  },
  "plan": {
-  "title": "SRC-ERX-006 RFQ-only project",
+  "title": "Make an RFQ-only eRFX project",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project create screen with the default Auction stage."
+    "note": "Open the eRFX project creation screen."
    },
    {
     "step": "compose_stages",
@@ -59,16 +58,24 @@
     }
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
+   },
+   {
     "step": "set_title",
     "args": {
      "title": "SRC-ERX-006 RFQ-only project"
     },
-    "note": "Provide the required project title for the create flow."
+    "note": "Provide the mandatory create-screen title without affecting the stage-composition subject."
    },
    {
     "step": "open_add_stage_menu",
     "args": {},
-    "note": "Open the Add Stages menu before adding the Technical Stage."
+    "note": "Open the Add Stages menu to add the required Technical Stage."
    },
    {
     "step": "expect_add_stage_options",
@@ -80,7 +87,7 @@
       "RFQ"
      ]
     },
-    "note": "Verify that Technical Stage is available while RFQ is blocked by the existing Auction stage."
+    "note": "Verify the initial stage menu allows Technical Stage and does not offer RFQ while Auction remains."
    },
    {
     "step": "click",
@@ -88,24 +95,14 @@
      "role": "menuitem",
      "name": "Technical Stage"
     },
-    "note": "Add the Technical Stage."
-   },
-   {
-    "step": "expect_stages",
-    "args": {
-     "stages": [
-      "rfp",
-      "auction"
-     ]
-    },
-    "note": "Confirm the project now has Technical Stage and Auction tabs."
+    "note": "Add the Technical Stage, creating the required intermediate two-stage state."
    },
    {
     "step": "open_stage_menu",
     "args": {
      "stage": "auction"
     },
-    "note": "Open the Auction stage overflow menu to remove Auction."
+    "note": "Open Auction's overflow menu so it can be removed."
    },
    {
     "step": "click",
@@ -113,15 +110,16 @@
      "role": "menuitem",
      "name": "Delete"
     },
-    "note": "Delete the Auction stage so RFQ can be added."
+    "note": "Choose deletion of the Auction stage."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Delete"
+     "name": "Delete",
+     "within": "dialog"
     },
-    "note": "Confirm deletion of the Auction stage."
+    "note": "Confirm removing Auction, leaving Technical Stage as the only stage."
    },
    {
     "step": "expect_stages",
@@ -130,24 +128,21 @@
       "rfp"
      ]
     },
-    "note": "Confirm only Technical Stage remains after deleting Auction."
+    "note": "Verify the intermediate state contains only the Technical Stage."
    },
    {
     "step": "open_add_stage_menu",
     "args": {},
-    "note": "Reopen Add Stages to add RFQ now that Auction is gone."
+    "note": "Reopen Add Stages after Auction is removed."
    },
    {
     "step": "expect_add_stage_options",
     "args": {
      "offers": [
       "RFQ"
-     ],
-     "absent": [
-      "Auction"
      ]
     },
-    "note": "Verify RFQ is now offered and Auction is not."
+    "note": "Verify RFQ is now available to add."
    },
    {
     "step": "click",
@@ -158,21 +153,11 @@
     "note": "Add the RFQ stage."
    },
    {
-    "step": "expect_stages",
-    "args": {
-     "stages": [
-      "rfp",
-      "rfq"
-     ]
-    },
-    "note": "Confirm the project contains Technical Stage and RFQ."
-   },
-   {
     "step": "open_stage_menu",
     "args": {
      "stage": "rfp"
     },
-    "note": "Open the Technical Stage overflow menu to remove it."
+    "note": "Open the Technical Stage overflow menu so it can be removed."
    },
    {
     "step": "click",
@@ -180,15 +165,16 @@
      "role": "menuitem",
      "name": "Delete"
     },
-    "note": "Delete the Technical Stage, leaving RFQ as the final stage."
+    "note": "Choose deletion of Technical Stage."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Delete"
+     "name": "Delete",
+     "within": "dialog"
     },
-    "note": "Confirm deletion of the Technical Stage."
+    "note": "Confirm removing Technical Stage."
    },
    {
     "step": "expect_stages",

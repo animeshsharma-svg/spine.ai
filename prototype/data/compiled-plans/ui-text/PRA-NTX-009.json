@@ -4,43 +4,51 @@
   "title": "New assignee gets the new text; the old assignee's 'unassigned' message is unchanged",
   "group": "PRA-NTX",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:04:12.673Z",
+  "compiledAt": "2026-11-13T14:27:51.172Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Reassign the PR-1 item from User A to User B, log in as User B and verify the notification text, then log in as User A and verify the old unassigned notification remains unchanged."
+   "Reassign the PR-1 item from User A to User B.",
+   "Log in separately as User B and User A and open each user's bell notifications.",
+   "Verify User A's prior unassigned notification count is unchanged."
   ],
   "warnings": [
-   "can only test part of this — no step for: Reassign the PR-1 item from User A to User B, log in as User B and verify the notification text, then log in as User A and verify the old unassigned notification remains unchanged."
+   "can only test part of this — no step for: Reassign the PR-1 item from User A to User B.; Log in separately as User B and User A and open each user's bell notifications.; Verify User A's prior unassigned notification count is unchanged."
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
-   "open_purchase_requisitions",
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 9015
+  "ms": 17808
  },
  "plan": {
-  "title": "PRA-NTX-009 Assignment Notification Text",
+  "title": "PR Assignment Notification Reassignment",
   "steps": [
    {
-    "step": "open_purchase_requisitions",
-    "args": {},
-    "note": "Closest available navigation to the purchase requisitions area, but it cannot perform assignment or notification checks."
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team-filtering configuration for the scenario."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "reassign the PR-1 item from User A to User B, log in as User B and verify the bell notification says \"PR No. <PR-1 number> has been assigned to you.\", then log in as User A and verify the old unassigned notification remains unchanged"
+     "need": "Reassign the PR-1 item from User A to User B, sign in as User B and open the bell notifications, then sign in as User A and open the bell notifications; leave User B's notifications visible."
     },
-    "note": "The tester must perform the missing multi-user reassignment and notification verification."
+    "note": "The catalog cannot perform PR assignment changes or authenticate as both buyer users."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Final assertion that the resulting screen is not crashed or showing an application error."
+    "step": "expect_text",
+    "args": {
+     "text": "has been assigned to you.",
+     "present": true
+    },
+    "note": "Observe the notification text on the User B notification screen."
    }
   ]
  }

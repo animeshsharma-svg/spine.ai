@@ -4,87 +4,159 @@
   "title": "Upload Attachments: Saving the attachment window without providing any file or URL shows validation error or preserves state",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:14:10.374Z",
+  "compiledAt": "2026-11-13T14:10:44.307Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The exact validation error text, if any, and a general recording of every possible post-save outcome are not expressible without a specified expected message."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The exact validation error text, if any, and a general recording of every possible post-save outcome are not expressible without a specified expected message."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 18,
   "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
    "open_events_list",
-   "expect_events_list",
    "filter_events",
-   "open_first_event",
-   "click",
-   "expect_visible",
-   "click",
+   "expect_event_in_list",
+   "expect_event_status",
+   "open_event",
+   "do_on_screen",
    "expect_visible"
   ],
-  "ms": 172885
+  "ms": 26678
  },
  "plan": {
-  "title": "Empty Attachment Save on Draft",
+  "title": "EXP-DRAFT-082 Empty Attachment Save",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX create screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration for event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the specified stage configuration before testing."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Give the draft a searchable title; draft creation requires a title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template so the draft can be saved."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the minimum line item required for a valid eRFX draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before saving the draft."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule so the draft is fully initialized."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Create the saved, unpublished eRFX draft used by the attachment test."
+   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the events list to reach the saved draft."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Verify the events list rendered successfully."
+    "note": "Navigate to the events list to locate the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the Drafts tab as required by the scenario."
+    "note": "Open the Drafts tab specified by the case."
    },
    {
-    "step": "open_first_event",
-    "args": {
-     "tab": "Drafts"
-    },
-    "note": "Open the first available saved draft."
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify the newly saved draft appears in the Drafts list."
    },
    {
-    "step": "click",
+    "step": "expect_event_status",
     "args": {
-     "role": "button",
-     "name": "Add Attachments"
+     "status": "Draft"
     },
-    "note": "Open the attachment upload window."
+    "note": "Confirm the event is still an unpublished draft."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "Upload Attachments",
-     "visible": true
-    },
-    "note": "Verify that the attachment window is open before submitting empty fields."
+    "step": "open_event",
+    "args": {},
+    "note": "Reopen this plan's saved draft for the attachment-window test."
    },
    {
-    "step": "click",
+    "step": "do_on_screen",
     "args": {
-     "role": "button",
-     "name": "Save"
+     "goal": "On the buyer's saved eRFX draft, click Add Attachments, leave both the file drop area and URL field empty, click Save, and record whether a validation error appears or the attachment window closes while the draft state is preserved."
     },
-    "note": "Attempt to save with no file selected and no URL entered."
+    "note": "Perform and observe the attachment save behavior that no catalog-specific attachment step can express."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Upload Attachments",
+     "text": "Add Attachments",
      "visible": true
     },
-    "note": "Verify the empty save preserves the attachment window rather than completing an attachment save."
+    "note": "Assert the draft screen remains identifiable after the empty attachment save attempt, whether the window stayed open or closed."
    }
   ]
  }

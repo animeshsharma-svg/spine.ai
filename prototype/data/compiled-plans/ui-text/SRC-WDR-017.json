@@ -4,30 +4,57 @@
   "title": "Withdraw is not offered on a closed event",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:23:19.403Z",
+  "compiledAt": "2026-11-13T13:17:04.810Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "open_event_settings",
    "expect_settings_menu"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 4967
+  "ms": 15935
  },
  "plan": {
-  "title": "Withdraw unavailable on closed event",
+  "title": "Withdraw absent on closed RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ event as the buyer."
+    "note": "Open the preconfigured closed RFQ event without creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure the tenant does not hide withdrawal controls generally."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure the RFQ project flow is enabled for the configured tenant."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the closed event's Settings menu where Withdraw would be offered."
    },
    {
     "step": "expect_settings_menu",
@@ -36,7 +63,7 @@
       "Withdraw"
      ]
     },
-    "note": "Verify that Withdraw is not offered in the closed event's Settings menu."
+    "note": "Assert that Withdraw is not offered in the closed event's Settings menu."
    }
   ]
  }

@@ -4,22 +4,23 @@
   "title": "Reopen when no line has expired",
   "group": "SRC-LOT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:31:50.324Z",
+  "compiledAt": "2026-11-13T12:14:01.521Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "open_event_settings",
-   "expect_menu_item",
-   "open_event_settings",
-   "hover",
-   "expect_message"
+   "expect_menu_item"
   ],
-  "ms": 11144
+  "ms": 15533
  },
  "plan": {
   "title": "Reopen Line Items Disabled Before Expiry",
@@ -27,9 +28,17 @@
    {
     "step": "open_prepared",
     "args": {
-     "screen": "summary"
+     "screen": "overview"
     },
-    "note": "Open the prepared live staggered event before any line has expired."
+    "note": "Open the prepared staggered auction in the buyer portal before any line has expired."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_lot_scheduling_and_split_on_auction_enabled",
+     "value": "On"
+    },
+    "note": "Enable lot scheduling and split auctions required for staggered line items."
    },
    {
     "step": "open_event_settings",
@@ -42,29 +51,7 @@
      "item": "Reopen Line Items",
      "enabled": false
     },
-    "note": "Assert that Reopen Line Items is present but disabled and has a reason tooltip."
-   },
-   {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Reopen the Settings menu so the disabled menu item can be hovered for the exact tooltip."
-   },
-   {
-    "step": "hover",
-    "args": {
-     "role": "menuitem",
-     "name": "Reopen Line Items"
-    },
-    "note": "Reveal the disabled item's explanatory tooltip."
-   },
-   {
-    "step": "expect_message",
-    "args": {
-     "kind": "tooltip",
-     "on": "Reopen Line Items",
-     "text": "Line items can only be reopened if at least one line item has expired"
-    },
-    "note": "Verify the required reason shown to the buyer."
+    "note": "Assert Reopen Line Items is disabled and its tooltip explains that line items can only be reopened after at least one has expired."
    }
   ]
  }

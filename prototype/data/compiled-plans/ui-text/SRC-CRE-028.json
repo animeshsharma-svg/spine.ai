@@ -4,26 +4,27 @@
   "title": "Forward auction: Quantity Requested = a very large number 99999999",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:31:06.382Z",
+  "compiledAt": "2026-11-13T11:51:27.217Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Confirm that the selected template is specifically a forward (sell) auction template because no known template name is provided.",
-   "Select the specifically named Vendor A because its actual QA vendor name is not given and the catalog cannot resolve that placeholder safely.",
-   "Verify that the quantity is rendered with thousands separators rather than merely preserved numerically.",
-   "Verify the sheet totals' exact arithmetic and overflow behavior because no catalog assertion reads those totals on this flow."
+   "Select or verify a specifically forward (sell) auction template and direction",
+   "Add the specifically named Vendor A because no vendor name is provided",
+   "Verify the exact calculated totals or prove they do not overflow beyond the clean-screen check"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Confirm that the selected template is specifically a forward (sell) auction template because no known template name is provided.; Select the specifically named Vendor A because its actual QA vendor name is not given and the catalog cannot resolve that placeholder safely.; Verify that the quantity is rendered with thousands separators rather than merely preserved numerically.; Verify the sheet totals' exact arithmetic and overflow behavior because no catalog assertion reads those totals on this flow."
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Select or verify a specifically forward (sell) auction template and direction; Add the specifically named Vendor A because no vendor name is provided; Verify the exact calculated totals or prove they do not overflow beyond the clean-screen check"
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 15,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -34,26 +35,24 @@
    "fill_sheet",
    "set_sheet_cell",
    "expect_sheet_cell",
-   "set_sheet_cell",
-   "expect_sheet_cell",
+   "expect_sheet_columns",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
-   "expect_no_error",
    "expect_screen_clean"
   ],
-  "ms": 19302
+  "ms": 26347
  },
  "plan": {
-  "title": "Single-stage forward auction large quantity",
+  "title": "Single-stage forward auction with very large quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Opens the Single Stage create screen."
+    "note": "Opens the Single Stage creation screen."
    },
    {
     "step": "require_setting",
@@ -61,7 +60,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Ensures vendors can be added during event creation as required by the case."
+    "note": "Enables adding vendors during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
@@ -70,49 +69,31 @@
      "auctionSubtype": "rank",
      "awarding": "lot"
     },
-    "note": "Changes the event type from the initial RFP to an auction."
+    "note": "Sets the event type to Auction; the catalog has no separate forward/sell direction control."
    },
    {
     "step": "set_title",
-    "args": {},
+    "args": {
+     "title": "SRC-CRE-028 Large Quantity Forward Auction"
+    },
     "note": "Provides the mandatory event title required for publishing."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Applies the first available auction template so the product sheet can be configured."
+    "note": "Applies the first available auction template; a forward-specific template cannot be selected by a known name from the case."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB"
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "99999999"
     },
-    "note": "Adds the specified product to the first sheet row."
+    "note": "Adds the requested product with the exact very large quantity."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Completes remaining required sheet fields before setting the case-specific values."
-   },
-   {
-    "step": "set_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "value": "99999999"
-    },
-    "note": "Enters the very large requested quantity under test."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "equals": "99999999",
-     "kept": true
-    },
-    "note": "Confirms the large quantity remains in the sheet without an inline error."
+    "step": "fill_sheet"
    },
    {
     "step": "set_sheet_cell",
@@ -121,16 +102,27 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Sets the specified delivery location for the line item."
+    "note": "Sets the requested delivery location in the first row."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
-     "column": "Delivery location",
-     "contains": "Plant Name (LOC-0001)"
+     "column": "Quantity Requested",
+     "kept": true,
+     "equals": "99,999,999"
     },
-    "note": "Confirms the requested plant was selected."
+    "note": "Verifies that the large quantity remains valid and is displayed with thousands separators."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {
+     "columns": [
+      "quantity",
+      "total_amount"
+     ]
+    },
+    "note": "Confirms that the quantity and total columns are rendered in the pricing sheet."
    },
    {
     "step": "set_schedule",
@@ -144,7 +136,7 @@
     "args": {
      "count": 1
     },
-    "note": "Adds one available QA vendor so the event can be published; the case's Vendor A placeholder is not resolved to an invented name."
+    "note": "Adds one available QA vendor for publication; the case does not provide a concrete vendor name."
    },
    {
     "step": "publish",
@@ -154,17 +146,12 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirms the event was created as a real published project."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Checks that publishing did not produce an application error."
+    "note": "Confirms the event reached a real published project page."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Checks that the resulting screen has no overflow artifacts such as NaN, undefined, raw ids, or crashes."
+    "note": "Checks that the published screen has no NaN, undefined, raw IDs, server errors, or page crashes indicative of broken totals or overflow rendering."
    }
   ]
  }

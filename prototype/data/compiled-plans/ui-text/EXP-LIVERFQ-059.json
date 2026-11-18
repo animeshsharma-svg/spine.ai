@@ -4,21 +4,25 @@
   "title": "Edit Evaluation Time: Cancel button closes Edit Evaluation Time without changing end time",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:49:30.219Z",
+  "compiledAt": "2026-11-13T14:15:51.896Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared live RFQ state may contain one bid, while the case requires no bid.",
-   "Assert that no toast appears after cancellation."
+   "Assert that no toast appears after clicking Cancel."
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared live RFQ state may contain one bid, while the case requires no bid.; Assert that no toast appears after cancellation."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Assert that no toast appears after clicking Cancel."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "remember",
    "event_menu",
@@ -29,7 +33,7 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9992
+  "ms": 17157
  },
  "plan": {
   "title": "Cancel Edit Evaluation Time",
@@ -39,22 +43,46 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary as the buyer."
+    "note": "Open the prepared live RFQ summary as required for this prepared-state case."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the RFQ stage."
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration for the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Apply the required live-event withdrawal configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses tab."
+    "note": "Navigate to the RFQ Responses tab where the Settings action is available."
    },
    {
     "step": "remember",
@@ -62,7 +90,7 @@
      "key": "evaluation_end_time",
      "text": "Evaluation will end at"
     },
-    "note": "Record the displayed evaluation end time before opening the dialog."
+    "note": "Record the currently displayed evaluation end time before opening the edit dialog."
    },
    {
     "step": "event_menu",
@@ -70,7 +98,7 @@
      "item": "Edit Evaluation Time",
      "stage": "rfq"
     },
-    "note": "Open Edit Evaluation Time from the RFQ Settings menu."
+    "note": "Open the RFQ Settings action and its Edit Evaluation Time dialog."
    },
    {
     "step": "expect_visible",
@@ -88,7 +116,7 @@
      "name": "Cancel",
      "within": "dialog"
     },
-    "note": "Cancel the edit without saving changes."
+    "note": "Cancel the edit without saving any evaluation-time change."
    },
    {
     "step": "expect_visible",
@@ -97,15 +125,16 @@
      "name": "Edit Evaluation Time",
      "visible": false
     },
-    "note": "Verify that the dialog closes."
+    "note": "Verify that Cancel closed the Edit Evaluation Time window."
    },
    {
     "step": "expect_remembered",
     "args": {
      "key": "evaluation_end_time",
-     "same": true
+     "same": true,
+     "text": "Evaluation will end at"
     },
-    "note": "Verify that the displayed evaluation end time is unchanged."
+    "note": "Verify that the RFQ page still displays the same evaluation end time after cancellation."
    }
   ]
  }

@@ -4,24 +4,25 @@
   "title": "Source two service lines in one event",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:33:16.776Z",
+  "compiledAt": "2026-11-13T12:29:03.759Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the selected lines are specifically service lines after event creation.",
-   "Assert that exactly two activity rows are rendered in the event and that each activity has an individual vendor quote."
+   "Directly assert that exactly the two selected PR service lines appear as separate event activities with their original identities."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
    "invite_vendor now names Vendor A — a later step expects that vendor on the event",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
    "invite_vendor now names Vendor A — a later step expects that vendor on the event",
-   "can only test part of this — no step for: Assert that the selected lines are specifically service lines after event creation.; Assert that exactly two activity rows are rendered in the event and that each activity has an individual vendor quote."
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Directly assert that exactly the two selected PR service lines appear as separate event activities with their original identities."
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 22,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -31,18 +32,25 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
    "set_title",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
    "place_bid",
-   "expect_bid_submitted"
+   "expect_bid_submitted",
+   "expect_responses",
+   "close_event",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_qcs_amounts"
   ],
-  "ms": 17162
+  "ms": 22350
  },
  "plan": {
-  "title": "Source Two Service Lines in One Event",
+  "title": "Source two service lines from one PR",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -80,18 +88,32 @@
     "step": "fill_sheet"
    },
    {
-    "step": "set_title",
+    "step": "require_setting",
     "args": {
-     "title": "SRC-PR-050 Service Lines"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Provide the mandatory event title before publishing."
+    "note": "Enable eRFX project creation for the PR sourcing flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow Vendor A to be added during event creation."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "set_schedule",
     "args": {
-     "minutes": 30
+     "minutes": 3
     },
-    "note": "Commit the 30-minute event schedule."
+    "note": "Commit the requested 30-minute schedule."
    },
    {
     "step": "invite_vendor",
@@ -103,29 +125,74 @@
       "Vendor A"
      ]
     },
-    "note": "Invite the vendor named in the case."
+    "note": "Add the specifically named Vendor A to the event."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ event."
+    "note": "Publish the RFQ after its PR lines, template, schedule, and vendor are configured."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publication reached a real project page."
+    "note": "Confirm the event was created as a real published project."
    },
    {
     "step": "place_bid",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Have Vendor A submit a quote across the event's pricing cells."
+    "note": "Have Vendor A quote the event's activities from the vendor portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify Vendor A's quote was accepted by the supplier portal."
+    "note": "Confirm Vendor A's quote was accepted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1,
+     "vendors": [
+      "Vendor A"
+     ],
+     "participation": "1/1",
+     "stage": "rfq"
+    },
+    "note": "Verify the buyer sees Vendor A's direct response on the RFQ."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the bidding window so the submitted quotes can be compared in Master QCS."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open the buyer's comparison grid for the quoted PR activities."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "vendors": [
+      "Vendor A"
+     ],
+     "realNames": true
+    },
+    "note": "Confirm the response is attributed to the real Vendor A column."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify rate-times-quantity amounts and the total for every carried activity."
    }
   ]
  }

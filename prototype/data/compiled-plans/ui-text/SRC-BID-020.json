@@ -4,24 +4,23 @@
   "title": "RFQ bid: Two users of the same vendor company bid",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:26:34.168Z",
+  "compiledAt": "2026-11-13T11:46:16.002Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as Vendor A's second user in a separate vendor session, reopen the live RFQ, submit 98, and record whether Procol refuses it with the team-bid message or treats it as a revision."
+   "A second user session for the same vendor company and the resulting distinction between refusal with the message \"A bid has already been placed from your team\" and revision of the existing company bid"
   ],
   "warnings": [
-   "invite_vendor now names Vendor A — a later step expects that vendor on the event",
-   "invite_vendor now names Vendor A — a later step expects that vendor on the event",
-   "can only test part of this — no step for: Sign in as Vendor A's second user in a separate vendor session, reopen the live RFQ, submit 98, and record whether Procol refuses it with the team-bid message or treats it as a revision."
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "can only test part of this — no step for: A second user session for the same vendor company and the resulting distinction between refusal with the message \"A bid has already been placed from your team\" and revision of the existing company bid"
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
-   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -29,29 +28,29 @@
    "invite_vendor",
    "publish",
    "expect_published",
-   "place_bid",
    "expect_bid_submitted",
    "ask_tester",
-   "expect_message"
+   "switch_portal",
+   "expect_responses"
   ],
-  "ms": 15026
+  "ms": 15783
  },
  "plan": {
-  "title": "SRC-BID-020 Same-company vendor bid",
+  "title": "SRC-BID-020 Same Vendor Company Bid",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a new eRFX event for the RFQ bidding scenario."
+    "note": "Open the eRFX create screen for the RFQ event."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-BID-020 Same Company RFQ"
+     "title": "SRC-BID-020 Same Vendor Company Bid"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provide the required event title so the RFQ can be published."
    },
    {
     "step": "compose_stages",
@@ -60,88 +59,75 @@
       "rfq"
      ]
     },
-    "note": "Configure the event with an RFQ stage rather than the default auction stage."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Work on the RFQ stage before configuring its template and sheet."
+    "note": "Configure the event as an RFQ rather than the default auction stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an available RFQ pricing template."
+    "note": "Apply an RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item so the RFQ bid sheet can be configured."
+    "note": "Add one product for the vendor bid."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
+    "note": "Complete the RFQ pricing sheet for the line item."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding schedule before publishing."
+    "note": "Commit a live bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "vendors": [
-      "Vendor A"
-     ],
-     "names": [
-      "Vendor A"
-     ]
+     "count": 1
     },
-    "note": "Invite the vendor company whose two users are under test."
+    "note": "Invite one QA vendor company, whose first user will submit the initial bid."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so Vendor A can bid."
+    "note": "Publish the live RFQ."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a published project page."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "vendor": "Vendor A",
-     "price": 100
-    },
-    "note": "Submit User 1's bid for 100 from the vendor portal."
+    "note": "Confirm the RFQ reached a real published project page."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify User 1's bid was accepted."
+    "note": "Assert that the first vendor bid was accepted."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Vendor A's second user in a separate vendor session, open this live RFQ from the vendor event list, submit a bid of 98, and report whether Procol refuses it as an already placed team bid or treats it as a revision"
+     "need": "sign in as the second user of the same invited vendor company in a separate vendor session, open this live RFQ, submit a bid of 98, and record whether Procol refuses it with the same-company bid message or treats it as a revision"
     },
-    "note": "A second user account/session from the same vendor company is required to test the company-level duplicate-bid rule."
+    "note": "A second user session for the same vendor company is not available in the catalog."
    },
    {
-    "step": "expect_message",
+    "step": "switch_portal",
     "args": {
-     "kind": "error",
-     "text": "A bid has already been placed from your team"
+     "to": "buyer"
     },
-    "note": "Assert the specified refusal message when the second user's submission is rejected."
+    "note": "Return to the buyer console to inspect the resulting vendor response state."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1
+    },
+    "note": "Verify that the buyer still sees one direct response column for the vendor company, whether the second attempt was refused or revised."
    }
   ]
  }

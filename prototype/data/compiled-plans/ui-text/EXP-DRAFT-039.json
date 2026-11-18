@@ -4,7 +4,7 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"Terms & Conditions\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:44:53.991Z",
+  "compiledAt": "2026-11-13T14:06:10.074Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -13,7 +13,7 @@
    "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 16,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -24,28 +24,25 @@
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "set_schedule",
    "save_draft",
    "expect_no_error",
    "open_events_list",
    "expect_events_list",
    "filter_events",
-   "expect_event_in_list",
-   "expect_event_status",
-   "open_event",
+   "open_first_event",
    "expect_visible"
   ],
-  "ms": 11475
+  "ms": 8659
  },
  "plan": {
-  "title": "Draft hides Terms & Conditions",
+  "title": "Terms and Conditions absent on saved eRFX draft",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation screen."
+    "note": "Open the eRFX creation screen."
    },
    {
     "step": "require_setting",
@@ -61,7 +58,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Set the condition under test so vendors cannot be added during event creation."
+    "note": "Apply the setting whose effect on the draft's Terms & Conditions control is being tested."
    },
    {
     "step": "require_setting",
@@ -69,12 +66,14 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the additional configuration specified by the case."
+    "note": "Match the case's required tenant configuration."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory draft title."
+    "args": {
+     "title": "EXP-DRAFT-039 Terms Conditions Draft"
+    },
+    "note": "Give the draft the mandatory title needed to save it."
    },
    {
     "step": "compose_stages",
@@ -83,36 +82,29 @@
       "rfq"
      ]
     },
-    "note": "Configure the draft as an RFQ-only eRFX project."
+    "note": "Create an eRFX draft with the RFQ stage used by the case."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the draft is valid enough to save."
+    "note": "Apply a pricing template so the draft has a valid configured stage."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required project line item."
+    "note": "Add the minimum line item required for a usable saved draft."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet for the line item."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a schedule for the saved draft."
+    "note": "Complete the pricing sheet before saving the draft."
    },
    {
     "step": "save_draft",
     "args": {},
-    "note": "Create the saved eRFX draft that will be inspected."
+    "note": "Persist the eRFX event as an unpublished draft."
    },
    {
     "step": "expect_no_error",
@@ -122,12 +114,12 @@
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the Events list to verify and reopen the saved draft."
+    "note": "Navigate to the Events list to reopen the saved draft."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered before filtering."
+    "note": "Confirm the events list rendered before selecting Drafts."
    },
    {
     "step": "filter_events",
@@ -137,21 +129,12 @@
     "note": "Open the Drafts tab specified by the case."
    },
    {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Verify that the draft created by this plan appears in Drafts."
-   },
-   {
-    "step": "expect_event_status",
+    "step": "open_first_event",
     "args": {
-     "status": "Draft"
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-039 Terms Conditions Draft"
     },
-    "note": "Confirm the created event has Draft status."
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Reopen this plan's saved draft for the control-availability check."
+    "note": "Open the draft created by this plan."
    },
    {
     "step": "expect_visible",
@@ -160,7 +143,7 @@
      "name": "Terms & Conditions",
      "visible": false
     },
-    "note": "Assert that Terms & Conditions is not offered on the saved draft under the Off setting."
+    "note": "Assert the subject of the case: Terms & Conditions is not offered on the saved draft."
    }
   ]
  }

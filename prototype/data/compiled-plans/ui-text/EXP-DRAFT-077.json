@@ -4,89 +4,87 @@
   "title": "Savings Calculation: Attempt to save with special characters in custom reference",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:11:05.347Z",
+  "compiledAt": "2026-11-13T14:10:03.341Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Directly verify that the special-character custom reference was persisted after saving."
+  ],
+  "warnings": [
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Directly verify that the special-character custom reference was persisted after saving."
+  ],
   "source": "llm",
   "steps": 14,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "save_draft",
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_events_list",
    "filter_events",
-   "expect_event_in_list",
-   "open_event",
+   "open_first_event",
    "click",
    "expect_visible",
-   "do_on_screen",
+   "click",
+   "fill",
+   "click",
+   "capture_screen",
    "expect_screen_clean"
   ],
-  "ms": 14496
+  "ms": 13463
  },
  "plan": {
   "title": "Savings Custom Reference Special Characters",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Create the eRFX draft required by the scenario."
-   },
-   {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory draft title."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply a pricing template so savings configuration is available."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add a line item required for the savings calculation flow."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet before saving the draft."
-   },
-   {
-    "step": "save_draft",
-    "args": {},
-    "note": "Create the saved, unpublished eRFX draft."
-   },
-   {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the events list to access drafts."
+    "note": "Open the Events list to locate the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the test configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-addition configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage-addition configuration."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the Events list rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab specified by the scenario."
+    "note": "Switch to the Drafts tab specified by the case."
    },
    {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Verify that the draft created by this plan appears in Drafts."
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Reopen this plan's saved draft."
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the first saved draft available, which reopens its eRFX create screen."
    },
    {
     "step": "click",
@@ -99,23 +97,45 @@
    {
     "step": "expect_visible",
     "args": {
-     "role": "heading",
-     "name": "Savings Calculation",
+     "text": "Savings Calculation",
      "visible": true
     },
     "note": "Confirm the Savings Calculation window opened."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "In the Savings Calculation window, click Add Custom Reference, enter !@#$%^&*()_+{}|:<>? in the reference field, click Save, and record the resulting message or saved-row state on screen."
+     "text": "Add Custom Reference"
     },
-    "note": "Perform and observe the custom-reference save operation, including its response to the special characters."
+    "note": "Open the custom reference entry controls."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Custom Reference",
+     "value": "!@#$%^&*()_+{}|:<>?"
+    },
+    "note": "Enter the special-character reference value."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save"
+    },
+    "note": "Attempt to save the custom reference."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "savings-custom-reference-save-result"
+    },
+    "note": "Record the post-save screen and any visible result of the special-character save attempt."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Verify the resulting screen has no crash, server error, or malformed content."
+    "note": "Assert that the save attempt did not leave a visible application error, crash, or malformed content."
    }
   ]
  }

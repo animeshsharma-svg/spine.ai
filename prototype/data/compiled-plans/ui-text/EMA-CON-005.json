@@ -4,44 +4,69 @@
   "title": "Consult with the Recipient line left empty bounces back",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:16.630Z",
+  "compiledAt": "2026-11-13T14:19:34.871Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in to Asha's mailbox and open the Procol approval request email",
-   "Click Consult to create a new email with an Action:Consult subject",
-   "Enter a comment while leaving Recipient empty and send without changing the subject",
-   "Wait for Procol to process the mailbox message",
-   "Verify that no consultation is created in the approval workflow or buyer portal"
+   "Access Asha's mailbox and open the Procol approval request email",
+   "Click Consult, enter a comment while leaving Recipient empty, and send the unchanged-subject email",
+   "Wait for Procol to process the mailbox and verify the exact rejection reply",
+   "Verify from the mailbox that no consultation was created",
+   "Verify that the company's approval mailbox is connected to Procol"
   ],
   "warnings": [
-   "can only test part of this — no step for: Log in to Asha's mailbox and open the Procol approval request email; Click Consult to create a new email with an Action:Consult subject; Enter a comment while leaving Recipient empty and send without changing the subject; Wait for Procol to process the mailbox message; Verify that no consultation is created in the approval workflow or buyer portal"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Access Asha's mailbox and open the Procol approval request email; Click Consult, enter a comment while leaving Recipient empty, and send the unchanged-subject email; Wait for Procol to process the mailbox and verify the exact rejection reply; Verify from the mailbox that no consultation was created; Verify that the company's approval mailbox is connected to Procol"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
+   "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 9339
+  "ms": 18709
  },
  "plan": {
-  "title": "EMA-CON-005 — Consultation Without Recipient",
+  "title": "Consult Without Recipient Bounces",
   "steps": [
+   {
+    "step": "open_event",
+    "args": {
+     "title": "QA Email Approval - Office Chairs Nov"
+    },
+    "note": "Open the existing event named by the case in the buyer portal; this is the closest available event-side setup step."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the stated company configuration before attempting the approval-email scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval-workflow configuration required by the case."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "log in to Asha's mailbox, open the Procol approval request, click Consult, enter a comment with Recipient empty, send without changing the subject, wait for Procol to process it, and leave the resulting reply visible"
+     "need": "access Asha's mailbox, open the Procol approval email, send a Consult reply with a comment and an empty Recipient while keeping the subject unchanged, wait for processing, and verify the exact no-recipient rejection reply and that no consultation was created"
     },
-    "note": "The catalog cannot access mailboxes, send approval consultation emails, or wait for email processing."
+    "note": "Mailbox access, email composition, sending, asynchronous processing, and reply verification are not available in the catalog."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "We could not record your consultation because no recipient was found. Please reply again with the recipient's email address after \"Recipient:\"",
-     "present": true
-    },
-    "note": "Checks the expected bounce-back response after the tester performs the unavailable mailbox workflow."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert the buyer portal remains free of a page crash or server error after the unavailable mailbox portion."
    }
   ]
  }

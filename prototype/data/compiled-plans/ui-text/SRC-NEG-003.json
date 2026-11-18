@@ -4,20 +4,21 @@
   "title": "Counter offer while bidding is live: the vendor rejects",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:35:42.957Z",
+  "compiledAt": "2026-11-13T12:17:03.951Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The prepared state contains only one bid, so the RFQ with two bids (Vendor A at 100 and Vendor B at 90) and any two-vendor comparison cannot be asserted.",
-   "There is no catalog assertion for a counter offer's rejected status or rejection history; the vendor rejection is checked through the portal action and success toast instead."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The prepared state contains only one bid, so the RFQ with two bids (Vendor A at 100 and Vendor B at 90) and any two-vendor comparison cannot be asserted.; There is no catalog assertion for a counter offer's rejected status or rejection history; the vendor rejection is checked through the portal action and success toast instead."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “The catalog has no dedicated assertion for the vendor portal's post-rejection state or rejection status; it can perform ” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 16,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "place_counter_offer",
    "expect_counter_offer_sent",
    "switch_portal",
@@ -25,61 +26,82 @@
    "expect_visible",
    "click",
    "expect_toast",
-   "expect_text",
    "switch_portal",
-   "open_master_qcs",
+   "go_to",
    "expect_qcs_cell",
+   "go_to",
    "place_counter_offer",
    "expect_counter_offer_sent"
   ],
   "state": "two_bids",
   "screen": "responses",
-  "ms": 16656
+  "ms": 22591
  },
  "plan": {
-  "title": "Live counter offer rejection",
+  "title": "SRC-NEG-003 Live RFQ counter-offer rejection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses screen without searching the events list."
+    "note": "Open the prepared live RFQ with two vendor bids directly on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure RFQ counter offers are visible to the buyer."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project functionality is enabled for the prepared RFQ."
    },
    {
     "step": "place_counter_offer",
     "args": {
+     "vendor": "Vendor A",
      "price": 90,
      "remark": "Best price please"
     },
-    "note": "Send a counter offer on the prepared vendor's normal bid, changing the counter price to 90."
+    "note": "Send the specified counter offer to Vendor A's normal bid."
    },
    {
     "step": "expect_counter_offer_sent",
-    "args": {},
-    "note": "Verify that the buyer's counter offer was initiated."
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the buyer-side grid marks Vendor A's counter offer as initiated."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the invited vendor's separate supplier-portal session while keeping the buyer session available."
+    "note": "Switch to Vendor A's supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "overview": true
     },
-    "note": "Open the event overview where the pending counter offer is available."
+    "note": "Open the prepared event overview where Vendor A's pending counter offer is available."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Counter Offer",
+     "role": "button",
+     "name": "Reject",
      "visible": true
     },
-    "note": "Verify that the vendor can see the pending counter offer before rejecting it."
+    "note": "Verify the vendor portal exposes the rejection control for the pending counter offer."
    },
    {
     "step": "click",
@@ -87,56 +109,59 @@
      "role": "button",
      "name": "Reject"
     },
-    "note": "Reject the pending counter offer as the vendor."
+    "note": "Reject the buyer's pending counter offer as Vendor A."
    },
    {
     "step": "expect_toast",
     "args": {
      "kind": "success"
     },
-    "note": "Verify the vendor portal reports successful rejection."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "100",
-     "present": true
-    },
-    "note": "Verify the vendor view still shows the original bid price of 100 after rejection."
+    "note": "Verify the vendor portal reports a successful rejection action."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's Responses screen."
+    "note": "Return to the buyer's session to inspect the bid and issue another counter offer."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's Master QCS to inspect the retained bid price."
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open Master QCS to verify the original bid remains active after rejection."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
-     "vendor": 1,
-     "equals": "100"
+     "vendor": "Vendor A",
+     "number": 100
     },
-    "note": "Verify the original vendor bid remains 100 in Master QCS."
+    "note": "Assert Vendor A's displayed rate remains the original 100 rather than the rejected counter price."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Return to Responses to verify the buyer can negotiate again while bidding remains live."
    },
    {
     "step": "place_counter_offer",
     "args": {
-     "price": 95,
-     "remark": "Second counter offer"
+     "vendor": "Vendor A",
+     "price": 90
     },
-    "note": "Verify the buyer can send a new counter offer after the vendor rejected the first one while bidding remains live."
+    "note": "Send another counter offer to confirm the buyer-side counter-offer action is available again."
    },
    {
     "step": "expect_counter_offer_sent",
-    "args": {},
-    "note": "Verify the new counter offer was initiated."
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the new counter offer was initiated successfully."
    }
   ]
  }

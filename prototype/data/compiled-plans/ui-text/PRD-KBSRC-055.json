@@ -3,42 +3,127 @@
   "caseId": "PRD-KBSRC-055",
   "title": "Send Bulk Counter Offers to all vendors from Settings",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:10:28.874Z",
+  "compiledAt": "2026-11-13T14:34:11.199Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that every vendor received the counter offer by checking at least two separate vendor logins."
+   "Verify the received counter offer in a second vendor's own login/session, and therefore prove that every vendor received it."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that every vendor received the counter offer by checking at least two separate vendor logins."
+   "can only test part of this — no step for: Verify the received counter offer in a second vendor's own login/session, and therefore prove that every vendor received it."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 20,
   "stepNames": [
-   "open_event",
-   "expect_menu_item",
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
    "event_menu",
    "do_on_screen",
-   "expect_toast"
+   "expect_counter_offer_sent",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_text"
   ],
-  "ms": 8558
+  "ms": 23983
  },
  "plan": {
-  "title": "Send Bulk Counter Offers to All Vendors",
+  "title": "Bulk Counter Offers to All Vendors",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open a suitable existing published RFQ with several vendor quotes."
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a new multi-stage event so the RFQ stage can be configured."
    },
    {
-    "step": "expect_menu_item",
+    "step": "set_title",
     "args": {
-     "item": "Send Bulk Counter Offer",
-     "stage": "rfq",
-     "enabled": true
+     "title": "PRD-KBSRC-055 Bulk Counter Offers"
     },
-    "note": "Assert that the RFQ Settings menu offers the bulk counter-offer action and that it is enabled."
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ-only event, which is the subject of the bulk counter-offer flow."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a product for the vendor quotes."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite two vendors so the bulk counter-offer action has several vendor quotes to target."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ so vendors can submit quotes."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Submit a quote from the first vendor portal."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the first vendor's quote was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Submit a quote from a different vendor portal to satisfy the several-quotes setup."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second vendor's quote was accepted."
    },
    {
     "step": "event_menu",
@@ -46,21 +131,41 @@
      "item": "Send Bulk Counter Offer",
      "stage": "rfq"
     },
-    "note": "Open the bulk counter-offer drawer from the RFQ Settings menu."
+    "note": "Open the RFQ Settings action that starts the bulk counter-offer flow."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "decide the counter offer for all vendors, send it, and stop when the buyer screen shows the send succeeded"
+     "goal": "on the open Send Bulk Counter Offer drawer, decide the counter offer for all vendor bids, enter the counter-offer values and any required remark, click Send, and stop when the screen proves the bulk counter offer was sent"
     },
-    "note": "Complete the bulk counter-offer form and submit it on the buyer screen."
+    "note": "Complete the buyer-side bulk counter-offer form and send it."
    },
    {
-    "step": "expect_toast",
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Verify the buyer-side comparison grid marks a vendor bid as having a counter offer."
+   },
+   {
+    "step": "switch_portal",
     "args": {
-     "kind": "success"
+     "to": "vendor"
     },
-    "note": "Assert that Procol reported a successful bulk counter-offer submission."
+    "note": "Open the available invited vendor's supplier-portal session to verify receipt."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the event overview in the vendor portal without starting a new bid."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer",
+     "present": true
+    },
+    "note": "Confirm the available vendor sees the received counter offer."
    }
   ]
  }

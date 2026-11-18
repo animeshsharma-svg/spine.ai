@@ -4,101 +4,103 @@
   "title": "The buyer has no Revoke on a vendor's bid",
   "group": "SRC-RVK",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:53:17.897Z",
+  "compiledAt": "2026-11-13T12:45:33.476Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 9,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
-   "go_to",
-   "expect_responses",
-   "expect_count",
-   "expect_count",
-   "expect_count",
-   "expect_count"
+   "require_setting",
+   "require_setting",
+   "expect_api_value",
+   "expect_visible",
+   "expect_visible",
+   "expect_visible",
+   "expect_visible"
   ],
   "state": "two_bids",
   "screen": "responses",
-  "ms": 76224
+  "ms": 15131
  },
  "plan": {
-  "title": "Buyer Cannot Revoke Vendor Bid",
+  "title": "Buyer cannot revoke vendor bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ response grid on the buyer side."
+    "note": "Open the prepared RFQ with two bids directly on the buyer’s Responses tab."
    },
    {
-    "step": "place_surrogate_bid",
+    "step": "require_setting",
     "args": {
-     "price": 90
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
     },
-    "note": "Add the second vendor bid at 90 to establish the two-bid setup."
+    "note": "Ensure RFQ counter-offer actions are available for the buyer."
    },
    {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify the surrogate bid was accepted."
-   },
-   {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Return to the buyer's Responses grid to inspect bid actions."
+    "note": "Ensure the eRFX project configuration required by the setup is active."
    },
    {
-    "step": "expect_responses",
+    "step": "expect_api_value",
     "args": {
-     "count": 2,
-     "surrogate": 1,
-     "direct": 1
+     "key": "vendorName",
+     "within": "Responses"
     },
-    "note": "Verify both vendor bids are visible to the buyer."
+    "note": "Confirm the prepared first bidder is present as Vendor A’s bid context."
    },
    {
-    "step": "expect_count",
+    "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Counter Offer",
-     "min": 1
+     "within": "Vendor A",
+     "visible": true
     },
-    "note": "Verify Counter Offer is available for a vendor bid."
+    "note": "Verify the buyer can initiate a counter offer for Vendor A’s bid."
    },
    {
-    "step": "expect_count",
+    "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Select",
-     "min": 1
+     "within": "Vendor A",
+     "visible": true
     },
-    "note": "Verify Select is available for a vendor bid."
+    "note": "Verify the allowed Select action is available for Vendor A’s bid."
    },
    {
-    "step": "expect_count",
+    "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Reject",
-     "min": 1
+     "within": "Vendor A",
+     "visible": true
     },
-    "note": "Verify Reject Bid is available for a vendor bid."
+    "note": "Verify the allowed Reject Bid action is available for Vendor A’s bid."
    },
    {
-    "step": "expect_count",
+    "step": "expect_visible",
     "args": {
      "role": "button",
-     "name": "Revoke Counter Offer",
-     "count": 0
+     "name": "Revoke",
+     "within": "Vendor A",
+     "visible": false
     },
-    "note": "Verify the buyer is not offered Revoke for the vendor's bid."
+    "note": "Assert that the buyer has no Revoke control for Vendor A’s submitted bid."
    }
   ]
  }

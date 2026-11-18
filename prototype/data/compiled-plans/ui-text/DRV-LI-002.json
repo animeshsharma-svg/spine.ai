@@ -4,28 +4,46 @@
   "title": "Vendor cannot see Delete option on line items in a live event",
   "group": "DRV-LI",
   "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
-  "compiledAt": "2026-11-09T23:06:48.245Z",
+  "compiledAt": "2026-11-13T13:37:47.671Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A prepared live event with two active line items; the prepared state provides one line item and cannot be modified before inspection.",
-   "Verifying that no three-dot line-item menu is present on that Responses tab."
+   "Verify the absence of a line-item-specific three-dot menu on that Responses-tab table",
+   "unconfirmed label \"⋮\" in an absence check (expect_count) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "resolved: “Opening the RFQ stage's Responses tab in the vendor portal; the catalog only opens the vendor's pricing round.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "can only test part of this — no step for: A prepared live event with two active line items; the prepared state provides one line item and cannot be modified before inspection.; Verifying that no three-dot line-item menu is present on that Responses tab."
+   "added open_prepared(responses) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "resolved: “Open and inspect the vendor portal's RFQ Responses tab and its line-items table” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "coverage partial: unconfirmed label \"⋮\" in an absence check (expect_count) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Verify the absence of a line-item-specific three-dot menu on that Responses-tab table"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
    "switch_portal",
    "vendor_open_event",
+   "expect_count",
    "expect_count"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 10241
+  "ms": 16189
  },
  "plan": {
   "title": "Vendor cannot delete live RFQ line items",
@@ -35,30 +53,87 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ's Responses screen as required for the existing event state."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Work on the RFQ stage before configuring its template and sheet."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ template so line items can be added."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create the two active line items required by the scenario."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet so the event can be published."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Invite the vendor named in the case."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the invited vendor's supplier-portal session."
+    "note": "Continue in the invited vendor's supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ's vendor-facing pricing screen, the closest available view of the vendor's line items."
+    "note": "Open the live RFQ's vendor pricing view, the closest catalog-observable vendor screen to the requested Responses view."
    },
    {
     "step": "expect_count",
     "args": {
-     "role": "button",
-     "name": "Delete",
+     "text": "Delete",
      "count": 0
     },
-    "note": "Assert that the vendor-facing line-item screen exposes no Delete button."
+    "note": "Assert that no visible Delete control is exposed to the vendor."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "text": "⋮",
+     "count": 0
+    },
+    "note": "Assert that no visible overflow glyph is exposed in the vendor view."
    }
   ]
  }

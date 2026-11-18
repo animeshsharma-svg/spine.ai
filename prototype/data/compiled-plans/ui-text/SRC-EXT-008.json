@@ -4,30 +4,45 @@
   "title": "Extend the live reverse auction to a time already in the past",
   "group": "SRC-EXT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:25:38.774Z",
+  "compiledAt": "2026-11-13T12:08:19.880Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the prepared live pricing event is specifically a reverse auction rather than an RFQ."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that the prepared live pricing event is specifically a reverse auction rather than an RFQ."
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "extend_time"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 6707
+  "ms": 10416
  },
  "plan": {
-  "title": "Reject Past Submission Time",
+  "title": "Reject past submission time",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live reverse auction on the buyer's event summary page."
+    "note": "Open the prepared live event without searching or recreating it."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "extend_time",
@@ -38,7 +53,7 @@
      "expect": "refused",
      "message": "New time cannot be less than the current time"
     },
-    "note": "Attempt to set the submission end time to a time already in the past and assert Procol refuses it with the specified message."
+    "note": "Attempt to set the submission end time in the past and assert Procol refuses it with the expected message."
    }
   ]
  }

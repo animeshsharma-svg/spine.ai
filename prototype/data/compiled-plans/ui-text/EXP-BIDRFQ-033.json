@@ -4,47 +4,113 @@
   "title": "A live RFQ with a vendor's bid: \"Withdrawing Order...\": \"Yes\" with the fields as they open is refused",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:20:45.685Z",
+  "compiledAt": "2026-11-13T13:47:59.504Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
    "withdraw_event",
-   "expect_message"
+   "expect_text"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 69529
+  "ms": 12012
  },
  "plan": {
-  "title": "Reject withdrawal without reason",
+  "title": "Refuse RFQ withdrawal without a reason",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared live RFQ that already has one vendor bid."
+    "note": "Open the prepared live RFQ summary with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Keep counter offers visible on RFQ events as required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Allow buyer bid actions during the live bidding window as configured."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers required by the case configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage before accessing its Settings menu."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab as the case specifies."
    },
    {
     "step": "withdraw_event",
     "args": {
-     "scope": "project",
+     "scope": "stage",
+     "stage": "rfq",
      "noReason": true
     },
-    "note": "Open the withdrawal flow and confirm without entering a reason, exercising the required-field refusal."
+    "note": "Open RFQ Settings, choose Withdraw, and confirm without entering a reason to test the required-remark refusal."
    },
    {
-    "step": "expect_message",
+    "step": "expect_text",
     "args": {
-     "kind": "any",
-     "text": "Please enter reason for withdrawing this event"
+     "text": "Please enter reason for withdrawing this event",
+     "present": true
     },
-    "note": "Assert that Procol keeps the withdrawal open and reports the missing withdrawal reason."
+    "note": "Assert that Procol asks for the missing withdrawal reason and does not complete the withdrawal."
    }
   ]
  }

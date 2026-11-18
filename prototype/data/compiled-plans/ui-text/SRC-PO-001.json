@@ -4,30 +4,37 @@
   "title": "One PO per awarded vendor",
   "group": "SRC-PO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:06:36.774Z",
+  "compiledAt": "2026-11-13T12:23:37.502Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Award the split as 6 units to Vendor B at 90 and 4 units to Vendor A at 100",
-   "Verify which vendor owns each purchase order and that each PO has its corresponding quantity and price",
-   "Verify each purchase order displays the event's RFX reference"
+   "Assert that the two POs are specifically for Vendor B and Vendor A with amounts 6 × 90 and 4 × 100.",
+   "Assert that each PO displays the event's reference number."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Award the split as 6 units to Vendor B at 90 and 4 units to Vendor A at 100; Verify which vendor owns each purchase order and that each PO has its corresponding quantity and price; Verify each purchase order displays the event's RFX reference"
+   "can only test part of this — no step for: Assert that the two POs are specifically for Vendor B and Vendor A with amounts 6 × 90 and 4 × 100.; Assert that each PO displays the event's reference number."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
    "require_setting",
+   "go_to",
+   "start_awarding",
+   "allocate_award",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "expect_navigated",
+   "approve_award",
    "create_po",
    "expect_po_items"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 13937
+  "ms": 16343
  },
  "plan": {
   "title": "One PO per awarded vendor",
@@ -37,7 +44,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared post-award event summary on the buyer side."
+    "note": "Open the prepared awarded-flow event as the buyer."
    },
    {
     "step": "require_setting",
@@ -45,19 +52,78 @@
      "key": "is_partial_awarding_enabled",
      "value": "On"
     },
-    "note": "Enable partial awarding as required for the split-award scenario."
+    "note": "Enable partial awarding so the line quantity can be split across vendors."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Navigate to the comparison grid containing the two vendor bids."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding screen for the closed event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "B",
+     "quantity": 6,
+     "line": 1
+    },
+    "note": "Allocate six units of the line to Vendor B."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "A",
+     "quantity": 4,
+     "line": 1
+    },
+    "note": "Allocate four units of the line to Vendor A."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "2/2",
+     "proposal": 940
+    },
+    "note": "Verify the full line is allocated to two vendors and the split proposal total is 6 × 90 plus 4 × 100."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Submit the split allocation as the award proposal."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm the proposal page opened."
+   },
+   {
+    "step": "approve_award",
+    "args": {},
+    "note": "Approve the submitted split award as the buyer."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Finalize the prepared award approval and create the purchase orders."
+    "note": "Complete the approved award and create the purchase orders."
    },
    {
     "step": "expect_po_items",
     "args": {
      "count": 2
     },
-    "note": "Assert that two purchase-order lines were created, providing the available check for two resulting POs."
+    "note": "Verify that two purchase-order lines were created, corresponding to the two awarded vendors."
    }
   ]
  }

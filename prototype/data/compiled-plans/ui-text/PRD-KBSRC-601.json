@@ -3,16 +3,16 @@
   "caseId": "PRD-KBSRC-601",
   "title": "Buyer places a surrogate bid for a vendor in the RFQ stage",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:24:09.183Z",
+  "compiledAt": "2026-11-13T14:46:30.146Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Attach the offline record as a Surrogate Bid Reference during the surrogate bid",
-   "Add Supplier Remarks to the surrogate bid form",
-   "Verify that the QCS marks the vendor with the exact blue Surrogate Bid label next to the currency"
+   "Attach the offline Surrogate Bid Reference record.",
+   "Enter or verify Supplier Remarks for the vendor's instructions.",
+   "Verify that the Master QCS vendor column shows the exact blue \"Surrogate Bid\" marker next to the currency."
   ],
   "warnings": [
-   "can only test part of this — no step for: Attach the offline record as a Surrogate Bid Reference during the surrogate bid; Add Supplier Remarks to the surrogate bid form; Verify that the QCS marks the vendor with the exact blue Surrogate Bid label next to the currency"
+   "can only test part of this — no step for: Attach the offline Surrogate Bid Reference record.; Enter or verify Supplier Remarks for the vendor's instructions.; Verify that the Master QCS vendor column shows the exact blue \"Surrogate Bid\" marker next to the currency."
   ],
   "source": "llm",
   "steps": 9,
@@ -27,15 +27,15 @@
    "expect_qcs_vendors",
    "expect_qcs_cell"
   ],
-  "ms": 18530
+  "ms": 10285
  },
  "plan": {
-  "title": "RFQ surrogate bid appears in QCS",
+  "title": "RFQ Surrogate Bid in QCS",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing event with an RFQ stage and a participating vendor eligible for a surrogate bid."
+    "note": "Open a suitable existing RFQ event with an eligible participating vendor who has not bid."
    },
    {
     "step": "go_to",
@@ -43,43 +43,44 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate specifically to the RFQ stage required by the case."
+    "note": "Navigate to the RFQ stage required for surrogate bidding."
    },
    {
     "step": "open_participants",
     "args": {},
-    "note": "Open the RFQ stage's Participants list where the vendor's Add Bid control is available."
+    "note": "Open the RFQ Participants list where eligible vendors expose Add Bid."
    },
    {
     "step": "place_surrogate_bid",
     "args": {},
-    "note": "Enter and submit the buyer-entered bid for the first eligible participating vendor."
+    "note": "Enter and submit the buyer's bid on behalf of the first eligible vendor."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the surrogate bid submission was accepted."
+    "note": "Verify that Procol accepted the surrogate bid submission."
    },
    {
     "step": "expect_responses",
     "args": {
-     "atLeast": 1,
      "surrogate": 1,
+     "count": 1,
      "stage": "rfq"
     },
-    "note": "Verify the buyer's RFQ responses show at least one response and identify one as a Surrogate Bid."
+    "note": "Verify the RFQ response is attributed as a Surrogate Bid on the buyer's Responses view."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the QCS after the surrogate bid is submitted."
+    "note": "Open Master QCS to inspect the submitted vendor response."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
+     "count": 1,
      "realNames": true
     },
-    "note": "Verify the QCS contains real vendor columns rather than placeholders."
+    "note": "Verify the QCS contains a real vendor column for the submitted bid."
    },
    {
     "step": "expect_qcs_cell",
@@ -87,7 +88,7 @@
      "row": "RFQ Rate",
      "vendor": 1
     },
-    "note": "Verify the surrogate vendor's RFQ rate cell is populated in the QCS."
+    "note": "Verify the QCS contains the entered surrogate bid value in the vendor's rate cell."
    }
   ]
  }

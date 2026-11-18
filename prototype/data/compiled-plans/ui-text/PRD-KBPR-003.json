@@ -3,27 +3,21 @@
   "caseId": "PRD-KBPR-003",
   "title": "PR line item moves from Open to In Progress once an event is created for it",
   "group": "PRD-KBPR",
-  "compiledAt": "2026-11-10T06:47:58.677Z",
+  "compiledAt": "2026-11-13T15:39:52.601Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Prove that the exact selected line-item row, rather than merely the tab-level status messages, moved from Open to In Progress.",
+   "The catalog cannot directly assert the specific PR line item's row-level status or association; it can only observe the status-tab messages and navigation.",
    "unconfirmed label \"No Events have been created for this PR Line Item\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 9 step(s) that would open a blank event or replace the PR's items",
-   "added select_template before save_draft — the app disables Save as draft until a template is chosen",
-   "added add_line_items before save_draft — Save as draft stays disabled at Items 0",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 9 step(s) that would open a blank event or replace the PR's items",
-   "added select_template before save_draft — the app disables Save as draft until a template is chosen",
-   "added add_line_items before save_draft — Save as draft stays disabled at Items 0",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 8 step(s) that would open a blank event or replace the PR's items",
    "coverage partial: unconfirmed label \"No Events have been created for this PR Line Item\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Prove that the exact selected line-item row, rather than merely the tab-level status messages, moved from Open to In Progress."
+   "can only test part of this — no step for: The catalog cannot directly assert the specific PR line item's row-level status or association; it can only observe the status-tab messages and navigation."
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 9,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -32,21 +26,13 @@
    "choose_stages",
    "expect_pr_items",
    "expect_text",
-   "set_title",
-   "set_schedule",
-   "invite_vendor",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "save_draft",
-   "expect_no_error",
    "expect_text",
    "expect_text"
   ],
-  "ms": 26205
+  "ms": 20122
  },
  "plan": {
-  "title": "PR line item status transition",
+  "title": "PR line item moves to In Progress",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -76,56 +62,7 @@
      "text": "No Events have been created for this PR Line Item",
      "present": true
     },
-    "note": "Verify the initial Open-state message."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "PR Line Item Status Transition Test"
-    },
-    "note": "Provide the required event title."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a schedule so the PR event can be saved."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {},
-    "note": "Add the product-provided participant required for a usable event."
-   },
-   {
-    "step": "select_template"
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    }
-   },
-   {
-    "step": "fill_sheet"
-   },
-   {
-    "step": "save_draft",
-    "args": {},
-    "note": "Create the PR-based draft event without requiring publication."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Verify draft event creation completed without an error."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "No Events have been created for this PR Line Item",
-     "present": false
-    },
-    "note": "Verify the line-item message is no longer the Open-state message."
+    "note": "Verify the pre-event Open state message."
    },
    {
     "step": "expect_text",
@@ -133,7 +70,15 @@
      "text": "Events have been created for this PR Line Item",
      "present": true
     },
-    "note": "Verify the In Progress event-created message."
+    "note": "Verify the post-event In Progress state message."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "No Events have been created for this PR Line Item",
+     "present": false
+    },
+    "note": "Assert that the pre-event Open message is no longer shown."
    }
   ]
  }

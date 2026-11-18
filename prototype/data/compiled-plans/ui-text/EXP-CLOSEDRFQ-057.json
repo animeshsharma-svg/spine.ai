@@ -4,36 +4,78 @@
   "title": "Withdrawing Order...: A reason with special characters is handled consistently",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:31:44.322Z",
+  "compiledAt": "2026-11-13T13:57:22.750Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Record every possible validation message or arbitrary outcome after submission beyond the withdrawal state and any asserted known message."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Record every possible validation message or arbitrary outcome after submission beyond the withdrawal state and any asserted known message."
+  ],
   "source": "llm",
-  "steps": 8,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "event_menu",
    "fill",
    "expect_value",
    "click",
-   "expect_withdrawn"
+   "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 9742
+  "ms": 10063
  },
  "plan": {
-  "title": "Withdraw closed RFQ with special-character reason",
+  "title": "Closed RFQ withdrawal with special-character reason",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary instead of creating or searching for an event."
+    "note": "Open the prepared closed RFQ instead of creating or searching for an event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Apply the required post-expiry surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-editing configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen configuration."
    },
    {
     "step": "go_to",
@@ -41,14 +83,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage requested by the case."
+    "note": "Open the RFQ stage named by the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab before accessing its Settings menu."
+    "note": "Navigate to the RFQ Responses tab as specified."
    },
    {
     "step": "event_menu",
@@ -56,7 +98,7 @@
      "item": "Withdraw",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage Settings menu and choose Withdraw to open the withdrawal dialog."
+    "note": "Open the RFQ stage Settings menu and choose Withdraw, leaving the withdrawal dialog open."
    },
    {
     "step": "fill",
@@ -64,7 +106,7 @@
      "label": "Please enter reason for withdrawing this event",
      "value": "Reason: <test> & review / restart?"
     },
-    "note": "Enter the exact special-character withdrawal reason."
+    "note": "Enter the exact special-character reason from the case."
    },
    {
     "step": "expect_value",
@@ -72,7 +114,7 @@
      "label": "Please enter reason for withdrawing this event",
      "value": "Reason: <test> & review / restart?"
     },
-    "note": "Verify the complete reason remains visible and unchanged before submission."
+    "note": "Verify the special characters remain visible in the reason field before submission."
    },
    {
     "step": "click",
@@ -80,12 +122,15 @@
      "role": "button",
      "name": "Yes"
     },
-    "note": "Confirm the withdrawal."
+    "note": "Submit the withdrawal using the dialog confirmation requested by the case."
    },
    {
-    "step": "expect_withdrawn",
-    "args": {},
-    "note": "Assert that the RFQ stage is recorded as withdrawn after confirmation."
+    "step": "expect_text",
+    "args": {
+     "text": "Withdrawn",
+     "present": true
+    },
+    "note": "Verify the RFQ displays its withdrawn state after submission."
    }
   ]
  }

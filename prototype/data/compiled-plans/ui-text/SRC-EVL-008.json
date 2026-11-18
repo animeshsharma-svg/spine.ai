@@ -4,26 +4,28 @@
   "title": "Find a withdrawn event — it is on the History tab",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:20:49.320Z",
+  "compiledAt": "2026-11-13T12:04:31.142Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "The event title to enter in Search Title is not provided, so the specific event cannot be searched or asserted.",
-   "That the searched event is listed on History with status Withdrawn.",
-   "That the same searched event is absent from Live, Drafts, and Recurring."
+   "Search for the specific event title because no event title is provided",
+   "Verify that this same event is absent from Live, Drafts, and Recurring"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: The event title to enter in Search Title is not provided, so the specific event cannot be searched or asserted.; That the searched event is listed on History with status Withdrawn.; That the same searched event is absent from Live, Drafts, and Recurring."
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Search for the specific event title because no event title is provided; Verify that this same event is absent from Live, Drafts, and Recurring"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_events_list",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "expect_table"
   ],
-  "ms": 9076
+  "ms": 13106
  },
  "plan": {
   "title": "Find withdrawn event in History",
@@ -31,29 +33,37 @@
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the events list, which is the subject screen for this case."
+    "note": "Open the buyer's events list, the subject of the test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure withdrawn events remain visible in the relevant event views."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered with its Create Event control and no error."
+    "note": "Verify the events list rendered with its Create Event control and no error."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Navigate to the required History tab."
+    "note": "Switch to the History tab where withdrawn events should be listed."
    },
    {
     "step": "expect_table",
     "args": {
-     "within": "History",
+     "min": 1,
      "eachRow": {
       "Status": "Withdrawn"
      }
     },
-    "note": "Closest available check that History rows shown are withdrawn, though it cannot identify the case's specific event."
+    "note": "Verify that History contains at least one event and that every displayed row is marked Withdrawn."
    }
   ]
  }

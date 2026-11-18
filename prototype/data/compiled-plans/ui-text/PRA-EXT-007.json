@@ -4,55 +4,58 @@
   "title": "Assign items of 5 PRs together from one page",
   "group": "PRA-EXT",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:02:14.667Z",
+  "compiledAt": "2026-11-13T14:26:11.379Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Select one item each from PRs 1006, 1005, 1004, 1003, and 1002 together on one page",
-   "Assign the five selected items to Procol Planner User",
-   "Verify that all five assignments were saved with the success message"
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Select one item each from PRs 1006, 1005, 1004, 1003, and 1002 together on one page; Assign the five selected items to Procol Planner User; Verify that all five assignments were saved with the success message"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "ask_tester",
+   "do_on_screen",
    "expect_toast"
   ],
-  "ms": 8968
+  "ms": 16034
  },
  "plan": {
   "title": "Assign Items from Five PRs",
   "steps": [
    {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team filtering configuration before accessing the PR workflow."
+   },
+   {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen where the five PRs should be available."
+    "note": "Open the Purchase Requisitions screen where the five PRs are listed."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Show only open purchase requisitions, matching the case precondition."
+    "note": "Show only open PRs eligible for item selection."
    },
    {
-    "step": "ask_tester",
+    "step": "do_on_screen",
     "args": {
-     "need": "select one item each from PRs 1006, 1005, 1004, 1003, and 1002, assign all five selected items to Procol Planner User, and confirm the saved success message"
+     "goal": "On the Open Purchase Requisitions page, tick one item each from PRs 1006, 1005, 1004, 1003, and 1002, assign all five selected items to Procol Planner User, save the assignment, and stop when the screen shows that all five assignments were saved successfully."
     },
-    "note": "The catalog has no step for multi-PR selection or assigning selected items to a named planner."
+    "note": "Perform the catalog gap of selecting items across five PRs and assigning them from one page."
    },
    {
     "step": "expect_toast",
     "args": {
      "kind": "success"
     },
-    "note": "Check for the success confirmation after the tester performs the assignment."
+    "note": "Verify that the assignment operation produced a success message."
    }
   ]
  }

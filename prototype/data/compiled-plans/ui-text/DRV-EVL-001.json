@@ -4,79 +4,80 @@
   "title": "QCS ranks bids by landed price and highlights L1 per line item",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-09T23:04:34.785Z",
+  "compiledAt": "2026-11-13T13:35:40.381Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The case requires a live RFQ with no bid initially and multiple bids to compare ascending landed prices across each line item; the prepared state contains exactly one bid and one line item.",
-   "The case requires verifying that the lowest landed-price row has a green background indicating L1; no catalog assertion can inspect that specific highlight styling or freight-inclusive landed-price calculation."
+   "The requested starting condition of a live RFQ with no bids cannot be created because the prepared state already contains one bid.",
+   "Ranking and L1 behavior across every line item cannot be tested because the prepared event has exactly one line item.",
+   "The green background visual highlight for L1 cannot be asserted by any catalog step."
   ],
   "warnings": [
-   "can only test part of this — no step for: The case requires a live RFQ with no bid initially and multiple bids to compare ascending landed prices across each line item; the prepared state contains exactly one bid and one line item.; The case requires verifying that the lowest landed-price row has a green background indicating L1; no catalog assertion can inspect that specific highlight styling or freight-inclusive landed-price calculation."
+   "can only test part of this — no step for: The requested starting condition of a live RFQ with no bids cannot be created because the prepared state already contains one bid.; Ranking and L1 behavior across every line item cannot be tested because the prepared event has exactly one line item.; The green background visual highlight for L1 cannot be asserted by any catalog step."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "open_prepared",
+   "go_to",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "open_master_qcs",
    "expect_qcs_vendors",
-   "expect_qcs_cell",
-   "expect_qcs_amounts",
    "expect_qcs_ranks"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 8837
+  "ms": 23454
  },
  "plan": {
-  "title": "DRV-EVL-001 QCS L1 Ranking by Landed Price",
+  "title": "QCS landed-price ranking and L1",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared RFQ event summary as required for prepared-state cases."
+    "note": "Open the prepared RFQ summary as required for this state."
    },
    {
-    "step": "open_prepared",
+    "step": "go_to",
     "args": {
-     "screen": "master_qcs"
+     "screen": "participants"
     },
-    "note": "Navigate to the RFQ Master QCS comparison grid."
+    "note": "Navigate to the RFQ Participants screen so another bid can be entered."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {},
+    "note": "Add a buyer-entered bid for another invited vendor so Master QCS has multiple bids to rank."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the surrogate bid was accepted before inspecting QCS."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's Master QCS comparison grid."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
-     "count": 1,
+     "count": 2,
      "realNames": true
     },
-    "note": "Verify the QCS rendered the real bidder column."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "Rank",
-     "vendor": 1,
-     "number": 1
-    },
-    "note": "Verify the available bid is ranked first in the QCS."
-   },
-   {
-    "step": "expect_qcs_amounts",
-    "args": {
-     "vendor": 1
-    },
-    "note": "Verify the QCS amount arithmetic for the available line item and total."
+    "note": "Assert that both available bidder columns render with real vendor names."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "by": "RFQ Amount",
+     "by": "Landed Price",
      "order": "lowest",
-     "atLeast": 1
+     "atLeast": 2
     },
-    "note": "Verify the QCS ranking follows the lowest available RFQ amount."
+    "note": "Assert that the bids are ranked with the lowest landed price as Rank 1."
    }
   ]
  }

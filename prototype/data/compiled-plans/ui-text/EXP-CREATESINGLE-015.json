@@ -4,83 +4,88 @@
   "title": "Configuration for Event: Attempt to save with an empty award option when the radio group is required",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:38:22.214Z",
+  "compiledAt": "2026-11-13T14:01:22.259Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Explicitly deselect a selected award-option radio button and click Save while preserving the empty state",
+   "Verify that the inline validation message is positioned next to the award-option radio group",
+   "Add the specified product and quantity before reopening the configuration window"
+  ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added set_title — publishing without a title is refused",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Explicitly deselect a selected award-option radio button and click Save while preserving the empty state; Verify that the inline validation message is positioned next to the award-option radio group; Add the specified product and quantity before reopening the configuration window"
   ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
    "open_create",
-   "configure_single_stage",
    "set_title",
-   "select_template",
-   "add_line_items",
-   "do_on_screen",
-   "expect_field_error"
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "configure_single_stage",
+   "expect_message"
   ],
-  "ms": 15946
+  "ms": 14112
  },
  "plan": {
-  "title": "Single-Stage RFQ Empty Award Option Validation",
+  "title": "Single-stage RFQ empty award option validation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the Single Stage event creation flow."
+    "note": "Open the Single Stage creation screen where the RFQ configuration drawer is available."
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration that prevents vendors from being added during event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Apply the required read-only ceiling-price configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Apply the required terms-and-conditions configuration."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq",
-     "awarding": "lot"
+     "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ and establish the initial award-option state needed to reach the RFQ create screen."
+    "note": "Open and attempt to save the RFQ configuration without supplying an award option, exercising the required radio-group validation."
    },
    {
-    "step": "set_title",
+    "step": "expect_message",
     "args": {
-     "title": "EXP-CREATESINGLE-015"
+     "kind": "inline"
     },
-    "note": "Provide the mandatory event title for the create flow."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the RFQ pricing template before adding the product."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB",
-     "quantity": "10"
-    },
-    "note": "Add the specified product with quantity 10."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "on the Single Stage RFQ create screen, open the Configuration for Event window, deselect the currently selected award-option radio so no award option is selected if the UI permits, click Save, and stop with the window open showing the inline validation for the required award option"
-    },
-    "note": "Perform the required deselection and save attempt, which no catalog action can express directly."
-   },
-   {
-    "step": "expect_field_error",
-    "args": {
-     "field": "How will you award the event?"
-    },
-    "note": "Assert that the required award-option group displays an inline validation error."
+    "note": "Assert that the configuration window shows an inline validation message after the empty award option is submitted."
    }
   ]
  }

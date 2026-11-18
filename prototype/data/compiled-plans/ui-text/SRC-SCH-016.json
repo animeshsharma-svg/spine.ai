@@ -4,23 +4,24 @@
   "title": "Technical stage 30 Mins with RFQ 60 Mins",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:02:40.542Z",
+  "compiledAt": "2026-11-13T12:52:34.139Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Set the Technical Stage duration to exactly 30 Mins and the RFQ duration to exactly 60 Mins as separate schedule blocks",
-   "Read and compare each stage's Event will end at value to verify the Technical Stage ends before the RFQ",
-   "Verify that the specifically intended Vendor A was selected because the case does not provide an exact catalog vendor name"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "added set_schedule — the schedule is displayed but not committed until saved",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "can only test part of this — no step for: Set the Technical Stage duration to exactly 30 Mins and the RFQ duration to exactly 60 Mins as separate schedule blocks; Read and compare each stage's Event will end at value to verify the Technical Stage ends before the RFQ; Verify that the specifically intended Vendor A was selected because the case does not provide an exact catalog vendor name"
+   "added set_schedule — the schedule is displayed but not committed until saved"
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 18,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
@@ -31,12 +32,13 @@
    "switch_stage",
    "select_template",
    "fill_sheet",
-   "set_schedule",
    "invite_vendor",
+   "do_on_screen",
+   "set_schedule",
    "publish",
    "expect_published"
   ],
-  "ms": 11381
+  "ms": 19011
  },
  "plan": {
   "title": "Technical 30-Minute and RFQ 60-Minute Schedule",
@@ -46,12 +48,30 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation screen from the Create Event flow."
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required for a multi-stage event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation so publishing is not blocked."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title required for publication."
+    "args": {
+     "title": "SRC-SCH-016 Technical 30 RFQ 60"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -61,7 +81,7 @@
       "rfq"
      ]
     },
-    "note": "Configure the event with Technical Stage and RFQ stages."
+    "note": "Create the required Technical and RFQ stages."
    },
    {
     "step": "switch_stage",
@@ -79,7 +99,7 @@
     "args": {
      "count": 1
     },
-    "note": "Add the one requested line item to the project."
+    "note": "Add the single requested line item to the project."
    },
    {
     "step": "fill_questionnaires"
@@ -102,18 +122,21 @@
     "step": "fill_sheet"
    },
    {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 60
-    },
-    "note": "Commit the available event schedule configuration before publication; the catalog cannot configure separate Technical and RFQ duration blocks."
-   },
-   {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one available QA vendor, corresponding to the requested Vendor A participation without inventing an exact vendor name."
+    "note": "Add one available QA test vendor to the event."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Open the schedule drawer, verify it contains separate blocks for 1. Technical Stage and 2. RFQ, set the Technical Stage duration to 30 minutes and keep it on Duration, set the RFQ duration to 60 minutes (1 hour) and keep it on Duration, scroll to the RFQ block if needed, verify each block shows its own Event will end at value with the Technical Stage ending first, then save the schedule."
+    },
+    "note": "Configure and observe the per-stage durations and calculated end times, which the standard schedule step cannot set independently."
+   },
+   {
+    "step": "set_schedule"
    },
    {
     "step": "publish",
@@ -123,7 +146,7 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publication reached a real project page with an event id."
+    "note": "Assert that publication reached a real project page."
    }
   ]
  }

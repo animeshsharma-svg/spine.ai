@@ -4,41 +4,55 @@
   "title": "Quote Mode disabled when is_alternate_bidding_allowed = false",
   "group": "DRV-BID",
   "sheet": "derived-vendors-can-submit-commercial-quotes-for",
-  "compiledAt": "2026-11-12T13:35:11.763Z",
+  "compiledAt": "2026-11-13T13:32:31.157Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"Discount %\" in an absence check (expect_count) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "unconfirmed label \"Discount %\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "coverage partial: unconfirmed label \"Discount %\" in an absence check (expect_count) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "dropped open_create — the API built this case's event; open_prepared opens its screen",
+   "dropped set_title — the API built this case's event; open_prepared opens its screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "dropped publish — the API built this case's event; open_prepared opens its screen",
+   "coverage partial: unconfirmed label \"Discount %\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
    "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 13,
   "stepNames": [
    "open_prepared",
    "require_setting",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
    "switch_portal",
    "vendor_open_event",
+   "expect_visible",
    "expect_count",
-   "expect_count"
+   "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 8801
+  "ms": 16953
  },
  "plan": {
-  "title": "DRV-BID-019 — Quote Mode Disabled",
+  "title": "Alternate Quote Mode Disabled",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ rather than creating a different event."
+    "note": "the API built this case's state"
    },
    {
     "step": "require_setting",
@@ -46,21 +60,72 @@
      "key": "is_alternate_bidding_allowed",
      "value": "Off"
     },
-    "note": "Disable alternate quote types for the tenant before opening the RFQ."
+    "note": "Disable alternate quote types for the tenant before creating the RFQ."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ so the vendor receives a commercial quote sheet."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one product so the RFQ pricing sheet is available."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet before publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor B"
+     ]
+    },
+    "note": "Invite the vendor named in the case."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor B"
     },
-    "note": "Move to the vendor-side session required by the case."
+    "note": "Switch to Vendor B's supplier portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the RFQ's vendor pricing sheet."
+    "note": "Open the live RFQ's commercial pricing sheet."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "label": "Price",
+     "visible": true
+    },
+    "note": "Confirm the vendor sheet exposes the standard Price column."
    },
    {
     "step": "expect_count",
@@ -68,15 +133,15 @@
      "text": "Price",
      "count": 1
     },
-    "note": "Verify that exactly one price column is shown."
+    "note": "Verify that only one Price column is shown."
    },
    {
-    "step": "expect_count",
+    "step": "expect_text",
     "args": {
      "text": "Discount %",
-     "max": 0
+     "present": false
     },
-    "note": "Verify that the Discount % quote option is not offered."
+    "note": "Confirm the disabled alternate-bidding setting removes the Discount % quote option."
    }
   ]
  }

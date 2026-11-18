@@ -4,25 +4,31 @@
   "title": "A live RFQ: \"Convert to Auction\" opens its menu",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:30:13.657Z",
+  "compiledAt": "2026-11-13T14:12:10.298Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A live RFQ with no bid yet; the prepared state supplies one bid and no catalog step can remove it."
+   "A live RFQ with no bid; the prepared state has one bid already."
   ],
   "warnings": [
-   "can only test part of this — no step for: A live RFQ with no bid yet; the prepared state supplies one bid and no catalog step can remove it."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: A live RFQ with no bid; the prepared state has one bid already."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "event_menu",
    "expect_text"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 7705
+  "ms": 14787
  },
  "plan": {
   "title": "Live RFQ Convert to Auction menu",
@@ -32,21 +38,53 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ on its Responses tab."
+    "note": "Open the prepared live RFQ directly on its Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required withdrawal visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal during the live submission period as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Convert to Auction"
     },
-    "note": "Open Settings and choose Convert to Auction, leaving its confirmation dialog open."
+    "note": "Open the Settings action for Convert to Auction without completing the conversion."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Continue"
     },
-    "note": "Assert that the conversion confirmation offers Continue."
+    "note": "Verify that the opened conversion flow lists the Continue option."
    }
   ]
  }

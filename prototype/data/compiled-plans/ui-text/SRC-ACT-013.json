@@ -4,54 +4,89 @@
   "title": "Download Logs gives a file of the same history",
   "group": "SRC-ACT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:14:16.967Z",
+  "compiledAt": "2026-11-13T11:35:24.445Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Verify the file content matches the exact entries of the Order Activity drawer"
+   "Download a logs file as the buyer",
+   "Verify that the downloaded file contains the same entries as Order Activity",
+   "Verify the server message \"Download triggered, but no file URL received.\""
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify the file content matches the exact entries of the Order Activity drawer"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "cannot test this case yet — no step can observe: Download a logs file as the buyer; Verify that the downloaded file contains the same entries as Order Activity; Verify the server message \"Download triggered, but no file URL received.\""
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "event_menu",
+   "expect_text",
+   "expect_text",
    "open_event_settings",
-   "click",
-   "expect_download"
+   "expect_options"
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 111567
+  "ms": 20393
  },
  "plan": {
-  "title": "Download Logs gives a file of the same history",
+  "title": "Buyer Download Logs Availability",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Start on the prepared event summary"
+    "note": "Open the prepared RFQ event with two bids without recreating or searching for it."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case setup."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Order Activity",
+     "stage": "rfq",
+     "close": true
+    },
+    "note": "Open the RFQ stage's activity drawer to expose the event history that the logs would need to match."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Activity"
+    },
+    "note": "Assert that the Order Activity drawer opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "You created the event"
+    },
+    "note": "Assert that a known history entry is visible."
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Open the event settings menu"
+    "note": "Open the published RFQ stage's Settings menu to inspect buyer-available actions."
    },
    {
-    "step": "click",
+    "step": "expect_options",
     "args": {
-     "role": "menuitem",
-     "name": "Download Logs"
+     "role": "menu",
+     "absent": [
+      "Download Logs"
+     ]
     },
-    "note": "Click Download Logs from the settings menu"
-   },
-   {
-    "step": "expect_download",
-    "args": {},
-    "note": "Assert that the logs file is successfully downloaded"
+    "note": "Assert that the buyer's Settings menu does not offer the Procol-staff-only Download Logs action."
    }
   ]
  }

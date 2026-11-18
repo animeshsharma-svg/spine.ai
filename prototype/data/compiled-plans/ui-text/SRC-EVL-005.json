@@ -4,27 +4,27 @@
   "title": "Find a draft event or project — it is on the Drafts tab",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:20:40.243Z",
+  "compiledAt": "2026-11-13T12:04:18.035Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Whether every saved field and value is preserved when the draft reopens"
+   "Verify that every saved field, including all sheet values and participant details, is restored exactly when the draft reopens."
   ],
   "warnings": [
-   "can only test part of this — no step for: Whether every saved field and value is preserved when the draft reopens"
+   "can only test part of this — no step for: Verify that every saved field, including all sheet values and participant details, is restored exactly when the draft reopens."
   ],
   "source": "llm",
   "steps": 26,
   "stepNames": [
    "open_create",
    "set_title",
-   "compose_stages",
    "select_template",
    "add_line_items",
    "fill_sheet",
    "set_schedule",
    "invite_vendor",
    "save_draft",
+   "expect_no_error",
    "open_events_list",
    "expect_events_list",
    "filter_events",
@@ -39,66 +39,59 @@
    "filter_events",
    "open_first_event",
    "expect_navigated",
+   "expect_api_value",
    "expect_template_selected",
-   "expect_line_items",
-   "expect_no_error"
+   "expect_line_items"
   ],
-  "ms": 71780
+  "ms": 23768
  },
  "plan": {
-  "title": "Find a saved draft on the Drafts tab",
+  "title": "Find Draft Event on Drafts Tab",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create the draft event under test."
+    "note": "Open the event creation flow for the draft fixture."
    },
    {
     "step": "set_title",
     "args": {
      "title": "SRC-EVL-005 Draft Event"
     },
-    "note": "Provide the title used to search for the draft."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Use an RFQ stage so the event has a concrete draft configuration."
+    "note": "Give the draft a searchable title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the pricing template before adding items."
+    "note": "Configure the stage with a template so the draft is valid and its saved template can be checked later."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item to verify saved draft content."
+    "note": "Add a line item so the draft has saved event content."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet so the draft has saved sheet data."
+    "note": "Populate the pricing sheet before saving the draft."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a schedule required for the draft setup."
+    "note": "Commit a schedule required for a usable draft fixture."
    },
    {
     "step": "invite_vendor",
-    "args": {},
-    "note": "Add participants to make the draft a usable event configuration."
+    "args": {
+     "count": 1
+    },
+    "note": "Add a participant so the draft represents a complete event setup."
    },
    {
     "step": "save_draft",
@@ -106,28 +99,33 @@
     "note": "Save the configured event as a draft."
    },
    {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm saving the draft did not produce an application error."
+   },
+   {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to find the saved draft."
+    "note": "Navigate to the events list where the draft should be discoverable."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the list rendered before searching."
+    "note": "Confirm the events list rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab specified by the case."
+    "note": "Open the Drafts tab required by the case."
    },
    {
     "step": "expect_event_in_list",
     "args": {
      "title": "SRC-EVL-005 Draft Event"
     },
-    "note": "Assert the draft appears on the Drafts tab."
+    "note": "Assert the event is listed when searching by its title on Drafts."
    },
    {
     "step": "expect_event_status",
@@ -135,14 +133,14 @@
      "title": "SRC-EVL-005 Draft Event",
      "status": "Draft"
     },
-    "note": "Assert the matching row carries a Draft badge."
+    "note": "Assert the listed event has the Draft badge/status."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Live"
     },
-    "note": "Check that the draft is not listed under Live."
+    "note": "Check that the draft is not shown on the Live tab."
    },
    {
     "step": "expect_table",
@@ -150,14 +148,14 @@
      "row": "SRC-EVL-005 Draft Event",
      "present": false
     },
-    "note": "Assert the draft title is absent from the Live tab."
+    "note": "Assert the draft title is absent from the Live events table."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Check that the draft is not listed under History."
+    "note": "Check that the draft is not shown on the History tab."
    },
    {
     "step": "expect_table",
@@ -165,14 +163,14 @@
      "row": "SRC-EVL-005 Draft Event",
      "present": false
     },
-    "note": "Assert the draft title is absent from the History tab."
+    "note": "Assert the draft title is absent from the History events table."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Recurring"
     },
-    "note": "Check that the draft is not listed under Recurring."
+    "note": "Check that the draft is not shown on the Recurring tab."
    },
    {
     "step": "expect_table",
@@ -180,14 +178,14 @@
      "row": "SRC-EVL-005 Draft Event",
      "present": false
     },
-    "note": "Assert the draft title is absent from the Recurring tab."
+    "note": "Assert the draft title is absent from the Recurring events table."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Return to Drafts to reopen the saved event."
+    "note": "Return to Drafts before opening the saved event."
    },
    {
     "step": "open_first_event",
@@ -195,31 +193,33 @@
      "tab": "Drafts",
      "containing": "SRC-EVL-005 Draft Event"
     },
-    "note": "Open the matching draft; drafts reopen on the create screen."
+    "note": "Open the matching draft so it should reopen on its create screen."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "create"
     },
-    "note": "Assert that opening the draft returns to the create screen."
+    "note": "Assert opening the draft returns to the create screen."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "title"
+    },
+    "note": "Verify the reopened draft retains its title."
    },
    {
     "step": "expect_template_selected",
     "args": {},
-    "note": "Verify the selected template was preserved."
+    "note": "Verify the reopened draft retains its selected template."
    },
    {
     "step": "expect_line_items",
     "args": {
      "count": 1
     },
-    "note": "Verify the saved line item was preserved."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the reopened draft has no application error."
+    "note": "Verify the reopened draft retains its line item."
    }
   ]
  }

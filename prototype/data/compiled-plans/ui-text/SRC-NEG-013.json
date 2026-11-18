@@ -4,17 +4,17 @@
   "title": "Award at the accepted counter-offer price",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:03:21.186Z",
+  "compiledAt": "2026-11-13T12:18:08.770Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Close the prepared live RFQ after the counter-offer acceptance and award all 10 units to Vendor A.",
-   "Verify that the submitted award shows Vendor A at 90 per unit and 900 total."
+   "Wait for the prepared live RFQ to close after Vendor A accepts the counter offer",
+   "Start awarding and verify that all 10 units are awarded to Vendor A at 90 per unit for a total of 900"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Close the prepared live RFQ after the counter-offer acceptance and award all 10 units to Vendor A.; Verify that the submitted award shows Vendor A at 90 per unit and 900 total."
+   "cannot test this case yet — no step can observe: Wait for the prepared live RFQ to close after Vendor A accepts the counter offer; Start awarding and verify that all 10 units are awarded to Vendor A at 90 per unit for a total of 900"
   ],
   "source": "llm",
   "steps": 10,
@@ -26,23 +26,23 @@
    "expect_counter_offer_sent",
    "accept_counter_offer",
    "expect_counter_offer_accepted",
-   "open_prepared",
+   "open_master_qcs",
    "expect_qcs_cell",
-   "expect_qcs_cell"
+   "expect_qcs_amounts"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 15543
+  "ms": 19335
  },
  "plan": {
-  "title": "Award at accepted counter-offer price",
+  "title": "Award at Accepted Counter-Offer Price",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ Responses screen containing Vendor A's normal bid."
+    "note": "Open the prepared RFQ Responses screen with Vendor A's normal bid."
    },
    {
     "step": "require_setting",
@@ -50,7 +50,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Enable the RFQ counter-offer UI required by the case."
+    "note": "Enable the counter-offer UI required by the case."
    },
    {
     "step": "require_setting",
@@ -58,7 +58,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects required by the case."
+    "note": "Enable eRFX projects required by the RFQ flow."
    },
    {
     "step": "place_counter_offer",
@@ -67,14 +67,14 @@
      "price": 90,
      "remark": "Best price please"
     },
-    "note": "Send Vendor A a counter offer at 90 for the bid line."
+    "note": "Send Vendor A the counter offer at 90 with the required remark."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Verify that the buyer's grid marks the counter offer as initiated."
+    "note": "Assert that the buyer's grid records the counter offer as initiated."
    },
    {
     "step": "accept_counter_offer",
@@ -88,14 +88,16 @@
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Verify that Vendor A's bid is marked as having an accepted counter offer."
+    "note": "Assert that the buyer's Responses grid records Vendor A's counter offer as accepted."
    },
    {
-    "step": "open_prepared",
+    "step": "open_master_qcs",
     "args": {
-     "screen": "master_qcs"
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Open the comparison grid to inspect the accepted bid's updated commercial value, although this does not prove the final award."
+    "note": "Open the comparison grid to inspect the accepted bid value before the unavailable close-and-award transition."
    },
    {
     "step": "expect_qcs_cell",
@@ -104,16 +106,14 @@
      "vendor": "Vendor A",
      "equals": "90"
     },
-    "note": "Verify that the accepted counter-offer rate is shown as 90 per unit in Master QCS."
+    "note": "Assert that Vendor A's accepted counter-offer rate is 90 per unit."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "expect_qcs_amounts",
     "args": {
-     "row": "Sum Total",
-     "vendor": "Vendor A",
-     "equals": "900"
+     "vendor": "Vendor A"
     },
-    "note": "Verify that the updated bid total is 900 for the 10 requested units."
+    "note": "Assert the grid's line amount and total arithmetic, including 90 multiplied by 10 equaling 900."
    }
   ]
  }

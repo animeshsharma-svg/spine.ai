@@ -4,29 +4,41 @@
   "title": "Master QCS of a closed RFQ: \"Are you sure you want to create a new version?\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-CLOSEDQCS",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:24:41.956Z",
+  "compiledAt": "2026-11-13T13:52:09.545Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "The exact prerequisite of a closed RFQ with only Vendor A's bid; the prepared state has two bidding vendors.",
+   "A complete comparison proving that every event status, time, vendor, and bid property is unchanged; the catalog can verify the Master QCS grid and that the page remains open, but has no single snapshot comparison for all event details."
+  ],
   "warnings": [
-   "resolved: “Verify that the event status and schedule times remain unchanged after cancellation” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The exact prerequisite of a closed RFQ with only Vendor A's bid; the prepared state has two bidding vendors.; A complete comparison proving that every event status, time, vendor, and bid property is unchanged; the catalog can verify the Master QCS grid and that the page remains open, but has no single snapshot comparison for all event details."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 16,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_qcs_vendors",
-   "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "expect_qcs_ranks",
    "click",
    "expect_text",
    "click",
    "expect_visible",
+   "expect_navigated",
    "expect_qcs_vendors",
-   "expect_qcs_cell"
+   "expect_qcs_amounts",
+   "expect_qcs_ranks"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 9773
+  "ms": 13549
  },
  "plan": {
   "title": "Cancel Create New Version from Closed RFQ Master QCS",
@@ -36,24 +48,57 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly on Master QCS, as required for this state."
+    "note": "Open the prepared closed RFQ directly on Master QCS."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Apply the required partial-awarding configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "restrict_unlock_bid_before_evaluation",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-unlock configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_over_awarding_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required over-awarding configuration."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
-     "count": 1,
+     "count": 2,
      "realNames": true
     },
-    "note": "Record the single real vendor column before attempting to create a new version."
+    "note": "Record the prepared bid vendors before opening the confirmation."
    },
    {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": 1,
-     "key": "bidPrice"
-    },
-    "note": "Verify the existing vendor bid is present before the confirmation action."
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify the prepared bid amounts before the cancellation attempt."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {},
+    "note": "Verify the prepared ranking before the cancellation attempt."
    },
    {
     "step": "click",
@@ -61,7 +106,7 @@
      "role": "button",
      "name": "Create New Version"
     },
-    "note": "Open the new-version confirmation window."
+    "note": "Open the version-creation confirmation dialog."
    },
    {
     "step": "expect_text",
@@ -69,7 +114,7 @@
      "text": "Are you sure you want to create a new version?",
      "present": true
     },
-    "note": "Assert that the expected confirmation prompt is shown."
+    "note": "Assert that the expected confirmation window is shown."
    },
    {
     "step": "click",
@@ -78,7 +123,7 @@
      "name": "Cancel",
      "within": "dialog"
     },
-    "note": "Cancel the new-version operation."
+    "note": "Cancel creation of the new version."
    },
    {
     "step": "expect_visible",
@@ -86,24 +131,32 @@
      "role": "dialog",
      "visible": false
     },
-    "note": "Verify that the confirmation window closes."
+    "note": "Assert that the confirmation window closes."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Assert that cancellation leaves the buyer on Master QCS."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
-     "count": 1,
+     "count": 2,
      "realNames": true
     },
-    "note": "Verify that the vendor column is unchanged after cancellation."
+    "note": "Verify the vendor columns remain unchanged after cancellation."
    },
    {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": 1,
-     "key": "bidPrice"
-    },
-    "note": "Verify that the existing bid remains unchanged after cancellation."
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify the bid amounts remain present after cancellation."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {},
+    "note": "Verify the bid rankings remain unchanged after cancellation."
    }
   ]
  }

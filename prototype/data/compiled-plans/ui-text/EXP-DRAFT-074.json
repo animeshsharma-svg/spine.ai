@@ -4,15 +4,24 @@
   "title": "Savings Calculation: Select each Gross Total option and save",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:10:50.850Z",
+  "compiledAt": "2026-11-13T14:09:49.878Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Select a specific saved eRFX draft when no title or identifier is provided; open_first_event selects the first draft shown and cannot verify that it is specifically an eRFX draft."
+  ],
+  "warnings": [
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Select a specific saved eRFX draft when no title or identifier is provided; open_first_event selects the first draft shown and cannot verify that it is specifically an eRFX draft."
+  ],
   "source": "llm",
-  "steps": 18,
+  "steps": 19,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
@@ -20,45 +29,67 @@
    "expect_visible",
    "click",
    "click",
-   "expect_visible",
    "expect_no_error",
    "click",
    "expect_value",
    "click",
    "click",
-   "expect_visible",
    "expect_no_error",
    "click",
    "expect_value"
   ],
-  "ms": 18079
+  "ms": 17683
  },
  "plan": {
-  "title": "Draft Savings Option Retention",
+  "title": "EXP-DRAFT-074 — Savings Calculation Gross Total Options",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to reach the saved draft."
+    "note": "Open the Events list to reach saved drafts."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-addition setting for the draft flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage-addition setting."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Verify the Events list rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the Drafts tab required by the case."
+    "note": "Switch to the Drafts tab specified by the case."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first saved draft; a draft reopens on its create screen."
+    "note": "Open the first saved draft available because no draft identifier is supplied."
    },
    {
     "step": "click",
@@ -71,17 +102,17 @@
    {
     "step": "expect_visible",
     "args": {
-     "text": "Savings Calculation",
+     "role": "dialog",
+     "name": "Savings Calculation",
      "visible": true
     },
-    "note": "Confirm the savings window opened."
+    "note": "Verify the Savings Calculation window opened."
    },
    {
     "step": "click",
     "args": {
      "role": "radio",
-     "name": "Gross Total",
-     "within": "dialog"
+     "name": "Gross Total"
     },
     "note": "Select the Gross Total savings option."
    },
@@ -95,17 +126,9 @@
     "note": "Save the Gross Total selection."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "Savings Calculation",
-     "visible": false
-    },
-    "note": "Confirm the window closed after saving."
-   },
-   {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm saving Gross Total produced no application error."
+    "note": "Verify saving Gross Total produced no application error."
    },
    {
     "step": "click",
@@ -113,7 +136,7 @@
      "role": "button",
      "name": "Savings"
     },
-    "note": "Reopen the Savings Calculation window to verify retention."
+    "note": "Reopen the Savings Calculation window to check retention."
    },
    {
     "step": "expect_value",
@@ -121,14 +144,13 @@
      "label": "How do you want to measure savings?",
      "value": "Gross Total"
     },
-    "note": "Verify Gross Total was retained when reopened."
+    "note": "Verify Gross Total was retained after reopening."
    },
    {
     "step": "click",
     "args": {
      "role": "radio",
-     "name": "Line Item",
-     "within": "dialog"
+     "name": "Line Item"
     },
     "note": "Select the Line Item savings option."
    },
@@ -142,17 +164,9 @@
     "note": "Save the Line Item selection."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "Savings Calculation",
-     "visible": false
-    },
-    "note": "Confirm the window closed after saving Line Item."
-   },
-   {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm saving Line Item produced no application error."
+    "note": "Verify saving Line Item produced no application error."
    },
    {
     "step": "click",
@@ -160,7 +174,7 @@
      "role": "button",
      "name": "Savings"
     },
-    "note": "Reopen the Savings Calculation window for the final retention check."
+    "note": "Reopen the Savings Calculation window for the second retention check."
    },
    {
     "step": "expect_value",
@@ -168,7 +182,7 @@
      "label": "How do you want to measure savings?",
      "value": "Line Item"
     },
-    "note": "Verify Line Item was retained when reopened."
+    "note": "Verify Line Item was retained after reopening."
    }
   ]
  }

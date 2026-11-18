@@ -3,32 +3,38 @@
   "caseId": "PRD-MDM-002",
   "title": "Bulk User Upload: refused for a user without the Tenant Admin role",
   "group": "PRD-MDM",
-  "compiledAt": "2026-11-10T06:55:26.440Z",
+  "compiledAt": "2026-11-13T15:46:23.131Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Bulk User Upload availability and refusal for a non-Tenant Admin, followed by repeating the action as a Tenant Admin in the same tenant",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "Signing in as a user without the Tenant Admin role and as a Tenant Admin in the same tenant",
+   "Observing or attempting the Bulk User Upload action and comparing refusal or availability between the two roles"
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "can only test part of this — no step for: Signing in as a user without the Tenant Admin role and as a Tenant Admin in the same tenant; Observing or attempting the Bulk User Upload action and comparing refusal or availability between the two roles"
   ],
   "source": "llm",
-  "steps": 1,
+  "steps": 2,
   "stepNames": [
-   "ask_tester"
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 7447
+  "ms": 12006
  },
  "plan": {
-  "title": "Bulk User Upload Tenant Admin Permission",
+  "title": "PRD-MDM-002 Bulk User Upload RBAC",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Tenant Admin and then as a Tenant Admin in the same tenant, attempt Bulk User Upload for each account, and record whether the action is absent, refused, or available"
+     "need": "sign in as a non-Tenant Admin and a Tenant Admin in the same tenant, attempt Bulk User Upload as each user, and record whether the action is absent or refused for the non-admin and available for the Tenant Admin"
     },
-    "note": "The catalog cannot access the user-management upload flow or switch between users with different tenant roles."
+    "note": "The catalog cannot switch to role-specific users or reach and exercise Bulk User Upload."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the session remains free of an application error after the tester completes the role comparison."
    }
   ]
  }

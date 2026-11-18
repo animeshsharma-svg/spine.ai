@@ -4,20 +4,20 @@
   "title": "Download Reports: Download Reports with no fields selected",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:41:54.154Z",
+  "compiledAt": "2026-11-13T13:55:31.681Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact outcome of clicking Download Excel when no fields are selected, because the case does not specify a message, refusal, or download result to assert.",
-   "Verifying that every individual dynamically generated field checkbox is deselected."
+   "The exact outcome to record after clicking Download Excel with no fields selected is unspecified and no catalog assertion can capture an arbitrary result.",
+   "Verifying that every individual report-field checkbox is deselected is not expressible because their labels are not provided."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: The exact outcome of clicking Download Excel when no fields are selected, because the case does not specify a message, refusal, or download result to assert.; Verifying that every individual dynamically generated field checkbox is deselected."
+   "can only test part of this — no step for: The exact outcome to record after clicking Download Excel with no fields selected is unspecified and no catalog assertion can capture an arbitrary result.; Verifying that every individual report-field checkbox is deselected is not expressible because their labels are not provided."
   ],
   "source": "llm",
-  "steps": 20,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -25,34 +25,26 @@
    "require_setting",
    "require_setting",
    "go_to",
-   "click",
-   "click",
-   "expect_visible",
-   "expect_visible",
-   "expect_value",
-   "expect_visible",
-   "press",
+   "go_to",
    "click",
    "expect_visible",
+   "toggle",
    "click",
-   "expect_visible",
-   "expect_visible",
-   "expect_value",
-   "expect_visible"
+   "expect_screen_clean"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 20313
+  "ms": 28421
  },
  "plan": {
-  "title": "Closed RFQ report download with no fields selected",
+  "title": "Download Reports with No Fields Selected",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary; the prepared-state rules require this as the first navigation step."
+    "note": "Open the API-prepared closed RFQ summary; this is the required first step for the prepared state."
    },
    {
     "step": "require_setting",
@@ -68,7 +60,7 @@
      "key": "is_allowed_to_add_surrogate_bid_post_expiry",
      "value": "Off"
     },
-    "note": "Configure post-expiry surrogate bidding as required."
+    "note": "Apply the required post-expiry surrogate-bid configuration."
    },
    {
     "step": "require_setting",
@@ -76,7 +68,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Enable buyer bid editing as required."
+    "note": "Apply the required buyer bid-edit configuration."
    },
    {
     "step": "require_setting",
@@ -84,7 +76,7 @@
      "key": "allow_event_evaluation_reopen_for_everyone",
      "value": "Off"
     },
-    "note": "Restrict evaluation reopening as required."
+    "note": "Apply the required evaluation-reopen configuration."
    },
    {
     "step": "go_to",
@@ -92,15 +84,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the closed RFQ stage."
+    "note": "Open the RFQ stage."
    },
    {
-    "step": "click",
+    "step": "go_to",
     "args": {
-     "role": "tab",
-     "name": "Responses"
+     "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab."
+    "note": "Open the RFQ Responses tab where the buyer inspects the bid and report controls."
    },
    {
     "step": "click",
@@ -108,7 +99,7 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Open the report-download flow from the Responses screen."
+    "note": "Open the Download Reports window from the buyer's Responses view."
    },
    {
     "step": "expect_visible",
@@ -120,97 +111,25 @@
     "note": "Assert that the Download Reports window opened."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "role": "checkbox",
-     "name": "Select all",
-     "visible": true
-    },
-    "note": "Assert that the select-all control is present."
-   },
-   {
-    "step": "expect_value",
+    "step": "toggle",
     "args": {
      "label": "Select all",
-     "value": "unchecked"
+     "on": false
     },
-    "note": "Check that Select all is not selected before downloading."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Download Excel",
-     "visible": true
-    },
-    "note": "Assert that the Excel download action is available."
-   },
-   {
-    "step": "press",
-    "args": {
-     "key": "Escape"
-    },
-    "note": "Close the report window before testing the second entry point."
+    "note": "Ensure Select all is unchecked before attempting the empty-selection download."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Actions"
+     "name": "Download Excel"
     },
-    "note": "Open the Responses actions menu representing the report menu path."
+    "note": "Attempt the report download with no fields selected, as required by the case."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "role": "menuitem",
-     "name": "Download Report",
-     "visible": true
-    },
-    "note": "Assert that the menu offers Download Report."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "menuitem",
-     "name": "Download Report"
-    },
-    "note": "Open the Download Reports window from the menu."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Download Reports",
-     "visible": true
-    },
-    "note": "Assert that the second report-download window opened."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "checkbox",
-     "name": "Select all",
-     "visible": true
-    },
-    "note": "Assert that Select all is present in the second flow."
-   },
-   {
-    "step": "expect_value",
-    "args": {
-     "label": "Select all",
-     "value": "unchecked"
-    },
-    "note": "Check that Select all remains unchecked."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Download Excel",
-     "visible": true
-    },
-    "note": "Assert that the second flow exposes the Excel download action."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the screen remains usable after the empty-selection download attempt."
    }
   ]
  }

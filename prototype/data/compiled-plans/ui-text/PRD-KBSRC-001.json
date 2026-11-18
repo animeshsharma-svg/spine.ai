@@ -3,7 +3,7 @@
   "caseId": "PRD-KBSRC-001",
   "title": "Create and publish a Single Stage RFQ event end to end",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:06:34.219Z",
+  "compiledAt": "2026-11-13T14:30:03.604Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
@@ -13,9 +13,11 @@
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added set_schedule — the schedule is displayed but not committed until saved",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added set_schedule — the schedule is displayed but not committed until saved",
    "can only test part of this — no step for: Verify that each invited participant receives the invitation email."
   ],
   "source": "llm",
@@ -28,20 +30,20 @@
    "add_line_items",
    "fill_sheet",
    "fill_required",
-   "set_schedule",
    "invite_vendor",
+   "set_schedule",
    "publish",
+   "expect_toast",
    "expect_published",
    "open_events_list",
-   "expect_events_list",
    "filter_events",
    "expect_event_in_list",
    "expect_event_status"
   ],
-  "ms": 10723
+  "ms": 15391
  },
  "plan": {
-  "title": "Create and Publish Single-Stage RFQ",
+  "title": "Create and publish Single Stage RFQ",
   "steps": [
    {
     "step": "open_create",
@@ -54,21 +56,21 @@
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq",
-     "awarding": "line_item"
+     "awarding": "lot"
     },
-    "note": "Set the event type to RFQ and use line-item awarding, matching the Rank on Line requirement."
+    "note": "Configure the event as an RFQ with lot awarding."
    },
    {
     "step": "set_title",
     "args": {
      "title": "PRD-KBSRC-001 Single Stage RFQ"
     },
-    "note": "Provide the mandatory event title required for publishing."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the first available predefined RFQ template."
+    "note": "Apply the available predefined template."
    },
    {
     "step": "add_line_items",
@@ -80,63 +82,62 @@
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Fill the pricing sheet fields for the added product."
+    "note": "Fill the template table for the added product."
    },
    {
     "step": "fill_required",
     "args": {},
-    "note": "Complete any remaining mandatory fields in the template and event form."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a valid event schedule before publishing."
+    "note": "Complete any remaining mandatory fields before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {},
-    "note": "Invite the available mapped QA vendors as participants."
+    "note": "Add the suggested mapped vendor participants."
+   },
+   {
+    "step": "set_schedule"
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed RFQ and capture the product's publication result."
+    "note": "Review and confirm publication of the event."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "You Have Successfully Published your Event"
+    },
+    "note": "Verify the stated successful-publication confirmation."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publishing reached a real project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the Events list to verify the published event is visible there."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Assert that the Events list rendered without an error."
+    "note": "Return to the Events list to verify Live visibility."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Live"
     },
-    "note": "Open the Live events tab where the newly published event should appear."
+    "note": "Open the Live events tab."
    },
    {
     "step": "expect_event_in_list",
     "args": {},
-    "note": "Assert that this plan's published event is present in the Live list."
+    "note": "Confirm this plan's published event appears in Live events."
    },
    {
     "step": "expect_event_status",
     "args": {
      "status": "Live"
     },
-    "note": "Assert that the event row is marked Live."
+    "note": "Verify the event row is marked Live."
    }
   ]
  }

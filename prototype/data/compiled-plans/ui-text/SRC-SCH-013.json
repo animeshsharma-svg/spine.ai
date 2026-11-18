@@ -4,106 +4,159 @@
   "title": "Evaluation time cleared",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:02:29.160Z",
+  "compiledAt": "2026-11-13T12:52:08.129Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly assert after publication that the event closes immediately when bidding ends because no catalog step observes the published event's absence of an evaluation window or immediate closing behavior."
+   "Verify that the published event closes immediately when bidding ends with no evaluation window."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Directly assert after publication that the event closes immediately when bidding ends because no catalog step observes the published event's absence of an evaluation window or immediate closing behavior."
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Verify that the published event closes immediately when bidding ends with no evaluation window."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 17,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "select",
-   "set_schedule",
-   "do_on_screen",
+   "set_sheet_cell",
    "invite_vendor",
+   "set_schedule",
+   "click",
+   "click",
+   "expect_text",
+   "click",
    "publish",
    "expect_published"
   ],
-  "ms": 17143
+  "ms": 17353
  },
  "plan": {
-  "title": "SRC-SCH-013 Evaluation Time Cleared",
+  "title": "Single-stage RFQ with evaluation time cleared",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow described by the case."
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX event creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ, matching the final event type in the case."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title without inventing a case-specific value."
+    "args": {
+     "title": "Evaluation Time Cleared RFQ"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the product sheet is rendered."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested CYLINDER line item and set its requested quantity to 10."
+    "note": "Add the requested product and quantity; the product's available variant is selected by the product flow."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet fields required by the create flow."
+    "step": "fill_sheet"
    },
    {
-    "step": "select",
+    "step": "set_sheet_cell",
     "args": {
-     "label": "Delivery location",
-     "option": "Plant Name (LOC-0001)"
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested delivery location."
+    "note": "Set the requested delivery location in the pricing sheet."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Add the vendor named by the test case."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 15
     },
-    "note": "Open and commit the schedule with the case's 15-minute duration."
+    "note": "Commit a 15-minute event duration so the schedule can be edited and saved."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "In the Schedule Event drawer, clear the Evaluation time field, save the schedule, and stop on the create screen showing that no evaluation window is configured"
+     "role": "button",
+     "name": "Schedule"
     },
-    "note": "Perform and visually verify the schedule-specific Clear action that no catalog domain step can express."
+    "note": "Reopen the saved schedule drawer."
    },
    {
-    "step": "invite_vendor",
-    "args": {},
-    "note": "Add the available QA test vendor so publication can proceed."
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Clear"
+    },
+    "note": "Clear the evaluation time as required by the case."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Not applicable",
+     "present": true
+    },
+    "note": "Verify the schedule drawer represents evaluation time as not applicable after clearing it."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save Schedule"
+    },
+    "note": "Save the schedule with evaluation time cleared."
    },
    {
     "step": "publish",
@@ -113,7 +166,7 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publication reached a real project page."
+    "note": "Confirm publication reached a real project page."
    }
   ]
  }

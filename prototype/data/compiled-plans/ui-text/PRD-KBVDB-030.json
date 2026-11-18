@@ -3,42 +3,35 @@
   "caseId": "PRD-KBVDB-030",
   "title": "Sum Total reduced by a Fixed Value",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:55:06.647Z",
+  "compiledAt": "2026-11-13T15:45:49.073Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set or retain the vendor bid dropdown on Fixed Value in Cost Breakdown Mode.",
-   "Enter a fixed-value reduction and click Revise Bid.",
-   "Assert that the new current bid equals the original Sum Total minus the entered fixed value."
+   "Apply a fixed-value reduction of ₹204.34 in the vendor's cost-breakdown bid control, click Revise Bid, and verify that the new current bid equals the original Sum Total minus ₹204.34."
   ],
   "warnings": [
-   "can only test part of this — no step for: Set or retain the vendor bid dropdown on Fixed Value in Cost Breakdown Mode.; Enter a fixed-value reduction and click Revise Bid.; Assert that the new current bid equals the original Sum Total minus the entered fixed value."
+   "can only test part of this — no step for: Apply a fixed-value reduction of ₹204.34 in the vendor's cost-breakdown bid control, click Revise Bid, and verify that the new current bid equals the original Sum Total minus ₹204.34."
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
-   "open_event",
-   "switch_portal",
+   "open_prepared",
    "vendor_open_event",
+   "expect_text",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 13868
+  "ms": 18589
  },
  "plan": {
-  "title": "Fixed-Value Auction Bid Reduction",
+  "title": "Cost Breakdown Fixed-Value Bid Reduction",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open an existing live auction, matching the test's setup without creating a different event."
-   },
-   {
-    "step": "switch_portal",
+    "step": "open_prepared",
     "args": {
-     "to": "vendor"
+     "screen": "vendor"
     },
-    "note": "Move to the vendor session where the bid revision is performed."
+    "note": "Open the prepared live-auction vendor session."
    },
    {
     "step": "vendor_open_event",
@@ -48,16 +41,27 @@
     "note": "Open the auction's vendor pricing screen."
    },
    {
-    "step": "ask_tester",
+    "step": "expect_text",
     "args": {
-     "need": "set the bid mode to Fixed Value in Cost Breakdown Mode, enter the specified reduction, click Revise Bid, and show the resulting current bid"
+     "text": "Fixed Value",
+     "present": true
     },
-    "note": "The catalog has no step for Cost Breakdown Mode fixed-value revisions or their arithmetic assertion."
+    "note": "Confirm the vendor screen exposes the Fixed Value mode named in the case."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the vendor screen remains usable after the tester's manual operation."
+    "step": "ask_tester",
+    "args": {
+     "need": "Use the vendor cost-breakdown screen to keep Fixed Value selected, enter a ₹204.34 reduction, click Revise Bid, and verify the current bid equals the original Sum Total minus ₹204.34."
+    },
+    "note": "No catalog step can perform or assert this vendor-side fixed-value revision."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Confirm the vendor screen shows a submitted bid after the tester's revision."
    }
   ]
  }

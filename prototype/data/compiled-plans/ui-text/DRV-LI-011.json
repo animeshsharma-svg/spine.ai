@@ -4,49 +4,64 @@
   "title": "Mobile app delete line item follows same validation as web UI",
   "group": "DRV-LI",
   "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
-  "compiledAt": "2026-11-09T23:07:13.703Z",
+  "compiledAt": "2026-11-13T13:38:27.926Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
    "Open the Procol mobile app and log in as the buyer",
    "Navigate to the live RFQ in the mobile app",
-   "Use a live RFQ with two active line items",
    "Tap a line-item row to open its actions",
-   "Tap Delete and confirm the deletion",
-   "Observe the toast \"Line item deleted successfully\"",
-   "Assert that the deleted line item disappears from the mobile list",
-   "Assert that the deletion receives the same API response with HTTP status 200",
-   "Delete an active line item because no catalog step performs or observes line-item deletion"
+   "Delete and confirm a line item in the mobile app",
+   "Assert the mobile toast \"Line item deleted successfully\" and that the deleted item disappears",
+   "Assert the deletion API response has HTTP status 200",
+   "The prepared event state provides one line item, not the required two active line items"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Open the Procol mobile app and log in as the buyer; Navigate to the live RFQ in the mobile app; Use a live RFQ with two active line items; Tap a line-item row to open its actions; Tap Delete and confirm the deletion; Observe the toast \"Line item deleted successfully\"; Assert that the deleted line item disappears from the mobile list; Assert that the deletion receives the same API response with HTTP status 200; Delete an active line item because no catalog step performs or observes line-item deletion"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Open the Procol mobile app and log in as the buyer; Navigate to the live RFQ in the mobile app; Tap a line-item row to open its actions; Delete and confirm a line item in the mobile app; Assert the mobile toast \"Line item deleted successfully\" and that the deleted item disappears; Assert the deletion API response has HTTP status 200; The prepared event state provides one line item, not the required two active line items"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "expect_navigated"
+   "require_setting",
+   "ask_tester",
+   "expect_screen_clean"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 6429
+  "ms": 11314
  },
  "plan": {
-  "title": "DRV-LI-011 Mobile line-item deletion",
+  "title": "Mobile line-item deletion validation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Reach the prepared live RFQ's buyer summary screen; this is the closest available existing-event entry point."
+    "note": "Open the prepared live RFQ in the buyer console; this is the closest catalog entry point for the existing event."
    },
    {
-    "step": "expect_navigated",
+    "step": "require_setting",
     "args": {
-     "screen": "summary"
+     "key": "pr_deletion_enabled",
+     "value": "On"
     },
-    "note": "Assert that the buyer-side event summary loaded, without implying that mobile deletion or line-item actions were tested."
+    "note": "Enable the required tenant configuration before testing deletion."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "open the Procol mobile app as the buyer, navigate to the live RFQ with two active line items, delete and confirm one line item, and verify the success toast and that the item disappears"
+    },
+    "note": "The catalog cannot operate the mobile app or perform active-event line-item deletion."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert the available buyer screen remains free of rendering errors after the delegated mobile check."
    }
   ]
  }

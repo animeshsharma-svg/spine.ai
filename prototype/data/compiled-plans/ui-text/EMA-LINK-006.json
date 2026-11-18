@@ -4,71 +4,97 @@
   "title": "Consult button opens the consult email with the recipient instruction",
   "group": "EMA-LINK",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:55:06.216Z",
+  "compiledAt": "2026-11-13T14:20:42.454Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Asha's mailbox, open the Procol approval request, click Consult, and inspect the newly opened email's subject and body content."
+   "Sign in to Asha's mailbox, open the Procol approval request, and click the Consult button to open the new email."
   ],
   "warnings": [
-   "can only test part of this — no step for: Access Asha's mailbox, open the Procol approval request, click Consult, and inspect the newly opened email's subject and body content."
+   "can only test part of this — no step for: Sign in to Asha's mailbox, open the Procol approval request, and click the Consult button to open the new email."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 9,
   "stepNames": [
+   "require_setting",
+   "require_setting",
    "ask_tester",
+   "expect_text",
    "expect_text",
    "expect_text",
    "expect_text",
    "expect_text",
    "expect_text"
   ],
-  "ms": 9800
+  "ms": 11478
  },
  "plan": {
-  "title": "Consult Email Recipient Instruction",
+  "title": "EMA-LINK-006 Consult email recipient instruction",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company, with the company's approval mailbox connected to Procol",
+     "value": "On"
+    },
+    "note": "Enable the required email approval configuration before testing the email action."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Ensure the approval workflow prerequisite is enabled for the test."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in to Asha's mailbox, open the Procol approval request email, click Consult, and leave the resulting email open"
+     "need": "sign in to Asha's mailbox, open the Procol approval request email, and click Consult to open the new email"
     },
-    "note": "The catalog cannot access mailboxes or click email buttons."
+    "note": "The catalog cannot access or operate Asha's mailbox."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Action:Consult"
     },
-    "note": "Checks that the opened email subject contains the required Consult action prefix."
+    "note": "Verify the opened consultation email subject starts with the required Action:Consult prefix."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Proposal:["
     },
-    "note": "Checks that the subject includes the proposal marker."
+    "note": "Verify the consultation email subject includes the required Proposal:[ portion."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Type the recipient's email address without @ in front of it."
     },
-    "note": "Checks the first-line recipient instruction."
+    "note": "Verify the body begins with the recipient-address instruction."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "(Required) Comment:"
     },
-    "note": "Checks that the required comment instruction is present."
+    "note": "Verify the required comment instruction is present."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Recipient:"
     },
-    "note": "Checks that the recipient field instruction is present."
+    "note": "Verify the recipient field instruction is present."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "system"
+    },
+    "note": "Verify the system line is present in the consultation email body."
    }
   ]
  }

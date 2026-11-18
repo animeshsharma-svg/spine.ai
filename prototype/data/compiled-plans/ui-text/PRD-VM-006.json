@@ -3,39 +3,40 @@
   "caseId": "PRD-VM-006",
   "title": "Vendor Approval Levels (vendor.approval.levels) = 0 (below the allowed range)",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T02:29:30.093Z",
+  "compiledAt": "2026-11-13T15:07:09.344Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the tenant configuration for `vendor.approval.levels` as a Tenant Admin.",
-   "Attempt to save the value 0 and verify the allowed range refusal of 1–5.",
-   "Read the stored `vendor.approval.levels` value and verify it is not 0."
+   "Directly verify that the stored vendor.approval.levels value is not 0 after the refusal"
   ],
   "warnings": [
-   "can only test part of this — no step for: Open the tenant configuration for `vendor.approval.levels` as a Tenant Admin.; Attempt to save the value 0 and verify the allowed range refusal of 1–5.; Read the stored `vendor.approval.levels` value and verify it is not 0."
+   "can only test part of this — no step for: Directly verify that the stored vendor.approval.levels value is not 0 after the refusal"
   ],
   "source": "llm",
   "steps": 2,
   "stepNames": [
-   "ask_tester",
-   "expect_screen_clean"
+   "require_setting",
+   "expect_toast"
   ],
-  "ms": 7658
+  "ms": 9527
  },
  "plan": {
   "title": "Vendor Approval Levels Reject Zero",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "open the tenant settings as a Tenant Admin, set vendor.approval.levels to 0, verify saving is refused because the allowed range is 1–5, and check that the stored value is not 0"
+     "key": "vendor.approval.levels",
+     "value": 0
     },
-    "note": "No catalog step can access or assert this tenant-level configuration."
+    "note": "Attempt to set the vendor approval levels setting to the invalid value 0."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Provides a final assertion after the tester interaction without claiming that the tenant setting itself was verified."
+    "step": "expect_toast",
+    "args": {
+     "kind": "error"
+    },
+    "note": "Assert that Procol reports an error when saving the out-of-range setting."
    }
   ]
  }

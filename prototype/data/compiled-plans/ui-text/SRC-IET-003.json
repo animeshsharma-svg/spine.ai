@@ -4,26 +4,30 @@
   "title": "Extend a live RFQ by 2 Hours",
   "group": "SRC-IET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:27:19.583Z",
+  "compiledAt": "2026-11-13T12:09:37.254Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The requested live RFQ with no bids cannot be prepared because the fixed live prepared state contains one bid.",
-   "The updated end time cannot be independently compared across the event list and vendor portal; extend_time only verifies the saved end-time calculation on the event page."
+   "Verify the updated end time in the events list matches the stage page",
+   "Verify the vendor portal shows the same updated end time and that vendors can bid until it"
   ],
   "warnings": [
-   "can only test part of this — no step for: The requested live RFQ with no bids cannot be prepared because the fixed live prepared state contains one bid.; The updated end time cannot be independently compared across the event list and vendor portal; extend_time only verifies the saved end-time calculation on the event page."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify the updated end time in the events list matches the stage page; Verify the vendor portal shows the same updated end time and that vendors can bid until it"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
    "extend_time",
    "expect_toast"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10030
+  "ms": 9648
  },
  "plan": {
   "title": "Extend live RFQ by 2 hours",
@@ -33,7 +37,23 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared live RFQ without creating or searching for another event."
+    "note": "Open the prepared live RFQ event created by the setup case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage page where the submission-time setting is available."
    },
    {
     "step": "extend_time",
@@ -44,7 +64,7 @@
      "unit": "hours",
      "expect": "saved"
     },
-    "note": "Choose Custom, enter 2 Hours, confirm the extension, and verify the event's end time moved by exactly two hours."
+    "note": "Choose Custom, enter 2 Hours, confirm the change, and verify the new end is exactly two hours after the previous end."
    },
    {
     "step": "expect_toast",
@@ -52,7 +72,7 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Assert the success message specified by the case."
+    "note": "Assert the success message requested by the case."
    }
   ]
  }

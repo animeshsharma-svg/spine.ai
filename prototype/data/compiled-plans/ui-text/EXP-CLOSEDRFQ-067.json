@@ -4,30 +4,69 @@
   "title": "Edit Evaluation Time: Edit Evaluation Time handles letters and special characters in the duration field",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:33:16.733Z",
+  "compiledAt": "2026-11-13T13:58:15.619Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "extend_time"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 5970
+  "ms": 11438
  },
  "plan": {
-  "title": "Closed RFQ Edit Evaluation Time Rejects Special Characters",
+  "title": "Closed RFQ Edit Evaluation Time Invalid Duration",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared closed RFQ on the buyer's Responses tab."
+    "note": "Open the prepared closed RFQ on its Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects for the test tenant."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Match the required closed-event surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid-edit permissions required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Match the required evaluation-reopen configuration."
    },
    {
     "step": "extend_time",
@@ -35,9 +74,10 @@
      "which": "evaluation",
      "option": "custom",
      "amount": "abc!@#",
+     "unit": "minutes",
      "expect": "refused"
     },
-    "note": "Open Edit Evaluation Time, enter the invalid special-character duration, click Ok, and verify the application refuses it."
+    "note": "Open Edit Evaluation Time, enter the invalid duration, press Ok, and assert that Procol refuses the letters and special characters."
    }
   ]
  }

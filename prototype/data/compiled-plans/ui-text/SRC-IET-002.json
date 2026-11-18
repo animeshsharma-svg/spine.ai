@@ -4,37 +4,55 @@
   "title": "Extend a live RFQ by 15 Minutes",
   "group": "SRC-IET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:27:09.552Z",
+  "compiledAt": "2026-11-13T12:09:39.225Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the updated end time in the events list.",
-   "Verify that the vendor portal shows the same updated end time.",
-   "Verify that vendors can still bid until the extended end time."
+   "Verify the updated end time in the events list and confirm it matches the vendor portal's end time."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify the updated end time in the events list.; Verify that the vendor portal shows the same updated end time.; Verify that vendors can still bid until the extended end time."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify the updated end time in the events list and confirm it matches the vendor portal's end time."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
    "extend_time",
    "expect_toast"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10698
+  "ms": 21569
  },
  "plan": {
-  "title": "Extend Live RFQ by 15 Minutes",
+  "title": "Extend live RFQ by 15 minutes",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary as required for an existing event."
+    "note": "Open the prepared live RFQ with no bids on its summary page."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the live RFQ stage page where its current submission end is shown."
    },
    {
     "step": "extend_time",
@@ -45,7 +63,7 @@
      "unit": "minutes",
      "expect": "saved"
     },
-    "note": "Choose Custom, enter 15 Minutes, submit the extension, and verify the new end is exactly the prior end plus 15 minutes."
+    "note": "Choose Custom, enter 15 Minutes, save it, and verify Procol calculates the new end as the prior end plus 15 minutes."
    },
    {
     "step": "expect_toast",
@@ -53,7 +71,7 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Verify the expected success message after the extension is saved."
+    "note": "Assert the success confirmation required by the case."
    }
   ]
  }

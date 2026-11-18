@@ -3,18 +3,18 @@
   "caseId": "PRD-KBAI-019",
   "title": "RFP Generator is only reachable when \"Technical Stage\" is selected for the project",
   "group": "PRD-KBAI",
-  "compiledAt": "2026-11-10T06:46:51.915Z",
+  "compiledAt": "2026-11-13T15:38:32.579Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"Generate question using AI\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "unconfirmed label \"Generate question using AI\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
    "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 7 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 6 step(s) that would open a blank event or replace the PR's items",
    "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 7 step(s) that would open a blank event or replace the PR's items",
-   "coverage partial: unconfirmed label \"Generate question using AI\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 6 step(s) that would open a blank event or replace the PR's items",
+   "coverage partial: unconfirmed label \"Generate question using AI\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
    "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
@@ -29,12 +29,12 @@
    "select_template",
    "fill_sheet",
    "expect_visible",
-   "expect_visible"
+   "expect_text"
   ],
-  "ms": 28045
+  "ms": 14489
  },
  "plan": {
-  "title": "RFP Generator Hidden Without Technical Stage",
+  "title": "RFP Generator inaccessible without Technical Stage",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -46,7 +46,10 @@
     }
    },
    {
-    "step": "select_pr"
+    "step": "select_pr",
+    "args": {
+     "items": 1
+    }
    },
    {
     "step": "purchase_items"
@@ -71,18 +74,18 @@
    {
     "step": "expect_visible",
     "args": {
-     "text": "Technical Stage",
+     "name": "Technical Stage",
      "visible": false
     },
-    "note": "Verify that the Technical Stage event type is not available when it was not selected."
+    "note": "Assert Technical Stage option is not available"
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Generate question using AI",
-     "visible": false
+     "present": false,
+     "text": "Generate question using AI"
     },
-    "note": "Verify that the RFP Generator's AI question-generation option is not accessible without Technical Stage."
+    "note": "Assert AI question generation option is absent"
    }
   ]
  }

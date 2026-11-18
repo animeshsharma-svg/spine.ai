@@ -3,71 +3,46 @@
   "caseId": "PRD-VM-080",
   "title": "Vendor Form Sections (vendor.form.sections) = default without Basic Info",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T02:56:46.689Z",
+  "compiledAt": "2026-11-13T15:09:49.274Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set the tenant setting vendor.form.sections to Banking, Documents, Tax",
-   "Import vendors directly from the enterprise VMS/VRP as an Implementation Partner",
-   "Observe and verify which vendor onboarding sections are visible and required, including that Basic Info no longer applies while Banking, Documents, and Tax still apply",
-   "unconfirmed label \"Basic Info\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "Import vendors from the enterprise's existing VMS/VRP as an Implementation Partner and observe which vendor onboarding form sections are visible and required, including verifying Basic Info is absent while Banking, Documents, and Tax remain."
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Basic Info\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Set the tenant setting vendor.form.sections to Banking, Documents, Tax; Import vendors directly from the enterprise VMS/VRP as an Implementation Partner; Observe and verify which vendor onboarding sections are visible and required, including that Basic Info no longer applies while Banking, Documents, and Tax still apply"
+   "can only test part of this — no step for: Import vendors from the enterprise's existing VMS/VRP as an Implementation Partner and observe which vendor onboarding form sections are visible and required, including verifying Basic Info is absent while Banking, Documents, and Tax remain."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 3,
   "stepNames": [
+   "require_setting",
    "ask_tester",
-   "expect_text",
-   "expect_text",
-   "expect_text",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 15918
+  "ms": 16061
  },
  "plan": {
-  "title": "Vendor Form Sections Default Without Basic Info",
+  "title": "Vendor Form Sections Without Basic Info",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "vendor.form.sections",
+     "value": "Banking, Documents, Tax"
+    },
+    "note": "Apply the required tenant configuration before testing the behavior it controls."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "set vendor.form.sections to Banking, Documents, Tax, import vendors from the enterprise VMS/VRP, and verify the onboarding form omits Basic Info while retaining Banking, Documents, and Tax as applicable sections"
+     "need": "sign in as the Implementation Partner, import vendors from the enterprise's existing VMS/VRP, and observe the vendor onboarding form's visible and required sections"
     },
-    "note": "No catalog step can configure this tenant setting, perform the VMS/VRP import, or reach and inspect the resulting vendor onboarding form."
+    "note": "The catalog has no VMS/VRP import or vendor onboarding-form observation step, and this may require the Implementation Partner persona."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Basic Info",
-     "present": false
-    },
-    "note": "Closest available assertion for the expected absence of Basic Info after the tester completes the missing workflow."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Banking",
-     "present": true
-    },
-    "note": "Checks that a retained configured section remains visible."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Documents",
-     "present": true
-    },
-    "note": "Checks that a retained configured section remains visible."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Tax",
-     "present": true
-    },
-    "note": "Checks that a retained configured section remains visible."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the session remains free of crashes or server errors after the tester-handled portion."
    }
   ]
  }

@@ -4,46 +4,67 @@
   "title": "Surrogate bid with price 0",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:10:27.759Z",
+  "compiledAt": "2026-11-13T13:01:14.408Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Add a reference to the surrogate bid before saving"
+   "Adding a reference to the surrogate bid before saving"
   ],
   "warnings": [
-   "can only test part of this — no step for: Add a reference to the surrogate bid before saving"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Adding a reference to the surrogate bid before saving"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "attempt"
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 11930
+  "ms": 11685
  },
  "plan": {
-  "title": "Surrogate bid with zero price",
+  "title": "Surrogate bid rejects zero price",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ's Participants tab where the buyer can add a surrogate bid."
+    "note": "Open the prepared live RFQ's Participants tab, where the buyer can add a surrogate bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable the configured price validation required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "attempt",
     "args": {
      "step": "place_surrogate_bid",
      "args": {
+      "vendor": "Vendor A",
       "price": 0
      },
      "expect": "refused",
      "because": "Please enter valid responses for product sheet."
     },
-    "note": "Attempt the buyer-side surrogate bid with price 0 and assert Procol refuses it with the expected validation message."
+    "note": "Attempt the zero-price surrogate bid and verify Procol refuses it with the expected validation message."
    }
   ]
  }

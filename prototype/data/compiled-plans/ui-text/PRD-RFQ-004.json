@@ -3,12 +3,13 @@
   "caseId": "PRD-RFQ-004",
   "title": "Allow Partial Bidding (rfq.bid.allow_partial): not available on plans below Growth",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:29:47.158Z",
+  "compiledAt": "2026-11-13T14:50:37.241Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Inspect or change the rfq.bid.allow_partial tenant setting on a below-Growth plan.",
-   "Repeat the setting availability check on a Growth tenant and compare the results by plan."
+   "Accessing a tenant on a plan below Growth and a tenant on Growth when their tenant IDs are not provided",
+   "Observing whether rfq.bid.allow_partial is absent or refused on the lower-plan tenant",
+   "Observing whether rfq.bid.allow_partial is available to change on the Growth tenant"
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -17,7 +18,7 @@
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "added open_create — every create test has to start somewhere",
    "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Inspect or change the rfq.bid.allow_partial tenant setting on a below-Growth plan.; Repeat the setting availability check on a Growth tenant and compare the results by plan."
+   "can only test part of this — no step for: Accessing a tenant on a plan below Growth and a tenant on Growth when their tenant IDs are not provided; Observing whether rfq.bid.allow_partial is absent or refused on the lower-plan tenant; Observing whether rfq.bid.allow_partial is available to change on the Growth tenant"
   ],
   "source": "llm",
   "steps": 5,
@@ -28,10 +29,10 @@
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 8330
+  "ms": 8823
  },
  "plan": {
-  "title": "RFQ Partial Bidding Setting Plan Access",
+  "title": "Partial Bidding Setting Plan Availability",
   "steps": [
    {
     "step": "open_create",
@@ -53,14 +54,14 @@
    {
     "step": "ask_tester",
     "args": {
-     "need": "as Tenant Admin, verify that rfq.bid.allow_partial is absent or refused on a tenant below Growth, then verify that the setting is available to change on a Growth tenant"
+     "need": "sign in as the Tenant Admin for a tenant below Growth and a Growth tenant, attempt to change rfq.bid.allow_partial on each, and record whether the setting is absent, refused, or available"
     },
-    "note": "No catalog step can inspect tenant plan settings or change rfq.bid.allow_partial across tenants."
+    "note": "The catalog has no step for switching to unspecified tenants or observing plan-specific setting availability."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the session remains free of application errors after the tester's verification."
+    "note": "Assert the session remains usable after the tester performs the comparison."
    }
   ]
  }

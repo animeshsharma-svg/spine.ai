@@ -4,7 +4,7 @@
   "title": "The award proposal page: \"Submit Proposal\" opens the \"Submit Proposal\" window",
   "group": "EXP-PROPOSAL",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:46:39.526Z",
+  "compiledAt": "2026-11-13T14:17:09.323Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -13,33 +13,35 @@
    "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 13,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
+   "start_awarding",
    "click",
    "expect_navigated",
    "click",
    "expect_visible",
    "expect_visible",
-   "expect_options",
+   "expect_text",
+   "expect_text",
    "expect_visible",
    "expect_visible"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 11592
+  "ms": 11185
  },
  "plan": {
-  "title": "Submit Proposal window",
+  "title": "Submit Proposal window opens",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ with the award proposal."
+    "note": "Open the existing closed RFQ with the draft award proposal."
    },
    {
     "step": "require_setting",
@@ -55,15 +57,20 @@
      "key": "ntd_required_on_proposal",
      "value": "On"
     },
-    "note": "Require the Note to Director configuration for the proposal flow."
+    "note": "Use the required proposal configuration."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Re-enter the existing draft award proposal flow from Master QCS."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Bid Selection Proposal"
+     "name": "Create Proposal"
     },
-    "note": "Open the existing award proposal from Master QCS."
+    "note": "Open the award proposal page from the awarding screen."
    },
    {
     "step": "expect_navigated",
@@ -78,7 +85,7 @@
      "role": "button",
      "name": "Submit Proposal"
     },
-    "note": "Open the proposal submission workflow window."
+    "note": "Open the proposal submission window."
    },
    {
     "step": "expect_visible",
@@ -87,48 +94,52 @@
      "name": "Submit Proposal",
      "visible": true
     },
-    "note": "Verify that the Submit Proposal window is open."
+    "note": "Assert that the Submit Proposal window is open."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "textbox",
-     "name": "Search approval workflows...",
-     "visible": true,
-     "within": "dialog"
+     "placeholder": "Search approval workflows...",
+     "visible": true
     },
     "note": "Verify the workflow search field is present."
    },
    {
-    "step": "expect_options",
+    "step": "expect_text",
     "args": {
-     "within": "dialog",
-     "options": [
-      "Clause: Approval Flow Total Proposal Value: 1 and above Procol SupportProcol Support",
-      "Clause: Unnamed workflow Total Proposal Value: less than 1,00,00,00,000 Procol SupportProcol Support"
-     ]
+     "text": "Clause: Approval Flow Total Proposal Value: 1 and above Procol SupportProcol Support",
+     "present": true
     },
-    "note": "Verify both expected approval workflows are offered."
+    "note": "Verify the first approval workflow option."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Clause: Unnamed workflow Total Proposal Value: less than 1,00,00,00,000 Procol SupportProcol Support",
+     "present": true
+    },
+    "note": "Verify the second approval workflow option."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Cancel",
-     "visible": true,
-     "within": "dialog"
+     "within": "dialog",
+     "visible": true
     },
-    "note": "Verify the dialog offers Cancel without submitting."
+    "note": "Verify the Cancel button is present."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Next",
-     "visible": true,
-     "within": "dialog"
+     "within": "dialog",
+     "visible": true
     },
-    "note": "Verify the dialog offers Next without submitting."
+    "note": "Verify the Next button is present."
    }
   ]
  }

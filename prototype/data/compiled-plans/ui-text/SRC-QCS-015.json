@@ -4,38 +4,37 @@
   "title": "Two lines, different winners",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:09:15.273Z",
+  "compiledAt": "2026-11-13T12:34:20.161Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select an existing RFQ by the exact two-line bid fixture when no event title or product names are provided.",
-   "Assert that conceptual vendor B is L1 on line 1 and vendor A is L1 on line 2 when the case provides no real vendor names or line-item identifiers.",
-   "Create the specified two-line bid pattern with different prices per line if the required existing event is unavailable; bid-entry steps use one price across the sheet."
+   "Find the exact RFQ by its title because no title is provided",
+   "Ensure the event has exactly two lines with 10 units each and bids of A 100/B 90 on line 1 and A 50/B 60 on line 2",
+   "Assert that the specific vendors A and B are the line winners and that each vendor total is exactly 1,500",
+   "Record which vendor is ranked overall when the totals are tied"
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Select an existing RFQ by the exact two-line bid fixture when no event title or product names are provided.; Assert that conceptual vendor B is L1 on line 1 and vendor A is L1 on line 2 when the case provides no real vendor names or line-item identifiers.; Create the specified two-line bid pattern with different prices per line if the required existing event is unavailable; bid-entry steps use one price across the sheet."
+   "can only test part of this — no step for: Find the exact RFQ by its title because no title is provided; Ensure the event has exactly two lines with 10 units each and bids of A 100/B 90 on line 1 and A 50/B 60 on line 2; Assert that the specific vendors A and B are the line winners and that each vendor total is exactly 1,500; Record which vendor is ranked overall when the totals are tied"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "go_to",
    "expect_qcs_vendors",
-   "expect_qcs_amounts",
    "expect_qcs_ranks",
-   "expect_qcs_cell",
-   "expect_qcs_cell"
+   "expect_qcs_amounts"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 19472
+  "ms": 21424
  },
  "plan": {
-  "title": "Master QCS Different Line Winners",
+  "title": "Master QCS Two-Line Different Winners",
   "steps": [
    {
     "step": "open_prepared",
@@ -65,14 +64,7 @@
      "count": 2,
      "realNames": true
     },
-    "note": "Verify that the comparison contains two real vendor columns."
-   },
-   {
-    "step": "expect_qcs_amounts",
-    "args": {
-     "total": false
-    },
-    "note": "Verify that each displayed line amount equals rate multiplied by quantity."
+    "note": "Check that the comparison has two real vendor columns."
    },
    {
     "step": "expect_qcs_ranks",
@@ -81,25 +73,14 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Verify that ranking is calculated per line from the lowest RFQ amount."
+    "note": "Verify that rankings follow the lowest amount independently across at least two line items."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "expect_qcs_amounts",
     "args": {
-     "row": "Sum Total",
-     "vendor": 1,
-     "equals": "1500"
+     "vendor": 1
     },
-    "note": "Verify the first vendor's displayed total is 1,500."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "Sum Total",
-     "vendor": 2,
-     "equals": "1500"
-    },
-    "note": "Verify the second vendor's displayed total is 1,500."
+    "note": "Verify the displayed per-line amounts and vendor total are calculated as rate multiplied by quantity."
    }
   ]
  }

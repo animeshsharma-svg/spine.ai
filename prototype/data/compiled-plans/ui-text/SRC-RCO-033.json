@@ -4,16 +4,19 @@
   "title": "Order Activity of the old event records the recreation",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:10:42.538Z",
+  "compiledAt": "2026-11-13T12:38:01.714Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact actor identity and timestamp shown for the recreation activity entry"
+   "Verify the exact user who performed the recreation.",
+   "Verify the exact recreation timestamp.",
+   "unconfirmed label \"recreated\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: The exact actor identity and timestamp shown for the recreation activity entry"
+   "coverage partial: unconfirmed label \"recreated\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Verify the exact user who performed the recreation.; Verify the exact recreation timestamp."
   ],
   "source": "llm",
   "steps": 5,
@@ -21,22 +24,22 @@
    "open_prepared",
    "require_setting",
    "event_menu",
-   "expect_text",
+   "expect_visible",
    "expect_text"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 12442
+  "ms": 14867
  },
  "plan": {
-  "title": "Old Event Recreation Activity",
+  "title": "Order Activity records recreation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ's summary page rather than creating or searching for another event."
+    "note": "Open the prepared closed RFQ summary without creating or searching for another event."
    },
    {
     "step": "require_setting",
@@ -44,28 +47,30 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project configuration before accessing the prepared closed RFQ."
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Order Activity"
     },
-    "note": "Open the stage Settings menu and select Order Activity, which should open the activity drawer."
+    "note": "Open the stage Settings menu and select Order Activity, leaving the Activity drawer open."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Activity",
+     "visible": true
+    },
+    "note": "Confirm that the Order Activity drawer opened."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Activity"
+     "text": "recreated",
+     "present": true
     },
-    "note": "Assert that the Order Activity drawer is displayed."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "recreat"
-    },
-    "note": "Assert that the activity record contains wording indicating the event was recreated."
+    "note": "Confirm that the activity record contains recreation-related text."
    }
   ]
  }

@@ -4,61 +4,73 @@
   "title": "A second surrogate bid for the same vendor",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:09:42.837Z",
+  "compiledAt": "2026-11-13T13:00:28.982Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Starting from the setup state of a live RFQ with no bids; the prepared state supplies an event with an existing bid and does not expose a way to reset it to no bids.",
-   "Guaranteeing that the first surrogate bid is placed for Vendor A and that the second attempt targets that same newly created surrogate bid rather than an existing prepared bid."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Starting from the setup state of a live RFQ with no bids; the prepared state supplies an event with an existing bid and does not expose a way to reset it to no bids.; Guaranteeing that the first surrogate bid is placed for Vendor A and that the second attempt targets that same newly created surrogate bid rather than an existing prepared bid."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "place_surrogate_bid",
    "expect_bid_submitted",
    "attempt"
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 10829
+  "ms": 8901
  },
  "plan": {
-  "title": "Reject Duplicate Surrogate Bid",
+  "title": "Reject duplicate surrogate bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared event's buyer-side Participants tab; the case concerns surrogate bidding there."
+    "note": "Open the prepared live RFQ directly on its Participants tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allowed_surrogate_bid_even_after_bid",
+     "value": "Off"
+    },
+    "note": "Disable repeat surrogate bidding as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled for the prepared RFQ."
    },
    {
     "step": "place_surrogate_bid",
-    "args": {
-     "vendor": "Vendor A"
-    },
-    "note": "Attempt to create the first surrogate bid for the named vendor."
+    "args": {},
+    "note": "Place the initial surrogate bid for the available vendor."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the first surrogate bid was accepted before testing the duplicate attempt."
+    "note": "Confirm the first surrogate bid was accepted."
    },
    {
     "step": "attempt",
     "args": {
      "step": "place_surrogate_bid",
-     "args": {
-      "vendor": "Vendor A"
-     },
+     "args": {},
      "expect": "refused",
      "because": "A bid is already placed on behalf of this company."
     },
-    "note": "Attempt the second surrogate bid for the same vendor and require Procol's duplicate-bid refusal."
+    "note": "Attempt the second surrogate bid and require Procol's duplicate-bid refusal."
    }
   ]
  }

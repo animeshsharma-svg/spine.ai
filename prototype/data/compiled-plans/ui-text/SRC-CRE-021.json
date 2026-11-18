@@ -4,24 +4,25 @@
   "title": "Reverse auction: Quantity Requested = a very large number 99999999",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-13T11:31:34.035Z",
+  "compiledAt": "2026-11-13T11:50:34.220Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"99,999,999\" (expect_text) — not among the labels known from the app nor in the case"
+   "The catalog can detect broken or overflowed screen output but cannot directly assert the computed total values remain numerically correct without a case-specified expected total."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "coverage partial: unconfirmed label \"99,999,999\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: The catalog can detect broken or overflowed screen output but cannot directly assert the computed total values remain numerically correct without a case-specified expected total."
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 15,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -32,26 +33,24 @@
    "fill_sheet",
    "set_sheet_cell",
    "expect_sheet_cell",
-   "expect_text",
-   "set_sheet_cell",
-   "expect_sheet_cell",
-   "invite_vendor",
+   "expect_screen_clean",
    "set_schedule",
+   "invite_vendor",
    "publish",
    "expect_published",
-   "expect_screen_clean"
+   "expect_no_error"
   ],
-  "ms": 22978
+  "ms": 17960
  },
  "plan": {
-  "title": "Reverse auction large requested quantity",
+  "title": "Single-stage reverse auction large quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Opens the specified Single Stage create screen."
+    "note": "Opens the Single Stage event creation screen."
    },
    {
     "step": "require_setting",
@@ -59,25 +58,30 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allows vendors to be added during event creation as required by the case."
+    "note": "Ensures vendors can be added during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
-     "auctionSubtype": "rank"
+     "auctionSubtype": "rank",
+     "awarding": "lot"
     },
-    "note": "Switches the event type to a reverse auction using the supported auction strategy configuration."
+    "note": "Changes the event type to a reverse auction with the default rank strategy."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provides the mandatory event title required for publishing."
+    "args": {
+     "title": "SRC-CRE-021 Large Quantity Reverse Auction"
+    },
+    "note": "Provides the mandatory event title for publishing."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Applies the first available auction pricing template so the product sheet can be populated."
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Selects a reverse-buy auction template so the pricing sheet is available."
    },
    {
     "step": "add_line_items",
@@ -86,39 +90,10 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "99999999"
     },
-    "note": "Adds the requested product and enters the very large requested quantity."
+    "note": "Adds the specified product with the very large requested quantity."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Completes the pricing sheet fields needed for the quantity and totals to render."
-   },
-   {
-    "step": "set_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "value": "99999999"
-    },
-    "note": "Ensures the exact test quantity is entered in the pricing sheet cell."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "equals": "99999999",
-     "kept": true
-    },
-    "note": "Asserts the large quantity is retained without a cell error."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "99,999,999",
-     "present": true
-    },
-    "note": "Asserts the displayed quantity uses thousands separators."
+    "step": "fill_sheet"
    },
    {
     "step": "set_sheet_cell",
@@ -127,45 +102,53 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Sets the delivery location required by the case."
+    "note": "Sets the requested delivery location for the first line item."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
-     "column": "Delivery location",
-     "contains": "Plant Name (LOC-0001)"
+     "column": "Quantity Requested",
+     "kept": true,
+     "contains": "99,999,999"
     },
-    "note": "Confirms the requested delivery location is shown in the first row."
+    "note": "Verifies the large quantity remains in the cell and is displayed with thousands separators."
    },
    {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Adds one available QA vendor so the event can be published."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Checks that the sheet has no NaN, undefined, raw IDs, server errors, or page crashes indicating broken totals."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commits the required 30-minute schedule."
+    "note": "Commits the required 30-minute event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Adds the vendor named in the case to the event."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publishes the completed reverse auction as required by the scenario."
+    "note": "Publishes the configured reverse auction."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirms publication reached a real project page."
+    "note": "Confirms the event was successfully created and reached its project page."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Checks that the published event has no overflow symptoms, NaN/undefined values, server errors, or page crash."
+    "note": "Confirms publishing did not produce an application error."
    }
   ]
  }

@@ -3,48 +3,52 @@
   "caseId": "PRD-KBSRC-423",
   "title": "Only \"TR Submitted\" line items are eligible for re-evaluation",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:22:36.056Z",
+  "compiledAt": "2026-11-13T14:46:00.357Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Prepare an event with both TR Submitted and non-TR Submitted line items and open its Request Re-Evaluation drawer at Select Line Items"
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Prepare an event with both TR Submitted and non-TR Submitted line items and open its Request Re-Evaluation drawer at Select Line Items"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
-   "ask_tester",
+   "open_event",
+   "go_to",
    "do_on_screen",
-   "expect_visible"
+   "expect_text"
   ],
-  "ms": 14723
+  "ms": 16023
  },
  "plan": {
   "title": "TR Submitted Re-Evaluation Eligibility",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "open_event",
     "args": {
-     "need": "provide an event with both TR Submitted and non-TR Submitted line items and open the Request Re-Evaluation drawer at Select Line Items"
+     "purpose": "evaluation"
     },
-    "note": "The catalog cannot create or locate the required mixed TR status setup."
+    "note": "Open an existing event with a closed technical stage and a vendor response ready for evaluation."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfp"
+    },
+    "note": "Navigate to the technical stage where the re-evaluation action is available."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the open Request Re-Evaluation drawer, try to select a line item that is not TR Submitted and verify it cannot be selected, while confirming that only TR Submitted line items are selectable"
+     "goal": "Open the Request Re-Evaluation drawer, inspect Select Line Items, try to select a line item that is not marked TR Submitted, and verify that the non-TR Submitted item cannot be selected while TR Submitted items remain eligible; leave the drawer open."
     },
-    "note": "Performs the eligibility interaction directly on the buyer screen."
+    "note": "Perform and verify the drawer-specific eligibility behavior that no dedicated catalog step exposes."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "label": "Select Line Items",
-     "visible": true
+     "text": "Select Line Items"
     },
-    "note": "Confirms the re-evaluation line-item selection drawer remains the observed screen after the eligibility check."
+    "note": "Confirm the re-evaluation selection drawer remains visible after checking the eligibility rule."
    }
   ]
  }

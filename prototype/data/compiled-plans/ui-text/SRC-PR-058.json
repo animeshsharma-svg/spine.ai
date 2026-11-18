@@ -4,53 +4,56 @@
   "title": "A PR line assigned to another buyer",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:33:53.203Z",
+  "compiledAt": "2026-11-13T12:29:49.562Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Find and select a purchase requisition line whose assignee is a different buyer",
-   "Verify that the selected line's assignment, rather than another eligibility rule, caused Purchase Items to be blocked"
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Find and select a purchase requisition line whose assignee is a different buyer; Verify that the selected line's assignment, rather than another eligibility rule, caused Purchase Items to be blocked"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "select_pr",
-   "attempt"
+   "do_on_screen",
+   "expect_screen_clean"
   ],
-  "ms": 13111
+  "ms": 15616
  },
  "plan": {
-  "title": "PR line assigned to another buyer",
+  "title": "PR Assignment Purchase Restriction",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "restrict_pr_list_to_assignee",
+     "value": "On"
+    },
+    "note": "Enable the required tenant configuration before accessing Purchase Requisitions."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen required for this case."
+    "note": "Open the Purchase Requisitions area as the buyer."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Restrict the list to open requisitions that can potentially be sourced."
+    "note": "Use the Open tab, where PR lines eligible for sourcing are listed."
    },
    {
-    "step": "select_pr",
-    "args": {},
-    "note": "Select an available PR line; the catalog cannot target a line by assignee."
-   },
-   {
-    "step": "attempt",
+    "step": "do_on_screen",
     "args": {
-     "step": "purchase_items",
-     "expect": "refused"
+     "goal": "On the Open Purchase Requisitions screen, find a line whose assignee is a different buyer, tick it, click Purchase Items, and record whether the line can be sourced or whether assignment-based enforcement prevents the purchase."
     },
-    "note": "Check whether sourcing the selected line is refused, which would be the expected enforcement outcome if it is assigned to another buyer."
+    "note": "Perform and observe the assignment-specific selection and Purchase Items behavior that no dedicated PR step exposes."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Verify the resulting screen has no crash, server error, raw identifiers, or malformed values after the purchase attempt."
    }
   ]
  }

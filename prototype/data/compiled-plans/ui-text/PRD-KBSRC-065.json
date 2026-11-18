@@ -3,59 +3,117 @@
   "caseId": "PRD-KBSRC-065",
   "title": "Vendor sees the Best Offer banner and revises line items within the window",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:11:09.522Z",
+  "compiledAt": "2026-11-13T14:34:48.730Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Revise only the applicable line items while leaving other line items unchanged"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Revise only the applicable line items while leaving other line items unchanged"
+   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
+   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 16,
   "stepNames": [
-   "open_prepared",
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "expect_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
    "vendor_open_event",
    "expect_text",
    "vendor_bid",
    "expect_bid_submitted"
   ],
-  "ms": 13823
+  "ms": 12011
  },
  "plan": {
   "title": "Vendor Best Offer Revision",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "open_create",
     "args": {
-     "screen": "vendor"
+     "path": "erfx"
+    }
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    }
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    }
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_schedule"
+   },
+   {
+    "step": "invite_vendor"
+   },
+   {
+    "step": "publish"
+   },
+   {
+    "step": "expect_published"
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
     },
-    "note": "Open the prepared vendor-side event state where the Best Offer request has already been sent."
+    "note": "Open the supplier portal as the participating vendor."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing round as the participating vendor."
+    "note": "Open the event's pricing round where the Best Offer request should be shown."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Best Offer"
+     "text": "Best Offer",
+     "present": true
     },
-    "note": "Verify that the vendor sees the Best Offer request banner or notification."
+    "note": "Assert the vendor sees the prominent Best Offer request banner or notification."
    },
    {
     "step": "vendor_bid",
     "args": {},
-    "note": "Submit the vendor's revised quote during the available window; the default value is used because the case specifies no revision amount."
+    "note": "Revise the applicable quote line prices and submit the revised offer within the configured window."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the revised quote was accepted and the vendor round is shown as Submitted."
+    "note": "Assert the revised quote was accepted and the vendor round is marked Submitted."
    }
   ]
  }

@@ -4,15 +4,19 @@
   "title": "Revising while a counter offer is pending",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:47:38.329Z",
+  "compiledAt": "2026-11-13T12:40:29.688Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "open_master_qcs",
    "place_counter_offer",
    "expect_counter_offer_sent",
@@ -22,17 +26,25 @@
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 7345
+  "ms": 13857
  },
  "plan": {
-  "title": "Vendor bid revision blocked by pending counter offer",
+  "title": "SRC-REV-017 Pending Counter Offer Revision",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared event's Responses tab containing Vendor A's existing bid."
+    "note": "Open the prepared event where Vendor A already has a submitted bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure the RFQ exposes the buyer's counter-offer capability."
    },
    {
     "step": "open_master_qcs",
@@ -41,7 +53,7 @@
       "Vendor A"
      ]
     },
-    "note": "Open the buyer's comparison grid for Vendor A's bid before sending the counter offer."
+    "note": "Open the buyer's comparison grid before sending the counter offer."
    },
    {
     "step": "place_counter_offer",
@@ -49,14 +61,14 @@
      "vendor": "Vendor A",
      "price": 90
     },
-    "note": "Send a buyer counter offer on Vendor A's bid, leaving it pending."
+    "note": "Send the buyer's counter offer on Vendor A's bid."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Verify the buyer's grid marks the counter offer as initiated."
+    "note": "Verify the buyer grid marks the counter offer as initiated and pending."
    },
    {
     "step": "switch_portal",
@@ -64,14 +76,14 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Open the separate Vendor A portal session while keeping the buyer session available."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing round and bid sheet as Vendor A."
+    "note": "Open the prepared event's pricing round in the vendor portal."
    },
    {
     "step": "attempt",
@@ -83,7 +95,7 @@
      "expect": "refused",
      "because": "You have a counter offer pending on this bid"
     },
-    "note": "Attempt to revise the price and verify Procol refuses it because the counter offer is still pending."
+    "note": "Attempt to revise Vendor A's price and require Procol to refuse it because the counter offer is unanswered."
    }
   ]
  }

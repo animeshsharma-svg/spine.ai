@@ -4,19 +4,23 @@
   "title": "A live RFQ: \"Shared With\" opens the \"Participation Summary 1 Invited 0 Seen 0 Bid Placed 1 Bid Not Placed 0 Unregistered Poc Bids\" window",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:45:42.659Z",
+  "compiledAt": "2026-11-13T14:11:53.536Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "exact un-registered poc bids count matching in Participation Summary text breakdown without strict string parameters"
+   "Starting from a live RFQ with zero bids while also verifying the expected Participation Summary count of 1 Bid Placed and 0 Bid Not Placed",
+   "unconfirmed label \"1 Bid Placed\" (expect_text) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"0 Bid Not Placed\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: exact un-registered poc bids count matching in Participation Summary text breakdown without strict string parameters"
+   "coverage partial: unconfirmed label \"1 Bid Placed\" (expect_text) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"0 Bid Not Placed\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Starting from a live RFQ with zero bids while also verifying the expected Participation Summary count of 1 Bid Placed and 0 Bid Not Placed"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 13,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -24,21 +28,27 @@
    "require_setting",
    "require_setting",
    "event_menu",
-   "expect_text"
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_visible"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 20391
+  "ms": 14083
  },
  "plan": {
-  "title": "EXP-LIVERFQ-015 — A live RFQ: Shared With Participation Summary window",
+  "title": "Live RFQ Shared With Participation Summary",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Start on the prepared live RFQ responses tab"
+    "note": "Open the prepared live RFQ directly on its Responses tab."
    },
    {
     "step": "require_setting",
@@ -46,7 +56,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Turn on eRFX projects company setting"
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "require_setting",
@@ -54,7 +64,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "On"
     },
-    "note": "Remove Withdraw option setting"
+    "note": "Apply the requested tenant configuration."
    },
    {
     "step": "require_setting",
@@ -62,7 +72,7 @@
      "key": "disable_withdraw_during_submission_time",
      "value": "Off"
     },
-    "note": "Disable withdraw during submission time setting"
+    "note": "Apply the requested live-event withdrawal configuration."
    },
    {
     "step": "require_setting",
@@ -70,7 +80,7 @@
      "key": "is_vendor_masking_allowed_for_everyone",
      "value": "On"
     },
-    "note": "Vendor masking setting"
+    "note": "Apply the requested vendor-masking configuration."
    },
    {
     "step": "event_menu",
@@ -78,14 +88,58 @@
      "item": "Shared With",
      "stage": "rfq"
     },
-    "note": "Open Shared With from the RFQ stage Settings menu"
+    "note": "Open Shared With from the RFQ Settings menu without pressing any action in the resulting summary."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Participation Summary"
     },
-    "note": "Assert Participation Summary drawer is open"
+    "note": "Verify that the Participation Summary window opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "1 Invited"
+    },
+    "note": "Verify the invited count shown in the summary."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "0 Seen"
+    },
+    "note": "Verify the seen count shown in the summary."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "1 Bid Placed"
+    },
+    "note": "Verify the bid-placed count shown in the summary."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "0 Bid Not Placed"
+    },
+    "note": "Verify the bid-not-placed count shown in the summary."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "0 Unregistered Poc Bids"
+    },
+    "note": "Verify the unregistered POC bids count shown in the summary."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Notify",
+     "visible": true
+    },
+    "note": "Verify that the Notify button is available and that no notification action was pressed."
    }
   ]
  }

@@ -3,16 +3,19 @@
   "caseId": "PRD-PR-067",
   "title": "PR Linkage to Non-PR Event: refused for a user without the Buyer role",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:34:08.643Z",
+  "compiledAt": "2026-11-13T15:21:20.245Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and verify whether PR linkage to a standalone event is refused or absent.",
-   "Perform PR linkage from a purchase request to an existing standalone non-PR event.",
-   "Repeat the linkage attempt as a Buyer in the same tenant and compare the outcome."
+   "Sign in as a user without the Buyer role and as a Buyer on the same tenant",
+   "Link a purchase request to an existing standalone non-PR event",
+   "Compare the refusal or absence for the non-Buyer with availability for the Buyer",
+   "Verify or configure that the tenant is on the Growth plan",
+   "unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify whether PR linkage to a standalone event is refused or absent.; Perform PR linkage from a purchase request to an existing standalone non-PR event.; Repeat the linkage attempt as a Buyer in the same tenant and compare the outcome."
+   "coverage partial: unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer on the same tenant; Link a purchase request to an existing standalone non-PR event; Compare the refusal or absence for the non-Buyer with availability for the Buyer; Verify or configure that the tenant is on the Growth plan"
   ],
   "source": "llm",
   "steps": 4,
@@ -20,36 +23,39 @@
    "open_purchase_requisitions",
    "pr_tab",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_visible"
   ],
-  "ms": 13507
+  "ms": 12145
  },
  "plan": {
-  "title": "PR linkage RBAC by buyer role",
+  "title": "PR Linkage Permission by Buyer Role",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Reach the PR workflow screen before the missing role-specific operation."
+    "note": "Reaches the purchase requisition flow that is the closest available starting point for PR linkage."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Show eligible purchase requests that could be used for the linkage attempt."
+    "note": "Shows open purchase requests eligible for the requested linkage attempt."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Buyer user and then as a Buyer in the same tenant, attempt to link an open purchase request to an existing standalone event for both users, and report whether the action is absent, refused, or succeeds"
+     "need": "sign in as the non-Buyer and Buyer users on the same Growth tenant, attempt linking an open PR to an existing standalone non-PR event as each user, and report whether the action is refused or unavailable for the non-Buyer and available for the Buyer"
     },
-    "note": "User switching, the PR-to-existing-event linkage action, and the role comparison are not expressible by catalog steps."
+    "note": "The catalog has no step for role-specific sign-in or linking a PR to an existing non-PR event."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert the session remains free of a crash or server error after the delegated investigation; this does not assert the RBAC result."
+    "step": "expect_visible",
+    "args": {
+     "text": "Purchase Items",
+     "visible": true
+    },
+    "note": "Confirms the purchase requisition screen remains rendered after the tester-assisted attempt."
    }
   ]
  }

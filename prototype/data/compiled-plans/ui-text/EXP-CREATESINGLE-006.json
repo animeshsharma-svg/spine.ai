@@ -4,11 +4,11 @@
   "title": "Single stage create screen (RFQ with a product): \"All Vendors\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:37:41.368Z",
+  "compiledAt": "2026-11-13T14:00:28.485Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly verify that status, schedule times, vendors, and bids are unchanged from a prior state."
+   "Cannot verify every unchanged state named in the case, including event status, times, vendors, and bids; the create screen has no existing event status or bids and the catalog has no participant-window snapshot assertion."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -17,53 +17,80 @@
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Directly verify that status, schedule times, vendors, and bids are unchanged from a prior state."
+   "can only test part of this — no step for: Cannot verify every unchanged state named in the case, including event status, times, vendors, and bids; the create screen has no existing event status or bids and the catalog has no participant-window snapshot assertion."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 14,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "expect_line_items",
+   "remember",
    "click",
    "expect_visible",
    "click",
    "expect_visible",
-   "expect_navigated",
-   "expect_line_items"
+   "expect_remembered"
   ],
-  "ms": 70582
+  "ms": 16536
  },
  "plan": {
-  "title": "Single-stage RFQ Participants Cancel",
+  "title": "Single-stage RFQ All Vendors cancel",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the single-stage create screen specified by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Enable the required tenant configuration that prevents vendor additions during event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable the required read-only ceiling-price configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Apply the required terms-and-conditions configuration."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq",
-     "awarding": "lot"
+     "eventType": "rfq"
     },
-    "note": "Configure the event as an RFQ with whole-lot awarding."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the required event title so the create flow is valid."
+    "note": "Provide the mandatory title needed for a valid create-screen state."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Choose the available RFQ pricing template."
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Choose the Buy pricing template required before adding the product."
    },
    {
     "step": "add_line_items",
@@ -75,11 +102,12 @@
     "note": "Add the specified product with quantity 10."
    },
    {
-    "step": "expect_line_items",
+    "step": "remember",
     "args": {
-     "count": 1
+     "key": "items_before_cancel",
+     "text": "Items 1"
     },
-    "note": "Confirm the product was added before opening Participants."
+    "note": "Capture the current item indicator so the cancellation can be checked not to alter the event form."
    },
    {
     "step": "click",
@@ -87,7 +115,7 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the Participants window."
+    "note": "Open the Participants window on the single-stage create screen."
    },
    {
     "step": "expect_visible",
@@ -95,7 +123,7 @@
      "text": "All Vendors",
      "visible": true
     },
-    "note": "Verify that the All Vendors window opened."
+    "note": "Confirm that the All Vendors window opened."
    },
    {
     "step": "click",
@@ -114,18 +142,12 @@
     "note": "Verify that the All Vendors window closed."
    },
    {
-    "step": "expect_navigated",
+    "step": "expect_remembered",
     "args": {
-     "screen": "create"
+     "key": "items_before_cancel",
+     "same": true
     },
-    "note": "Verify that cancelling leaves the buyer on the single-stage create screen."
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Verify that cancelling did not remove or alter the configured product."
+    "note": "Verify that the visible event item state is unchanged after cancelling."
    }
   ]
  }

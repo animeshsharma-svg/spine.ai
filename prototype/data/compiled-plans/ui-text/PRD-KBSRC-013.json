@@ -3,36 +3,41 @@
   "caseId": "PRD-KBSRC-013",
   "title": "An RFQ and an Auction cannot be created together; max 2 stages at creation",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:07:31.151Z",
+  "compiledAt": "2026-11-13T14:30:48.281Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 10,
+  "steps": 8,
   "stepNames": [
    "open_create",
-   "compose_stages",
-   "expect_stages",
    "set_title",
+   "compose_stages",
    "open_add_stage_menu",
    "expect_add_stage_options",
    "compose_stages",
-   "expect_stages",
    "open_add_stage_menu",
    "expect_add_stage_options"
   ],
-  "ms": 10650
+  "ms": 9562
  },
  "plan": {
-  "title": "RFQ and Auction Stage Exclusivity",
+  "title": "RFQ and Auction Stage Exclusivity and Two-Stage Limit",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage project creation screen where stage selection is available."
+    "note": "Open the eRFX stage-selection screen."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "RFQ Auction Stage Rules"
+    },
+    "note": "Provide the required title for the create flow."
    },
    {
     "step": "compose_stages",
@@ -44,22 +49,6 @@
     "note": "Select RFQ as the initial stage."
    },
    {
-    "step": "expect_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Confirm that RFQ is the selected stage before checking incompatible options."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "RFQ Auction Stage Constraint Test"
-    },
-    "note": "Provide the required event title for this creation flow."
-   },
-   {
     "step": "open_add_stage_menu",
     "args": {},
     "note": "Open the stage selector to inspect which additional stages are allowed."
@@ -67,14 +56,16 @@
    {
     "step": "expect_add_stage_options",
     "args": {
+     "disabled": false,
      "offers": [
       "Technical Stage"
      ],
      "absent": [
       "Auction"
-     ]
+     ],
+     "reason": "Remove RFQ to add Auction"
     },
-    "note": "Assert that Auction cannot be added alongside RFQ while Technical Stage remains available."
+    "note": "Assert that Auction cannot be selected with RFQ and that the product explains why."
    },
    {
     "step": "compose_stages",
@@ -84,29 +75,19 @@
       "rfq"
      ]
     },
-    "note": "Add the permitted second stage to reach the maximum of two stages."
-   },
-   {
-    "step": "expect_stages",
-    "args": {
-     "stages": [
-      "rfp",
-      "rfq"
-     ]
-    },
-    "note": "Confirm that exactly the two selected stages are present."
+    "note": "Create the valid two-stage combination needed to test the maximum-stage limit."
    },
    {
     "step": "open_add_stage_menu",
     "args": {},
-    "note": "Reopen the selector after two stages have been selected."
+    "note": "Open the stage selector after two stages are present."
    },
    {
     "step": "expect_add_stage_options",
     "args": {
      "disabled": true
     },
-    "note": "Assert that no third stage can be selected once the two-stage limit is reached."
+    "note": "Assert that no third stage can be added."
    }
   ]
  }

@@ -1,42 +1,45 @@
 {
  "meta": {
   "caseId": "DRV-AUC-002",
-  "title": "Non‑buyer role cannot see auction strategy selection",
+  "title": "Rank-based auction ranking calculation updates correctly across draft, live, and closed states",
   "group": "DRV-AUC",
   "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
-  "compiledAt": "2026-11-12T13:24:39.670Z",
+  "compiledAt": "2026-11-13T13:21:32.567Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Ensure the source live RFQ has exactly QA_Platform_TNA marked TNA on all lines and QA_Platform_Regular as the other vendor before conversion.",
+   "unconfirmed label \"QA_Platform_TNA\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"QA_Platform_TNA\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Ensure the source live RFQ has exactly QA_Platform_TNA marked TNA on all lines and QA_Platform_Regular as the other vendor before conversion."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "convert_to_auction",
-   "open_participants",
-   "expect_participant",
-   "expect_participant",
-   "expect_participant_count"
+   "click",
+   "expect_text",
+   "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 26840
+  "ms": 1387
  },
  "plan": {
-  "title": "TNA Vendors Excluded During Auction Conversion",
+  "title": "Conversion drops TNA vendors by default",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared buyer-side RFQ without inventing an event or searching the list."
    },
    {
     "step": "require_setting",
@@ -44,42 +47,36 @@
      "key": "allow_tna_vendors_to_bid",
      "value": "Off"
     },
-    "note": "Ensure TNA vendors are configured to be excluded during conversion."
+    "note": "Configure the tenant so TNA vendors should be excluded during conversion."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Convert the published RFQ into an auction."
+    "note": "Convert the published RFQ into an auction, including the conversion confirmation flow."
    },
    {
-    "step": "open_participants",
-    "args": {},
-    "note": "Open the new auction's participant list to inspect its bidding audience."
-   },
-   {
-    "step": "expect_participant",
+    "step": "click",
     "args": {
-     "vendor": "QA_Platform_Regular",
-     "present": true,
-     "selected": true,
-     "addBid": true
+     "role": "button",
+     "name": "Participants"
     },
-    "note": "Verify the regular vendor remains selected and eligible to bid."
+    "note": "Open the converted auction's participant view."
    },
    {
-    "step": "expect_participant",
+    "step": "expect_text",
     "args": {
-     "vendor": "QA_Platform_TNA",
+     "text": "QA_Platform_Regular",
+     "present": true
+    },
+    "note": "Verify the regular vendor appears in the converted auction audience."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "QA_Platform_TNA",
      "present": false
     },
-    "note": "Verify the all-TNA vendor is excluded from the auction audience."
-   },
-   {
-    "step": "expect_participant_count",
-    "args": {
-     "count": 1
-    },
-    "note": "Confirm that only the regular vendor remains as a participant."
+    "note": "Verify the TNA vendor is absent from the converted auction audience."
    }
   ]
  }

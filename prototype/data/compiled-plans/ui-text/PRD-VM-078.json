@@ -3,39 +3,78 @@
   "caseId": "PRD-VM-078",
   "title": "Vendor Form Sections (vendor.form.sections) = default set (Basic Info, Banking, Documents, Tax)",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T06:27:13.690Z",
+  "compiledAt": "2026-11-13T15:09:40.138Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set the tenant setting vendor.form.sections to Basic Info, Banking, Documents, and Tax.",
-   "Import vendors directly from the enterprise VMS/VRP using VMS / VRP Import.",
-   "Observe and assert that exactly Basic Info, Banking, Documents, and Tax are the visible and required vendor onboarding form sections."
+   "Import vendors directly from the enterprise's existing VMS/VRP using VMS / VRP Import",
+   "Verify the onboarding form's section required-state behavior",
+   "Verify that exactly Basic Info, Banking, Documents, and Tax are the only visible sections"
   ],
   "warnings": [
-   "can only test part of this — no step for: Set the tenant setting vendor.form.sections to Basic Info, Banking, Documents, and Tax.; Import vendors directly from the enterprise VMS/VRP using VMS / VRP Import.; Observe and assert that exactly Basic Info, Banking, Documents, and Tax are the visible and required vendor onboarding form sections."
+   "can only test part of this — no step for: Import vendors directly from the enterprise's existing VMS/VRP using VMS / VRP Import; Verify the onboarding form's section required-state behavior; Verify that exactly Basic Info, Banking, Documents, and Tax are the only visible sections"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text"
   ],
-  "ms": 70821
+  "ms": 14600
  },
  "plan": {
-  "title": "PRD-VM-078 Vendor Form Sections Default",
+  "title": "Vendor Form Sections Default",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "vendor.form.sections",
+     "value": "Basic Info, Banking, Documents, Tax"
+    },
+    "note": "Configure the tenant with the requested default section set before inspecting the form."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "set vendor.form.sections to Basic Info, Banking, Documents, and Tax, import vendors through VMS / VRP Import, and inspect the vendor onboarding form to verify exactly those sections are visible and required"
+     "need": "use VMS / VRP Import to import vendors and open the vendor onboarding form so its visible and required sections can be inspected"
     },
-    "note": "No catalog step can change this tenant setting, perform the VMS/VRP import, or observe the resulting vendor onboarding form."
+    "note": "The catalog has no VMS/VRP import or vendor onboarding-form workflow."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the session remains free of application errors after the tester completes or skips the unavailable workflow."
+    "step": "expect_text",
+    "args": {
+     "text": "Basic Info",
+     "present": true
+    },
+    "note": "Closest available check for one expected section being visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Banking",
+     "present": true
+    },
+    "note": "Closest available check for one expected section being visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Documents",
+     "present": true
+    },
+    "note": "Closest available check for one expected section being visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Tax",
+     "present": true
+    },
+    "note": "Closest available check for one expected section being visible."
    }
   ]
  }

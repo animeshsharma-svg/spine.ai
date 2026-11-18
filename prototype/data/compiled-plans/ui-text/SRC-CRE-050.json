@@ -4,7 +4,7 @@
   "title": "Details of a row",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:19:55.497Z",
+  "compiledAt": "2026-11-13T11:53:36.982Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
@@ -20,19 +20,26 @@
    "can only test part of this — no step for: Assert that the product details fields are read-only"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 16,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
-   "do_on_screen",
+   "add_line_items",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
    "click",
+   "expect_text",
    "expect_text",
    "expect_text",
    "expect_text"
   ],
-  "ms": 11711
+  "ms": 19272
  },
  "plan": {
   "title": "Single-stage RFQ product details",
@@ -49,53 +56,123 @@
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ as required by the case."
+    "note": "Switch the default event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title so the create flow is valid."
+    "args": {
+     "title": "SRC-CRE-050 Product Details"
+    },
+    "note": "Provide the mandatory event title for a create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an available RFQ template so the product sheet appears."
+    "note": "Apply the first available RFQ template so the pricing sheet can be populated."
    },
    {
-    "step": "do_on_screen",
+    "step": "add_line_items",
     "args": {
-     "goal": "on the single-stage RFQ product sheet, select the product CYLINDER and the variant CYLINDER WITH KEY & KNOB so Product Variant shows Default Variant, set Quantity Requested to 10, choose Plant Name (LOC-0001) for Delivery location, and stop with the populated row visible"
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "The catalog has no dedicated step for choosing the named product, variant, or delivery location in the sheet, so perform those buyer-side interactions directly."
+    "note": "Add the specified product to the first sheet row."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product",
+     "contains": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Confirm the requested product was added."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "equals": "Variant 1"
+    },
+    "note": "Verify the product automatically receives the mapped Variant 1 value."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Enter the requested quantity."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10",
+     "kept": true
+    },
+    "note": "Confirm the quantity remains in the sheet."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Choose the specified delivery location from the dropdown."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "contains": "Plant Name (LOC-0001)"
+    },
+    "note": "Confirm the selected delivery location."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Details"
+     "name": "Details",
+     "within": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Open the Details view for the populated product row."
+    "note": "Open the product row's Details view."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Specification"
+     "text": "Code",
+     "present": true
     },
-    "note": "Verify that the product details include specification information."
+    "note": "Verify the details view exposes the product code."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Attachments"
+     "text": "Variant",
+     "present": true
     },
-    "note": "Verify that the product details include attachments information."
+    "note": "Verify the details view exposes the product variant."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "CYLINDER WITH KEY & KNOB"
+     "text": "Specification",
+     "present": true
     },
-    "note": "Verify that the opened details identify the selected product variant."
+    "note": "Verify the details view exposes product specifications."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Attachments",
+     "present": true
+    },
+    "note": "Verify the details view exposes the attachments section."
    }
   ]
  }

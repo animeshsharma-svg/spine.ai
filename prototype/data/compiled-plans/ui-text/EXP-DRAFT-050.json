@@ -4,30 +4,82 @@
   "title": "Manage Line Items: Save fails when Quantity is zero",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:45:13.511Z",
+  "compiledAt": "2026-11-13T14:07:14.477Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
-  "source": "llm",
-  "steps": 6,
-  "stepNames": [
-   "open_event",
-   "click",
-   "fill",
-   "fill",
-   "click",
-   "expect_message"
+  "warnings": [
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen"
   ],
-  "ms": 15363
+  "source": "llm",
+  "steps": 12,
+  "stepNames": [
+   "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_events_list",
+   "filter_events",
+   "open_first_event",
+   "click",
+   "fill",
+   "fill",
+   "click",
+   "expect_toast"
+  ],
+  "ms": 17935
  },
  "plan": {
-  "title": "Manage Line Items Rejects Zero Quantity",
+  "title": "Draft line item rejects zero quantity",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_events_list",
     "args": {},
-    "note": "Open an existing saved draft event without inventing a title or ID."
+    "note": "Open the events list to reach the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required tenant configuration."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered successfully."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Switch to the Drafts tab specified by the case."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the first available saved eRFX draft without inventing an event title."
    },
    {
     "step": "click",
@@ -35,39 +87,42 @@
      "role": "button",
      "name": "Items 1"
     },
-    "note": "Open the Manage Line Items window for the draft’s existing line item."
+    "note": "Open the Manage Line Items window for the draft's existing line item."
    },
    {
     "step": "fill",
     "args": {
      "label": "Quantity",
-     "value": "0"
+     "value": "0",
+     "within": "Manage Line Items"
     },
-    "note": "Enter the invalid zero quantity."
+    "note": "Enter the invalid zero quantity specified by the case."
    },
    {
     "step": "fill",
     "args": {
      "label": "Price",
-     "value": "1200"
+     "value": "1200",
+     "within": "Manage Line Items"
     },
-    "note": "Enter the specified price so the validation is isolated to quantity."
+    "note": "Enter the price specified by the case before attempting to save."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Save"
+     "name": "Save",
+     "within": "Manage Line Items"
     },
-    "note": "Attempt to save the line item changes."
+    "note": "Attempt to save the edited line item."
    },
    {
-    "step": "expect_message",
+    "step": "expect_toast",
     "args": {
-     "kind": "toast",
+     "kind": "error",
      "text": "Please fill valid quantity on every line item"
     },
-    "note": "Assert that Procol refuses the save with the documented quantity validation message."
+    "note": "Assert that Procol refuses the save because the quantity is zero."
    }
   ]
  }

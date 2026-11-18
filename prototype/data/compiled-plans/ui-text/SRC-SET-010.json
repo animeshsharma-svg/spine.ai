@@ -4,20 +4,24 @@
   "title": "A single-stage RFQ created from an open material PR line",
   "group": "SRC-SET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:16:46.581Z",
+  "compiledAt": "2026-11-13T12:55:02.104Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Select the PR line specifically by Item Type Material, product CYLINDER WITH KEY & KNOB, quantity 10, and location Plant Name (LOC-0001).",
+   "Verify that the source PR line moved to In Progress after publishing."
+  ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 7 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
    "added place_bid — the test is about bidding and no bid step was planned",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 7 step(s) that would open a blank event or replace the PR's items",
-   "added place_bid — the test is about bidding and no bid step was planned"
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "added place_bid — the test is about bidding and no bid step was planned",
+   "can only test part of this — no step for: Select the PR line specifically by Item Type Material, product CYLINDER WITH KEY & KNOB, quantity 10, and location Plant Name (LOC-0001).; Verify that the source PR line moved to In Progress after publishing."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 16,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -27,16 +31,19 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
-   "invite_vendor",
+   "require_setting",
+   "require_setting",
+   "set_title",
    "set_schedule",
+   "invite_vendor",
    "publish",
    "expect_published",
    "place_bid"
   ],
-  "ms": 125142
+  "ms": 19965
  },
  "plan": {
-  "title": "A single-stage RFQ created from an open material PR line",
+  "title": "Single-stage RFQ from open material PR",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -74,28 +81,51 @@
     "step": "fill_sheet"
    },
    {
-    "step": "invite_vendor",
+    "step": "require_setting",
     "args": {
-     "count": 2
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Add Vendor A and Vendor B under Participants"
+    "note": "Enable eRFX project creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "PR-based RFQ"
+    },
+    "note": "Provide the mandatory event title before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Configure event schedule with a 30-minute duration and save"
+    "note": "Commit the 30-minute schedule requested by the case."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Add exactly two QA vendors without inventing real supplier names."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the single-stage RFQ event"
+    "note": "Publish the completed single-stage RFQ."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that the event successfully published and reached the project page"
+    "note": "Verify that the event is live on a real published project page."
    },
    {
     "step": "place_bid"

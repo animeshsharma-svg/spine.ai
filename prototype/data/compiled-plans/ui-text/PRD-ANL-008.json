@@ -3,49 +3,64 @@
   "caseId": "PRD-ANL-008",
   "title": "AI Spend Insights with Standard Dashboards (Feature) correctly configured (DEP-004)",
   "group": "PRD-ANL",
-  "compiledAt": "2026-11-10T06:35:09.525Z",
+  "compiledAt": "2026-11-13T15:30:11.548Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Activate MOD-07 Analytics for the tenant",
-   "Configure the Standard Dashboards feature FEAT-ANL-001",
-   "Configure the AI Spend Insights feature flag FF-004",
-   "Exercise and observe the AI Spend Insights controls",
-   "Verify the DEP-004 failure impact is absent"
+   "Exercise the AI Spend Insights controls and verify that the configured behavior works without the DEP-004 failure impact."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Activate MOD-07 Analytics for the tenant; Configure the Standard Dashboards feature FEAT-ANL-001; Configure the AI Spend Insights feature flag FF-004; Exercise and observe the AI Spend Insights controls; Verify the DEP-004 failure impact is absent"
+   "can only test part of this — no step for: Exercise the AI Spend Insights controls and verify that the configured behavior works without the DEP-004 failure impact."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
-   "open_prepared",
-   "inventory_screen",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 11156
+  "ms": 9036
  },
  "plan": {
-  "title": "AI Spend Insights configuration",
+  "title": "AI Spend Insights with Standard Dashboards",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "require_setting",
     "args": {
-     "screen": "analytics"
+     "phrase": "Analytics",
+     "value": "On"
     },
-    "note": "Reach the closest available standard analytics dashboard screen."
+    "note": "Enable the required Analytics module before configuring dependent features."
    },
    {
-    "step": "inventory_screen",
+    "step": "require_setting",
     "args": {
-     "label": "analytics-dashboard"
+     "phrase": "Price-Trend Dashboard",
+     "value": "On"
     },
-    "note": "Record the controls and content exposed on the analytics screen, since no domain step specifically observes AI Spend Insights."
+    "note": "Configure the required Standard Dashboards dependency."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "AI Spend Insights",
+     "value": "On"
+    },
+    "note": "Configure the AI Spend Insights feature flag."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "exercise the AI Spend Insights controls and verify the configured behavior works without the DEP-004 failure impact"
+    },
+    "note": "No catalog step can reach or assert the AI Spend Insights controls."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Check that the reached dashboard has no crash, server error, raw identifiers, or invalid values."
+    "note": "Assert the resulting screen has no visible crash, server error, or malformed content after the feature exercise."
    }
   ]
  }

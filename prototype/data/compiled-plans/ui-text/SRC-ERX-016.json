@@ -4,35 +4,39 @@
   "title": "A technical stage needs an evaluator",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:17:17.989Z",
+  "compiledAt": "2026-11-13T12:02:18.250Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
-   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 17,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
    "select_template",
-   "add_line_items",
-   "fill_questionnaires",
    "switch_stage",
    "select_template",
+   "add_line_items",
    "fill_sheet",
+   "switch_stage",
+   "fill_questionnaires",
+   "switch_stage",
    "set_schedule",
    "invite_vendor",
    "expect_publish_blocked"
   ],
-  "ms": 7238
+  "ms": 15567
  },
  "plan": {
-  "title": "Technical stage evaluator required",
+  "title": "Technical Stage Requires Evaluator",
   "steps": [
    {
     "step": "open_create",
@@ -42,11 +46,27 @@
     "note": "Open the eRFX project creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation so publishing is not blocked by tenant configuration."
+   },
+   {
     "step": "set_title",
     "args": {
-     "title": "Technical evaluator requirement test"
+     "title": "Technical Evaluator Required"
     },
-    "note": "Provide the mandatory project title."
+    "note": "Provide the required project title."
    },
    {
     "step": "compose_stages",
@@ -56,31 +76,18 @@
       "rfq"
      ]
     },
-    "note": "Configure the project with Technical and RFQ stages."
+    "note": "Create the requested Technical plus RFQ project."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Configure the Technical stage."
+    "note": "Configure the Technical Stage."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply a template to the Technical stage."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the required line item for the RFQ project."
-   },
-   {
-    "step": "fill_questionnaires",
-    "args": {},
-    "note": "Fill the Vendor Assessment and technical questionnaire while leaving evaluators unassigned."
+    "note": "Apply a template to the Technical Stage."
    },
    {
     "step": "switch_stage",
@@ -91,34 +98,57 @@
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply an RFQ pricing template."
+    "note": "Apply a pricing template to the RFQ stage."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item for the RFQ project."
    },
    {
     "step": "fill_sheet",
-    "args": {},
     "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Return to the Technical Stage."
+   },
+   {
+    "step": "fill_questionnaires",
+    "note": "Fill the Vendor Assessment and technical questionnaire while deliberately leaving evaluator assignment undone."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Return to the RFQ stage for scheduling and participants."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Save the event schedule."
+    "note": "Save a valid event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add one QA vendor participant, satisfying the participant prerequisite."
+    "note": "Add one QA vendor participant without inventing a vendor name."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Please add Evaluator in the Technical Stage"
     },
-    "note": "Assert publishing is refused because the Technical stage has no evaluator."
+    "note": "Assert that Publish is refused because the Technical Stage has no evaluator."
    }
   ]
  }

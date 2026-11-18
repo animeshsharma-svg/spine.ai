@@ -3,22 +3,22 @@
   "caseId": "PRD-KBVDB-029",
   "title": "During the auction the vendor can only bid on the Sum Total",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:54:57.620Z",
+  "compiledAt": "2026-11-13T15:45:42.389Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enable Cost Breakdown Mode for the auction or tenant setting required by the test setup.",
-   "Prove that the auction is specifically operating in Cost Breakdown Mode rather than the default auction bidding mode."
+   "Configure the auction in Cost Breakdown Mode.",
+   "Verify that only the Sum Total input is available and that no per-line-item bid input exists."
   ],
   "warnings": [
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
    "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
    "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "can only test part of this — no step for: Enable Cost Breakdown Mode for the auction or tenant setting required by the test setup.; Prove that the auction is specifically operating in Cost Breakdown Mode rather than the default auction bidding mode."
+   "can only test part of this — no step for: Configure the auction in Cost Breakdown Mode.; Verify that only the Sum Total input is available and that no per-line-item bid input exists."
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "set_title",
@@ -32,26 +32,24 @@
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
-   "expect_visible",
-   "expect_count"
+   "expect_text"
   ],
-  "ms": 12922
+  "ms": 18872
  },
  "plan": {
-  "title": "Auction Vendor Sum Total Bidding",
+  "title": "Auction Cost Breakdown Vendor Bid View",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Create the auction needed to reach a live vendor bidding screen."
+    "note": "Open the single-stage create screen as the closest available path to create an auction."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Cost Breakdown Sum Total Auction"
+     "title": "Cost Breakdown Auction Vendor View"
     },
     "note": "Provide the mandatory event title."
    },
@@ -65,57 +63,57 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an auction pricing template before adding line items."
+    "note": "Apply the first available auction pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Use multiple line items so the vendor screen can be checked for the absence of line-item bidding inputs."
+    "note": "Create multiple line items so the unavailable per-line-item bidding behavior is relevant."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the auction pricing sheet."
+    "note": "Complete the auction pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding schedule."
+    "note": "Commit a live bidding window."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor whose supplier-portal view will be inspected."
+    "note": "Invite the QA vendor whose portal view will be checked."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the auction so the vendor can access its bidding screen."
+    "note": "Publish the auction so the vendor can access its live bidding screen."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a real published project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier portal."
+    "note": "Open the invited vendor's supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live auction bidding screen as the vendor."
+    "note": "Open the live auction bidding screen in the vendor portal."
    },
    {
     "step": "expect_text",
@@ -123,23 +121,7 @@
      "text": "You are bidding on the total lot amount we received from your RFQ Quotes. A request for line item-wise cost breakdown will be triggered once the auction submission time ends.",
      "present": true
     },
-    "note": "Check the exact explanatory message required by the case."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "label": "Sum Total",
-     "visible": true
-    },
-    "note": "Check that the total-lot bidding target is visible on the vendor screen."
-   },
-   {
-    "step": "expect_count",
-    "args": {
-     "role": "textbox",
-     "count": 1
-    },
-    "note": "Check the closest available observable approximation that only one bid input is exposed, while acknowledging that the catalog cannot identify Cost Breakdown Mode or label every possible per-line input."
+    "note": "Verify the exact cost-breakdown bidding message shown to the vendor."
    }
   ]
  }

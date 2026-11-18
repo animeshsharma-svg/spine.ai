@@ -4,25 +4,24 @@
   "title": "Asset PR → eRFX Auction-only project → split award → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:16:36.849Z",
+  "compiledAt": "2026-11-13T12:01:07.428Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the selected PR line is specifically an asset line with quantity 10",
-   "Verify that the PR line is marked ordered after PO creation",
-   "Verify that the asset assignment for Vendor A reaches the PO"
+   "Verify that the asset assignment reaches the created purchase order.",
+   "Directly verify that the originating PR line is marked ordered."
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
    "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
    "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: Verify that the selected PR line is specifically an asset line with quantity 10; Verify that the PR line is marked ordered after PO creation; Verify that the asset assignment for Vendor A reaches the PO"
+   "can only test part of this — no step for: Verify that the asset assignment reaches the created purchase order.; Directly verify that the originating PR line is marked ordered."
   ],
   "source": "llm",
-  "steps": 30,
+  "steps": 36,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -32,6 +31,9 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_title",
    "invite_vendor",
    "set_schedule",
@@ -46,8 +48,11 @@
    "close_event",
    "open_master_qcs",
    "expect_qcs_ranks",
+   "expect_qcs_amounts",
    "start_awarding",
-   "expect_awarded",
+   "allocate_award",
+   "allocate_award",
+   "expect_award_counters",
    "approve_award",
    "create_po",
    "expect_po_items",
@@ -55,10 +60,10 @@
    "filter_events",
    "expect_event_in_list"
   ],
-  "ms": 26060
+  "ms": 24875
  },
  "plan": {
-  "title": "Asset PR to Split Auction Award and PO",
+  "title": "Asset PR Auction Split Award to PO",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -93,6 +98,30 @@
     "step": "fill_sheet"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for this case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable split awarding across vendors."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
     "step": "set_title",
     "args": {
      "title": "Asset PR Auction Split Award"
@@ -111,24 +140,24 @@
       "Vendor B"
      ]
     },
-    "note": "Invite the two vendors named in the case."
+    "note": "Add the two vendors named in the case."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit the requested Start now, 30-minute schedule."
+    "note": "Commit the requested 30-minute schedule."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the auction event."
+    "note": "Publish the configured auction event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publication reached a real project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "place_bid",
@@ -141,7 +170,7 @@
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that Vendor A's initial bid was accepted."
+    "note": "Verify the initial vendor bid was accepted."
    },
    {
     "step": "place_bid",
@@ -149,12 +178,12 @@
      "vendor": "Vendor A",
      "price": 85
     },
-    "note": "Submit Vendor A's revised bid."
+    "note": "Submit Vendor A's revised bid at 85."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that Vendor A's revised bid was accepted."
+    "note": "Verify the revised bid was accepted."
    },
    {
     "step": "place_bid",
@@ -162,17 +191,19 @@
      "vendor": "Vendor B",
      "price": 88
     },
-    "note": "Submit Vendor B's bid."
+    "note": "Submit Vendor B's bid at 88."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that Vendor B's bid was accepted."
+    "note": "Verify Vendor B's bid was accepted."
    },
    {
     "step": "close_event",
-    "args": {},
-    "note": "Close the auction before ranking and awarding."
+    "args": {
+     "natural": true
+    },
+    "note": "Wait for the auction to close before comparison and awarding."
    },
    {
     "step": "open_master_qcs",
@@ -182,7 +213,7 @@
       "Vendor B"
      ]
     },
-    "note": "Open the comparison grid containing both bidding vendors."
+    "note": "Open the buyer comparison grid for both bids."
    },
    {
     "step": "expect_qcs_ranks",
@@ -190,53 +221,80 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Assert that the lowest bid ranks first, making Vendor A rank 1 at 85."
+    "note": "Verify the lowest bid ranks first, making Vendor A rank 1 at 85."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify the comparison grid calculates bid amounts correctly."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding flow after the auction has closed."
+    "note": "Enter the awarding flow for the closed auction."
    },
    {
-    "step": "expect_awarded",
-    "args": {},
-    "note": "Assert that the split-award proposal was created and submitted."
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor A",
+     "quantity": 6,
+     "line": 1
+    },
+    "note": "Allocate six units to Vendor A."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 4,
+     "line": 1
+    },
+    "note": "Allocate four units to Vendor B."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "2/2",
+     "proposal": 862
+    },
+    "note": "Verify the split is complete and totals 6×85 + 4×88 = 862."
    },
    {
     "step": "approve_award",
     "args": {
-     "remark": "Approved for the split asset award."
+     "remark": "Approved for asset procurement"
     },
     "note": "Approve the submitted award with the required remark."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete the approved award and create the purchase orders."
+    "note": "Complete approval and create the purchase orders from the award."
    },
    {
     "step": "expect_po_items",
     "args": {
      "count": 2
     },
-    "note": "Assert that the resulting POs contain the two awarded vendor line entries."
+    "note": "Verify the split award produced PO lines for both awarded vendors."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to verify the final event location."
+    "note": "Return to the events list to verify the event's final location."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Open the History tab after the event has ended and been awarded."
+    "note": "Open the History tab for completed events."
    },
    {
     "step": "expect_event_in_list",
     "args": {},
-    "note": "Assert that this plan's event appears in History."
+    "note": "Verify this plan's event appears in History."
    }
   ]
  }

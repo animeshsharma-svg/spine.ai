@@ -3,56 +3,150 @@
   "caseId": "PRD-KBVON-047",
   "title": "Section scores are auto-summed",
   "group": "PRD-KBVON",
-  "compiledAt": "2026-11-10T04:18:55.949Z",
+  "compiledAt": "2026-11-13T15:18:03.870Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 18,
   "stepNames": [
-   "open_event",
-   "go_to",
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
    "evaluate_technical",
    "do_on_screen",
    "expect_no_error"
   ],
-  "ms": 13757
+  "ms": 22559
  },
  "plan": {
-  "title": "Technical Section Scores Auto-Sum",
+  "title": "Section scores auto-sum",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
     "args": {
-     "purpose": "evaluation"
+     "path": "erfx"
     },
-    "note": "Open an existing event whose technical stage is closed and has a vendor response awaiting evaluator scoring."
+    "note": "Open the multi-stage event creation flow."
    },
    {
-    "step": "go_to",
+    "step": "set_title",
     "args": {
-     "screen": "stage",
+     "title": "Section Score Auto Sum"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    },
+    "note": "Configure a technical stage for evaluation scoring."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
      "stage": "rfp"
     },
-    "note": "Navigate to the technical stage where the selected Evaluation Matrix section and its questions are scored."
+    "note": "Move to the technical stage before configuring its template and questions."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Select the Evaluation Matrix template required for section scoring."
+   },
+   {
+    "step": "add_line_items",
+    "args": {},
+    "note": "a product is needed before participants or publishing"
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Populate the technical questions, including the section to be scored."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Assign the evaluator who will score the vendor response."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the technical stage schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a vendor so the technical stage receives a response."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can answer."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Submit the vendor's technical response for evaluation."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor response was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the technical round so evaluation becomes available."
    },
    {
     "step": "evaluate_technical",
     "args": {},
-    "note": "Assign scores to the vendor's technical responses and submit the evaluation."
+    "note": "Use the assigned evaluator flow to score the vendor's technical response."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the evaluator's technical scoring screen, verify that one selected Evaluation Matrix section shows a top section total equal to the sum of all question scores entered in that section; stop when the section total and its contributing question scores are visible"
+     "goal": "On the evaluator's technical scoring screen, assign scores to every question in one section, read the section total shown at the top of that section, and verify that it equals the sum of the question scores entered; stop when the matching section total is visible."
     },
-    "note": "Observe the section-level auto-sum and compare it with the individual question scores."
+    "note": "Perform and verify the section-level auto-sum, which is not exposed by a dedicated catalog assertion."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm that the evaluation screen completed without an application error."
+    "note": "Confirm no error appeared while saving or displaying the section total."
    }
   ]
  }

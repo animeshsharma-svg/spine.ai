@@ -4,44 +4,55 @@
   "title": "Counter offer after an accepted one",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:37:19.210Z",
+  "compiledAt": "2026-11-13T12:17:58.569Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "open_master_qcs",
+   "require_setting",
+   "require_setting",
    "place_counter_offer",
    "expect_counter_offer_sent",
    "accept_counter_offer",
    "expect_counter_offer_accepted",
    "attempt"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 11892
+  "ms": 15385
  },
  "plan": {
-  "title": "Counter offer blocked after acceptance",
+  "title": "Block Counter Offer After Acceptance",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ Responses screen with Vendor A's existing bid."
+    "note": "Open the prepared RFQ Responses tab with Vendor A's own bid."
    },
    {
-    "step": "open_master_qcs",
+    "step": "require_setting",
     "args": {
-     "vendors": [
-      "Vendor A"
-     ]
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
     },
-    "note": "Open the buyer comparison grid where the counter-offer control is available."
+    "note": "Ensure counter offers are visible on RFQ stages."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled for the prepared RFQ."
    },
    {
     "step": "place_counter_offer",
@@ -50,28 +61,28 @@
      "price": 90,
      "remark": "Best price please"
     },
-    "note": "Send the first counter offer, changing Vendor A's price to 90 with the required remark."
+    "note": "Send the initial counter offer reducing Vendor A's price from 100 to 90."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Verify that the first counter offer was initiated for Vendor A."
+    "note": "Confirm the first counter offer is marked as initiated for Vendor A."
    },
    {
     "step": "accept_counter_offer",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Have Vendor A accept the pending counter offer through the supplier portal."
+    "note": "Have Vendor A accept the pending counter offer in the supplier portal."
    },
    {
     "step": "expect_counter_offer_accepted",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Verify on the buyer side that Vendor A's counter offer is marked accepted."
+    "note": "Confirm the buyer's Responses grid records Vendor A's acceptance."
    },
    {
     "step": "attempt",
@@ -81,10 +92,10 @@
       "vendor": "Vendor A",
       "price": 90
      },
-     "because": "Accepted bid exists. You cannot perform this action.",
-     "expect": "refused"
+     "expect": "refused",
+     "because": "Accepted bid exists. You cannot perform this action."
     },
-    "note": "Attempt a second counter offer after acceptance and require Procol's stated refusal."
+    "note": "Try another counter offer and require Procol's accepted-bid refusal."
    }
   ]
  }

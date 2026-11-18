@@ -4,11 +4,12 @@
   "title": "Configuration for Event: Save event when ceiling price is allowed and a high numeric value is entered in a hidden price field",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:43:55.122Z",
+  "compiledAt": "2026-11-13T14:01:32.269Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Enter 9999999999 into the hidden price-related field in the Configuration for Event window."
+   "Enter a very large value into the hidden price-related or ceiling-price field in the Configuration for Event window",
+   "Click Save in that configuration window and observe whether it closes or reports an inline limit validation message"
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -17,11 +18,10 @@
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "resolved: “Click Save in the Configuration for Event window and verify whether it closes or shows the limit-exceeded inline validat” — require_setting switches that company setting before the case and back after",
-   "can only test part of this — no step for: Enter 9999999999 into the hidden price-related field in the Configuration for Event window."
+   "cannot test this case yet — no step can observe: Enter a very large value into the hidden price-related or ceiling-price field in the Configuration for Event window; Click Save in that configuration window and observe whether it closes or reports an inline limit validation message"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 9,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -31,21 +31,19 @@
    "set_title",
    "select_template",
    "add_line_items",
-   "expect_visible",
-   "ask_tester",
-   "expect_screen_clean"
+   "expect_visible"
   ],
-  "ms": 24182
+  "ms": 10009
  },
  "plan": {
-  "title": "Single-stage RFQ ceiling price validation",
+  "title": "Single-stage RFQ hidden ceiling price validation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Opens the Single Stage event creation screen under test."
+    "note": "Open the Single Stage create screen."
    },
    {
     "step": "require_setting",
@@ -53,7 +51,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Enables the required tenant configuration that prevents vendor additions during event creation."
+    "note": "Apply the required vendor-lock configuration before creating the event."
    },
    {
     "step": "require_setting",
@@ -61,7 +59,7 @@
      "key": "can_add_ceil_price",
      "value": "On"
     },
-    "note": "Enables the ceiling-price behavior required by the case."
+    "note": "Enable ceiling-price support required by the scenario."
    },
    {
     "step": "require_setting",
@@ -69,24 +67,26 @@
      "key": "enable_tnc_mandatory_button",
      "value": "Off"
     },
-    "note": "Applies the required terms-and-conditions configuration."
+    "note": "Apply the stated terms-and-conditions configuration."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Sets the event type to RFQ and opens the configuration drawer."
+    "note": "Set the event type to RFQ and open the available event configuration flow."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provides the mandatory event title required on create flows."
+    "args": {
+     "title": "EXP-CREATESINGLE-017"
+    },
+    "note": "Provide the mandatory event title required for a create test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Applies the first available RFQ template before adding the product."
+    "note": "Choose the RFQ pricing template before adding the product."
    },
    {
     "step": "add_line_items",
@@ -95,28 +95,15 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Adds the specified product with quantity 10 to reproduce the case setup."
+    "note": "Add the specified product with quantity 10 as preparation for the configuration test."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Configuration for Event",
+     "text": "Configuration for Event",
      "visible": true
     },
-    "note": "Confirms that the RFQ configuration window is open before the unavailable hidden-field interaction."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "enter 9999999999 into the hidden price-related field in the Configuration for Event window, click Save, and verify whether the window closes or shows the limit-exceeded validation message"
-    },
-    "note": "The catalog has no step that can access the hidden field, save this configuration, or assert its conditional validation outcome."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Checks that the browser remains free of a crash or server error after the tester completes the unavailable interaction."
+    "note": "Closest available observation that the RFQ configuration window is present; the hidden field and Save result remain untestable."
    }
   ]
  }

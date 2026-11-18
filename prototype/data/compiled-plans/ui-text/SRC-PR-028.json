@@ -4,7 +4,7 @@
   "title": "Use the full open quantity (10 of 10) of a PR line in the event",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:31:07.145Z",
+  "compiledAt": "2026-11-13T12:26:07.652Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -15,7 +15,7 @@
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items"
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 18,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -25,19 +25,21 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
-   "expect_api_value",
+   "require_setting",
+   "require_setting",
    "set_title",
+   "set_sheet_cell",
+   "expect_sheet_cell",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
-   "expect_text",
    "expect_text"
   ],
-  "ms": 17725
+  "ms": 16390
  },
  "plan": {
-  "title": "Use Full Open PR Quantity in RFQ",
+  "title": "PR Full Open Quantity",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -72,24 +74,50 @@
     "step": "fill_sheet"
    },
    {
-    "step": "expect_api_value",
+    "step": "require_setting",
     "args": {
-     "key": "quantity",
-     "within": "Quantity Requested"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Verify the imported line quantity is 10 as held for this PR case."
+    "note": "Enable eRFX project creation required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow the buyer to add Vendor A during event creation."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title using an automatically generated unique title."
+    "note": "Provide the mandatory event title required for publishing."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Set the event quantity to the full open quantity of 10."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10"
+    },
+    "note": "Confirm the sheet retains the full quantity before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required 30-minute event schedule."
+    "note": "Commit the required 30-minute schedule."
    },
    {
     "step": "invite_vendor",
@@ -98,25 +126,17 @@
       "Vendor A"
      ]
     },
-    "note": "Add the vendor named in the case to the event participants."
+    "note": "Add the named Vendor A participant."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ and confirm the publication flow."
+    "note": "Publish the RFQ event and confirm the publish flow."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publication reached a real project page."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Qty In Progress",
-     "present": true
-    },
-    "note": "Confirm the resulting PR screen shows the in-progress quantity section."
+    "note": "Verify publishing created a real project page."
    },
    {
     "step": "expect_text",
@@ -124,7 +144,7 @@
      "text": "Qty Open",
      "present": true
     },
-    "note": "Confirm the resulting PR screen shows the open quantity section."
+    "note": "Confirm the originating PR quantity view is displayed after the on-screen verification."
    }
   ]
  }

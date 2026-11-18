@@ -4,39 +4,56 @@
   "title": "Delete line item with trailing space in title works and returns to PR pool",
   "group": "DRV-LI",
   "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
-  "compiledAt": "2026-11-09T23:06:59.784Z",
+  "compiledAt": "2026-11-13T13:37:59.762Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The catalog has no dedicated assertion that the deleted live-event line item was removed from the RFQ's Overview line-item table beyond the on-screen deletion flow itself.",
+   "The exact PR pool table structure and column labels are not confirmed by the catalog, so the trimmed title and quantity check may be unobservable if the table uses different labels."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The catalog has no dedicated assertion that the deleted live-event line item was removed from the RFQ's Overview line-item table beyond the on-screen deletion flow itself.; The exact PR pool table structure and column labels are not confirmed by the catalog, so the trimmed title and quantity check may be unobservable if the table uses different labels."
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "do_on_screen",
    "expect_toast",
+   "open_purchase_requisitions",
    "expect_table"
   ],
   "state": "live",
   "screen": "overview",
-  "ms": 12713
+  "ms": 12090
  },
  "plan": {
-  "title": "Delete Trailing-Space Line Item",
+  "title": "Delete trailing-space line item and return quantity to PR pool",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "overview"
     },
-    "note": "Open the prepared live RFQ on its Overview tab as the buyer."
+    "note": "Open the prepared live RFQ directly on its Overview tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "pr_deletion_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR deletion behavior before accessing the prepared event."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "delete the line item titled exactly \"QA_Platform Item A \" from the RFQ, return to the Open Purchase Requisitions list, and leave the screen showing the returned item with quantity 10"
+     "goal": "On the live RFQ Overview tab, delete the line item titled \"QA_Platform Item A \" using the normal buyer deletion flow; stop when the deletion completes and the screen shows the deletion result."
     },
-    "note": "Perform the line-item deletion and navigation to the PR pool, which has no dedicated catalog action."
+    "note": "No catalog domain step performs deletion of a live RFQ line item, so execute the buyer-side flow directly on the Overview screen."
    },
    {
     "step": "expect_toast",
@@ -44,7 +61,12 @@
      "kind": "success",
      "text": "Line item deleted successfully"
     },
-    "note": "Verify the deletion success notification."
+    "note": "Verify the required deletion success toast."
+   },
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Navigate to the Purchase Requisitions area to inspect the returned PR item."
    },
    {
     "step": "expect_table",
@@ -54,7 +76,7 @@
       "Quantity": "10"
      }
     },
-    "note": "Verify the returned PR item is displayed with the trimmed title and quantity 10 available."
+    "note": "Verify the returned item is shown with its trailing space trimmed and quantity 10 available."
    }
   ]
  }

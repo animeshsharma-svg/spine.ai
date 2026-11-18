@@ -4,31 +4,33 @@
   "title": "Auto awarding aborted",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:23:51.284Z",
+  "compiledAt": "2026-11-13T11:43:13.753Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Find an auto-awarding event where a rule failed with a specific reason in the pre-existing state"
+   "Reliably find an existing event whose auto-awarding rule failed when no event title is provided",
+   "Assert the specific failure reason because the case does not state its expected text"
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Find an auto-awarding event where a rule failed with a specific reason in the pre-existing state"
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Reliably find an existing event whose auto-awarding rule failed when no event title is provided; Assert the specific failure reason because the case does not state its expected text"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "expect_events_list",
-   "open_first_event"
+   "require_setting",
+   "expect_text",
+   "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 36100
+  "ms": 15199
  },
  "plan": {
-  "title": "Auto awarding aborted observation",
+  "title": "Auto Awarding Aborted Message",
   "steps": [
    {
     "step": "open_prepared",
@@ -38,14 +40,27 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Assert the events list rendered"
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "open_first_event",
-    "args": {},
-    "note": "Open the event from the list"
+    "step": "expect_text",
+    "args": {
+     "text": "Auto Awarding Aborted"
+    },
+    "note": "Verify the project page shows the aborted auto-awarding message."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "manual",
+     "present": true
+    },
+    "note": "Verify the page communicates that the buyer must proceed with manual awarding."
    }
   ]
  }

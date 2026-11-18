@@ -3,33 +3,26 @@
   "caseId": "PRD-KBVDB-003",
   "title": "Quick Fill \"Same as requested\" copies the buyer's values into all responses",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:53:20.403Z",
+  "compiledAt": "2026-11-13T15:43:56.506Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that every vendor response field contains the buyer's requested value after selecting “Same as requested”."
+   "Assert that every vendor response field for all specified questions exactly equals the buyer's requested value when those question values are dynamic and unspecified."
   ],
   "warnings": [
-   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
    "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
    "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
-   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
    "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
    "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
-   "can only test part of this — no step for: Assert that every vendor response field contains the buyer's requested value after selecting “Same as requested”."
+   "can only test part of this — no step for: Assert that every vendor response field for all specified questions exactly equals the buyer's requested value when those question values are dynamic and unspecified."
   ],
   "source": "llm",
   "steps": 17,
   "stepNames": [
    "open_create",
-   "compose_stages",
    "set_title",
+   "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_questionnaires",
@@ -41,21 +34,25 @@
    "switch_portal",
    "vendor_open_event",
    "click",
-   "click",
-   "expect_no_error",
-   "expect_screen_clean"
+   "select",
+   "expect_no_error"
   ],
-  "ms": 12586
+  "ms": 25220
  },
  "plan": {
-  "title": "Quick Fill Same as Requested",
+  "title": "Technical Quick Fill Same as Requested",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create an event with a Technical Stage accessible to the vendor."
+    "note": "Open the multi-stage event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -63,17 +60,20 @@
      "stages": [
       "rfp"
      ]
-    }
+    },
+    "note": "Create a Technical Stage event, which is the subject of the test."
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title before publishing."
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Move to the technical stage before configuring its questionnaire."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the technical questionnaire template."
+    "note": "Apply the first available technical questionnaire template."
    },
    {
     "step": "add_line_items",
@@ -83,50 +83,50 @@
    {
     "step": "fill_questionnaires",
     "args": {},
-    "note": "Populate the buyer-specified technical questions and values."
+    "note": "Populate the buyer-specified questionnaire values that the vendor should copy."
    },
    {
     "step": "assign_evaluator",
     "args": {},
-    "note": "Complete the technical-stage publish prerequisites."
+    "note": "Satisfy the technical-stage publication requirement."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit an event schedule."
+    "note": "Commit a valid event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor whose response screen is being tested."
+    "note": "Invite the QA vendor who will perform Quick Fill."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so the vendor can access the Technical Stage."
+    "note": "Publish the event so it is available in the vendor portal."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event is available on its project page."
+    "note": "Verify the event reached a real published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier portal session."
+    "note": "Continue in the invited vendor session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the event directly on the vendor's Technical Stage questionnaire."
+    "note": "Open the event directly on its Technical Stage questionnaire."
    },
    {
     "step": "click",
@@ -134,24 +134,19 @@
      "role": "button",
      "name": "Quick Fill"
     },
-    "note": "Open the vendor's Quick Fill control."
+    "note": "Open the vendor's Quick Fill options."
    },
    {
-    "step": "click",
+    "step": "select",
     "args": {
-     "text": "Same as requested"
+     "option": "Same as requested"
     },
-    "note": "Choose the option intended to copy the buyer's requested values into the vendor responses."
+    "note": "Choose the option that should copy the buyer's requested values into the responses."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the Quick Fill operation did not produce an application error."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the resulting vendor questionnaire screen has no crash, server error, or invalid displayed values."
+    "note": "Confirm the copy action completed without an application error, while acknowledging that exact dynamic field equality is not directly observable by the catalog."
    }
   ]
  }

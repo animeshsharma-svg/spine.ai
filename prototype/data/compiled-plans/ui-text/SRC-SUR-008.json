@@ -4,43 +4,54 @@
   "title": "Save with an empty price",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:09:32.008Z",
+  "compiledAt": "2026-11-13T13:00:21.307Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "attempt"
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 7504
+  "ms": 12269
  },
  "plan": {
-  "title": "Surrogate bid empty price refusal",
+  "title": "Surrogate Bid Empty Price Refusal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ directly on its Participants tab."
+    "note": "Open the prepared live RFQ's Participants tab, which is the required starting state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "attempt",
     "args": {
      "step": "place_surrogate_bid",
      "args": {
-      "vendor": "Vendor A",
       "noPrice": true
      },
      "expect": "refused",
      "because": "Please enter valid responses for product sheet"
     },
-    "note": "Attempt to save an empty surrogate bid for Vendor A and verify Procol refuses it with the required validation message."
+    "note": "Attempt to save the surrogate bid with no price and verify Procol refuses it with the expected validation response."
    }
   ]
  }

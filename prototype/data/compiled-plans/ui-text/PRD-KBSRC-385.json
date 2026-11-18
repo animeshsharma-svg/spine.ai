@@ -3,69 +3,112 @@
   "caseId": "PRD-KBSRC-385",
   "title": "Award a Knockout bid and request approval",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:19:36.812Z",
+  "compiledAt": "2026-11-13T14:42:56.542Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "View the list of bidders still in the running for a Knockout auction",
-   "Confirm the proposal amount in the full-screen Knockout awarding window",
-   "Choose an approval workflow and click Next → Review → Request Approval"
+   "Configure or verify a knockout auction after RFQ-to-Auction conversion",
+   "View the knockout auction's bidders still in the running",
+   "Click Select Bid for a knockout bidder and confirm the full-screen proposal amount",
+   "Choose an approval workflow",
+   "Click Next, Review, and Request Approval",
+   "Assert that the awarding proposal was sent for approval and the knockout awarding process completed"
   ],
   "warnings": [
-   "open_event → open_prepared(proposal) — the case starts from an awarded event, which the run's pick never finds among live events; the API builds it",
-   "open_event → open_prepared(proposal) — the case starts from an awarded event, which the run's pick never finds among live events; the API builds it",
-   "can only test part of this — no step for: View the list of bidders still in the running for a Knockout auction; Confirm the proposal amount in the full-screen Knockout awarding window; Choose an approval workflow and click Next → Review → Request Approval"
+   "cannot test this case yet — no step can observe: Configure or verify a knockout auction after RFQ-to-Auction conversion; View the knockout auction's bidders still in the running; Click Select Bid for a knockout bidder and confirm the full-screen proposal amount; Choose an approval workflow; Click Next, Review, and Request Approval; Assert that the awarding proposal was sent for approval and the knockout awarding process completed"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 12,
   "stepNames": [
-   "open_prepared",
-   "start_awarding",
-   "allocate_award",
-   "expect_award_counters",
-   "ask_tester",
-   "expect_text"
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "convert_to_auction",
+   "expect_no_error"
   ],
-  "ms": 13673
+  "ms": 21185
  },
  "plan": {
-  "title": "Knockout bid approval request",
+  "title": "Award Knockout Bid and Request Approval",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "open_create",
     "args": {
-     "screen": "proposal"
+     "path": "erfx"
     },
-    "note": "the API builds the awarded event this case starts from"
+    "note": "Start the required RFQ event used as the prerequisite for conversion to an auction."
    },
    {
-    "step": "start_awarding",
+    "step": "set_title",
     "args": {},
-    "note": "Enter the generic awarding screen where a bid can be selected."
+    "note": "Provide the mandatory event title before publishing."
    },
    {
-    "step": "allocate_award",
-    "args": {},
-    "note": "Select a bidder for award and confirm that the awarding counters update."
-   },
-   {
-    "step": "expect_award_counters",
-    "args": {},
-    "note": "Assert that the selected bid is reflected in the awarding counters."
-   },
-   {
-    "step": "ask_tester",
+    "step": "compose_stages",
     "args": {
-     "need": "choose the approval workflow, confirm the proposal amount, and submit the award through Next → Review → Request Approval in the full-screen awarding window"
+     "stages": [
+      "rfq"
+     ]
     },
-    "note": "The catalog has no step for selecting an approval workflow or requesting approval."
+    "note": "Create an RFQ-only event so it can be converted to an auction."
    },
    {
-    "step": "expect_text",
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
     "args": {
-     "text": "Approval in Progress"
+     "count": 1
     },
-    "note": "Assert that the proposal shows it was sent for approval."
+    "note": "Add the line item required for the bid."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule before publication."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite a bidder to the RFQ and subsequent converted auction."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ so it can be converted."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify the RFQ reached a published project page."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Reach the only catalog-supported path toward a knockout auction."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the conversion screen loaded without an application error."
    }
   ]
  }

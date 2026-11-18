@@ -4,31 +4,71 @@
   "title": "Withdrawing Order...: Withdraw event succeeds when a valid reason is entered",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:49:10.478Z",
+  "compiledAt": "2026-11-13T14:15:12.481Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "withdraw_event",
    "expect_withdrawn"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 67985
+  "ms": 15126
  },
  "plan": {
-  "title": "Withdraw live RFQ with valid reason",
+  "title": "Withdraw live RFQ with reason",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ as the buyer."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the requested setting that controls withdrawal visibility."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal while the live RFQ is accepting bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the requested vendor-masking configuration."
    },
    {
     "step": "withdraw_event",
@@ -36,12 +76,12 @@
      "scope": "project",
      "reason": "Price renegotiation needed"
     },
-    "note": "Withdraw the project using the required valid remark."
+    "note": "Withdraw the event through the project menu with the valid reason from the case."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Verify the RFQ is marked Withdrawn."
+    "note": "Assert that the RFQ is recorded and displayed as withdrawn."
    }
   ]
  }

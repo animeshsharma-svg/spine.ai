@@ -4,62 +4,103 @@
   "title": "Two bids: award all 10 units to the L1 vendor (B); approver rejects",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:19:04.460Z",
+  "compiledAt": "2026-11-13T11:38:53.604Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as the approver and reject the submitted proposal with a remark.",
-   "Verify that no purchase order was created after the proposal rejection."
+   "Sign in as the approver and reject the submitted proposal with a remark",
+   "Assert that no purchase order is created after the proposal is rejected",
+   "Assert that the buyer can start awarding again from Master QCS after rejection"
   ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Sign in as the approver and reject the submitted proposal with a remark.; Verify that no purchase order was created after the proposal rejection."
+   "can only test part of this — no step for: Sign in as the approver and reject the submitted proposal with a remark; Assert that no purchase order is created after the proposal is rejected; Assert that the buyer can start awarding again from Master QCS after rejection"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 18,
   "stepNames": [
    "open_prepared",
-   "require_setting",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "expect_qcs_ranks",
    "start_awarding",
    "allocate_award",
    "expect_award_counters",
    "click",
    "expect_navigated",
    "expect_text",
+   "expect_text",
    "fill_required",
    "click",
+   "expect_navigated",
    "ask_tester",
-   "expect_text",
-   "go_to",
-   "expect_visible"
+   "expect_text"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 14251
+  "ms": 14306
  },
  "plan": {
-  "title": "SRC-AWD-008 — Reject full L1 award proposal",
+  "title": "Two-bid L1 award rejected by approver",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS for the prepared closed RFQ with Vendor A and Vendor B bids."
+    "note": "Open the prepared closed RFQ with two bids on Master QCS."
    },
    {
-    "step": "require_setting",
+    "step": "expect_qcs_vendors",
     "args": {
-     "key": "rfx_project_enabled",
-     "value": "On"
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "realNames": true
     },
-    "note": "Enable the required eRFX project setting before accessing the prepared awarding state."
+    "note": "Verify both bidding vendors appear as real vendor columns."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Qty Offer",
+     "vendor": "Vendor B",
+     "key": "quantity"
+    },
+    "note": "Verify Vendor B's offered quantity is the prepared 10 units."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor B",
+     "equals": "90"
+    },
+    "note": "Verify the L1 vendor's unit rate is 90."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor B"
+    },
+    "note": "Verify Vendor B's line amount and total calculate as rate multiplied by quantity."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Verify the lower total is ranked first."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding page for the closed two-bid event."
+    "note": "Open the awarding screen for the closed event."
    },
    {
     "step": "allocate_award",
@@ -68,7 +109,7 @@
      "quantity": 10,
      "line": 1
     },
-    "note": "Allocate all 10 requested units on the line to the L1 vendor, Vendor B."
+    "note": "Allocate all 10 units to the L1 vendor, Vendor B."
    },
    {
     "step": "expect_award_counters",
@@ -77,7 +118,7 @@
      "vendors": "1/2",
      "proposal": 900
     },
-    "note": "Verify that one of two vendors is awarded and the proposal total is 10 × ₹90 = ₹900."
+    "note": "Verify one of two vendors is awarded and the proposal total is 10 × 90 = 900."
    },
    {
     "step": "click",
@@ -85,26 +126,33 @@
      "role": "button",
      "name": "Create Proposal"
     },
-    "note": "Create the award proposal from the completed allocation."
+    "note": "Create the proposal from the completed allocation."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "proposal"
     },
-    "note": "Verify that the proposal page opened."
+    "note": "Verify the proposal page opened."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Allocation Summary"
+     "text": "Vendor B"
     },
-    "note": "Confirm the proposal page exposes the expected award allocation section."
+    "note": "Verify the proposal identifies the awarded vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "900"
+    },
+    "note": "Verify the proposal shows the expected total value."
    },
    {
     "step": "fill_required",
     "args": {},
-    "note": "Fill mandatory proposal fields before submission."
+    "note": "Fill the proposal fields required before submission."
    },
    {
     "step": "click",
@@ -112,37 +160,28 @@
      "role": "button",
      "name": "Submit Proposal"
     },
-    "note": "Submit the completed award proposal for approval."
+    "note": "Submit the award proposal for approval."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Verify the proposal submission remains on the proposal workflow."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the approver, open the submitted proposal, reject it with a remark, and leave the proposal showing the rejection result"
+     "need": "sign in as the approver, open the submitted proposal, reject it with a remark, verify no purchase order was created, and return to Master QCS to confirm awarding can be started again"
     },
-    "note": "The catalog has no approver-session or proposal-rejection action."
+    "note": "The catalog cannot perform the separate approver login, rejection action, or the resulting no-PO and restart checks."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Rejected"
     },
-    "note": "Verify that the proposal displays its rejected status after the approver action."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "master_qcs"
-    },
-    "note": "Return to Master QCS to check whether awarding can be started again."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Start Awarding",
-     "visible": true
-    },
-    "note": "Confirm the buyer can start the awarding flow again after rejection."
+    "note": "Assert the proposal is shown as rejected after the approver interaction."
    }
   ]
  }

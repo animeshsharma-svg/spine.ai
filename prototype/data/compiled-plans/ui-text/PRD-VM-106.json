@@ -3,46 +3,51 @@
   "caseId": "PRD-VM-106",
   "title": "Surrogate Onboarding: refused for a user without the Buyer role",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T03:13:14.055Z",
+  "compiledAt": "2026-11-13T15:11:05.788Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and as a Buyer on the same Enterprise tenant, perform Surrogate Onboarding with a persistent surrogate tag, and record whether each role is refused or allowed.",
-   "Inspect or change the tenant's Enterprise plan and RBAC configuration, including whether other roles are deliberately granted this capability."
+   "Verify or set the tenant's Enterprise plan.",
+   "Sign in as both a user without the Buyer role and a Buyer on the same tenant.",
+   "Perform Surrogate Onboarding with a persistent surrogate tag and compare refusal or availability between the two roles."
   ],
   "warnings": [
-   "moved open_events_list to the front — the steps before it had no list on screen",
-   "moved open_events_list to the front — the steps before it had no list on screen",
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer on the same Enterprise tenant, perform Surrogate Onboarding with a persistent surrogate tag, and record whether each role is refused or allowed.; Inspect or change the tenant's Enterprise plan and RBAC configuration, including whether other roles are deliberately granted this capability."
+   "added place_surrogate_bid — the test is about bidding and no bid step was planned",
+   "added publish — a bid needs a published event to bid on",
+   "added place_surrogate_bid — the test is about bidding and no bid step was planned",
+   "added publish — a bid needs a published event to bid on",
+   "can only test part of this — no step for: Verify or set the tenant's Enterprise plan.; Sign in as both a user without the Buyer role and a Buyer on the same tenant.; Perform Surrogate Onboarding with a persistent surrogate tag and compare refusal or availability between the two roles."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
-   "open_events_list",
    "ask_tester",
-   "expect_events_list"
+   "expect_screen_clean",
+   "publish",
+   "place_surrogate_bid"
   ],
-  "ms": 18377
+  "ms": 11571
  },
  "plan": {
-  "title": "Surrogate onboarding role restriction",
+  "title": "Surrogate Onboarding RBAC",
   "steps": [
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Closest available navigation to the procurement console after the tester's role comparison."
-   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a non-Buyer and then a Buyer on the same Enterprise tenant, perform Surrogate Onboarding with a persistent surrogate tag, and record whether each role is refused or allowed"
+     "need": "sign in as the non-Buyer and Buyer users on the Enterprise tenant, attempt Surrogate Onboarding with a persistent surrogate tag for each, and compare whether the action is refused or available"
     },
-    "note": "The catalog cannot perform or observe vendor onboarding, role-specific sign-in, or persistent surrogate tagging."
+    "note": "The catalog cannot access alternate user sessions or observe the Surrogate Onboarding flow and persistent surrogate tag."
    },
    {
-    "step": "expect_events_list",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirms the Procol events console rendered, but does not assert the onboarding permission outcome."
+    "note": "Confirm the resulting screen remains free of crashes or server errors after the tester's comparison."
+   },
+   {
+    "step": "publish"
+   },
+   {
+    "step": "place_surrogate_bid"
    }
   ]
  }

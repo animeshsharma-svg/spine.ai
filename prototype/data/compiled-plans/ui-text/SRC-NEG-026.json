@@ -4,68 +4,57 @@
   "title": "What the vendor sees for a counter offer",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:04:09.505Z",
+  "compiledAt": "2026-11-13T12:19:09.500Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify in a second vendor session that Vendor B sees nothing about the counter offer.",
+   "Verify in a separate Vendor B vendor session that Vendor B sees nothing about Vendor A's counter offer.",
    "unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "invite_vendor now names Vendor B, Vendor A — a later step expects that vendor on the event",
-   "swapped place_surrogate_bid for place_bid — the test asks the VENDOR to sign in and bid",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "invite_vendor now names Vendor B, Vendor A — a later step expects that vendor on the event",
-   "swapped place_surrogate_bid for place_bid — the test asks the VENDOR to sign in and bid",
-   "resolved: “The vendor portal's Reject button label is not among the catalog's confirmed labels.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
    "coverage partial: unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Verify in a second vendor session that Vendor B sees nothing about the counter offer."
+   "can only test part of this — no step for: Verify in a separate Vendor B vendor session that Vendor B sees nothing about Vendor A's counter offer."
   ],
   "source": "llm",
-  "steps": 27,
+  "steps": 22,
   "stepNames": [
    "open_create",
    "require_setting",
-   "set_title",
    "compose_stages",
+   "set_title",
    "select_template",
    "add_line_items",
+   "expect_line_items",
    "fill_sheet",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
-   "expect_bid_submitted",
-   "place_bid",
-   "expect_bid_submitted",
-   "open_master_qcs",
-   "place_counter_offer",
-   "expect_counter_offer_sent",
    "switch_portal",
    "vendor_open_event",
    "expect_text",
    "expect_text",
    "expect_text",
-   "expect_visible",
-   "expect_visible",
+   "expect_text",
+   "expect_text",
+   "expect_text",
    "ask_tester",
-   "switch_portal",
-   "expect_counter_offer_sent"
+   "expect_text"
   ],
-  "ms": 22356
+  "ms": 16189
  },
  "plan": {
-  "title": "Vendor Counter Offer Notice",
+  "title": "Vendor counter-offer view",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    },
-    "note": "Start a multi-stage event creation flow for the RFQ."
+    }
    },
    {
     "step": "require_setting",
@@ -73,14 +62,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Ensure RFQ counter offers are available for the buyer."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "SRC-NEG-026 Counter Offer Vendor View"
-    },
-    "note": "Provide the required event title."
+    "note": "Ensure counter offers are visible on RFQ rounds."
    },
    {
     "step": "compose_stages",
@@ -88,96 +70,40 @@
      "stages": [
       "rfq"
      ]
-    },
-    "note": "Create an RFQ pricing stage, which is the subject of the counter offer."
+    }
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the RFQ pricing template before adding products."
+    "step": "set_title"
+   },
+   {
+    "step": "select_template"
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
-    },
-    "note": "Add the line item whose original quote will be countered."
+    }
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Populate the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
+    "step": "expect_line_items",
     "args": {
-     "minutes": 30
-    },
-    "note": "Commit a bidding schedule so the event can be published."
+     "count": 1
+    }
    },
    {
-    "step": "invite_vendor",
-    "args": {
-     "vendors": [
-      "Vendor A",
-      "Vendor B"
-     ],
-     "names": [
-      "Vendor B",
-      "Vendor A"
-     ]
-    },
-    "note": "Invite both named vendors so Vendor A can receive the counter offer and Vendor B can be checked separately."
+    "step": "fill_sheet"
    },
    {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the event before bidding."
+    "step": "set_schedule"
    },
    {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event reached a real published project page."
+    "step": "invite_vendor"
    },
    {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm Vendor A's bid was accepted."
+    "step": "publish"
    },
    {
-    "step": "place_bid",
-    "note": "the test asks the vendor to bid for themselves"
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the second vendor response was accepted."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {
-     "vendors": [
-      "Vendor A",
-      "Vendor B"
-     ]
-    },
-    "note": "Open the buyer comparison grid containing both bids before sending the counter offer."
-   },
-   {
-    "step": "place_counter_offer",
-    "args": {
-     "vendor": "Vendor A",
-     "price": 90,
-     "remark": "Best price please"
-    },
-    "note": "Send Vendor A the required counter price and remark."
-   },
-   {
-    "step": "expect_counter_offer_sent",
-    "args": {
-     "vendor": "Vendor A"
-    },
-    "note": "Confirm the buyer grid marks the counter offer as initiated for Vendor A."
+    "step": "expect_published"
    },
    {
     "step": "switch_portal",
@@ -185,77 +111,71 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Switch to Vendor A's separate supplier-portal session."
+    "note": "Switch to Vendor A's supplier-portal session while retaining the buyer session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "overview": true
     },
-    "note": "Open the event overview where the pending counter offer notice is shown."
+    "note": "Open the prepared event with the pending counter offer on the vendor overview."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "100",
-     "present": true
+     "text": "Counter Offer"
     },
-    "note": "Verify the notice includes Vendor A's original quoted price."
+    "note": "Assert that the vendor sees the pending counter-offer notice."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "90",
-     "present": true
+     "text": "100"
     },
-    "note": "Verify the notice includes the buyer's offered counter price."
+    "note": "Assert that the notice includes the original quoted price."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Best price please",
-     "present": true
+     "text": "90"
     },
-    "note": "Verify the buyer's counter-offer remark is displayed."
+    "note": "Assert that the notice includes the buyer's offered counter price."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "button",
-     "name": "Accept Counter Offer",
-     "visible": true
+     "text": "Best price please"
     },
-    "note": "Verify Vendor A can accept the pending counter offer."
+    "note": "Assert that the buyer's remark is visible."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "button",
-     "name": "Reject",
-     "visible": true
+     "text": "Accept Counter Offer"
     },
-    "note": "Verify the vendor view exposes the rejection action, using the case's expected label."
+    "note": "Assert that Vendor A can accept the counter offer."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Reject"
+    },
+    "note": "Assert that Vendor A can reject the counter offer."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open the event as Vendor B in a second vendor session and verify that no counter-offer notice, quoted price, offered price, remark, Accept button, or Reject button is shown"
+     "need": "open the event in a separate Vendor B vendor session and verify that Vendor B sees nothing about Vendor A's counter offer"
     },
-    "note": "A second independent vendor portal session is required to verify Vendor B's negative view."
+    "note": "A second vendor's own session is not available through the catalog."
    },
    {
-    "step": "switch_portal",
+    "step": "expect_text",
     "args": {
-     "to": "buyer"
+     "text": "Counter Offer",
+     "present": false
     },
-    "note": "Return to the buyer session after the Vendor B check."
-   },
-   {
-    "step": "expect_counter_offer_sent",
-    "args": {
-     "vendor": "Vendor A"
-    },
-    "note": "End with an assertion confirming the counter offer remains recorded for Vendor A."
+    "note": "After the tester opens Vendor B's session, assert that no counter-offer notice is visible."
    }
   ]
  }

@@ -3,24 +3,25 @@
   "caseId": "PRD-KBSRC-342",
   "title": "Show Best Prices reveals best price to suppliers and adds a QCS row",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:15:13.920Z",
+  "compiledAt": "2026-11-13T14:39:28.311Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog has no dedicated assertion that the displayed supplier price is specifically the best-price value for each line item rather than another visible occurrence of the same price.",
-   "The exact label and per-line structure of the added QCS row are not defined in the catalog; the plan uses the expected label \"Best Price\".",
-   "unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case"
+   "Verify the best-price display in a second supplier's own session; the catalog supports only one QA supplier session at a time.",
+   "unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
    "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
    "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
    "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "coverage partial: unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: The catalog has no dedicated assertion that the displayed supplier price is specifically the best-price value for each line item rather than another visible occurrence of the same price.; The exact label and per-line structure of the added QCS row are not defined in the catalog; the plan uses the expected label \"Best Price\"."
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "coverage partial: unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Verify the best-price display in a second supplier's own session; the catalog supports only one QA supplier session at a time."
   ],
   "source": "llm",
-  "steps": 22,
+  "steps": 24,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -35,8 +36,10 @@
    "expect_bid_submitted",
    "expect_bid_submitted",
    "go_to",
+   "expect_responses",
    "click",
    "click",
+   "expect_text",
    "switch_portal",
    "vendor_open_event",
    "expect_text",
@@ -45,17 +48,17 @@
    "open_master_qcs",
    "expect_qcs_cell"
   ],
-  "ms": 16227
+  "ms": 19213
  },
  "plan": {
-  "title": "Show Best Prices to Auction Suppliers",
+  "title": "Show Best Prices on Auction",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Create the rank-based auction required by the case."
+    "note": "Open the single-stage creation flow needed for a rank-based auction."
    },
    {
     "step": "configure_single_stage",
@@ -64,31 +67,31 @@
      "auctionSubtype": "rank",
      "awarding": "lot"
     },
-    "note": "Configure a single-stage rank-based auction."
+    "note": "Configure the auction strategy and awarding rule required by the setup."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Show Best Prices Auction"
+     "title": "Best Price Visibility Auction"
     },
     "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the auction pricing template."
+    "note": "Apply the first available auction pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Use one line item so the lowest bid and added QCS row are unambiguous."
+    "note": "Add one line item so the best-price row can be checked for that item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet before publishing."
+    "note": "Complete the pricing sheet before scheduling and publishing."
    },
    {
     "step": "set_schedule",
@@ -102,17 +105,17 @@
     "args": {
      "count": 2
     },
-    "note": "Invite two suppliers so a lowest bid can be calculated."
+    "note": "Invite two vendors so a lowest bid can be determined across vendors."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the auction so suppliers can submit bids."
+    "note": "Publish the auction so suppliers can bid."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the auction reached a real published project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "expect_bid_submitted",
@@ -129,7 +132,16 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's live Auction Responses tab where the Actions control is available."
+    "note": "Open the buyer's Auction Responses tab required by the case setup."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2,
+     "direct": 2,
+     "stage": "auction"
+    },
+    "note": "Confirm both supplier responses are present before enabling best-price visibility."
    },
    {
     "step": "click",
@@ -137,29 +149,15 @@
      "role": "button",
      "name": "Actions"
     },
-    "note": "Open the Responses actions menu."
+    "note": "Open the buyer Responses actions menu."
    },
    {
     "step": "click",
     "args": {
-     "role": "menuitem",
-     "name": "Show Best Prices"
+     "text": "Show Best Prices",
+     "within": "menu"
     },
-    "note": "Enable the feature under test."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "vendor"
-    },
-    "note": "Inspect the supplier-facing result in the supplier portal."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "stage": "pricing"
-    },
-    "note": "Open the auction pricing round for the invited supplier."
+    "note": "Select the best-price visibility action requested by the case."
    },
    {
     "step": "expect_text",
@@ -167,36 +165,59 @@
      "text": "Best Price",
      "present": true
     },
-    "note": "Verify the supplier view identifies the best-price information."
+    "note": "Confirm the buyer screen reports or displays the best-price feature after selection."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": 1
+    },
+    "note": "Inspect the available supplier portal session after best prices are enabled."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the auction pricing view in the supplier portal."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "100",
+     "text": "Best Price",
      "present": true
     },
-    "note": "Verify the supplier view shows the deterministic lowest bid."
+    "note": "Confirm the supplier view exposes the best-price label."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "90",
+     "present": true
+    },
+    "note": "Confirm the supplier can see the exact lowest bid value."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer console to inspect QCS."
+    "note": "Return to the buyer's auction page to inspect QCS."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's QCS after enabling best prices."
+    "note": "Open the buyer comparison grid where the additional lowest-bid row should appear."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "Best Price",
      "vendor": 1,
-     "number": 100
+     "number": 90
     },
-    "note": "Verify the QCS contains the lowest bid in the expected added row."
+    "note": "Assert the QCS contains the best-price row with the lowest bid for the line item."
    }
   ]
  }

@@ -4,22 +4,28 @@
   "title": "Withdrawing Order...: Withdraw event handles special characters in the reason field",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:49:16.485Z",
+  "compiledAt": "2026-11-13T14:15:30.284Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "withdraw_event",
    "expect_withdrawn"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 7168
+  "ms": 17801
  },
  "plan": {
   "title": "Withdraw live RFQ with special-character reason",
@@ -29,15 +35,39 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared live RFQ without creating or searching for another event."
+    "note": "Open the prepared live RFQ on the buyer side."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Reach the RFQ Responses tab described by the case before opening the withdrawal flow."
+    "note": "Enable eRFX projects as required by the test configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the configured withdrawal visibility setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal while the live RFQ is accepting bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the configured vendor-masking setting."
    },
    {
     "step": "withdraw_event",
@@ -45,12 +75,12 @@
      "scope": "project",
      "reason": "Test #@!$%^&*()_+-=[]{}|;':\",./<>?~`"
     },
-    "note": "Withdraw the live project using the exact special-character reason."
+    "note": "Withdraw the live RFQ using the exact special-character reason and capture Procol's response."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Verify that Procol records the event as withdrawn."
+    "note": "Verify that the project is recorded as withdrawn."
    }
   ]
  }

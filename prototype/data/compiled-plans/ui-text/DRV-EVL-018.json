@@ -4,49 +4,52 @@
   "title": "Incorrect rank order due to missing loading factor (RCA 335187179252)",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-12T13:36:39.366Z",
+  "compiledAt": "2026-11-13T13:36:41.712Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Loading factor config state missing/disabled via company settings step in prepared state"
+   "Verify that the live auction has the required loading-factor configuration and that it is missing from the relevant config.",
+   "Verify that ranks are calculated from landed price including the loading factor.",
+   "Verify that the L1 highlight matches the true lowest landed cost."
   ],
   "warnings": [
-   "can only test part of this — no step for: Loading factor config state missing/disabled via company settings step in prepared state"
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "cannot test this case yet — no step can observe: Verify that the live auction has the required loading-factor configuration and that it is missing from the relevant config.; Verify that ranks are calculated from landed price including the loading factor.; Verify that the L1 highlight matches the true lowest landed cost."
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_prepared",
-   "expect_qcs_vendors",
+   "open_master_qcs",
    "expect_qcs_ranks"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 19444
+  "ms": 13750
  },
  "plan": {
-  "title": "DRV-EVL-018 — Incorrect rank order due to missing loading factor",
+  "title": "Auction Master QCS Loading-Factor Rank",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
-     "screen": "master_qcs"
+     "screen": "summary"
     },
-    "note": "Open the Master QCS on the live auction event"
+    "note": "the API built this case's state"
    },
    {
-    "step": "expect_qcs_vendors",
-    "args": {
-     "realNames": true
-    },
-    "note": "Assert vendor columns are present with valid names"
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Reach the Master QCS grid, the closest available screen for inspecting auction bid ranks."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
      "order": "lowest"
     },
-    "note": "Assert ranks follow the amounts on Master QCS"
+    "note": "Assert only the catalog-supported baseline that ranks follow the displayed lowest bid amounts; this does not verify loading-factor-adjusted landed cost."
    }
   ]
  }

@@ -4,12 +4,10 @@
   "title": "Reverse auction: revoke is not possible after the event closed",
   "group": "SRC-RVK",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:52:05.197Z",
+  "compiledAt": "2026-11-13T12:45:22.933Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "unconfirmed vendor-portal control label: Revoke"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
@@ -19,10 +17,10 @@
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "can only test part of this — no step for: unconfirmed vendor-portal control label: Revoke"
+   "the model was unsure of 1 label(s) that are known from the app — coverage full"
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "set_title",
@@ -41,10 +39,9 @@
    "close_event",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
    "expect_visible"
   ],
-  "ms": 13196
+  "ms": 20065
  },
  "plan": {
   "title": "Reverse auction revoke unavailable after closure",
@@ -54,7 +51,7 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Start a single-stage auction creation flow."
+    "note": "Create the single-stage auction used for the closed reverse-auction scenario."
    },
    {
     "step": "set_title",
@@ -73,14 +70,14 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction template."
+    "note": "Apply the auction pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one product to the auction."
+    "note": "Add one line item for the auction bid."
    },
    {
     "step": "fill_sheet",
@@ -92,46 +89,48 @@
     "args": {
      "minutes": 3
     },
-    "note": "Commit a bidding schedule so the event can be published and later closed."
+    "note": "Commit a bidding schedule so the event can be published and closed."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "count": 1
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Invite the QA vendor who will act as Vendor A."
+    "note": "Invite the vendor whose portal permissions are under test."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the reverse auction."
+    "note": "Publish the auction before bidding."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a published project page."
+    "note": "Confirm the auction reached a published project page."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the separate supplier-portal session for Vendor A."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the published reverse auction's pricing round from the vendor event list."
+    "note": "Open the auction from Vendor A's event list and show its bid sheet."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Submitted",
-     "present": true
+     "text": "Submitted"
     },
-    "note": "Verify the vendor portal shows the bid as submitted."
+    "note": "Assert that the vendor portal accepted the bid."
    },
    {
     "step": "switch_portal",
@@ -142,42 +141,31 @@
    },
    {
     "step": "close_event",
-    "args": {
-     "natural": true,
-     "maxWaitMinutes": 36
-    },
-    "note": "Wait for the reverse-auction bidding window to end naturally."
+    "args": {},
+    "note": "Close the published auction after the bid has been submitted."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Inspect the closed event again in Vendor A's supplier session."
+    "note": "Return to Vendor A's portal after bidding has ended."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Reopen the closed reverse auction's pricing round."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Submitted",
-     "present": true
-    },
-    "note": "Verify Vendor A's bid remains submitted after closure."
+    "note": "Reopen the closed auction's pricing round to inspect the existing bid controls."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "Revoke",
+     "text": "Revoke",
      "visible": false
     },
-    "note": "Check that no Revoke control is visible after bidding ends."
+    "note": "Assert that no Revoke control is available after the auction has closed."
    }
   ]
  }

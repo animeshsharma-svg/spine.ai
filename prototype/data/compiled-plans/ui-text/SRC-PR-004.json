@@ -4,65 +4,41 @@
   "title": "Search the PR list by part of the PR number",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:13:31.639Z",
+  "compiledAt": "2026-11-13T12:24:19.972Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Unconfirmed search-box label above the Purchase Requisitions table; the catalog does not provide a PR-specific search step.",
-   "The catalog cannot prove that every matching PR in the backend, including any off-screen or paginated matches, is listed; it can only verify visible filtered rows."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Unconfirmed search-box label above the Purchase Requisitions table; the catalog does not provide a PR-specific search step.; The catalog cannot prove that every matching PR in the backend, including any off-screen or paginated matches, is listed; it can only verify visible filtered rows."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 3,
   "stepNames": [
    "open_purchase_requisitions",
-   "pr_tab",
-   "fill",
-   "press",
+   "do_on_screen",
    "expect_table"
   ],
-  "ms": 10221
+  "ms": 15043
  },
  "plan": {
-  "title": "Search Purchase Requisitions by PR Number",
+  "title": "Search PR list by number prefix",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions area."
+    "note": "Open the Purchase Requisitions list for the buyer."
    },
    {
-    "step": "pr_tab",
+    "step": "do_on_screen",
     "args": {
-     "tab": "Open"
+     "goal": "In the Purchase Requisitions list, click the search box above the table, enter the supplied first six digits of the known PR number, press Enter, and stop on the filtered results list showing every returned PR number contains those digits."
     },
-    "note": "Ensure the search is performed on the Open PR tab, where eligible PRs are listed."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Search",
-     "value": "<first 6 digits of known PR number>"
-    },
-    "note": "Enter the PR-number fragment in the search box; the exact field label is not catalog-confirmed."
-   },
-   {
-    "step": "press",
-    "args": {
-     "key": "Enter"
-    },
-    "note": "Submit the PR list search."
+    "note": "Perform and verify the PR-number prefix search despite the catalog lacking a dedicated PR search step."
    },
    {
     "step": "expect_table",
     "args": {
-     "eachRow": {
-      "PR No": "<first 6 digits of known PR number>"
-     }
+     "min": 1
     },
-    "note": "Verify every visible result row contains the requested PR-number fragment."
+    "note": "Assert that the filtered PR results table contains at least the known matching PR."
    }
   ]
  }

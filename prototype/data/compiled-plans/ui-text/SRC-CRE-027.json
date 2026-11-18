@@ -4,12 +4,12 @@
   "title": "Forward auction: Quantity Requested = a decimal 2.5",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:31:02.423Z",
+  "compiledAt": "2026-11-13T11:51:15.003Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Explicitly select or verify that the auction is forward/sell rather than another auction direction.",
-   "Assert either keeping 2.5 or, alternatively, rounding or refusing it as a conditional outcome."
+   "Selecting the exact forward (sell) auction template because the case does not provide its template name and the catalog can only choose a named template or the first offered template.",
+   "Asserting the conditional outcome as an allowed alternative of kept as 2.5, rounded, or refused; expect_sheet_cell can read the resulting cell but cannot express an OR assertion."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -20,7 +20,7 @@
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
-   "can only test part of this — no step for: Explicitly select or verify that the auction is forward/sell rather than another auction direction.; Assert either keeping 2.5 or, alternatively, rounding or refusing it as a conditional outcome."
+   "can only test part of this — no step for: Selecting the exact forward (sell) auction template because the case does not provide its template name and the catalog can only choose a named template or the first offered template.; Asserting the conditional outcome as an allowed alternative of kept as 2.5, rounded, or refused; expect_sheet_cell can read the resulting cell but cannot express an OR assertion."
   ],
   "source": "llm",
   "steps": 13,
@@ -39,17 +39,17 @@
    "publish",
    "expect_published"
   ],
-  "ms": 16186
+  "ms": 16252
  },
  "plan": {
-  "title": "Forward Auction Decimal Quantity 2.5",
+  "title": "Forward Auction Decimal Quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the Single Stage create screen."
+    "note": "Open the single-stage create screen specified by the scenario."
    },
    {
     "step": "require_setting",
@@ -57,26 +57,26 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Ensure vendors can be added during event creation, as required by the case."
+    "note": "Ensure vendors can be added during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction",
-     "auctionSubtype": "rank",
-     "awarding": "lot"
+     "eventType": "auction"
     },
-    "note": "Switch the event type to Auction; the catalog requires an auction strategy and awarding rule."
+    "note": "Change the event type from the default to Auction."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title using an automatically generated unique title."
+    "args": {
+     "title": "Decimal Quantity Forward Auction"
+    },
+    "note": "Every successful create flow requires an event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first offered auction template so the pricing sheet can be configured."
+    "note": "Apply the first offered auction template; the exact forward/sell template name is not provided."
    },
    {
     "step": "add_line_items",
@@ -85,7 +85,7 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "2.5"
     },
-    "note": "Add the specified product with the decimal requested quantity."
+    "note": "Add the specified product and enter the decimal requested quantity."
    },
    {
     "step": "fill_sheet"
@@ -97,30 +97,29 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested delivery location in the first product row."
+    "note": "Set the requested delivery location in the first row."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
-     "column": "Quantity Requested",
-     "equals": "2.5"
+     "column": "Quantity Requested"
     },
-    "note": "Verify whether the sheet displays the decimal quantity as 2.5."
+    "note": "Read the resulting quantity after entry to record whether 2.5 was kept, rounded, cleared, or marked invalid."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add one QA test vendor to satisfy the participant requirement."
+    "note": "Add one available QA vendor to satisfy the publish prerequisite."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required 30-minute schedule."
+    "note": "Commit the 30-minute schedule specified by the scenario."
    },
    {
     "step": "publish",
@@ -130,7 +129,7 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publication reached a real event project page."
+    "note": "Assert that publishing reached a real project page."
    }
   ]
  }

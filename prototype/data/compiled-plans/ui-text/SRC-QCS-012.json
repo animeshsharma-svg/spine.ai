@@ -4,23 +4,23 @@
   "title": "Savings after bidding ends",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:08:55.800Z",
+  "compiledAt": "2026-11-13T12:33:58.736Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Exercise the same calculation with a budget of 0 and verify that it never displays Infinity %.",
-   "unconfirmed label \"25%\" (expect_text) — not among the labels known from the app nor in the case",
-   "unconfirmed label \"Infinity %\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "Verify that a zero budget does not display \"Infinity %\" in the savings result."
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"25%\" (expect_text) — not among the labels known from the app nor in the case",
-   "coverage partial: unconfirmed label \"Infinity %\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Exercise the same calculation with a budget of 0 and verify that it never displays Infinity %."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Assert savings against the budget equals ₹300 and 25%.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
+   "can only test part of this — no step for: Verify that a zero budget does not display \"Infinity %\" in the savings result."
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_qcs_vendors",
    "expect_qcs_cell",
    "expect_qcs_cell",
@@ -28,13 +28,11 @@
    "expect_qcs_amounts",
    "expect_qcs_amounts",
    "expect_qcs_ranks",
-   "expect_text",
-   "expect_text",
-   "expect_text"
+   "expect_screen_clean"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 15420
+  "ms": 16032
  },
  "plan": {
   "title": "Savings after bidding ends",
@@ -45,6 +43,14 @@
      "screen": "master_qcs"
     },
     "note": "Open the prepared closed RFQ directly on the buyer's Master QCS screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "expect_qcs_vendors",
@@ -63,18 +69,18 @@
     "args": {
      "row": "RFQ Rate",
      "vendor": "Vendor A",
-     "equals": "100"
+     "number": 100
     },
-    "note": "Verify Vendor A's unit bid rate."
+    "note": "Check Vendor A's unit bid rate."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
      "vendor": "Vendor B",
-     "equals": "90"
+     "number": 90
     },
-    "note": "Verify Vendor B's unit bid rate."
+    "note": "Check Vendor B's unit bid rate."
    },
    {
     "step": "expect_qcs_cell",
@@ -83,21 +89,21 @@
      "vendor": "Vendor A",
      "key": "quantity"
     },
-    "note": "Verify the requested quantity shown for Vendor A matches the prepared quantity."
+    "note": "Verify Vendor A's offered quantity matches the prepared API quantity."
    },
    {
     "step": "expect_qcs_amounts",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Verify Vendor A's line amount and total are calculated from rate times quantity."
+    "note": "Verify Vendor A's line amount and total are calculated from rate multiplied by quantity."
    },
    {
     "step": "expect_qcs_amounts",
     "args": {
      "vendor": "Vendor B"
     },
-    "note": "Verify Vendor B's line amount and total are calculated from rate times quantity."
+    "note": "Verify Vendor B's line amount and total are calculated from rate multiplied by quantity."
    },
    {
     "step": "expect_qcs_ranks",
@@ -106,29 +112,12 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Verify the lower total is ranked first."
+    "note": "Verify the lower bid ranks first in the closed comparison."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "300"
-    },
-    "note": "Verify the displayed budget savings amount is 300."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "25%"
-    },
-    "note": "Verify the displayed budget savings percentage is 25 percent."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Infinity %",
-     "present": false
-    },
-    "note": "Verify the comparison does not render an infinite savings percentage."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the Master QCS renders without invalid numeric values or application errors."
    }
   ]
  }

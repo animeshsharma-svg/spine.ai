@@ -4,15 +4,19 @@
   "title": "An awarded event: \"Recreate Order\": \"Create Order\" with the values it opens with goes through",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:14:30.023Z",
+  "compiledAt": "2026-11-13T13:44:26.298Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
    "go_to",
    "event_menu",
@@ -21,17 +25,25 @@
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 7294
+  "ms": 10950
  },
  "plan": {
-  "title": "Recreate Order with Default Values",
+  "title": "Recreate Order with Defaults",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared awarded event on its project summary page."
+    "note": "Open the already awarded event's summary page as required for the prepared state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project capability for the buyer session."
    },
    {
     "step": "go_to",
@@ -39,14 +51,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage before accessing its Responses tab and Settings menu."
+    "note": "Navigate to the event's RFQ stage."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses view specified by the case."
+    "note": "Open the RFQ Responses tab specified by the case."
    },
    {
     "step": "event_menu",
@@ -54,14 +66,14 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and choose Recreate Order, leaving the resulting window open."
+    "note": "Open Recreate Order from the RFQ stage Settings menu."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "save the Recreate Order window using the values it opened with, then stop when the window closes and the screen shows the New Order Created confirmation"
+     "goal": "In the Recreate Order window, verify the fields retain the values they opened with, submit without changing them, and stop after the window closes showing the new order creation result."
     },
-    "note": "Submit the prefilled Recreate Order form without changing its values and verify the resulting screen evidence."
+    "note": "Complete the default-value submission that no dedicated catalog step can perform."
    },
    {
     "step": "expect_toast",
@@ -69,7 +81,7 @@
      "kind": "success",
      "text": "New Order Created"
     },
-    "note": "Assert the expected successful order-creation confirmation."
+    "note": "Assert that the recreated order was saved successfully."
    }
   ]
  }

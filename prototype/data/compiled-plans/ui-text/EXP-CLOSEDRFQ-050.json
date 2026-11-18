@@ -4,32 +4,71 @@
   "title": "Increase Event Time: Increase Event Time using Custom option",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:31:15.745Z",
+  "compiledAt": "2026-11-13T13:56:52.942Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "extend_time"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 7083
+  "ms": 18031
  },
  "plan": {
-  "title": "Closed RFQ Custom Extension Refusal",
+  "title": "Closed RFQ Custom Event Time Extension",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ with Vendor A's bid."
+    "note": "Open the prepared closed RFQ instead of creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Configure post-expiry surrogate bidding as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Restrict evaluation reopening as specified."
    },
    {
     "step": "go_to",
@@ -37,14 +76,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage."
+    "note": "Open the RFQ stage named in the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Reach the Responses view described by the case."
+    "note": "Reach the Responses view before opening Settings, matching the case flow."
    },
    {
     "step": "extend_time",
@@ -54,7 +93,7 @@
      "amount": "",
      "expect": "refused"
     },
-    "note": "Open Settings → Extend Submission Time, select Custom, press Ok with no duration, and verify the application refuses the request."
+    "note": "Select Custom and confirm with no duration, asserting the closed RFQ's response to the invalid or empty extension."
    }
   ]
  }

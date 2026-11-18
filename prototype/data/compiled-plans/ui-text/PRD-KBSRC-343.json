@@ -3,35 +3,48 @@
   "caseId": "PRD-KBSRC-343",
   "title": "Enable Vendor Masking hides vendor names and the participants tab",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:15:13.468Z",
+  "compiledAt": "2026-11-13T14:39:30.811Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "Enable the tenant's Vendor Masking setting through the Actions menu",
-   "Verify that QCS replaces vendor names with Vendor 1, Vendor 2, Vendor 3, and so on until bidding ends",
-   "Verify that the Participants tab is hidden after Vendor Masking is enabled"
-  ],
-  "warnings": [
-   "cannot test this case yet — no step can observe: Enable the tenant's Vendor Masking setting through the Actions menu; Verify that QCS replaces vendor names with Vendor 1, Vendor 2, Vendor 3, and so on until bidding ends; Verify that the Participants tab is hidden after Vendor Masking is enabled"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 3,
+  "steps": 9,
   "stepNames": [
-   "open_prepared",
+   "open_event",
+   "go_to",
+   "go_to",
    "click",
-   "expect_visible"
+   "click",
+   "expect_visible",
+   "open_master_qcs",
+   "expect_qcs_vendors",
+   "expect_text"
   ],
-  "ms": 11113
+  "ms": 18819
  },
  "plan": {
-  "title": "Vendor masking hides identities and participants",
+  "title": "Enable Vendor Masking on Live Auction",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing live auction as required by the setup."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "auction"
+    },
+    "note": "Navigate to the auction stage."
+   },
+   {
+    "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live auction Responses tab specified by the test setup."
+    "note": "Open the auction Responses tab where vendor masking is enabled."
    },
    {
     "step": "click",
@@ -39,16 +52,44 @@
      "role": "button",
      "name": "Actions"
     },
-    "note": "Open the Responses actions menu where the Vendor Masking control is expected."
+    "note": "Open the Responses Actions menu."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Enable Vendor Masking"
+    },
+    "note": "Enable vendor masking through the requested product action."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "menuitem",
-     "name": "Enable Vendor Masking",
-     "visible": true
+     "role": "tab",
+     "name": "Participants",
+     "visible": false
     },
-    "note": "Confirm the requested masking action is offered, without claiming that the tenant setting was enabled or that its effects occurred."
+    "note": "Verify that the Participants tab is hidden after masking is enabled."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the auction QCS to inspect the vendor columns after masking."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "realNames": false
+    },
+    "note": "Verify the QCS vendor columns do not require real company names and are represented by masked aliases."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendor 1",
+     "present": true
+    },
+    "note": "Verify the QCS displays the expected masked vendor alias."
    }
   ]
  }

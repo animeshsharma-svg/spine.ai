@@ -4,71 +4,76 @@
   "title": "Message with an attachment",
   "group": "SRC-STG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:06:35.449Z",
+  "compiledAt": "2026-11-13T12:56:34.716Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Send a buyer message with a PDF attachment to Vendor A and verify that Vendor A can download the same file"
+  ],
   "warnings": [
-   "resolved: “Vendor A opening the message and downloading the attached PDF through the supplier portal” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Send a buyer message with a PDF attachment to Vendor A and verify that Vendor A can download the same file"
   ],
   "source": "llm",
   "steps": 6,
   "stepNames": [
    "open_prepared",
-   "do_on_screen",
-   "switch_portal",
-   "vendor_open_event",
+   "require_setting",
+   "click",
+   "expect_visible",
    "ask_tester",
-   "expect_download"
+   "expect_screen_clean"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10427
+  "ms": 9682
  },
  "plan": {
-  "title": "Message with PDF attachment",
+  "title": "Message with Attachment Download",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary page."
+    "note": "Open the prepared live RFQ with no bids on its summary page."
    },
    {
-    "step": "do_on_screen",
+    "step": "require_setting",
     "args": {
-     "goal": "as the buyer, open Messages, attach sample.pdf to a message addressed to Vendor A, send the message, and stop when the sent message visibly shows the attachment"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Perform the buyer-side message composition, PDF attachment, and send action, which has no dedicated catalog step."
+    "note": "Enable the required eRFX project setting before accessing the prepared live RFQ."
    },
    {
-    "step": "switch_portal",
+    "step": "click",
     "args": {
-     "to": "vendor"
+     "role": "button",
+     "name": "Messages"
     },
-    "note": "Switch to Vendor A's supplier portal session to inspect the received message."
+    "note": "Open the event's Messages control as the closest available navigation step."
    },
    {
-    "step": "vendor_open_event",
+    "step": "expect_visible",
     "args": {
-     "overview": true
+     "text": "Messages",
+     "visible": true
     },
-    "note": "Open the prepared event in Vendor A's portal overview."
+    "note": "Confirm the Messages area is visible before handing off the unsupported attachment and vendor-download actions."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "as Vendor A, open the received message and download the attached PDF"
+     "need": "send a buyer message with a PDF attachment to Vendor A and verify that Vendor A can download the same file"
     },
-    "note": "The catalog has no vendor messaging or attachment-download action, so tester assistance is required."
+    "note": "The catalog has no step for composing or sending an attached message, or for verifying the download in Vendor A's portal."
    },
    {
-    "step": "expect_download",
-    "args": {
-     "name": "sample.pdf"
-    },
-    "note": "Verify that the attached PDF was downloaded during the vendor-side check."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the current screen remains rendered without a crash or server error after the unsupported flow handoff."
    }
   ]
  }

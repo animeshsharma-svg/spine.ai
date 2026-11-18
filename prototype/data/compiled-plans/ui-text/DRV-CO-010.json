@@ -1,63 +1,77 @@
 {
  "meta": {
   "caseId": "DRV-CO-010",
-  "title": "Bid revision not created when enable_counter_offer_logs_in_report is false",
+  "title": "Mobile app counter offer creation follows same validation as web",
   "group": "DRV-CO",
   "sheet": "derived-buyer-can-send-a-counter-offer-on-an-act",
-  "compiledAt": "2026-11-09T23:03:37.258Z",
+  "compiledAt": "2026-11-13T13:34:14.961Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A live RFQ with counter offers sent to both Vendor A and Vendor B",
-   "Verifying that Vendor A cannot see Vendor B's counter offer or Vendor B's pricing details"
+   "A second vendor's own counter offer and pricing details are not available in the prepared state, so isolation from Vendor B cannot be verified."
   ],
   "warnings": [
-   "can only test part of this — no step for: A live RFQ with counter offers sent to both Vendor A and Vendor B; Verifying that Vendor A cannot see Vendor B's counter offer or Vendor B's pricing details"
+   "can only test part of this — no step for: A second vendor's own counter offer and pricing details are not available in the prepared state, so isolation from Vendor B cannot be verified."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "place_counter_offer",
    "switch_portal",
    "vendor_open_event",
+   "expect_text",
    "expect_visible"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 8783
+  "ms": 10716
  },
  "plan": {
-  "title": "Vendor Counter Offer Privacy",
+  "title": "Vendor sees only own counter offer",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Start from the prepared live RFQ responses state as required."
+    "note": "Open the prepared live RFQ response view containing the active vendor bid."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {},
+    "note": "Send a buyer counter offer on the active bid so the vendor portal has counter-offer details to inspect."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
+     "to": "vendor"
     },
-    "note": "Open the supplier portal as Vendor A."
+    "note": "Move to the invited vendor's supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "overview": true
     },
-    "note": "Open the event in the vendor portal and remain on the event overview where counter-offer details are shown."
+    "note": "Open the event overview where the vendor's counter offer is displayed."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer",
+     "present": true
+    },
+    "note": "Assert that the vendor can see its own counter-offer section."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Counter Offer",
+     "role": "button",
+     "name": "Accept Counter Offer",
      "visible": true
     },
-    "note": "Assert that Vendor A can see the counter-offer section."
+    "note": "Assert that the vendor view exposes the action for its own pending counter offer."
    }
   ]
  }

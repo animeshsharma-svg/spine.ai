@@ -4,35 +4,44 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"Add T&CsAdded\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:45:06.964Z",
+  "compiledAt": "2026-11-13T14:06:29.501Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "moved open_events_list to the front — the steps before it had no list on screen",
-   "moved open_events_list to the front — the steps before it had no list on screen"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 15,
   "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
    "open_events_list",
-   "require_setting",
-   "require_setting",
-   "require_setting",
-   "expect_events_list",
    "filter_events",
    "open_first_event",
    "expect_visible"
   ],
-  "ms": 19852
+  "ms": 19426
  },
  "plan": {
-  "title": "Saved eRFX draft hides Add T&Cs",
+  "title": "EXP-DRAFT-042 Add T&Cs absence",
   "steps": [
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open Events so the saved draft can be reached from the Drafts tab."
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX create screen."
    },
    {
     "step": "require_setting",
@@ -40,7 +49,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required for the saved draft."
+    "note": "Enable eRFX project creation for the draft."
    },
    {
     "step": "require_setting",
@@ -48,7 +57,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Set the condition under test that should prevent the control from being offered."
+    "note": "Set the configuration under test so vendor additions are not allowed during event creation."
    },
    {
     "step": "require_setting",
@@ -56,26 +65,72 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the remaining case configuration before opening the draft."
+    "note": "Apply the additional case configuration before creating the draft."
    },
    {
-    "step": "expect_events_list",
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-042 TCs Control"
+    },
+    "note": "Provide the required draft title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an eRFX draft with an RFQ stage."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Confirm the events list rendered before switching tabs."
+    "note": "Apply the required RFQ template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the line item required for a valid draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before saving."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid schedule for the saved draft."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the configured eRFX event as a draft."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the events list to reopen the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show saved drafts, which is the source screen specified by the case."
+    "note": "Show saved drafts."
    },
    {
     "step": "open_first_event",
     "args": {
-     "tab": "Drafts"
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-042 TCs Control"
     },
-    "note": "Open an existing saved draft without creating or publishing a new event."
+    "note": "Open the draft created by this plan."
    },
    {
     "step": "expect_visible",
@@ -84,7 +139,7 @@
      "name": "Add T&Cs",
      "visible": false
     },
-    "note": "Assert that the Add T&Cs control is not offered on the saved eRFX draft."
+    "note": "Assert that the Add T&Cs control is not offered on the reopened draft."
    }
   ]
  }

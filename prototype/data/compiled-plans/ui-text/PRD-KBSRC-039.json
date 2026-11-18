@@ -3,25 +3,24 @@
   "caseId": "PRD-KBSRC-039",
   "title": "Add a Participant column (e.g. Freight Charges) for the vendor to fill",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:09:39.738Z",
+  "compiledAt": "2026-11-13T14:32:58.532Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids"
+  ],
   "source": "llm",
-  "steps": 20,
+  "steps": 17,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
-   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "click",
-   "click",
-   "click",
-   "expect_visible",
+   "do_on_screen",
    "set_schedule",
    "invite_vendor",
    "publish",
@@ -30,24 +29,27 @@
    "vendor_open_event",
    "expect_visible",
    "fill",
-   "expect_value"
+   "expect_value",
+   "expect_bid_submitted"
   ],
-  "ms": 12680
+  "ms": 22977
  },
  "plan": {
-  "title": "RFQ participant column editable by vendor",
+  "title": "Participant Column Editable by Vendor",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage event creation flow used for an RFQ."
+    "note": "Open the eRFX event creation screen."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title before publishing."
+    "args": {
+     "title": "Participant Column RFQ"
+    },
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -56,75 +58,45 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ rather than the default auction."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Work on the RFQ stage before selecting its template and sheet data."
+    "note": "Configure the event as an RFQ."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template so the sheet can be configured."
+    "note": "Apply an RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item to make the RFQ sheet available."
+    "note": "Add a product so the RFQ sheet is available."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the required RFQ sheet fields before adding the participant column."
+    "note": "Complete the required RFQ sheet values."
    },
    {
-    "step": "click",
+    "step": "do_on_screen",
     "args": {
-     "role": "button",
-     "name": "Add Columns"
+     "goal": "On the buyer's RFQ sheet, click Add Columns, choose Participant, select Freight Charges, and stop with the sheet visibly showing the Freight Charges column."
     },
-    "note": "Open the column configuration controls."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "Participant"
-    },
-    "note": "Choose the Participant column category."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "Freight Charges"
-    },
-    "note": "Add the Freight Charges participant column."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Freight Charges",
-     "visible": true
-    },
-    "note": "Verify the participant column is visible in the buyer's RFQ sheet."
+    "note": "Add and verify the Participant column, which has no dedicated catalog step."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule required for publication."
+    "note": "Commit a valid bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add a participating vendor for the vendor-side verification."
+    "note": "Add a participating vendor for the verification step."
    },
    {
     "step": "publish",
@@ -134,21 +106,21 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm publication reached a real project page."
+    "note": "Assert that publication reached the event page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier portal session."
+    "note": "Move to the invited vendor's supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the published RFQ pricing sheet as the vendor."
+    "note": "Open the event's RFQ bid sheet as the vendor."
    },
    {
     "step": "expect_visible",
@@ -156,7 +128,7 @@
      "text": "Freight Charges",
      "visible": true
     },
-    "note": "Verify the participant column is present in the vendor's RFQ sheet."
+    "note": "Assert that the Participant column is visible to the vendor."
    },
    {
     "step": "fill",
@@ -164,7 +136,7 @@
      "label": "Freight Charges",
      "value": "100"
     },
-    "note": "Enter a value in the participant column as the vendor."
+    "note": "Enter a value in the Participant column as the vendor."
    },
    {
     "step": "expect_value",
@@ -172,7 +144,12 @@
      "label": "Freight Charges",
      "value": "100"
     },
-    "note": "Verify the vendor can edit the participant column and the entered value remains visible."
+    "note": "Assert that the vendor-entered value remains in the column."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the vendor bid was accepted."
    }
   ]
  }

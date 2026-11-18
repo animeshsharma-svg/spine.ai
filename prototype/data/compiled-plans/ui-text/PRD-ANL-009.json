@@ -3,48 +3,57 @@
   "caseId": "PRD-ANL-009",
   "title": "AI Spend Insights with Standard Dashboards (Feature) missing or misconfigured (DEP-004)",
   "group": "PRD-ANL",
-  "compiledAt": "2026-11-10T06:35:19.418Z",
+  "compiledAt": "2026-11-13T15:30:26.177Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Leave Standard Dashboards (FEAT-ANL-001) missing or misconfigured for the tenant",
-   "Configure AI Spend Insights (FF-004) and exercise its controls",
-   "Verify that AI Spend Insights cannot be enabled when the Analytics module is inactive",
-   "Inspect or change tenant feature settings and module permissions"
+   "Configure AI Spend Insights (FF-004) while Standard Dashboards (FEAT-ANL-001) is missing or misconfigured",
+   "Exercise AI Spend Insights controls and observe whether the Analytics dependency blocks enablement or produces the stated impact",
+   "Verify the actual safer behavior if Procol prevents the misconfiguration up front"
   ],
   "warnings": [
-   "can only test part of this — no step for: Leave Standard Dashboards (FEAT-ANL-001) missing or misconfigured for the tenant; Configure AI Spend Insights (FF-004) and exercise its controls; Verify that AI Spend Insights cannot be enabled when the Analytics module is inactive; Inspect or change tenant feature settings and module permissions"
+   "can only test part of this — no step for: Configure AI Spend Insights (FF-004) while Standard Dashboards (FEAT-ANL-001) is missing or misconfigured; Exercise AI Spend Insights controls and observe whether the Analytics dependency blocks enablement or produces the stated impact; Verify the actual safer behavior if Procol prevents the misconfiguration up front"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
-   "open_prepared",
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 11275
+  "ms": 23208
  },
  "plan": {
-  "title": "AI Spend Insights Feature Gating",
+  "title": "AI Spend Insights dependency gating",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "require_setting",
     "args": {
-     "screen": "analytics"
+     "phrase": "Standard Dashboards (FEAT-ANL-001) missing or misconfigured",
+     "value": "Off"
     },
-    "note": "Open the closest available analytics screen, although it cannot expose the tenant feature-flag configuration or AI Spend Insights gating."
+    "note": "Attempt to establish the prerequisite feature as unavailable before testing the dependent feature."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Analytics module (MOD-07) inactive",
+     "value": "Off"
+    },
+    "note": "Set the analytics dependency inactive, matching the stated gating condition."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "configure the tenant with Standard Dashboards missing or misconfigured, attempt to enable AI Spend Insights while Analytics is inactive, and record whether Procol prevents the enablement or allows the safer upfront configuration"
+     "need": "configure AI Spend Insights and exercise its controls while Standard Dashboards and the Analytics module are unavailable, then report whether enablement is blocked or what impact appears"
     },
-    "note": "Tenant settings and the AI Spend Insights configuration flow are not available in the step catalog."
+    "note": "No catalog step can configure or observe the AI Spend Insights feature behavior."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the available analytics screen remains free of crashes or raw errors after the unsupported configuration exercise."
+    "note": "Provide a final generic screen assertion after the tester interaction; this does not validate the feature behavior."
    }
   ]
  }

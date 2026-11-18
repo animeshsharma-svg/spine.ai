@@ -4,38 +4,37 @@
   "title": "Leaving the create screen without saving creates nothing",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:19:03.637Z",
+  "compiledAt": "2026-11-13T12:03:23.247Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Whether an unsaved changes warning appears when leaving the create screen"
+  ],
   "warnings": [
-   "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
-   "added save_draft before open_events_list — the event this plan creates must be saved before it can be found again",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Whether an unsaved changes warning appears when leaving the create screen"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 12,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "open_events_list",
+   "expect_events_list",
+   "remember",
    "set_title",
    "select_template",
    "add_line_items",
-   "fill_sheet",
-   "do_on_screen",
-   "save_draft",
    "open_events_list",
-   "filter_events",
-   "expect_table",
-   "filter_events",
-   "expect_table",
-   "filter_events",
-   "expect_table"
+   "expect_events_list",
+   "expect_text",
+   "expect_remembered"
   ],
-  "ms": 15219
+  "ms": 22764
  },
  "plan": {
-  "title": "Leaving eRFX Without Saving",
+  "title": "Leaving eRFX Create Without Saving",
   "steps": [
    {
     "step": "open_create",
@@ -45,86 +44,78 @@
     "note": "Open the eRFX project create screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation and draft management as required by the case."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Start from the Events list."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify the Events list and its controls rendered."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "drafts_count",
+     "role": "tab",
+     "name": "Drafts"
+    },
+    "note": "Capture the initial Drafts tab and count for comparison after leaving create."
+   },
+   {
     "step": "set_title",
     "args": {
-     "title": "SRC-ERX-028 Unsaved Leave"
+     "title": "SRC-ERX-028 Unsaved Event"
     },
-    "note": "Use a unique title so any accidental event or draft can be identified."
+    "note": "Populate the required event title without saving or publishing."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose a template as required by the scenario."
+    "note": "Choose an available template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the requested item without saving or publishing."
-   },
-   {
-    "step": "fill_sheet"
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "click Events in the left navigation, record whether an unsaved changes warning appears, leave the create screen without saving, and stop on the Events list"
-    },
-    "note": "Perform the navigation that has no dedicated catalog step and observe any unsaved-changes warning."
-   },
-   {
-    "step": "save_draft"
+    "note": "Add one line item to create the partially filled event state."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Ensure the Events list is ready for verification."
+    "note": "Navigate away from the create screen without saving."
    },
    {
-    "step": "filter_events",
-    "args": {
-     "tab": "Drafts"
-    },
-    "note": "Check the Drafts tab for an accidentally created draft."
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify navigation returned to the Events list."
    },
    {
-    "step": "expect_table",
+    "step": "expect_text",
     "args": {
-     "row": "SRC-ERX-028 Unsaved Leave",
+     "text": "SRC-ERX-028 Unsaved Event",
      "present": false
     },
-    "note": "Assert that leaving without saving did not create a draft."
+    "note": "Assert that no event or draft with the entered title is visible in the list."
    },
    {
-    "step": "filter_events",
+    "step": "expect_remembered",
     "args": {
-     "tab": "Live"
+     "key": "drafts_count",
+     "role": "tab",
+     "name": "Drafts",
+     "same": true
     },
-    "note": "Check the Live tab for an accidentally created event."
-   },
-   {
-    "step": "expect_table",
-    "args": {
-     "row": "SRC-ERX-028 Unsaved Leave",
-     "present": false
-    },
-    "note": "Assert that no live event was created."
-   },
-   {
-    "step": "filter_events",
-    "args": {
-     "tab": "History"
-    },
-    "note": "Check the History tab for any accidentally created event record."
-   },
-   {
-    "step": "expect_table",
-    "args": {
-     "row": "SRC-ERX-028 Unsaved Leave",
-     "present": false
-    },
-    "note": "Assert that no historical event record exists for the unsaved create attempt."
+    "note": "Assert that the Drafts tab count is unchanged after leaving without saving."
    }
   ]
  }

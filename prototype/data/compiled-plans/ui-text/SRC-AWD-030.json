@@ -4,43 +4,47 @@
   "title": "Three bids: award a three-way split 4 / 3 / 3 to B, C and A; approver approves with a remark",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:20:50.360Z",
+  "compiledAt": "2026-11-13T11:41:31.059Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A closed RFQ with three bids from vendors A, B, and C at 100, 90, and 95 for 10 units",
-   "Allocating the required three-way split of 4 units to B, 3 to C, and 3 to A, including totals 360, 285, 300, and 945",
-   "Signing in as the separate approver and approving the proposal with the remark \"OK — QA\"",
-   "Verifying one purchase order per each of the three awarded vendors and the event's transition to History"
+   "A third vendor bid from vendor C in the prepared closed_two_bids state",
+   "Allocating exactly 4 units to B, 3 units to C, and 3 units to A with totals 360, 285, 300, and 945",
+   "Signing in as a separate approver account and approving the proposal with the remark \"OK — QA\"",
+   "Verifying three awarded vendors, one PO per awarded vendor, and the event moving to History after that three-way approval"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: A closed RFQ with three bids from vendors A, B, and C at 100, 90, and 95 for 10 units; Allocating the required three-way split of 4 units to B, 3 to C, and 3 to A, including totals 360, 285, 300, and 945; Signing in as the separate approver and approving the proposal with the remark \"OK — QA\"; Verifying one purchase order per each of the three awarded vendors and the event's transition to History"
+   "can only test part of this — no step for: A third vendor bid from vendor C in the prepared closed_two_bids state; Allocating exactly 4 units to B, 3 units to C, and 3 units to A with totals 360, 285, 300, and 945; Signing in as a separate approver account and approving the proposal with the remark \"OK — QA\"; Verifying three awarded vendors, one PO per awarded vendor, and the event moving to History after that three-way approval"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
    "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
    "start_awarding",
+   "allocate_award",
+   "allocate_award",
    "expect_award_counters"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 19916
+  "ms": 21731
  },
  "plan": {
-  "title": "Three-way split award and approval",
+  "title": "Three-way split award approval",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly in Master QCS; the prepared state has two bids."
+    "note": "Open the existing prepared closed event directly on Master QCS."
    },
    {
     "step": "require_setting",
@@ -56,7 +60,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
     "step": "expect_qcs_vendors",
@@ -64,20 +68,57 @@
      "count": 2,
      "realNames": true
     },
-    "note": "Assert the available event has two real vendor columns, exposing that vendor C is unavailable."
+    "note": "Assert the prepared state has two real bidding vendors; the third vendor is unavailable."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "number": 100
+    },
+    "note": "Verify the first vendor's prepared bid rate."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 2,
+     "number": 90
+    },
+    "note": "Verify the second vendor's prepared bid rate."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen to inspect the available allocation state."
+    "note": "Open the awarding screen for the closed prepared event."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": 2,
+     "quantity": 4,
+     "line": 1
+    },
+    "note": "Exercise partial allocation for the lower-priced available vendor as the closest supported split."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": 1,
+     "quantity": 6,
+     "line": 1
+    },
+    "note": "Allocate the remaining requested quantity to the other available vendor."
    },
    {
     "step": "expect_award_counters",
     "args": {
-     "items": "0/1",
-     "vendors": "0/2"
+     "items": "1/1",
+     "vendors": "2/2",
+     "proposal": 940
     },
-    "note": "Assert the awarding screen starts with one line item and two available vendors, not the required three."
+    "note": "Assert the supported two-vendor split is fully allocated and totals 4×90 + 6×100 = 940."
    }
   ]
  }

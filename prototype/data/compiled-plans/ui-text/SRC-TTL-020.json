@@ -4,7 +4,7 @@
   "title": "Reverse auction: clearing a typed title brings the auto title back",
   "group": "SRC-TTL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:19:25.817Z",
+  "compiledAt": "2026-11-13T13:12:37.199Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,7 +17,7 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -25,12 +25,13 @@
    "select_template",
    "fill",
    "add_line_items",
+   "set_sheet_cell",
    "expect_value"
   ],
-  "ms": 9082
+  "ms": 13032
  },
  "plan": {
-  "title": "Reverse auction auto-title restoration",
+  "title": "Reverse auction title restores after clearing",
   "steps": [
    {
     "step": "open_create",
@@ -42,23 +43,23 @@
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction",
-     "auctionSubtype": "rank",
-     "awarding": "lot"
+     "eventType": "auction"
     },
-    "note": "Set the event type to Auction using a reverse-auction configuration."
+    "note": "Set the event type to Auction, matching the reverse-auction scenario."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Temporary Typed Title"
+     "title": "Temporary Reverse Auction Title"
     },
-    "note": "Enter a temporary manual title before clearing it."
+    "note": "Enter a title so the case can verify that clearing a typed title restores the automatic title."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Choose the available reverse auction template so the product sheet is enabled."
+    "args": {
+     "name": "Reverse"
+    },
+    "note": "Choose the reverse/buy auction template so the product sheet is available."
    },
    {
     "step": "fill",
@@ -66,7 +67,7 @@
      "label": "Enter the title of this event",
      "value": ""
     },
-    "note": "Clear the typed title, matching the test's select-all-and-delete action."
+    "note": "Clear the manually typed title without replacing the automatic title behavior."
    },
    {
     "step": "add_line_items",
@@ -74,7 +75,16 @@
      "count": 1,
      "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the named product row so the automatic title can be regenerated."
+    "note": "Add the product named in the case."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name"
+    },
+    "note": "Set the product row's delivery location to Plant Name, the second input used by the automatic title."
    },
    {
     "step": "expect_value",
@@ -82,7 +92,7 @@
      "label": "Enter the title of this event",
      "value": "[Reverse Auction] CYLINDER WITH KEY & KNOB - Plant Name"
     },
-    "note": "Verify that the empty title field is repopulated with the expected automatic title."
+    "note": "Verify that the empty title box regenerated the expected automatic reverse-auction title."
    }
   ]
  }

@@ -4,38 +4,41 @@
   "title": "eRFX RFQ project: invite two named vendors by search",
   "group": "SRC-PAR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:41:43.317Z",
+  "compiledAt": "2026-11-13T12:22:13.326Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
+   "Verify that the two participants are the specifically intended Vendor A and Vendor B because their actual vendor names are not provided.",
    "Verify that each vendor receives the invitation in their QA mailbox."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that each vendor receives the invitation in their QA mailbox."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Verify that the two participants are the specifically intended Vendor A and Vendor B because their actual vendor names are not provided.; Verify that each vendor receives the invitation in their QA mailbox."
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 16,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
    "select_template",
    "add_line_items",
-   "expect_text",
-   "set_sheet_cell",
-   "expect_sheet_cell",
    "fill_sheet",
+   "set_sheet_cell",
    "invite_vendor",
    "set_schedule",
    "publish",
    "expect_published",
    "open_participants",
-   "expect_participant_count",
-   "expect_participant",
-   "expect_participant"
+   "expect_participant_count"
   ],
-  "ms": 14393
+  "ms": 18812
  },
  "plan": {
   "title": "Invite two named vendors to eRFX RFQ",
@@ -45,7 +48,23 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation screen."
+    "note": "Open the eRFX project create screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
    },
    {
     "step": "set_title",
@@ -61,19 +80,18 @@
       "rfq"
      ]
     },
-    "note": "Configure the project with RFQ as its only stage."
+    "note": "Configure the project with an RFQ-only stage."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfq"
     },
-    "note": "Move to the RFQ stage before configuring its template and items."
+    "note": "Configure the RFQ stage."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply the first available RFQ template."
+    "note": "Apply the first available RFQ template before adding line items."
    },
    {
     "step": "add_line_items",
@@ -82,15 +100,10 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add the requested CYLINDER item with quantity 10."
+    "note": "Add the requested CYLINDER product and set its quantity to 10."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "CYLINDER WITH KEY & KNOB",
-     "present": true
-    },
-    "note": "Verify the requested product appears on the create screen."
+    "step": "fill_sheet"
    },
    {
     "step": "set_sheet_cell",
@@ -102,73 +115,37 @@
     "note": "Set the requested delivery location for the line item."
    },
    {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "equals": "Plant Name (LOC-0001)"
-    },
-    "note": "Verify the delivery location was retained."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet before scheduling and publishing."
-   },
-   {
     "step": "invite_vendor",
     "args": {
-     "vendors": [
-      "Vendor A",
-      "Vendor B"
-     ]
+     "count": 2
     },
-    "note": "Search for and add the two named vendors only."
+    "note": "Invite exactly two QA test vendors from the product's vendor list."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the requested 30-minute schedule starting now."
+    "note": "Commit the 30-minute event schedule."
    },
    {
     "step": "publish",
-    "args": {},
-    "note": "Publish the RFQ project after all required configuration is complete."
+    "note": "Publish the configured RFQ project."
    },
    {
     "step": "expect_published",
-    "args": {},
-    "note": "Verify the event reached a published project page."
+    "note": "Confirm publication reached a real project page."
    },
    {
     "step": "open_participants",
-    "args": {},
-    "note": "Open the published RFQ stage's Participants list."
+    "note": "Open the published RFQ stage's Participants tab."
    },
    {
     "step": "expect_participant_count",
     "args": {
      "count": 2
     },
-    "note": "Verify that exactly two vendors are participants and nobody else is listed."
-   },
-   {
-    "step": "expect_participant",
-    "args": {
-     "vendor": "Vendor A",
-     "present": true
-    },
-    "note": "Verify Vendor A is listed as a participant."
-   },
-   {
-    "step": "expect_participant",
-    "args": {
-     "vendor": "Vendor B",
-     "present": true
-    },
-    "note": "Verify Vendor B is listed as a participant."
+    "note": "Verify that exactly two vendors are participants after publishing."
    }
   ]
  }

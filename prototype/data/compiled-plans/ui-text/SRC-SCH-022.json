@@ -4,36 +4,38 @@
   "title": "eRFX Auction stage with Duration 60 Mins",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:03:12.847Z",
+  "compiledAt": "2026-11-13T12:53:07.287Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify by comparing the displayed Bidding Starts At and Bidding Ends At timestamps that the interval is exactly 60 minutes."
+   "Directly assert that Bidding Ends At is exactly 60 minutes after the auction start time."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify by comparing the displayed Bidding Starts At and Bidding Ends At timestamps that the interval is exactly 60 minutes."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Directly assert that Bidding Ends At is exactly 60 minutes after the auction start time."
   ],
   "source": "llm",
   "steps": 13,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
-   "compose_stages",
-   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "set_schedule",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
    "expect_text",
    "expect_no_error"
   ],
-  "ms": 13248
+  "ms": 12433
  },
  "plan": {
-  "title": "eRFX Auction 60-Minute Duration",
+  "title": "eRFX Auction 60-Minute Schedule",
   "steps": [
    {
     "step": "open_create",
@@ -43,74 +45,78 @@
     "note": "Open the eRFX project creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation so publishing is available."
+   },
+   {
     "step": "set_title",
-    "args": {
-     "title": "SRC-SCH-022 Auction 60 Mins"
-    },
-    "note": "Provide the required event title before publishing."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "auction"
-     ]
-    },
-    "note": "Keep the project configured with its single Auction stage."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "auction"
-    },
-    "note": "Configure the Auction stage before selecting its template and items."
+    "args": {},
+    "note": "Provide the required event title using the runner's generated unique title."
    },
    {
     "step": "select_template",
-    "note": "Apply an available Auction template."
+    "args": {},
+    "note": "Apply an Auction template before adding the line item."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the one required auction item."
+    "note": "Add the single item required by the scenario."
    },
    {
     "step": "fill_sheet",
-    "note": "Populate the pricing sheet so the event is publishable."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 60
-    },
-    "note": "Commit a 60-minute bidding duration."
+    "args": {},
+    "note": "Complete the Auction pricing sheet for the added item."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two QA test vendors as required by the scenario."
+    "note": "Invite two QA test vendors, corresponding to Vendor A and Vendor B without inventing names."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 60
+    },
+    "note": "Commit a 60-minute event duration in the schedule drawer."
    },
    {
     "step": "publish",
-    "note": "Publish the configured eRFX auction."
+    "args": {},
+    "note": "Publish the configured eRFX Auction event."
    },
    {
     "step": "expect_published",
-    "note": "Verify that publishing reached the real project page."
+    "args": {},
+    "note": "Verify that publishing reached a real project page."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Bidding Ends At"
+     "text": "Bidding Ends At",
+     "present": true
     },
-    "note": "Confirm Project Details exposes the bidding end field for the published auction."
+    "note": "Verify that Project Details exposes the bidding end-time field requested by the case."
    },
    {
     "step": "expect_no_error",
+    "args": {},
     "note": "Confirm no application error is shown after publication."
    }
   ]

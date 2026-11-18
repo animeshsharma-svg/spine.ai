@@ -3,50 +3,51 @@
   "caseId": "PRD-RA-022",
   "title": "Auction Time Controls: refused for a user without the Buyer role",
   "group": "PRD-RA",
-  "compiledAt": "2026-11-10T01:37:38.821Z",
+  "compiledAt": "2026-11-13T14:58:17.137Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and compare refusal or absence for extending, shortening, and ending submission time against a Buyer on the same tenant",
-   "Verify shortening submission time with a logged reason",
-   "Verify the tenant's actual RBAC configuration or whether it deliberately grants the action to additional roles"
+   "Select or verify a tenant on the Growth plan when no tenant ID is provided",
+   "Sign in as and switch between the non-Buyer and Buyer personas on the same tenant",
+   "Compare extend, shorten, and end-submission permissions separately for the two roles"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and compare refusal or absence for extending, shortening, and ending submission time against a Buyer on the same tenant; Verify shortening submission time with a logged reason; Verify the tenant's actual RBAC configuration or whether it deliberately grants the action to additional roles"
+   "can only test part of this — no step for: Select or verify a tenant on the Growth plan when no tenant ID is provided; Sign in as and switch between the non-Buyer and Buyer personas on the same tenant; Compare extend, shorten, and end-submission permissions separately for the two roles"
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_event",
    "ask_tester",
-   "expect_settings_menu"
+   "extend_time"
   ],
-  "ms": 11863
+  "ms": 27514
  },
  "plan": {
-  "title": "Auction Time Controls RBAC",
+  "title": "Auction Time Controls Role Access",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing suitable auction event so the time-control actions can be assessed without creating a different subject."
+    "note": "Open an existing event that can provide the Auction Time Controls context without inventing an event or tenant."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Buyer user and then the Buyer on the same Growth tenant, attempt extending, shortening, and ending auction submission with a logged reason in both roles, and report whether each action is refused, absent, or succeeds"
+     "need": "provide access to the same Growth tenant as both the user without the Buyer role and a Buyer, then switch to the non-Buyer session for the Auction Time Controls check"
     },
-    "note": "Role-specific sign-in and the complete cross-role comparison are not expressible by catalog steps."
+    "note": "The required role-specific sessions and tenant plan cannot be created or selected by catalog steps."
    },
    {
-    "step": "expect_settings_menu",
+    "step": "extend_time",
     "args": {
-     "offered": [
-      "Extend Submission Time",
-      "Withdraw"
-     ]
+     "which": "submission",
+     "option": "custom",
+     "amount": 15,
+     "unit": "minutes",
+     "expect": "refused"
     },
-    "note": "Confirm the final Buyer-facing event state offers the available submission-time and end controls."
+    "note": "Attempt the submission-time control and require Procol to refuse it for the non-Buyer session."
    }
   ]
  }

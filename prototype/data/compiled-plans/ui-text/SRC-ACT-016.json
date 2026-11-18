@@ -4,24 +4,26 @@
   "title": "Order Activity records Recreate Order (on the old event)",
   "group": "SRC-ACT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:13:31.245Z",
+  "compiledAt": "2026-11-13T11:35:34.698Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Explicitly verify the recorded actor identity and timestamp for the Recreate Order activity entry"
+   "Assert that the Recreate Order activity entry contains a populated actor identity and timestamp."
   ],
   "warnings": [
-   "can only test part of this — no step for: Explicitly verify the recorded actor identity and timestamp for the Recreate Order activity entry"
+   "can only test part of this — no step for: Assert that the Recreate Order activity entry contains a populated actor identity and timestamp."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
    "open_event",
    "event_menu",
+   "do_on_screen",
    "event_menu",
+   "expect_visible",
    "expect_text"
   ],
-  "ms": 64758
+  "ms": 12749
  },
  "plan": {
   "title": "Order Activity Records Recreate Order",
@@ -29,28 +31,44 @@
    {
     "step": "open_event",
     "args": {},
-    "note": "Open a suitable existing event to act on the old event."
+    "note": "Open an existing suitable event to act on as the old event."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Recreate the order from the event's stage settings menu."
+    "note": "Open the event action that starts recreating the order."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "complete the Recreate Order flow for this old event and return to its stage page"
+    },
+    "note": "Complete the confirmation or remaining on-screen actions that the catalog does not model."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Order Activity"
     },
-    "note": "Open the Order Activity drawer after recreating the order."
+    "note": "Open the stage Activity drawer to inspect the event history."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Activity",
+     "visible": true
+    },
+    "note": "Confirm that the Order Activity drawer is open."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Recreate Order"
+     "text": "Recreate Order",
+     "present": true
     },
-    "note": "Verify the activity history contains a Recreate Order entry."
+    "note": "Assert that the activity history records the recreate action."
    }
   ]
  }

@@ -3,38 +3,43 @@
   "caseId": "PRD-KBVON-029",
   "title": "Reach the form via the tab next to Event Overview",
   "group": "PRD-KBVON",
-  "compiledAt": "2026-11-10T04:13:53.634Z",
+  "compiledAt": "2026-11-13T15:17:09.969Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The setup state where the vendor has clicked \"I will participate\" but was not automatically taken to the next tab",
-   "The exact tab next to \"Event Overview\" that opens the onboarding form",
-   "The onboarding form and its visible sections"
+   "The specific onboarding form section labels or contents, because the case does not name them and the catalog has no dedicated onboarding-form assertion."
   ],
   "warnings": [
-   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
-   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
-   "can only test part of this — no step for: The setup state where the vendor has clicked \"I will participate\" but was not automatically taken to the next tab; The exact tab next to \"Event Overview\" that opens the onboarding form; The onboarding form and its visible sections"
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "can only test part of this — no step for: The specific onboarding form section labels or contents, because the case does not name them and the catalog has no dedicated onboarding-form assertion."
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 15,
   "stepNames": [
    "open_create",
-   "compose_stages",
    "set_title",
+   "configure_single_stage",
    "select_template",
    "add_line_items",
-   "expect_line_items",
-   "fill_sheet",
+   "fill_questionnaires",
+   "assign_evaluator",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "ask_tester"
+   "click",
+   "expect_visible"
   ],
-  "ms": 9269
+  "ms": 17662
  },
  "plan": {
   "title": "Vendor onboarding form via adjacent tab",
@@ -42,69 +47,97 @@
    {
     "step": "open_create",
     "args": {
-     "path": "erfx"
-    }
+     "path": "single-stage"
+    },
+    "note": "Create a technical event that exposes a vendor-facing technical form."
    },
    {
-    "step": "compose_stages",
+    "step": "set_title",
     "args": {
-     "stages": [
-      "rfq"
-     ]
-    }
+     "title": "Vendor Onboarding Form Tab Test"
+    },
+    "note": "Provide the required event title."
    },
    {
-    "step": "set_title"
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
    },
    {
-    "step": "select_template"
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the technical-stage template required before publishing."
    },
    {
     "step": "add_line_items",
+    "args": {},
+    "note": "a product is needed before participants or publishing"
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Populate the technical form so the vendor-facing form is available."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Satisfy the technical-stage evaluator requirement."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
     "args": {
      "count": 1
-    }
+    },
+    "note": "Invite the QA vendor who will access the event."
    },
    {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    }
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so it is available in the vendor portal."
    },
    {
-    "step": "fill_sheet"
-   },
-   {
-    "step": "set_schedule"
-   },
-   {
-    "step": "invite_vendor"
-   },
-   {
-    "step": "publish"
-   },
-   {
-    "step": "expect_published"
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the vendor portal where the participation and onboarding flow is presented."
+    "note": "Open the invited vendor's separate supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "overview": true
     },
-    "note": "Open the event's vendor overview, the starting screen for reaching the adjacent tab."
+    "note": "Open the event on the vendor's Event Overview, matching the setup state."
    },
    {
-    "step": "ask_tester",
+    "step": "click",
     "args": {
-     "need": "as the participating vendor, click the tab next to Event Overview and verify that the onboarding form sections are visible"
-    }
+     "role": "tab",
+     "name": "Technical Stage"
+    },
+    "note": "Click the tab adjacent to the vendor's Event Overview/Details tab to reach the form."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "form",
+     "visible": true
+    },
+    "note": "Verify that a form is visible after navigating through the adjacent tab."
    }
   ]
  }

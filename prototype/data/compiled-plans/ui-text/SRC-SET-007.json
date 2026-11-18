@@ -4,29 +4,30 @@
   "title": "A single-stage forward auction (buyer selling), tick size 1",
   "group": "SRC-SET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:16:44.707Z",
+  "compiledAt": "2026-11-13T12:54:42.138Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "explicitly setting tick size to 1 via catalog steps"
+   "Configure the auction as a forward/sell auction rather than a buy auction.",
+   "Set or verify the auction tick size is 1."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added place_bid — the test is about bidding and no bid step was planned",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added place_bid — the test is about bidding and no bid step was planned",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
-   "can only test part of this — no step for: explicitly setting tick size to 1 via catalog steps"
+   "can only test part of this — no step for: Configure the auction as a forward/sell auction rather than a buy auction.; Set or verify the auction tick size is 1."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 16,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
@@ -37,36 +38,58 @@
    "set_schedule",
    "publish",
    "expect_published",
-   "place_bid"
+   "place_bid",
+   "open_events_list",
+   "expect_event_status"
   ],
-  "ms": 128433
+  "ms": 20122
  },
  "plan": {
-  "title": "Live forward auction single-stage with tick size",
+  "title": "SRC-SET-007 Single-Stage Forward Auction",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single stage create screen"
+    "note": "Open the single-stage event creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
-     "auctionSubtype": "rank",
+     "auctionSubtype": "price",
      "awarding": "lot"
     },
-    "note": "Set event type to auction"
+    "note": "Switch the event from the default type to a price-based auction and award the entire lot to one vendor."
    },
    {
     "step": "set_title",
-    "note": "Set a unique title for the auction event"
+    "args": {
+     "title": "SRC-SET-007 Forward Auction"
+    },
+    "note": "Give the event a findable title required for publication."
    },
    {
     "step": "select_template",
-    "note": "Select the forward auction template"
+    "args": {},
+    "note": "Apply the first offered auction template so the pricing sheet is available."
    },
    {
     "step": "add_line_items",
@@ -75,10 +98,12 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product and quantity"
+    "note": "Add the specified product as the first line item with quantity 10."
    },
    {
-    "step": "fill_sheet"
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the remaining required pricing-sheet fields."
    },
    {
     "step": "set_sheet_cell",
@@ -87,32 +112,47 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the delivery location for the line item"
+    "note": "Set the first line item's delivery location to the requested plant."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite Vendor A and Vendor B"
+    "note": "Add exactly two QA test vendors for Vendor A and Vendor B."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Set the schedule to start now for 30 minutes"
+    "note": "Commit an immediate 30-minute event schedule."
    },
    {
     "step": "publish",
-    "note": "Publish the single stage auction event"
+    "args": {},
+    "note": "Publish the configured auction."
    },
    {
     "step": "expect_published",
-    "note": "Assert the auction event reached a live project page"
+    "args": {},
+    "note": "Verify publication reached a real project page."
    },
    {
     "step": "place_bid"
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to verify the resulting live status."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Live",
+     "title": "SRC-SET-007 Forward Auction"
+    },
+    "note": "Confirm the newly published auction is shown as Live."
    }
   ]
  }

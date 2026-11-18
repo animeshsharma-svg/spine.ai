@@ -4,56 +4,62 @@
   "title": "Knockout (rounds) auction: what each side sees during bidding",
   "group": "SRC-STR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:18:13.412Z",
+  "compiledAt": "2026-11-13T12:58:28.508Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Selecting or asserting the knockout (rounds) auction strategy on the create screen",
-   "Selecting or asserting the specified reverse/buy auction template when its name is not provided",
-   "Running knockout round 1 and observing the worst vendor being knocked out",
-   "Verifying that only qualified vendors can bid in the next knockout round",
-   "Observing the knocked-out vendor's portal screen",
-   "Observing the buyer's Responses during knockout rounds",
-   "Opening separate vendor sessions for Vendors A, B, and C"
+   "Create a fresh auction using the knockout (rounds) strategy; knockout is only supported through RFQ-to-Auction conversion and no catalog step performs that conversion with knockout configuration.",
+   "Run knockout auction rounds and cause the worst vendor to be knocked out.",
+   "Observe the buyer's Responses during knockout rounds.",
+   "Observe Vendor A's and Vendor B's bidding screens in separate vendor sessions.",
+   "Verify that only qualified vendors can bid in the next round.",
+   "Verify that the knocked-out vendor sees that it is out."
   ],
   "warnings": [
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added place_bid — the test is about bidding and no bid step was planned",
+   "added set_title — publishing without a title is refused",
+   "added publish — a bid needs a published event to bid on",
+   "inserted select_template + add_line_items before publish — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added place_bid — the test is about bidding and no bid step was planned",
-   "cannot test this case yet — no step can observe: Selecting or asserting the knockout (rounds) auction strategy on the create screen; Selecting or asserting the specified reverse/buy auction template when its name is not provided; Running knockout round 1 and observing the worst vendor being knocked out; Verifying that only qualified vendors can bid in the next knockout round; Observing the knocked-out vendor's portal screen; Observing the buyer's Responses during knockout rounds; Opening separate vendor sessions for Vendors A, B, and C"
+   "added set_title — publishing without a title is refused",
+   "added publish — a bid needs a published event to bid on",
+   "inserted select_template + add_line_items before publish — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "cannot test this case yet — no step can observe: Create a fresh auction using the knockout (rounds) strategy; knockout is only supported through RFQ-to-Auction conversion and no catalog step performs that conversion with knockout configuration.; Run knockout auction rounds and cause the worst vendor to be knocked out.; Observe the buyer's Responses during knockout rounds.; Observe Vendor A's and Vendor B's bidding screens in separate vendor sessions.; Verify that only qualified vendors can bid in the next round.; Verify that the knocked-out vendor sees that it is out."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 10,
   "stepNames": [
    "open_create",
-   "require_setting",
-   "require_setting",
    "set_title",
-   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "configure_single_stage",
+   "expect_options",
    "select_template",
    "add_line_items",
-   "fill_sheet",
-   "set_sheet_cell",
-   "set_schedule",
-   "invite_vendor",
    "publish",
-   "expect_published",
-   "place_bid",
-   "convert_to_auction",
-   "expect_no_error"
+   "place_bid"
   ],
-  "ms": 22590
+  "ms": 16628
  },
  "plan": {
-  "title": "SRC-STR-015 Knockout Auction Rounds",
+  "title": "Knockout Auction Round Visibility",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "erfx"
+     "path": "single-stage"
     },
-    "note": "Use the supported RFQ-to-Auction conversion route because knockout auctions are only reachable through conversion in the catalog."
+    "note": "Open the single-stage creation flow specified by the case."
+   },
+   {
+    "step": "set_title"
    },
    {
     "step": "require_setting",
@@ -61,7 +67,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation as required by the case."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "require_setting",
@@ -69,88 +75,42 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation so publishing can proceed."
+    "note": "Allow vendors to be added during event creation as required by the case."
    },
    {
-    "step": "set_title",
+    "step": "configure_single_stage",
     "args": {
-     "title": "SRC-STR-015 Knockout Rounds"
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
     },
-    "note": "Provide the mandatory project title."
+    "note": "Configure the closest supported auction type so the strategy controls can be inspected."
    },
    {
-    "step": "compose_stages",
+    "step": "expect_options",
     "args": {
-     "stages": [
-      "rfq"
+     "label": "Choose a Strategy",
+     "disabled": [
+      "Knockout"
      ]
     },
-    "note": "Create an RFQ stage that can be published and converted to an auction."
+    "note": "Assert the catalog-supported result for the requested knockout strategy: it is offered only as a disabled option on a fresh single-stage auction."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template; the exact reverse-template identity is not available from the case."
+    "note": "a template comes first on the create screen"
    },
    {
     "step": "add_line_items",
-    "args": {
-     "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB",
-     "quantity": "10"
-    },
-    "note": "Add the specified product and quantity."
-   },
-   {
-    "step": "fill_sheet",
     "args": {},
-    "note": "Populate the pricing sheet so the event can be scheduled and published."
+    "note": "a product is needed before participants or publishing"
    },
    {
-    "step": "set_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "value": "Plant Name (LOC-0001)"
-    },
-    "note": "Set the requested delivery location on the first line item."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit the 30-minute event schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 3
-    },
-    "note": "Invite three QA vendors corresponding to Vendors A, B, and C without inventing vendor names."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the preparatory RFQ event before conversion."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event reached a published project page."
+    "step": "publish"
    },
    {
     "step": "place_bid"
-   },
-   {
-    "step": "convert_to_auction",
-    "args": {},
-    "note": "Convert the published RFQ to the supported auction-conversion create flow, the only catalog route associated with knockout auctions."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the converted auction create screen is usable without an application error."
    }
   ]
  }

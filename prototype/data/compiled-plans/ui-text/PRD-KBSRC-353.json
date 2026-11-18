@@ -3,49 +3,116 @@
   "caseId": "PRD-KBSRC-353",
   "title": "Vendor reduces the Sum Total by a percentage",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:15:56.699Z",
+  "compiledAt": "2026-11-13T14:40:24.431Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog cannot reliably identify and assert the cost-breakdown discount field and its percentage calculation oracle: current bid must equal Sum Total less the entered percentage."
+   "Assert that the revised current bid equals the Sum Total less the entered 10% discount.",
+   "Confirmed labels for the discount selector, discount input, and revised current bid are not available in the catalog."
   ],
   "warnings": [
-   "can only test part of this — no step for: The catalog cannot reliably identify and assert the cost-breakdown discount field and its percentage calculation oracle: current bid must equal Sum Total less the entered percentage."
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "can only test part of this — no step for: Assert that the revised current bid equals the Sum Total less the entered 10% discount.; Confirmed labels for the discount selector, discount input, and revised current bid are not available in the catalog."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 16,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "set_title",
+   "configure_single_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
    "switch_portal",
    "vendor_open_event",
    "select",
    "fill",
    "click",
-   "expect_text"
+   "expect_visible"
   ],
-  "ms": 10049
+  "ms": 19149
  },
  "plan": {
-  "title": "Vendor Percentage Discount Revision",
+  "title": "Vendor percentage discount on auction total",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open a fitting existing live auction with bidding available, since the case names no event."
+    "step": "open_create",
+    "args": {
+     "path": "single-stage"
+    },
+    "note": "Create the auction needed for the vendor-side scenario."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Percentage Discount Auction"
+    },
+    "note": "Every create test requires an event title before publishing."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+   },
+   {
+    "step": "select_template",
+    "note": "Apply the auction pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item for the auction bid."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding window."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor that will revise the bid."
+   },
+   {
+    "step": "publish",
+    "note": "Make the auction live."
+   },
+   {
+    "step": "expect_published",
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier session."
+    "note": "Move to the invited vendor's supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the auction's vendor pricing sheet."
+    "note": "Open the live auction bid sheet as the vendor."
    },
    {
     "step": "select",
@@ -53,7 +120,7 @@
      "label": "Fixed Value",
      "option": "Percentage"
     },
-    "note": "Attempt to select the percentage discount mode from the cost-breakdown control."
+    "note": "Attempt to switch the discount mode from fixed value to percentage; this label is not catalog-confirmed."
    },
    {
     "step": "fill",
@@ -61,22 +128,23 @@
      "label": "Discount",
      "value": "10"
     },
-    "note": "Attempt to enter the requested 10% discount; the field label is not confirmed by the catalog."
+    "note": "Enter the requested 10% discount; the exact field label is not catalog-confirmed."
    },
    {
     "step": "click",
     "args": {
-     "text": "Revise Bid"
+     "role": "button",
+     "name": "Revise Bid"
     },
-    "note": "Submit the vendor's revised bid."
+    "note": "Submit the vendor's revised bid using the percentage discount."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
      "text": "Current Bid",
-     "present": true
+     "visible": true
     },
-    "note": "Confirm the vendor screen exposes the resulting current-bid area, although the percentage arithmetic cannot be asserted."
+    "note": "Confirm that the vendor screen exposes the current bid after revision, without asserting the unavailable calculated amount."
    }
   ]
  }

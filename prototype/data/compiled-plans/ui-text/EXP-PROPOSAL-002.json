@@ -4,75 +4,92 @@
   "title": "The award proposal page: \"Overview\" — record what happens",
   "group": "EXP-PROPOSAL",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:50:59.625Z",
+  "compiledAt": "2026-11-13T14:16:29.461Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "expect_visible",
-   "remember",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_navigated",
-   "expect_remembered"
+   "probe_controls",
+   "expect_navigated",
+   "expect_screen_clean"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 10399
+  "ms": 20060
  },
  "plan": {
-  "title": "Award Proposal Overview Control",
+  "title": "EXP-PROPOSAL-002 — Explore Award Proposal Overview",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
-     "screen": "proposal"
+     "screen": "master_qcs"
     },
-    "note": "Open the prepared award proposal for the closed RFQ."
+    "note": "Open the prepared closed RFQ's Master QCS as the buyer."
    },
    {
-    "step": "expect_visible",
+    "step": "require_setting",
     "args": {
-     "role": "button",
-     "name": "Overview",
-     "visible": true
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Confirm the Overview control is present on the proposal page."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "remember",
+    "step": "require_setting",
     "args": {
-     "key": "proposal_submit_control",
-     "role": "button",
-     "name": "Submit Proposal"
+     "key": "ntd_required_on_proposal",
+     "value": "On"
     },
-    "note": "Record a stable proposal-page control before clicking Overview."
+    "note": "Enable the required Note to Director proposal configuration."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Overview"
+     "name": "Bid Selection Proposal"
     },
-    "note": "Perform the control action under exploration."
+    "note": "Open the existing award proposal from Master QCS."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "proposal"
     },
-    "note": "Verify the click leaves the browser on the award proposal page."
+    "note": "Verify that the award proposal page opened."
    },
    {
-    "step": "expect_remembered",
+    "step": "probe_controls",
     "args": {
-     "key": "proposal_submit_control",
-     "same": true
+     "include": [
+      "Overview"
+     ],
+     "max": 1
     },
-    "note": "Verify the stable proposal control is unchanged, supporting the expected no visible change."
+    "note": "Click and record what the Overview control opens or changes without confirming any proposal action."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Verify the browser remains on a ready award proposal page after the Overview exploration."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm no visible error, crash, raw value, or server error resulted from clicking Overview."
    }
   ]
  }

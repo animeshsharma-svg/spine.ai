@@ -4,37 +4,71 @@
   "title": "A live RFQ: \"Send Bulk Counter Offer\" is greyed out and says why",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:30:23.457Z",
+  "compiledAt": "2026-11-13T14:12:26.087Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "A live RFQ with bidding open and no bids; the prepared live state supplies one bid."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: A live RFQ with bidding open and no bids; the prepared live state supplies one bid."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "open_event_settings",
    "expect_menu_item",
-   "expect_message",
    "attempt"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 9773
+  "ms": 12635
  },
  "plan": {
-  "title": "Bulk Counter Offer Disabled on Live RFQ",
+  "title": "Live RFQ Bulk Counter Offer Disabled",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ on the buyer's Responses tab."
+    "note": "Open the prepared live RFQ directly on its Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the requested withdrawal visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Apply the requested live-event withdrawal configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the requested vendor-masking configuration."
    },
    {
     "step": "open_event_settings",
@@ -47,15 +81,7 @@
      "item": "Send Bulk Counter Offer",
      "enabled": false
     },
-    "note": "Assert the bulk counter-offer action is present but greyed out."
-   },
-   {
-    "step": "expect_message",
-    "args": {
-     "kind": "tooltip",
-     "on": "Send Bulk Counter Offer"
-    },
-    "note": "Assert hovering the disabled item shows the product's explanation tooltip."
+    "note": "Assert the menu item is present but greyed out and that its explanatory tooltip is shown."
    },
    {
     "step": "attempt",
@@ -65,9 +91,9 @@
       "role": "menuitem",
       "name": "Send Bulk Counter Offer"
      },
-     "expect": "nothing_opens"
+     "expect": "refused"
     },
-    "note": "Try the disabled action and verify that it opens nothing or changes nothing."
+    "note": "Verify clicking the disabled item does not open a bulk counter-offer flow or otherwise change the screen."
    }
   ]
  }

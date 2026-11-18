@@ -3,14 +3,14 @@
   "caseId": "PRD-KBSRC-334",
   "title": "QCS shows ranks per line item and next to vendor names",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:14:37.555Z",
+  "compiledAt": "2026-11-13T14:38:41.458Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A separate rank displayed next to each vendor name, distinct from the per-line Rank cells"
+   "Whether each vendor name has a separate rank displayed next to it in the QCS header"
   ],
   "warnings": [
-   "can only test part of this — no step for: A separate rank displayed next to each vendor name, distinct from the per-line Rank cells"
+   "can only test part of this — no step for: Whether each vendor name has a separate rank displayed next to it in the QCS header"
   ],
   "source": "llm",
   "steps": 18,
@@ -34,22 +34,22 @@
    "expect_qcs_vendors",
    "expect_qcs_ranks"
   ],
-  "ms": 9594
+  "ms": 9539
  },
  "plan": {
-  "title": "Auction QCS line-item ranks",
+  "title": "Auction QCS Line and Vendor Ranks",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start an auction event on the multi-stage create flow."
+    "note": "Open the multi-stage event creation flow for an auction."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "QCS Line Rank Verification"
+     "title": "QCS Rank Verification Auction"
     },
     "note": "Provide the required event title."
    },
@@ -60,80 +60,77 @@
       "auction"
      ]
     },
-    "note": "Configure the event with an Auction stage."
+    "note": "Configure the event with an auction stage."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "auction"
     },
-    "note": "Configure the Auction stage."
+    "note": "Work on the auction stage before configuring its template and items."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply an auction pricing template before adding line items."
+    "note": "Apply the auction pricing template so the comparison sheet can be populated."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Create multiple line items so ranks can be checked across each line."
+    "note": "Create multiple line items so ranking can be checked per line."
    },
    {
     "step": "fill_sheet",
-    "args": {},
-    "note": "Populate the auction pricing sheet."
+    "note": "Complete the auction pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule."
+    "note": "Commit a valid auction schedule before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite several vendors so the QCS has multiple bidder columns and ranks."
+    "note": "Invite several vendors so the QCS has multiple bidder columns and ranks to compare."
    },
    {
     "step": "publish",
-    "args": {},
     "note": "Publish the auction so vendors can bid."
    },
    {
     "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event reached its published project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "place_bid",
-    "args": {},
-    "note": "Submit a bid from the first vendor."
+    "args": {
+     "price": 100
+    },
+    "note": "Have the first invited vendor submit a bid."
    },
    {
     "step": "expect_bid_submitted",
-    "args": {},
     "note": "Confirm the first vendor's bid was accepted."
    },
    {
     "step": "place_bid",
-    "args": {},
-    "note": "Submit a bid from a different vendor."
+    "args": {
+     "price": 110
+    },
+    "note": "Have a second invited vendor submit a bid for comparison."
    },
    {
     "step": "expect_bid_submitted",
-    "args": {},
     "note": "Confirm the second vendor's bid was accepted."
    },
    {
     "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the comparison screen containing the vendor bids and ranking data."
+    "note": "Open the buyer's QCS comparison after multiple bids are present."
    },
    {
     "step": "expect_qcs_vendors",
@@ -141,14 +138,16 @@
      "count": 2,
      "realNames": true
     },
-    "note": "Confirm the QCS contains two real vendor columns."
+    "note": "Verify that the QCS contains a real vendor column for each bidder."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
+     "by": "Auction Amount",
+     "order": "lowest",
      "atLeast": 2
     },
-    "note": "Assert that ranks are populated for each line item across the bidder columns."
+    "note": "Assert that ranks are assigned at line-item level and follow the auction amounts across the bidder columns."
    }
   ]
  }

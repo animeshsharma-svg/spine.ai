@@ -4,16 +4,22 @@
   "title": "Price Trends",
   "group": "SRC-STG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:17:20.679Z",
+  "compiledAt": "2026-11-13T12:55:58.696Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The exact Last Purchase Price value and percentage when known are not specified and cannot be asserted as a fixed value from the case."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The exact Last Purchase Price value and percentage when known are not specified and cannot be asserted as a fixed value from the case."
+  ],
   "source": "llm",
   "steps": 8,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
    "go_to",
    "expect_table",
    "expect_text",
@@ -23,32 +29,32 @@
   ],
   "state": "two_bids",
   "screen": "analytics",
-  "ms": 14827
+  "ms": 16140
  },
  "plan": {
-  "title": "RFQ Price Trends with Two Bids",
+  "title": "SRC-STG-008 — Price Trends",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "analytics"
     },
-    "note": "Open the prepared RFQ event's Analytics screen."
+    "note": "Open the prepared RFQ with two bids on its Analytics stage page."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the RFQ stage before checking its stage-level tabs."
+    "note": "Enable the required eRFX project configuration for the tenant."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "price_trends"
     },
-    "note": "Open the Price Trends tab for the RFQ stage."
+    "note": "Open the RFQ stage's Price Trends tab."
    },
    {
     "step": "expect_table",
@@ -56,31 +62,28 @@
      "within": "Price Trends",
      "min": 1
     },
-    "note": "Assert that the Price Trends table contains at least one historical price record."
+    "note": "Assert that the Price Trends view contains at least one historical price record."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Last Purchase Price",
-     "present": true
+     "text": "Last Purchase Price"
     },
-    "note": "Verify that the historical purchase-price field is shown where available."
+    "note": "Verify that the trend view exposes the Last Purchase Price information."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "bidPrice",
-     "within": "Price Trends"
+     "key": "bidPrice"
     },
-    "note": "Verify that the first bid from the prepared RFQ is displayed in Price Trends."
+    "note": "Verify that the first event bid price is shown in the Price Trends view."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "bidPrice2",
-     "within": "Price Trends"
+     "key": "bidPrice2"
     },
-    "note": "Verify that the second bid from the prepared RFQ is displayed in Price Trends."
+    "note": "Verify that the second event bid price is shown in the Price Trends view."
    },
    {
     "step": "expect_screen_clean",

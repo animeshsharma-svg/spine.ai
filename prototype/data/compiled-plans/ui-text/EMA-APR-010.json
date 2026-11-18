@@ -4,55 +4,69 @@
   "title": "Approval without a comment is accepted",
   "group": "EMA-APR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:53:43.726Z",
+  "compiledAt": "2026-11-13T14:18:59.401Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Asha's mailbox, open the Procol approval email, send the unchanged Action:Approve reply with an empty comment, wait for mailbox processing, and verify the approval is recorded."
+   "Create and submit the named event into a two-step email approval workflow as Ravi",
+   "Log in to Asha's mailbox and open the Procol approval email",
+   "Click Approve, leave the comment empty, preserve the Action:Approve subject, and send the reply",
+   "Wait for Procol to read the approval mailbox",
+   "Verify that the approval was recorded and that the has been recorded reply arrived"
   ],
   "warnings": [
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Access Asha's mailbox, open the Procol approval email, send the unchanged Action:Approve reply with an empty comment, wait for mailbox processing, and verify the approval is recorded."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Create and submit the named event into a two-step email approval workflow as Ravi; Log in to Asha's mailbox and open the Procol approval email; Click Approve, leave the comment empty, preserve the Action:Approve subject, and send the reply; Wait for Procol to read the approval mailbox; Verify that the approval was recorded and that the has been recorded reply arrived"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
-   "open_create",
-   "set_title",
+   "open_prepared",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 18521
+  "ms": 17526
  },
  "plan": {
-  "title": "EMA-APR-010 Email Approval Without Comment",
+  "title": "EMA-APR-010 Email approval without comment",
   "steps": [
    {
-    "step": "open_create",
+    "step": "open_prepared",
     "args": {
-     "path": "erfx"
-    }
+     "screen": "proposal"
+    },
+    "note": "Opens the closest available prepared approval-related screen for the event awaiting approval."
    },
    {
-    "step": "set_title"
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Configures the required company email-approval setting before the test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Configures the required approval workflow behavior."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "access Asha's mailbox, open the Procol approval email, send the unchanged Action:Approve reply with an empty comment, and wait until Procol records the approval"
+     "need": "log in as Asha, send the unchanged Action:Approve email with an empty comment, wait for Procol to process it, and verify the approval-recorded reply"
     },
-    "note": "The catalog has no mailbox or email-approval action; the tester must perform the missing workflow."
+    "note": "The mailbox interaction and asynchronous email-processing outcome cannot be performed or observed by catalog steps."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "has been recorded",
-     "present": true
-    },
-    "note": "Checks that the expected recorded-approval reply is visible after the tester completes the email action."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirms the buyer-side screen remains usable after the tester completes the external approval flow; it does not assert the email approval outcome."
    }
   ]
  }

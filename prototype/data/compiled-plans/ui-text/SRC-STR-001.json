@@ -4,35 +4,42 @@
   "title": "Rank-based auction: what each side sees during bidding",
   "group": "SRC-STR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:07:10.655Z",
+  "compiledAt": "2026-11-13T12:57:07.273Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A second vendor's own supplier-portal session to verify Vendor B sees Rank 1 while Vendor A sees Rank 2 and neither sees the competitor's price.",
-   "The exact price-and-rank presentation specifically on the buyer's Responses screen; buyer-side Master QCS provides the closest available verification."
+   "Open a second vendor's own portal session and verify Vendor A independently sees Rank 2 without seeing Vendor B's price while Vendor B sees Rank 1.",
+   "unconfirmed label \"100\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "unconfirmed label \"95\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: A second vendor's own supplier-portal session to verify Vendor B sees Rank 1 while Vendor A sees Rank 2 and neither sees the competitor's price.; The exact price-and-rank presentation specifically on the buyer's Responses screen; buyer-side Master QCS provides the closest available verification."
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "coverage partial: unconfirmed label \"100\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "coverage partial: unconfirmed label \"95\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Open a second vendor's own portal session and verify Vendor A independently sees Rank 2 without seeing Vendor B's price while Vendor B sees Rank 1."
   ],
   "source": "llm",
-  "steps": 27,
+  "steps": 30,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "fill_sheet",
    "set_sheet_cell",
    "expect_sheet_cell",
-   "set_schedule",
+   "fill_sheet",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
    "place_bid",
@@ -42,26 +49,43 @@
    "switch_portal",
    "vendor_open_event",
    "expect_text",
+   "expect_text",
    "ask_tester",
    "switch_portal",
+   "go_to",
    "expect_responses",
-   "open_master_qcs",
-   "expect_qcs_vendors",
-   "expect_qcs_cell",
-   "expect_qcs_cell",
-   "expect_qcs_ranks"
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text"
   ],
-  "ms": 23449
+  "ms": 30187
  },
  "plan": {
-  "title": "Rank Auction Live Visibility",
+  "title": "Rank-based auction vendor and buyer views",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow."
+    "note": "Open the single-stage creation flow where auction strategy is configurable."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX event creation required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation as required."
    },
    {
     "step": "configure_single_stage",
@@ -70,18 +94,19 @@
      "auctionSubtype": "rank",
      "awarding": "lot"
     },
-    "note": "Set the event to a rank-based auction awarding the entire lot."
+    "note": "Set the event to a rank-based reverse auction awarded as one lot."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Rank Auction Live Visibility"
+     "title": "SRC-STR-001 Rank Auction"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
-    "note": "Apply the first available auction pricing template so the product sheet is available."
+    "args": {},
+    "note": "Apply the first available reverse-auction pricing template."
    },
    {
     "step": "add_line_items",
@@ -90,11 +115,7 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product as the first line with quantity 10."
-   },
-   {
-    "step": "fill_sheet",
-    "note": "Populate the required pricing-sheet fields."
+    "note": "Add the requested product with quantity 10."
    },
    {
     "step": "set_sheet_cell",
@@ -103,7 +124,7 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested plant location on the first line item."
+    "note": "Set the first row's delivery location."
    },
    {
     "step": "expect_sheet_cell",
@@ -112,7 +133,19 @@
      "column": "Delivery location",
      "equals": "Plant Name (LOC-0001)"
     },
-    "note": "Verify the requested location was retained."
+    "note": "Confirm the requested delivery location was selected."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the remaining pricing-sheet fields."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 3
+    },
+    "note": "Invite three QA vendors for Vendors A, B, and C without inventing company names."
    },
    {
     "step": "set_schedule",
@@ -122,19 +155,14 @@
     "note": "Commit the 30-minute schedule starting now."
    },
    {
-    "step": "invite_vendor",
-    "args": {
-     "count": 3
-    },
-    "note": "Invite three QA vendors so the auction has Vendor A, B, and C participants."
-   },
-   {
     "step": "publish",
+    "args": {},
     "note": "Publish the configured auction."
    },
    {
     "step": "expect_published",
-    "note": "Verify the event reached a real published project page."
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "place_bid",
@@ -146,7 +174,8 @@
    },
    {
     "step": "expect_bid_submitted",
-    "note": "Verify the first vendor's bid was accepted."
+    "args": {},
+    "note": "Confirm the first vendor bid was accepted."
    },
    {
     "step": "place_bid",
@@ -158,89 +187,100 @@
    },
    {
     "step": "expect_bid_submitted",
-    "note": "Verify the second vendor's bid was accepted."
+    "args": {},
+    "note": "Confirm the second vendor bid was accepted."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Open the available QA vendor supplier-portal session for a vendor-side rank check."
+    "note": "Inspect the available invited QA vendor's supplier-portal view."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open this auction's pricing round in the vendor portal."
+    "note": "Open the auction pricing round in the vendor portal."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Rank 2"
+     "text": "Rank 1",
+     "present": true
     },
-    "note": "Verify the available vendor-side view exposes the expected rank after the competing lower bid, without asserting the competitor's price."
+    "note": "Verify the inspected vendor sees its live rank."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "100",
+     "present": false
+    },
+    "note": "Verify the inspected vendor does not see the competing bid price."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open a separate supplier-portal session as the second bidding vendor and verify that vendor sees Rank 1 without seeing the other vendor's price"
+     "need": "open the second vendor's own supplier-portal session and verify that vendor sees Rank 2 without seeing the other vendor's price"
     },
-    "note": "The catalog cannot create a second independent vendor session, which is required to check Vendor B's private view."
+    "note": "The catalog cannot create or switch to a second vendor's independent portal session."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer console for buyer-side assertions."
+    "note": "Return to the buyer console for the live response check."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the buyer's Responses view for the published auction."
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 2,
-     "direct": 2
+     "direct": 2,
+     "stage": "auction"
     },
-    "note": "Verify the buyer sees both direct vendor responses live."
+    "note": "Confirm both bids are visible to the buyer and two of three invited vendors responded."
    },
    {
-    "step": "open_master_qcs",
-    "note": "Open the buyer's comparison grid to inspect the two live bid prices and ranks."
-   },
-   {
-    "step": "expect_qcs_vendors",
+    "step": "expect_text",
     "args": {
-     "count": 2,
-     "realNames": true
+     "text": "100",
+     "present": true
     },
-    "note": "Verify two real vendor columns are shown to the buyer."
+    "note": "Confirm the buyer can see the first bid price."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "expect_text",
     "args": {
-     "row": "RFQ Rate",
-     "vendor": 1,
-     "number": 100
+     "text": "95",
+     "present": true
     },
-    "note": "Verify the first vendor's bid price is visible to the buyer."
+    "note": "Confirm the buyer can see the second bid price."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "expect_text",
     "args": {
-     "row": "RFQ Rate",
-     "vendor": 2,
-     "number": 95
+     "text": "Rank 1",
+     "present": true
     },
-    "note": "Verify the second vendor's bid price is visible to the buyer."
+    "note": "Confirm the buyer's live response view shows Rank 1."
    },
    {
-    "step": "expect_qcs_ranks",
+    "step": "expect_text",
     "args": {
-     "by": "RFQ Amount",
-     "order": "lowest",
-     "atLeast": 2
+     "text": "Rank 2",
+     "present": true
     },
-    "note": "Verify the buyer-side ranks follow the lower bid, making 95 Rank 1 and 100 Rank 2."
+    "note": "Confirm the buyer's live response view shows Rank 2."
    }
   ]
  }

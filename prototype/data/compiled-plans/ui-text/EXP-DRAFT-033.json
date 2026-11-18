@@ -4,67 +4,90 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"1234\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:44:34.921Z",
+  "compiledAt": "2026-11-13T14:05:38.276Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Click '1234' which is an unconfirmed or nonexistent control on the draft screen",
-   "unconfirmed label \"1234\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "unconfirmed label \"1234\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
    "moved open_events_list to the front — the steps before it had no list on screen",
    "moved open_events_list to the front — the steps before it had no list on screen",
-   "coverage partial: unconfirmed label \"1234\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Click '1234' which is an unconfirmed or nonexistent control on the draft screen"
+   "coverage partial: unconfirmed label \"1234\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 8,
   "stepNames": [
    "open_events_list",
    "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_events_list",
    "filter_events",
    "open_first_event",
-   "expect_visible"
+   "expect_text"
   ],
-  "ms": 18394
+  "ms": 15524
  },
  "plan": {
-  "title": "EXP-DRAFT-033 — A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, 1234 is not offered",
+  "title": "Saved eRFX draft hides 1234",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the events list"
+    "note": "Open the Events list to reach the saved draft."
    },
    {
     "step": "require_setting",
     "args": {
-     "phrase": "lock_vendors_addition_in_event_creation",
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects so the draft is an eRFX draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Set lock_vendors_addition_in_event_creation to Off as specified in the configs needed"
+    "note": "Apply the setting whose effect on the draft's vendor options is under test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the additional company configuration specified for this saved-draft scenario."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify the events list rendered before navigating to Drafts."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to Drafts tab"
+    "note": "Switch to the Drafts tab specified by the case."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the top draft event"
+    "note": "Open the first saved draft available in the Drafts list."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "name": "1234",
-     "visible": false
+     "text": "1234",
+     "present": false
     },
-    "note": "Assert that '1234' is not offered/visible on the draft screen"
+    "note": "Assert that the saved draft does not offer the option labeled \"1234\"."
    }
   ]
  }

@@ -4,40 +4,42 @@
   "title": "Two bids: award all 10 units to the L1 vendor (B); no approval flow",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:18:50.959Z",
+  "compiledAt": "2026-11-13T11:38:39.297Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly assert that no approval flow occurred, because the catalog has no dedicated assertion for the absence of approval routing.",
-   "Directly identify this prepared event's row in History after submission, because no event title is supplied and the prepared event is not this plan's own created event."
+   "Directly verify that the event moves to the History tab after completion",
+   "Directly verify that no approval flow is triggered"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Directly assert that no approval flow occurred, because the catalog has no dedicated assertion for the absence of approval routing.; Directly identify this prepared event's row in History after submission, because no event title is supplied and the prepared event is not this plan's own created event."
+   "can only test part of this — no step for: Directly verify that the event moves to the History tab after completion; Directly verify that no approval flow is triggered"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
    "require_setting",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
    "start_awarding",
    "allocate_award",
    "expect_award_counters",
    "click",
    "expect_navigated",
-   "fill_required",
-   "click",
+   "do_on_screen",
    "expect_awarded",
    "create_po",
    "expect_po_items"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 18872
+  "ms": 40854
  },
  "plan": {
-  "title": "Award two-bid RFQ to L1 vendor",
+  "title": "SRC-AWD-005 — Award all units to L1 vendor",
   "steps": [
    {
     "step": "open_prepared",
@@ -52,18 +54,49 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure the required eRFX project configuration is enabled for the case."
+    "note": "Enable the eRFX project capability required by the case."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "realNames": true
+    },
+    "note": "Confirm both bidding vendors are present as real vendor columns."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": "Vendor B",
+     "number": 1
+    },
+    "note": "Verify Vendor B is the L1-ranked bidder."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor B",
+     "equals": "90"
+    },
+    "note": "Verify Vendor B's bid rate is 90 per unit."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding screen for the closed event."
+    "note": "Open the awarding screen to allocate the line quantity."
    },
    {
     "step": "allocate_award",
     "args": {
      "vendor": "Vendor B",
-     "quantity": 10
+     "quantity": 10,
+     "line": 1
     },
     "note": "Allocate all 10 requested units to the L1 vendor, Vendor B."
    },
@@ -74,7 +107,7 @@
      "vendors": "1/2",
      "proposal": 900
     },
-    "note": "Verify one line is selected, exactly one of two vendors is awarded, and Vendor B's 10 × 90 allocation totals 900."
+    "note": "Verify one line is fully selected, only one of two vendors is awarded, and the proposal total is 900."
    },
    {
     "step": "click",
@@ -82,7 +115,7 @@
      "role": "button",
      "name": "Create Proposal"
     },
-    "note": "Create the award proposal from the completed allocation."
+    "note": "Open the proposal page from the completed allocation."
    },
    {
     "step": "expect_navigated",
@@ -92,27 +125,21 @@
     "note": "Confirm the proposal page opened."
    },
    {
-    "step": "fill_required",
-    "args": {},
-    "note": "Fill any mandatory proposal fields before submission."
-   },
-   {
-    "step": "click",
+    "step": "do_on_screen",
     "args": {
-     "role": "button",
-     "name": "Submit Proposal"
+     "goal": "fill the required proposal fields for Vendor B's 10-unit award and submit the proposal; stop when the proposal is shown as submitted"
     },
-    "note": "Submit the proposal to finalize the award."
+    "note": "The catalog has no dedicated step for completing and submitting the required proposal fields."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Assert that the award proposal was created and submitted."
+    "note": "Confirm the award proposal was submitted successfully."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Create the purchase order from the submitted award and read the resulting PO."
+    "note": "Complete the post-award flow and create the purchase order."
    },
    {
     "step": "expect_po_items",
@@ -120,7 +147,7 @@
      "count": 1,
      "quantity": 10
     },
-    "note": "Verify the PO contains the single awarded line with all 10 units."
+    "note": "Verify the resulting PO contains exactly one awarded line with quantity 10."
    }
   ]
  }

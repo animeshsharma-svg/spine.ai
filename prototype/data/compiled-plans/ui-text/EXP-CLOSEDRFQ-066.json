@@ -4,30 +4,70 @@
   "title": "Edit Evaluation Time: Edit Evaluation Time handles zero and negative values in the duration field",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:33:15.834Z",
+  "compiledAt": "2026-11-13T13:58:11.290Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "extend_time",
    "extend_time"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 7170
+  "ms": 14907
  },
  "plan": {
-  "title": "Edit Evaluation Time Rejects Negative Duration",
+  "title": "Edit Evaluation Time Rejects Zero and Negative Durations",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared closed RFQ on the buyer's Responses tab."
+    "note": "Open the prepared closed RFQ on the buyer's Responses tab, where the Settings menu is available."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Set the post-expiry surrogate-bid setting required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer editing of bidding fields as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the case's evaluation-reopen permission setting."
    },
    {
     "step": "extend_time",
@@ -35,9 +75,21 @@
      "which": "evaluation",
      "option": "custom",
      "amount": -5,
+     "unit": "minutes",
      "expect": "refused"
     },
-    "note": "Open Edit Evaluation Time, enter the negative duration, submit it, and verify that Procol refuses the value."
+    "note": "Open Edit Evaluation Time, enter -5 minutes, submit, and verify that Procol refuses the negative duration."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "evaluation",
+     "option": "custom",
+     "amount": 0,
+     "unit": "minutes",
+     "expect": "refused"
+    },
+    "note": "Repeat the same dialog check with a zero-minute duration and verify that Procol refuses it."
    }
   ]
  }

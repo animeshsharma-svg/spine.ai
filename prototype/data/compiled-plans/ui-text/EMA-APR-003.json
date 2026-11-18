@@ -4,50 +4,61 @@
   "title": "A colleague who was forwarded the email cannot approve",
   "group": "EMA-APR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:53:03.245Z",
+  "compiledAt": "2026-11-13T14:18:12.918Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create and submit the specified event with a two-step approval workflow and named approvers",
-   "Access Asha's mailbox, open the Procol approval email, and forward it to Chetan",
-   "Access Chetan's mailbox and click Approve in the forwarded email",
-   "Send the unchanged email and wait for Procol to process it",
-   "Observe the required bounce-back message for a non-approver",
-   "Verify that the event is unchanged and Asha's approval step remains pending"
+   "Access Asha's mailbox and open the Procol approval request email",
+   "Forward the approval request to Chetan without changing the subject",
+   "Access Chetan's mailbox and click Approve on the forwarded email",
+   "Wait for mailbox processing and verify the bounce-back message that Chetan is not an approver",
+   "Verify the specific approval workflow remains pending for Asha's step"
   ],
   "warnings": [
-   "can only test part of this — no step for: Create and submit the specified event with a two-step approval workflow and named approvers; Access Asha's mailbox, open the Procol approval email, and forward it to Chetan; Access Chetan's mailbox and click Approve in the forwarded email; Send the unchanged email and wait for Procol to process it; Observe the required bounce-back message for a non-approver; Verify that the event is unchanged and Asha's approval step remains pending"
+   "can only test part of this — no step for: Access Asha's mailbox and open the Procol approval request email; Forward the approval request to Chetan without changing the subject; Access Chetan's mailbox and click Approve on the forwarded email; Wait for mailbox processing and verify the bounce-back message that Chetan is not an approver; Verify the specific approval workflow remains pending for Asha's step"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
+   "expect_text",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 11966
+  "ms": 14160
  },
  "plan": {
-  "title": "EMA-APR-003 — Forwarded approval by non-approver",
+  "title": "EMA-APR-003 — Forwarded email approval by non-approver",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named existing event as the closest available event-side starting point."
+    "note": "Open the named event that was already submitted for approval."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Approval in Progress",
+     "present": true
+    },
+    "note": "Establish that the event is currently awaiting approval before the mailbox action."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "access the configured approval workflow and mailboxes, forward Asha's approval email to Chetan, have Chetan send the unchanged forwarded approval email, wait for processing, and verify the non-approver bounce-back plus that Asha's step remains pending"
+     "need": "access Asha's and Chetan's mailboxes, forward the Procol approval request to Chetan, click Approve in the forwarded email, send it unchanged, wait for processing, and verify the non-approver bounce-back"
     },
-    "note": "Email access, forwarding, non-approver identity, mailbox processing, and the required approval-state verification are not expressible by catalog steps."
+    "note": "The catalog has no mailbox, forwarding, email approval, or bounce-back step."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Check that the buyer event screen remains free of a visible application error after the tester's mailbox interaction."
+    "step": "expect_text",
+    "args": {
+     "text": "Approval in Progress",
+     "present": true
+    },
+    "note": "Check that the event still visibly remains in approval progress after the attempted email approval."
    }
   ]
  }

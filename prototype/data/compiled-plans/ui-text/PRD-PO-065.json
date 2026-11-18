@@ -3,38 +3,43 @@
   "caseId": "PRD-PO-065",
   "title": "Bulk PO Creation / Upload: refused for a user without the Buyer role",
   "group": "PRD-PO",
-  "compiledAt": "2026-11-10T06:32:27.415Z",
+  "compiledAt": "2026-11-13T15:28:02.403Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Bulk PO Creation / Upload availability or refusal for a user without the Buyer role",
-   "Repeating the action as a Buyer using distinct role-specific user sessions"
+   "Sign in as a user without the Buyer role and verify whether Bulk PO Creation / Upload is absent or refused.",
+   "Repeat Bulk PO Creation / Upload as a Buyer and verify it is available.",
+   "Verify the tenant is on the Enterprise plan.",
+   "Inspect or record the tenant's RBAC configuration when access is granted to additional roles."
   ],
   "warnings": [
-   "can only test part of this — no step for: Bulk PO Creation / Upload availability or refusal for a user without the Buyer role; Repeating the action as a Buyer using distinct role-specific user sessions"
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify whether Bulk PO Creation / Upload is absent or refused.; Repeat Bulk PO Creation / Upload as a Buyer and verify it is available.; Verify the tenant is on the Enterprise plan.; Inspect or record the tenant's RBAC configuration when access is granted to additional roles."
   ],
   "source": "llm",
   "steps": 2,
   "stepNames": [
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 70289
+  "ms": 9453
  },
  "plan": {
-  "title": "Bulk PO Upload Role Permission",
+  "title": "Bulk PO Creation Role Access",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Buyer user and the Buyer user on the specified Enterprise tenant, attempt Bulk PO Creation / Upload with the bulk upload template for each, and record whether the control is absent, refused, or available"
+     "need": "sign in as the non-Buyer user and then as a Buyer on the Enterprise tenant, attempt Bulk PO Creation / Upload with the bulk upload template for each role, and record whether the action is absent, refused, or available"
     },
-    "note": "No catalog step can access the bulk PO upload flow or switch between role-specific user sessions."
+    "note": "No catalog step can access role-specific sessions or the Bulk PO Creation / Upload flow."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the session remains free of an application error after the tester's permission checks."
+    "step": "expect_text",
+    "args": {
+     "text": "Continue with email",
+     "present": true
+    },
+    "note": "Provides a final known-screen assertion after the tester handoff, but does not test the bulk PO permission behavior."
    }
   ]
  }

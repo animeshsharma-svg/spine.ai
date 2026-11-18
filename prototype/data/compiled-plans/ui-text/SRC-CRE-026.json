@@ -4,7 +4,7 @@
   "title": "Forward auction: Quantity Requested = letters \"abc\"",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:30:49.766Z",
+  "compiledAt": "2026-11-13T11:51:12.003Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,7 +17,7 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 9,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -25,19 +25,21 @@
    "set_title",
    "select_template",
    "add_line_items",
-   "expect_error"
+   "set_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell"
   ],
-  "ms": 10455
+  "ms": 23668
  },
  "plan": {
-  "title": "Forward Auction Rejects Non-Numeric Quantity",
+  "title": "Forward Auction Rejects Letter Quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Opens the Single Stage event creation screen."
+    "note": "Opens the single-stage event creation screen specified by the case."
    },
    {
     "step": "require_setting",
@@ -50,37 +52,56 @@
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction"
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
     },
-    "note": "Changes the event type from the default RFP to Auction."
+    "note": "Changes the default event type to an auction and configures a forward auction path."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-CRE-026 Forward Auction Quantity Letters"
-    },
+    "args": {},
     "note": "Provides the mandatory event title required for a create test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Applies the first available auction template so the pricing sheet is rendered."
+    "note": "Applies the first offered auction pricing template so the product sheet is available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB",
-     "quantity": "abc"
+     "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Adds the specified product and enters the invalid letters value into its quantity during line-item creation."
+    "note": "Adds the specified product as the first line item with a normal initial quantity."
    },
    {
-    "step": "expect_error",
+    "step": "set_sheet_cell",
     "args": {
-     "contains": "quantity"
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
     },
-    "note": "Confirms the inline validation rejects the non-numeric Quantity Requested value."
+    "note": "Sets the requested delivery location on the first line item."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "abc"
+    },
+    "note": "Types the invalid letters into the quantity cell to trigger the inline numeric validation."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "refused": true
+    },
+    "note": "Asserts that the Quantity Requested cell does not keep the non-numeric value."
    }
   ]
  }

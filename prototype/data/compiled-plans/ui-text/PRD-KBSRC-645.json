@@ -3,55 +3,55 @@
   "caseId": "PRD-KBSRC-645",
   "title": "Switch the QCS between vertical and horizontal view",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:27:58.982Z",
+  "compiledAt": "2026-11-13T14:49:22.744Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Directly assert that the QCS grid's visual orientation changed from vertical to horizontal and back."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Directly assert that the QCS grid's visual orientation changed from vertical to horizontal and back."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 9,
+  "steps": 10,
   "stepNames": [
-   "open_prepared",
+   "open_event",
+   "open_master_qcs",
    "expect_qcs_vendors",
-   "expect_qcs_cell",
+   "expect_visible",
    "click",
+   "expect_visible",
    "expect_qcs_vendors",
-   "expect_qcs_cell",
    "click",
-   "expect_qcs_vendors",
-   "expect_qcs_cell"
+   "expect_visible",
+   "expect_qcs_vendors"
   ],
-  "ms": 13310
+  "ms": 12195
  },
  "plan": {
-  "title": "QCS layout toggle",
+  "title": "Switch QCS Layout Views",
   "steps": [
    {
-    "step": "open_prepared",
-    "args": {
-     "screen": "master_qcs"
-    },
-    "note": "Open the prepared QCS containing vendor quotations."
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing event with vendor quotations, as required by the setup."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open and verify that the Master QCS comparison grid with vendor bids is rendered."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
      "realNames": true
     },
-    "note": "Record that the QCS rendered real vendor columns before changing the layout."
+    "note": "Record that the initial QCS contains real vendor quotation columns."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "expect_visible",
     "args": {
-     "row": "RFQ Rate",
-     "vendor": 1,
-     "key": "bidPrice"
+     "role": "button",
+     "name": "horizontal-switch",
+     "visible": true
     },
-    "note": "Verify the initial vendor quotation data is present."
+    "note": "Verify the control for switching to the horizontal layout is available."
    },
    {
     "step": "click",
@@ -59,23 +59,23 @@
      "role": "button",
      "name": "horizontal-switch"
     },
-    "note": "Switch the QCS to the alternate horizontal layout."
+    "note": "Switch the QCS to the horizontal view."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "vertical-switch",
+     "visible": true
+    },
+    "note": "Verify the layout toggle now indicates the vertical view can be selected."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
      "realNames": true
     },
-    "note": "Verify the same vendor data remains visible after the first toggle."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": 1,
-     "key": "bidPrice"
-    },
-    "note": "Verify the quotation value is retained after the first layout change."
+    "note": "Verify the same QCS still shows real vendor quotation columns after the first switch."
    },
    {
     "step": "click",
@@ -83,23 +83,23 @@
      "role": "button",
      "name": "vertical-switch"
     },
-    "note": "Toggle the QCS layout back to the original orientation."
+    "note": "Switch the QCS back to the vertical view."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "horizontal-switch",
+     "visible": true
+    },
+    "note": "Verify the layout toggle has returned to the horizontal-switch state."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
      "realNames": true
     },
-    "note": "Verify the same vendor data remains visible after toggling back."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": 1,
-     "key": "bidPrice"
-    },
-    "note": "Verify the quotation value is still retained after the second toggle."
+    "note": "Verify vendor quotation columns remain present after the second switch."
    }
   ]
  }

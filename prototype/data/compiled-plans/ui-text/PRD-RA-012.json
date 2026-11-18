@@ -3,40 +3,41 @@
   "caseId": "PRD-RA-012",
   "title": "Auction Scope (Line/Lot): refused for a user without the Buyer role",
   "group": "PRD-RA",
-  "compiledAt": "2026-11-10T01:37:01.343Z",
+  "compiledAt": "2026-11-13T14:57:39.364Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a tenant user without the Buyer role and verify whether Auction Scope (Line/Lot) with rankings at both levels is refused or absent.",
-   "Repeat the same action as a Buyer in the same tenant and verify that it is available.",
-   "Verify the tenant's Growth plan and record whether any broader RBAC configuration intentionally grants this capability to non-Buyer roles."
+   "Sign in as a non-Buyer user and a Buyer user on the same Growth tenant.",
+   "Verify whether Auction Scope (Line/Lot) is refused or absent for the non-Buyer and available to the Buyer.",
+   "Verify or select the tenant's Growth plan and account for any RBAC configuration that grants the capability to other roles."
   ],
   "warnings": [
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
    "added set_title — publishing without a title is refused",
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
    "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Sign in as a tenant user without the Buyer role and verify whether Auction Scope (Line/Lot) with rankings at both levels is refused or absent.; Repeat the same action as a Buyer in the same tenant and verify that it is available.; Verify the tenant's Growth plan and record whether any broader RBAC configuration intentionally grants this capability to non-Buyer roles."
+   "can only test part of this — no step for: Sign in as a non-Buyer user and a Buyer user on the same Growth tenant.; Verify whether Auction Scope (Line/Lot) is refused or absent for the non-Buyer and available to the Buyer.; Verify or select the tenant's Growth plan and account for any RBAC configuration that grants the capability to other roles."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_create",
    "set_title",
    "expect_visible",
-   "ask_tester"
+   "ask_tester",
+   "expect_visible"
   ],
-  "ms": 11181
+  "ms": 22257
  },
  "plan": {
-  "title": "Auction Scope Role Access",
+  "title": "Auction Scope Role Permission",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage auction configuration screen where the auction scope and awarding mode are configured."
+    "note": "Open the closest available auction configuration screen."
    },
    {
     "step": "set_title"
@@ -44,16 +45,25 @@
    {
     "step": "expect_visible",
     "args": {
-     "text": "How will you award the event?",
+     "text": "Rank on lot",
      "visible": true
     },
-    "note": "Confirm the auction scope configuration area is present before the role-specific check."
+    "note": "Confirm the configured auction screen exposes the rank-on-lot state as closest configuration evidence."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a tenant user without the Buyer role, verify whether Auction Scope (Line/Lot) with rankings at both levels is refused or absent, then repeat the check as a Buyer in the same Growth tenant"
-    }
+     "need": "sign in as the non-Buyer and Buyer users on the same Growth tenant, try Auction Scope (Line/Lot) with rankings at both line and lot levels, and record whether the action is refused or offered for each role"
+    },
+    "note": "A tester must perform the missing cross-user role and tenant-plan comparison."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Rank on lot",
+     "visible": true
+    },
+    "note": "Leave a known auction-scope label as the final observable assertion after the tester's role comparison."
    }
   ]
  }

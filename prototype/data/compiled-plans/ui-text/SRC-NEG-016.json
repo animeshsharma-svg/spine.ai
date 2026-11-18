@@ -4,42 +4,64 @@
   "title": "Counter price 0",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:37:39.684Z",
+  "compiledAt": "2026-11-13T12:18:14.717Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "attempt"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 7318
+  "ms": 7646
  },
  "plan": {
-  "title": "Counter offer price zero is refused",
+  "title": "Counter offer rejects zero price",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ Responses tab containing the vendor's normal bid."
+    "note": "Open the prepared RFQ Responses tab containing Vendor A's normal bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Enable the counter-offer UI for RFQ rounds."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
    },
    {
     "step": "attempt",
     "args": {
      "step": "place_counter_offer",
      "args": {
+      "vendor": "Vendor A",
       "price": 0
      },
      "expect": "refused",
      "because": "Gross total can't be 0, please check your entries."
     },
-    "note": "Attempt to send a counter offer with price 0 and verify Procol refuses it with the required message."
+    "note": "Attempt to send a zero counter offer and verify Procol refuses it with the expected message."
    }
   ]
  }

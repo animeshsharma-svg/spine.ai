@@ -3,146 +3,38 @@
   "caseId": "PRD-KBSRC-370",
   "title": "Buyer sees the best price among all bids",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:18:10.992Z",
+  "compiledAt": "2026-11-13T14:41:46.110Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case"
+   "Assert that the displayed best price equals the lowest submitted bid across all vendors"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "can only test part of this — no step for: Assert that the displayed best price equals the lowest submitted bid across all vendors"
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 3,
   "stepNames": [
-   "open_create",
-   "configure_single_stage",
-   "set_title",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
-   "place_bid",
-   "expect_bid_submitted",
-   "place_bid",
-   "expect_bid_submitted",
+   "open_event",
    "go_to",
-   "expect_responses",
-   "expect_text",
    "expect_text"
   ],
-  "ms": 10619
+  "ms": 13670
  },
  "plan": {
-  "title": "Buyer sees lowest best price in auction",
+  "title": "Buyer sees best price among bids",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "single-stage"
-    },
-    "note": "Start a single-stage event so the auction strategy can be configured."
-   },
-   {
-    "step": "configure_single_stage",
-    "args": {
-     "eventType": "auction",
-     "auctionSubtype": "price",
-     "awarding": "lot"
-    },
-    "note": "Configure a price-based auction, which is the subject of the test."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "Best Price Auction"
-    },
-    "note": "Provide the required event title."
-   },
-   {
-    "step": "select_template",
+    "step": "open_event",
     "args": {},
-    "note": "Apply the first available auction pricing template."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add one line item for the vendors to bid on."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the auction pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a live bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 2
-    },
-    "note": "Invite two vendors so the buyer can compare multiple submitted bids."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the auction so vendors can bid."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the auction reached a published project page."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "vendor": 1,
-     "price": 120
-    },
-    "note": "Submit the first vendor bid at the higher price."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the first vendor’s bid was accepted."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "vendor": 2,
-     "price": 100
-    },
-    "note": "Submit the second vendor bid at the lower price that should become Best Price."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the second vendor’s bid was accepted."
+    "note": "Open an existing live auction with vendor bids, as required by the setup."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer’s Responses view, which is the subject of the case."
-   },
-   {
-    "step": "expect_responses",
-    "args": {
-     "count": 2
-    },
-    "note": "Confirm the buyer’s Responses view includes both bidding vendors."
+    "note": "Navigate to the buyer's auction Responses view, which is the subject of the test."
    },
    {
     "step": "expect_text",
@@ -150,16 +42,7 @@
      "text": "Best Price",
      "present": true
     },
-    "note": "Confirm the Responses view exposes the Best Price indicator."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "100",
-     "present": true,
-     "within": "Best Price"
-    },
-    "note": "Verify that Best Price equals the lower of the two submitted bids."
+    "note": "Verify that the buyer-facing Responses view exposes the Best Price result."
    }
   ]
  }

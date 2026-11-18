@@ -3,40 +3,42 @@
   "caseId": "PRD-AE-011",
   "title": "Escalation Timeout (Hours) (approval.escalation.timeout_hours) = 1 (minimum)",
   "group": "PRD-AE",
-  "compiledAt": "2026-11-10T01:41:55.847Z",
+  "compiledAt": "2026-11-13T15:01:34.337Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Set tenant setting approval.escalation.timeout_hours to 1",
-   "Trigger an approval through condition-based triggering",
-   "Observe an approval remaining pending and auto-escalating after exactly 1 hour",
-   "Verify the timeout value is accepted and takes effect at the 1-hour boundary"
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Set tenant setting approval.escalation.timeout_hours to 1; Trigger an approval through condition-based triggering; Observe an approval remaining pending and auto-escalating after exactly 1 hour; Verify the timeout value is accepted and takes effect at the 1-hour boundary"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
-   "ask_tester",
+   "require_setting",
+   "do_on_screen",
    "expect_screen_clean"
   ],
-  "ms": 8441
+  "ms": 13636
  },
  "plan": {
-  "title": "Approval Escalation Timeout Minimum",
+  "title": "Escalation Timeout Minimum",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "as the Tenant Admin, set approval.escalation.timeout_hours to 1, trigger a condition-based approval, and verify that a pending approval auto-escalates to the next level after exactly 1 hour"
+     "key": "approval.escalation.timeout_hours",
+     "value": 1
     },
-    "note": "No catalog step can access tenant approval settings or exercise and observe the approval escalation workflow."
+    "note": "Set the escalation timeout to the minimum permitted value and verify the tenant accepts it."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "As the Tenant Admin, configure Condition-Based Triggering to create an approval that remains pending, wait until the one-hour escalation timeout is reached, and stop on the approval screen showing that it was automatically escalated to the next level."
+    },
+    "note": "Exercise the approval workflow and directly observe that a pending approval is auto-escalated after exactly one hour."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Final generic assertion that the resulting screen has no crash or raw error, without treating it as evidence of the missing approval behavior."
+    "note": "Confirm the resulting approval screen is rendered without errors or unresolved data."
    }
   ]
  }

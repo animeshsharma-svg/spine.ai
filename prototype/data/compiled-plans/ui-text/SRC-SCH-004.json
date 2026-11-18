@@ -4,45 +4,44 @@
   "title": "Start now, end after 4 Hrs",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:01:36.533Z",
+  "compiledAt": "2026-11-13T12:51:10.587Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Direct equality between the Schedule Event drawer's dynamic \"Event will end at\" timestamp and the published \"Bidding Ends At\" timestamp.",
+   "Verification that the published countdown numerically matches the four-hour duration."
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added set_schedule — the schedule is displayed but not committed until saved",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added set_schedule — the schedule is displayed but not committed until saved",
-   "resolved: “Directly verify that the live countdown mathematically matches the published Bidding Ends At time and that the end is ex” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
+   "can only test part of this — no step for: Direct equality between the Schedule Event drawer's dynamic \"Event will end at\" timestamp and the published \"Bidding Ends At\" timestamp.; Verification that the published countdown numerically matches the four-hour duration."
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 17,
   "stepNames": [
    "open_create",
-   "open_events_list",
-   "expect_events_list",
-   "expect_create_options",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
+   "set_sheet_cell",
+   "expect_sheet_cell",
    "fill_sheet",
-   "invite_vendor",
-   "click",
-   "remember",
-   "select",
-   "click",
-   "expect_text",
    "set_schedule",
+   "expect_text",
+   "invite_vendor",
    "publish",
    "expect_published",
-   "expect_remembered"
+   "expect_text",
+   "expect_no_error"
   ],
-  "ms": 15737
+  "ms": 32164
  },
  "plan": {
   "title": "Single-stage RFQ 4-hour schedule",
@@ -52,26 +51,23 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the single-stage event creation flow."
    },
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open the Events list before creating the event."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Verify the Events list and Create Event control rendered."
-   },
-   {
-    "step": "expect_create_options",
+    "step": "require_setting",
     "args": {
-     "options": [
-      "Single Stage"
-     ]
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Verify the Create Event menu offers the required Single Stage path."
+    "note": "Enable eRFX capability required for event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
    },
    {
     "step": "configure_single_stage",
@@ -79,98 +75,98 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set the single-stage event type to RFQ."
+    "note": "Set the event type to RFQ and retain whole-lot awarding."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title so publishing can proceed."
+    "args": {
+     "title": "SRC-SCH-004 4 Hour RFQ"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply the first available RFQ template so the pricing sheet is created."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER"
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
     },
-    "note": "Add a product so the pricing sheet and schedule controls are available."
+    "note": "Add the specified product and requested quantity."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location in the pricing sheet."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
+    },
+    "note": "Confirm the delivery location was selected."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet required for publication."
+    "note": "Complete the remaining pricing-sheet fields required for publishing."
    },
    {
-    "step": "invite_vendor",
+    "step": "set_schedule",
     "args": {
-     "count": 1
+     "minutes": 240
     },
-    "note": "Invite one available QA vendor as required for publication."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Schedule"
-    },
-    "note": "Open the Schedule Event drawer from the footer schedule control."
-   },
-   {
-    "step": "remember",
-    "args": {
-     "key": "scheduled_end",
-     "text": "Event will end at"
-    },
-    "note": "Record the schedule drawer’s calculated end-time line before saving."
-   },
-   {
-    "step": "select",
-    "args": {
-     "label": "Duration",
-     "option": "4 Hrs"
-    },
-    "note": "Choose the required four-hour duration while keeping the default Start now setting."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Save Schedule"
-    },
-    "note": "Commit the four-hour schedule."
+    "note": "Commit a schedule starting now with a four-hour duration."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "4 Hrs"
+     "text": "4 Hrs",
+     "present": true
     },
-    "note": "Verify the footer schedule chip shows the selected four-hour duration."
+    "note": "Verify the footer schedule chip displays the requested four-hour duration."
    },
    {
-    "step": "set_schedule"
+    "step": "invite_vendor",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Add the vendor named by the test case."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured RFQ and confirm the publish flow."
+    "note": "Publish the configured RFQ event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publication reached a real project page."
+    "note": "Confirm publishing reached a real project page."
    },
    {
-    "step": "expect_remembered",
+    "step": "expect_text",
     "args": {
-     "key": "scheduled_end",
      "text": "Bidding Ends At",
-     "contains": true
+     "present": true
     },
-    "note": "Verify the published Project Details end-time value matches the end time recorded in the schedule drawer."
+    "note": "Verify the published Project Details page exposes the bidding end-time field."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm no application error appeared during scheduling or publishing."
    }
   ]
  }

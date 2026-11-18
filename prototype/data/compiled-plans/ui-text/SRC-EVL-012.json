@@ -4,76 +4,61 @@
   "title": "Choose an existing event to test awarding",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:21:01.508Z",
+  "compiledAt": "2026-11-13T12:04:58.953Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the selected event may be either In Evaluation or Closed rather than requiring one specific status",
-   "Capture or assert the event's RFX number in Test Data",
-   "Explicitly assert that no award has been created"
+   "Record the selected event title and RFX number in Test Data as explicit test-data fields"
   ],
   "warnings": [
    "moved open_event to the front — the steps after it act on that event's page",
    "moved open_event to the front — the steps after it act on that event's page",
-   "can only test part of this — no step for: Assert that the selected event may be either In Evaluation or Closed rather than requiring one specific status; Capture or assert the event's RFX number in Test Data; Explicitly assert that no award has been created"
+   "can only test part of this — no step for: Record the selected event title and RFX number in Test Data as explicit test-data fields"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 7,
   "stepNames": [
    "open_event",
    "open_events_list",
    "expect_events_list",
    "filter_events",
-   "expect_event_status",
-   "open_master_qcs",
    "expect_responses",
-   "expect_visible"
+   "expect_visible",
+   "expect_api_value"
   ],
-  "ms": 10992
+  "ms": 20471
  },
  "plan": {
-  "title": "Choose Existing Event for Awarding",
+  "title": "Choose existing bid event for awarding",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing event that fits the awarding prerequisite: bids are present and bidding is over."
+    "note": "Open an existing event selected for awarding, with bids in and bidding over, rather than creating a new event."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list before selecting an existing event."
+    "note": "Open the Events list where the buyer can choose among event states."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the Events list and its Create Event control rendered without an error."
+    "note": "Confirm the list and its Create Event control rendered without an error."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Use the History tab to find an event whose bidding has ended and is eligible for awarding."
-   },
-   {
-    "step": "expect_event_status",
-    "args": {
-     "status": "Closed"
-    },
-    "note": "Verify the selected event is in the closed state required for awarding."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the comparison grid to verify that vendor bid data is present for the selected event."
+    "note": "Use the history state to look for an event whose bidding has ended."
    },
    {
     "step": "expect_responses",
     "args": {
      "atLeast": 1
     },
-    "note": "Assert that at least one vendor response exists on the buyer's view."
+    "note": "Verify that at least one vendor response is present on the selected event."
    },
    {
     "step": "expect_visible",
@@ -82,7 +67,14 @@
      "name": "Start Awarding",
      "visible": true
     },
-    "note": "Verify that awarding has not yet been started and the event exposes the Start Awarding action."
+    "note": "Verify that awarding is available, indicating the event has not already been awarded."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "title"
+    },
+    "note": "Verify that the selected event has a readable title for recording in the test data."
    }
   ]
  }

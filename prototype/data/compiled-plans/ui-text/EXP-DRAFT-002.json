@@ -4,19 +4,24 @@
   "title": "A saved eRFX draft: \"RFQ\" opens the \"Configuration for Event\" window",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:39:32.089Z",
+  "compiledAt": "2026-11-13T14:02:34.358Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Prove that no event data changes before pressing Cancel or Save."
+   "Verify through a persisted-state assertion that no event data changes before Save or Cancel is pressed."
   ],
   "warnings": [
-   "can only test part of this — no step for: Prove that no event data changes before pressing Cancel or Save."
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Verify through a persisted-state assertion that no event data changes before Save or Cancel is pressed."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 13,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
@@ -27,27 +32,51 @@
    "expect_visible",
    "expect_visible"
   ],
-  "ms": 8156
+  "ms": 16675
  },
  "plan": {
-  "title": "EXP-DRAFT-002 RFQ Configuration Dialog",
+  "title": "Saved eRFX Draft RFQ Configuration Window",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to locate the existing saved draft."
+    "note": "Open the Events list to reach the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-addition configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required add-stage configuration."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the events list rendered successfully."
+    "note": "Confirm the events list rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show saved eRFX drafts."
+    "note": "Switch to the Drafts tab specified by the case."
    },
    {
     "step": "open_first_event",
@@ -62,7 +91,7 @@
      "role": "button",
      "name": "RFQ"
     },
-    "note": "Open the RFQ configuration control on the draft."
+    "note": "Activate the RFQ control on the saved eRFX draft."
    },
    {
     "step": "expect_visible",
@@ -77,39 +106,35 @@
     "step": "expect_text",
     "args": {
      "text": "Event Type",
-     "present": true,
-     "within": "dialog"
+     "present": true
     },
-    "note": "Verify the dialog contains the Event Type section."
+    "note": "Verify the window contains the Event Type configuration."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "How will you award the event?",
-     "present": true,
-     "within": "dialog"
+     "present": true
     },
-    "note": "Verify the dialog contains the awarding configuration."
+    "note": "Verify the awarding configuration is present."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Cancel",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
-    "note": "Verify the dialog offers Cancel."
+    "note": "Verify the window offers Cancel without pressing it."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Save",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
-    "note": "Verify the dialog offers Save."
+    "note": "Verify the window offers Save without pressing it."
    }
   ]
  }

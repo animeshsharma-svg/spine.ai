@@ -4,50 +4,67 @@
   "title": "Reject button opens the reject email",
   "group": "EMA-LINK",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:55:06.139Z",
+  "compiledAt": "2026-11-13T14:20:39.342Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in to Asha's mailbox and open the Procol approval request email",
-   "Click the Reject button in the email",
-   "Assert that the subject starts with the exact prefix \"Action:Reject|Proposal:[\" rather than merely containing \"Action:Reject\"",
-   "Assert that the comment reason area contains an empty line"
+   "Log in to Asha's external mailbox and open the Procol approval request email",
+   "Click the Reject button in the email and verify the subject starts exactly with \"Action:Reject|Proposal:[\"",
+   "Verify that the required comment field contains an empty line rather than merely the \"(Required) Comment:\" label"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in to Asha's mailbox and open the Procol approval request email; Click the Reject button in the email; Assert that the subject starts with the exact prefix \"Action:Reject|Proposal:[\" rather than merely containing \"Action:Reject\"; Assert that the comment reason area contains an empty line"
+   "can only test part of this — no step for: Log in to Asha's external mailbox and open the Procol approval request email; Click the Reject button in the email and verify the subject starts exactly with \"Action:Reject|Proposal:[\"; Verify that the required comment field contains an empty line rather than merely the \"(Required) Comment:\" label"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_text",
    "expect_text"
   ],
-  "ms": 9985
+  "ms": 17049
  },
  "plan": {
-  "title": "Reject button opens rejection email",
+  "title": "EMA-LINK-005 Reject Email Action",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the email approval capability required by the scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Ensure the event approval workflow uses email approvals."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in to Asha's mailbox, open the Procol approval request email, click Reject, and leave the newly opened rejection email visible"
+     "need": "sign in to Asha's external mailbox, open the Procol approval request email, and click Reject so the new Action:Reject email is open"
     },
-    "note": "Mailbox access and clicking the email's Reject action are not available in the catalog."
+    "note": "The catalog cannot access an external mailbox or perform the email action."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Action:Reject"
+     "text": "Action:Reject|Proposal:["
     },
-    "note": "Checks that the resulting email subject contains the rejection action prefix."
+    "note": "Check that the newly opened email displays the expected subject prefix."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "(Required) Comment:"
     },
-    "note": "Checks that the rejection email includes the required comment prompt."
+    "note": "Check that the outgoing rejection email contains the required comment prompt."
    }
   ]
  }

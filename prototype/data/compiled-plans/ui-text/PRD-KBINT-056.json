@@ -3,41 +3,45 @@
   "caseId": "PRD-KBINT-056",
   "title": "Deleting a question asks for confirmation",
   "group": "PRD-KBINT",
-  "compiledAt": "2026-11-10T02:29:12.816Z",
+  "compiledAt": "2026-11-13T15:06:47.960Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the deleted question is no longer listed after confirmation."
+  ],
   "warnings": [
-   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
-   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has"
+   "can only test part of this — no step for: Assert that the deleted question is no longer listed after confirmation."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 10,
   "stepNames": [
    "open_create",
-   "compose_stages",
    "set_title",
+   "compose_stages",
+   "switch_stage",
    "select_template",
-   "do_on_screen",
-   "expect_no_error"
+   "fill_questionnaires",
+   "click",
+   "expect_visible",
+   "click",
+   "expect_visible"
   ],
-  "ms": 69495
+  "ms": 19538
  },
  "plan": {
-  "title": "RFP Question Deletion Confirmation",
+  "title": "Confirm deletion of an RFP question",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the single-stage creation screen for the RFP setup."
+    "note": "Open the eRFX creation screen for the RFP setup."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title before configuring the RFP stage."
    },
    {
     "step": "compose_stages",
@@ -45,31 +49,58 @@
      "stages": [
       "rfp"
      ]
-    }
+    },
+    "note": "Create an RFP stage, which is the subject's questionnaire context."
    },
    {
-    "step": "set_title",
+    "step": "switch_stage",
     "args": {
-     "title": "RFP Question Deletion Confirmation"
+     "stage": "rfp"
     },
-    "note": "Provide the required event title for the create flow."
+    "note": "Work on the RFP stage where the template question appears."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an available RFP template containing the setup question."
+    "note": "Apply an available RFP template containing the question."
    },
    {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "on the RFP questionnaire screen, click the Delete icon for the existing question, verify that a confirmation pop-up appears, confirm the deletion, and stop with the deleted question no longer listed"
-    },
-    "note": "Perform and verify the confirmation and removal behavior that no catalog domain step directly exposes."
-   },
-   {
-    "step": "expect_no_error",
+    "step": "fill_questionnaires",
     "args": {},
-    "note": "Assert that the completed deletion interaction did not leave an application error."
+    "note": "Populate the RFP questionnaire so its question and controls are rendered."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Delete"
+    },
+    "note": "Click the question's Delete control to initiate deletion; the control label is not explicitly cataloged for questionnaire questions."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "visible": true
+    },
+    "note": "Assert that a confirmation pop-up appears before deletion."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Delete",
+     "within": "dialog"
+    },
+    "note": "Confirm deletion in the confirmation pop-up."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "visible": false
+    },
+    "note": "Assert that the confirmation pop-up closes after confirmation."
    }
   ]
  }

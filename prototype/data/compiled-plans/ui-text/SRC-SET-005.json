@@ -4,13 +4,11 @@
   "title": "An RFQ scheduled to start tomorrow",
   "group": "SRC-SET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:04:17.009Z",
+  "compiledAt": "2026-11-13T12:54:26.948Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set the RFQ start time to tomorrow at 11:00 AM on the create-screen schedule drawer.",
-   "Assert that the published event is not live yet and displays the requested future start time.",
-   "Select the specifically designated Vendor A because the case does not provide that QA vendor's exact company name or email; the plan invites one QA vendor instead."
+   "Set the create-screen schedule to exactly tomorrow at 11:00 AM using the Start later date/time picker."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -21,41 +19,63 @@
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added place_bid — the test is about bidding and no bid step was planned",
-   "can only test part of this — no step for: Set the RFQ start time to tomorrow at 11:00 AM on the create-screen schedule drawer.; Assert that the published event is not live yet and displays the requested future start time.; Select the specifically designated Vendor A because the case does not provide that QA vendor's exact company name or email; the plan invites one QA vendor instead."
+   "can only test part of this — no step for: Set the create-screen schedule to exactly tomorrow at 11:00 AM using the Start later date/time picker."
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 24,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
-   "expect_template_selected",
    "add_line_items",
-   "fill_sheet",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
    "set_sheet_cell",
    "expect_sheet_cell",
-   "expect_sheet_cell",
+   "fill_sheet",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
    "place_bid",
+   "reschedule_event",
+   "expect_settings_menu",
    "open_events_list",
    "filter_events",
-   "expect_event_in_list"
+   "expect_event_in_list",
+   "expect_event_status"
   ],
-  "ms": 16353
+  "ms": 21669
  },
  "plan": {
-  "title": "SRC-SET-005 Upcoming RFQ Scheduling",
+  "title": "Upcoming RFQ scheduled start",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow described by the case."
+    "note": "Open the single-stage event creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow the buyer to add the QA vendor during event creation."
    },
    {
     "step": "configure_single_stage",
@@ -63,22 +83,15 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Switch the default single-stage event type to RFQ."
+    "note": "Set the event type to RFQ and award the entire lot to one vendor."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-SET-005 Upcoming RFQ"
-    },
-    "note": "Every create flow requires a title before publication."
+    "note": "Provide the mandatory event title while allowing the runner to generate a unique title."
    },
    {
     "step": "select_template",
-    "note": "Apply the first available RFQ pricing template so the product sheet is created."
-   },
-   {
-    "step": "expect_template_selected",
-    "note": "Verify that the RFQ template was applied and the picker no longer offers Select Templates."
+    "note": "Apply the RFQ template so the pricing sheet is available."
    },
    {
     "step": "add_line_items",
@@ -87,20 +100,16 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product and quantity through the catalog's line-item flow."
+    "note": "Add the specified product and quantity 10."
    },
    {
-    "step": "fill_sheet",
-    "note": "Populate the pricing sheet fields required by the create screen."
-   },
-   {
-    "step": "set_sheet_cell",
+    "step": "expect_sheet_cell",
     "args": {
      "row": 1,
-     "column": "Delivery location",
-     "value": "Plant Name (LOC-0001)"
+     "column": "Product",
+     "equals": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Enter the requested delivery location in the first line-item row."
+    "note": "Confirm the requested product was added to the first sheet row."
    },
    {
     "step": "expect_sheet_cell",
@@ -109,30 +118,52 @@
      "column": "Quantity Requested",
      "equals": "10"
     },
-    "note": "Verify the requested quantity was retained."
+    "note": "Confirm the requested quantity is 10."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "equals": "Variant 1"
+    },
+    "note": "Confirm the product's automatically filled variant."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Choose the specified delivery location."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
      "column": "Delivery location",
-     "contains": "Plant Name"
+     "equals": "Plant Name (LOC-0001)"
     },
-    "note": "Verify the requested delivery location is shown in the sheet."
+    "note": "Verify the selected delivery location remained in the sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Complete any remaining required pricing-sheet fields."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 60
     },
-    "note": "Configure the available one-hour duration; the catalog cannot set the requested absolute future start."
+    "note": "Commit a one-hour event duration before publishing; the exact absolute start is handled by the closest supported reschedule step."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one QA test vendor without inventing a company name."
+    "note": "Invite one QA test vendor without inventing a supplier name."
    },
    {
     "step": "publish",
@@ -140,25 +171,49 @@
    },
    {
     "step": "expect_published",
-    "note": "Verify that publication reached a real project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "place_bid"
    },
    {
+    "step": "reschedule_event",
+    "args": {
+     "start": "+3d",
+     "expect": "saved"
+    },
+    "note": "Move the published event to a supported future start so it is upcoming rather than live."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "offered": [
+      "Reschedule Event"
+     ]
+    },
+    "note": "Verify the project is still upcoming and can be rescheduled."
+   },
+   {
     "step": "open_events_list",
-    "note": "Return to the events list to verify the newly published event is listed."
+    "note": "Return to the events list to verify the event's list state."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Live"
     },
-    "note": "Open the Live tab named by the case."
+    "note": "Open the Live tab where future-start events are listed."
    },
    {
     "step": "expect_event_in_list",
-    "note": "Verify that this plan's published RFQ appears in the Live events list."
+    "note": "Confirm this plan's published RFQ appears in the Live tab."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Upcoming"
+    },
+    "note": "Verify the listed event is upcoming and not live yet."
    }
   ]
  }

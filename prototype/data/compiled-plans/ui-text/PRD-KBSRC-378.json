@@ -3,21 +3,22 @@
   "caseId": "PRD-KBSRC-378",
   "title": "Create and publish a Knockout auction",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:18:35.036Z",
+  "compiledAt": "2026-11-13T14:42:25.741Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact Responses-tab values for the current round, upcoming offers, and bidder list cannot be asserted without expected values or dedicated Knockout auction response assertions."
+   "Configure the converted auction as Knockout, choose the offer entity, enter Starting Price, Tick Size, and time difference between consecutive offers, then save and publish the converted auction"
   ],
   "warnings": [
-   "can only test part of this — no step for: The exact Responses-tab values for the current round, upcoming offers, and bidder list cannot be asserted without expected values or dedicated Knockout auction response assertions."
+   "can only test part of this — no step for: Configure the converted auction as Knockout, choose the offer entity, enter Starting Price, Tick Size, and time difference between consecutive offers, then save and publish the converted auction"
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -26,27 +27,31 @@
    "publish",
    "expect_published",
    "convert_to_auction",
-   "do_on_screen",
-   "expect_published",
+   "ask_tester",
    "go_to",
-   "expect_screen_clean"
+   "expect_navigated",
+   "expect_text",
+   "expect_text",
+   "expect_text"
   ],
-  "ms": 14532
+  "ms": 27864
  },
  "plan": {
-  "title": "Create and publish a Knockout auction",
+  "title": "Create and Publish Knockout Auction",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start the event creation flow."
+    "note": "Start a new eRFX project."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title."
+    "args": {
+     "title": "Knockout Auction Test"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -55,75 +60,102 @@
       "rfq"
      ]
     },
-    "note": "Create the RFQ required before conversion to a Knockout auction."
+    "note": "Create an RFQ first because Knockout auctions are only reachable through RFQ-to-Auction conversion."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template before adding line items."
+    "note": "Apply the first available RFQ template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item required for the event."
+    "note": "Add the required auction line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
+    "note": "Populate the RFQ pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a bidding schedule before publishing."
+    "note": "Commit a valid bidding schedule before publishing."
    },
    {
     "step": "invite_vendor",
-    "args": {},
-    "note": "Invite the available vendors required for publication."
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the required vendor."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the initial RFQ so it can be converted."
+    "note": "Publish the source RFQ needed for conversion."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the initial RFQ became a published event."
+    "note": "Verify the source RFQ became a published event."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Open the supported RFQ-to-Auction conversion flow, which exposes Knockout auction configuration."
+    "note": "Open the converted-auction create screen, the supported route to Knockout configuration."
    },
    {
-    "step": "do_on_screen",
+    "step": "ask_tester",
     "args": {
-     "goal": "On the converted auction create screen, select the Knockout auction strategy, choose the entity on which offers are based, enter the Starting price, Tick Size, and time difference between consecutive offers, then save and publish the event; stop when the converted Knockout auction is published"
+     "need": "Configure the converted event as a Knockout auction, choose the offer entity, enter the Starting Price, Tick Size, and time difference between consecutive offers, then save and publish the event"
     },
-    "note": "Perform the conversion-specific Knockout configuration and publication that no dedicated catalog step can express."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Assert that the Knockout auction reached a published project page."
+    "note": "The catalog has no step for these Knockout-specific controls or for publishing the configured converted auction."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the Responses tab for the available oracle screen."
+    "note": "Navigate to the published auction's Responses tab for the oracle check."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Verify the Responses screen rendered without errors or broken values."
+    "step": "expect_navigated",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Verify the Responses screen is ready."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Current Round"
+    },
+    "note": "Check that the Responses tab exposes the current-round information described by the oracle."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Upcoming Offers"
+    },
+    "note": "Check that upcoming offers are shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bidders"
+    },
+    "note": "Check that the bidder list is shown."
    }
   ]
  }

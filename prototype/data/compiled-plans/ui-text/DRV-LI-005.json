@@ -4,53 +4,63 @@
   "title": "Double‑click Delete quickly before API response does not create duplicate deletion",
   "group": "DRV-LI",
   "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
-  "compiledAt": "2026-11-09T23:06:58.268Z",
+  "compiledAt": "2026-11-13T13:38:08.224Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The required starting state has two active line items; the prepared live RFQ provides exactly one line item.",
-   "The exact absence of a second deletion API call cannot be asserted because the deletion request path is not specified.",
-   "The catalog cannot guarantee that the second click occurs before the first request returns."
+   "The prepared event has exactly one line item, so the requested live RFQ with two active line items cannot be established.",
+   "The deletion API endpoint and request count are not observable without a known request path, so the absence of a second API call cannot be asserted.",
+   "The Delete control label is not a confirmed catalog label for the Overview line-item row."
   ],
   "warnings": [
-   "can only test part of this — no step for: The required starting state has two active line items; the prepared live RFQ provides exactly one line item.; The exact absence of a second deletion API call cannot be asserted because the deletion request path is not specified.; The catalog cannot guarantee that the second click occurs before the first request returns."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The prepared event has exactly one line item, so the requested live RFQ with two active line items cannot be established.; The deletion API endpoint and request count are not observable without a known request path, so the absence of a second API call cannot be asserted.; The Delete control label is not a confirmed catalog label for the Overview line-item row."
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "click",
    "click",
-   "expect_count",
-   "expect_toast"
+   "expect_count"
   ],
   "state": "live",
   "screen": "overview",
-  "ms": 10176
+  "ms": 17247
  },
  "plan": {
-  "title": "Prevent duplicate line-item deletion",
+  "title": "Idempotent Double Delete",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "overview"
     },
-    "note": "Open the prepared live RFQ directly on its Overview tab."
+    "note": "Open the prepared live RFQ directly on its pricing Overview tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "pr_deletion_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required purchase-requisition deletion behavior before testing the event."
    },
    {
     "step": "click",
     "args": {
      "text": "Delete"
     },
-    "note": "Trigger deletion of the available line item."
+    "note": "Initiate deletion of the line item."
    },
    {
     "step": "click",
     "args": {
      "text": "Delete"
     },
-    "note": "Immediately repeat the Delete action to exercise duplicate-click handling."
+    "note": "Immediately repeat the deletion action to exercise duplicate-click handling."
    },
    {
     "step": "expect_count",
@@ -58,15 +68,7 @@
      "text": "Line item deleted successfully",
      "count": 1
     },
-    "note": "Assert that exactly one success toast is rendered."
-   },
-   {
-    "step": "expect_toast",
-    "args": {
-     "kind": "success",
-     "text": "Line item deleted successfully"
-    },
-    "note": "Confirm the deletion completed successfully with the expected message."
+    "note": "Verify that exactly one successful deletion toast was shown."
    }
   ]
  }

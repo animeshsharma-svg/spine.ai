@@ -4,15 +4,19 @@
   "title": "Typing a name that matches nobody shows the 'several PRs' message even with one PR ticked",
   "group": "PRA-EXT",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-12T13:47:29.539Z",
+  "compiledAt": "2026-11-13T14:25:44.980Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
+   "The exact label or placeholder of the Assign user search field is not defined in the catalog.",
+   "The case allows any neutral no-match wording, but the plan can assert only the example message \"No matching user\".",
+   "unconfirmed label \"Search user\" (fill) — not among the labels known from the app nor in the case",
    "unconfirmed label \"No user can see all selected PRs. Assign them separately.\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
+   "coverage partial: unconfirmed label \"Search user\" (fill) — not among the labels known from the app nor in the case",
    "coverage partial: unconfirmed label \"No user can see all selected PRs. Assign them separately.\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "can only test part of this — no step for: The exact label or placeholder of the Assign user search field is not defined in the catalog.; The case allows any neutral no-match wording, but the plan can assert only the example message \"No matching user\"."
   ],
   "source": "llm",
   "steps": 8,
@@ -22,14 +26,14 @@
    "pr_tab",
    "select_pr",
    "click",
-   "do_on_screen",
+   "fill",
    "expect_text",
    "expect_text"
   ],
-  "ms": 10425
+  "ms": 17082
  },
  "plan": {
-  "title": "PR assignment search with one selected PR",
+  "title": "No matching user for selected PR",
   "steps": [
    {
     "step": "require_setting",
@@ -37,26 +41,27 @@
      "key": "is_pr_teams_filtering_enabled",
      "value": "On"
     },
-    "note": "Enable the configuration required by the scenario."
+    "note": "Enable the required PR team-filtering configuration before opening the requisitions screen."
    },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen."
+    "note": "Open the Purchase Requisitions area as the first step of a PR-based flow."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Use the Open PRs tab as required."
+    "note": "Show only open purchase requisitions, which can be selected for assignment."
    },
    {
     "step": "select_pr",
     "args": {
-     "pr": "1010"
+     "pr": "1010",
+     "items": 1
     },
-    "note": "Select only PR 1010 so the assignment search has one ticked PR."
+    "note": "Select exactly one line item from PR 1010."
    },
    {
     "step": "click",
@@ -64,14 +69,15 @@
      "role": "button",
      "name": "Assign"
     },
-    "note": "Open the assignee selection flow for the selected PR."
+    "note": "Open the assignment interface for the selected PR item."
    },
    {
-    "step": "do_on_screen",
+    "step": "fill",
     "args": {
-     "goal": "type the nonexistent assignee name \"zzqx\" into the assignment user search and stop when the screen shows a neutral no-match message"
+     "label": "Search user",
+     "value": "zzqx"
     },
-    "note": "Enter the name that matches no user and reach the resulting message."
+    "note": "Search for the deliberately nonexistent assignee; the field label is not confirmed by the catalog."
    },
    {
     "step": "expect_text",
@@ -79,7 +85,7 @@
      "text": "No matching user",
      "present": true
     },
-    "note": "Verify the neutral no-match message is shown."
+    "note": "Assert that the assignment search reports a neutral no-match result."
    },
    {
     "step": "expect_text",
@@ -87,7 +93,7 @@
      "text": "No user can see all selected PRs. Assign them separately.",
      "present": false
     },
-    "note": "Verify the misleading several-PR message is not shown."
+    "note": "Assert that the misleading several-PRs visibility message is not shown when only one PR item is selected."
    }
   ]
  }

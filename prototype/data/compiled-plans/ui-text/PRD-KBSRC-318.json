@@ -3,17 +3,18 @@
   "caseId": "PRD-KBSRC-318",
   "title": "Traffic Light: vendors see a colour status only",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:13:16.864Z",
+  "compiledAt": "2026-11-13T14:37:10.420Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog cannot reliably assert that no competitor price is shown as distinct from the vendor's own bid-sheet Price field; it can only check absence of the generic Price label."
+   "Verify the traffic-light status through its rendered Green/Amber/Red colour rather than textual content or CSS.",
+   "Verify that competitor prices are hidden while allowing the vendor's own price-entry field."
   ],
   "warnings": [
-   "can only test part of this — no step for: The catalog cannot reliably assert that no competitor price is shown as distinct from the vendor's own bid-sheet Price field; it can only check absence of the generic Price label."
+   "can only test part of this — no step for: Verify the traffic-light status through its rendered Green/Amber/Red colour rather than textual content or CSS.; Verify that competitor prices are hidden while allowing the vendor's own price-entry field."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 15,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -29,20 +30,19 @@
    "vendor_open_event",
    "vendor_bid",
    "expect_text",
-   "expect_text",
    "expect_text"
   ],
-  "ms": 9649
+  "ms": 18583
  },
  "plan": {
-  "title": "Traffic Light Vendor Colour Status",
+  "title": "Traffic Light vendor colour status",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage flow required for traffic-light auction configuration."
+    "note": "Open the single-stage creation flow required for traffic-light auction configuration."
    },
    {
     "step": "configure_single_stage",
@@ -53,31 +53,31 @@
      "rangeLower": 80,
      "rangeUpper": 120
     },
-    "note": "Configure the auction's traffic-light strategy and range."
+    "note": "Configure a traffic-light auction with a defined bid range."
    },
    {
     "step": "set_title",
     "args": {
      "title": "Traffic Light Vendor Colour Status"
     },
-    "note": "Provide the required event title."
+    "note": "Set the mandatory event title before publishing."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction template before adding line items."
+    "note": "Apply the auction pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one item for the vendor to bid on."
+    "note": "Add one product for the vendor to bid on."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the auction pricing sheet."
+    "note": "Complete the pricing sheet so the event can be published."
    },
    {
     "step": "set_schedule",
@@ -91,7 +91,7 @@
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor whose portal view will be checked."
+    "note": "Invite the QA vendor who will place the bid."
    },
    {
     "step": "publish",
@@ -101,7 +101,7 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publication reached a real project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "switch_portal",
@@ -115,14 +115,14 @@
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the auction's vendor bidding screen."
+    "note": "Open the traffic-light auction's vendor bidding screen."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Submit a bid within the configured traffic-light range."
+    "note": "Submit a bid inside the configured range to trigger the expected traffic-light status."
    },
    {
     "step": "expect_text",
@@ -130,7 +130,7 @@
      "text": "Green",
      "present": true
     },
-    "note": "Verify that the vendor receives the expected green colour status."
+    "note": "Check that the vendor screen exposes the expected green status text for the in-range bid."
    },
    {
     "step": "expect_text",
@@ -138,15 +138,7 @@
      "text": "Rank",
      "present": false
     },
-    "note": "Verify that the vendor view does not expose a rank."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Price",
-     "present": false
-    },
-    "note": "Check that the vendor view does not show the generic price label."
+    "note": "Check that the vendor screen does not expose a rank indicator."
    }
   ]
  }

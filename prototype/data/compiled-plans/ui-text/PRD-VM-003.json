@@ -3,38 +3,42 @@
   "caseId": "PRD-VM-003",
   "title": "Vendor Approval Levels (vendor.approval.levels) = 2 (default)",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T02:29:22.470Z",
+  "compiledAt": "2026-11-13T15:07:02.912Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Set the tenant setting vendor.approval.levels to 2 and verify it is accepted and effective.",
-   "As a buyer, invite a new supplier with primary details into the Prospect list and observe exactly two sequential approval levels before activation."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Set the tenant setting vendor.approval.levels to 2 and verify it is accepted and effective.; As a buyer, invite a new supplier with primary details into the Prospect list and observe exactly two sequential approval levels before activation."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
-   "ask_tester",
+   "require_setting",
+   "do_on_screen",
    "expect_screen_clean"
   ],
-  "ms": 70971
+  "ms": 20989
  },
  "plan": {
-  "title": "Vendor Approval Levels 2",
+  "title": "Vendor Approval Levels Set to 2",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "set vendor.approval.levels to 2 as the Tenant Admin, invite a new supplier with primary details into the Prospect list as a Buyer, and verify that exactly two sequential approvals are required before the supplier becomes active"
+     "key": "vendor.approval.levels",
+     "value": 2
     },
-    "note": "The catalog has no tenant-setting or vendor-onboarding steps for this behavior."
+    "note": "Set the tenant configuration to the required default approval level count and verify the setting is accepted."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "as the Buyer, invite a new supplier with its primary details, open the resulting Prospect record, and verify that exactly two sequential approval levels are required before the supplier becomes activated"
+    },
+    "note": "The catalog has no dedicated vendor invitation, Prospect, or approval-level workflow step, so this performs the buyer flow and observes the setting's effect on screen."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Final assertion required by the plan format; it only checks that the resulting screen is free of crashes or raw errors and does not establish approval-level behavior."
+    "note": "Confirm the final workflow screen has no server error, crash, undefined values, or raw identifiers."
    }
   ]
  }

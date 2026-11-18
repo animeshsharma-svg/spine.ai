@@ -3,24 +3,28 @@
   "caseId": "PRD-KBSRC-414",
   "title": "Approve a Technical Recommendation through all approvers",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:22:01.385Z",
+  "compiledAt": "2026-11-13T14:45:23.144Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as each remaining approver, approve the technical recommendation through all workflow levels, and verify the buyer's event view shows the technical rankings"
+   "Sign in as each remaining approver and approve the technical recommendation through all workflow steps",
+   "Verify the approved technical rankings in the specific buyer event view"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as each remaining approver, approve the technical recommendation through all workflow levels, and verify the buyer's event view shows the technical rankings"
+   "can only test part of this — no step for: Sign in as each remaining approver and approve the technical recommendation through all workflow steps; Verify the approved technical rankings in the specific buyer event view"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "approve_award",
+   "go_to",
+   "click",
+   "do_on_screen",
+   "expect_text",
    "ask_tester",
    "expect_text"
   ],
-  "ms": 10132
+  "ms": 24783
  },
  "plan": {
   "title": "Approve Technical Recommendation Through Workflow",
@@ -30,26 +34,50 @@
     "args": {
      "screen": "proposal"
     },
-    "note": "Open the prepared submitted technical recommendation proposal."
+    "note": "Open the submitted technical recommendation proposal."
    },
    {
-    "step": "approve_award",
-    "args": {},
-    "note": "Approve the proposal as the currently signed-in pending approver, entering the required remark."
-   },
-   {
-    "step": "ask_tester",
+    "step": "go_to",
     "args": {
-     "need": "sign in as each remaining approver, approve the technical recommendation through all workflow levels, and verify the buyer's event view shows the technical rankings"
+     "screen": "tab",
+     "name": "Approvals"
     },
-    "note": "The catalog cannot change approver identities or observe the final technical-ranking view."
+    "note": "Navigate to the proposal's approvals area."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Pending on Me"
+    },
+    "note": "Show approval items assigned to the current approver."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "open the pending technical recommendation using its arrow control, review the proposal, enter remarks in the comment box, and click Approve; stop when this approver's approval is shown"
+    },
+    "note": "Perform and observe the current approver's approval action on screen."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Approved"
     },
-    "note": "Assert that the proposal displays an approved status after the approval workflow is completed."
+    "note": "Confirm the current approval action shows an approved result."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as each remaining approver, approve the technical recommendation with remarks, and confirm the buyer event shows the resulting technical rankings"
+    },
+    "note": "The catalog cannot perform additional approver sessions or verify rankings in the specific buyer event."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Approved"
+    },
+    "note": "Confirm the final proposal state is displayed as approved after all remaining approvals."
    }
   ]
  }

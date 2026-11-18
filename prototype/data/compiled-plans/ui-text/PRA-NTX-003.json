@@ -4,41 +4,56 @@
   "title": "Count is of PRs, not items",
   "group": "PRA-NTX",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:03:30.161Z",
+  "compiledAt": "2026-11-13T14:27:14.200Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assign the 4 items from PR-1 and PR-8 to User A.",
-   "Log in as User A and open the bell notifications.",
-   "Observe the assignment notification and verify it reports 2 PRs with '+ 1 more', not '+ 3 more'."
+   "The exact PR-1 and PR-8 numbers cannot be asserted as dynamic values by the catalog; the plan verifies the notification's PR label and distinct-PR count instead."
   ],
   "warnings": [
-   "can only test part of this — no step for: Assign the 4 items from PR-1 and PR-8 to User A.; Log in as User A and open the bell notifications.; Observe the assignment notification and verify it reports 2 PRs with '+ 1 more', not '+ 3 more'."
+   "can only test part of this — no step for: The exact PR-1 and PR-8 numbers cannot be asserted as dynamic values by the catalog; the plan verifies the notification's PR label and distinct-PR count instead."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
-   "ask_tester",
+   "require_setting",
+   "do_on_screen",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 13801
+  "ms": 10087
  },
  "plan": {
-  "title": "PR Assignment Notification Count",
+  "title": "Assignment notification counts PRs",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "assign the 4 items from PR-1 and PR-8 to User A, sign in as User A, open the bell notifications, and leave the assignment notification visible"
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
     },
-    "note": "The catalog cannot perform the cross-PR assignment, user login, or notification-bell navigation."
+    "note": "Enable the required PR team-filtering configuration before the test."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "As User A, assign the 3 items from PR-1 and the 1 item from PR-8 together, then click the top-right bell to open notifications; stop with the assignment notification visible."
+    },
+    "note": "No catalog domain step can assign multiple PR items to a user or open the assignment notification flow, so perform those buyer-side actions in the current session."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "PR No."
+    },
+    "note": "Verify the notification identifies the assigned purchase requisitions."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "+ 1 more to you."
     },
-    "note": "Assert the notification reports one additional PR, which demonstrates counting distinct PRs rather than the other three items."
+    "note": "Verify the notification counts one additional PR, indicating 2 PRs rather than counting the four items as three additional items."
    }
   ]
  }

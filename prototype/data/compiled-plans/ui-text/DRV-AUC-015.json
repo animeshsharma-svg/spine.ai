@@ -1,42 +1,42 @@
 {
  "meta": {
   "caseId": "DRV-AUC-015",
-  "title": "Submission-end ranking updates correctly after vendor revises live-time price",
+  "title": "When loading_factor_enabled is on, Dutch strategy shows loading factor field",
   "group": "DRV-AUC",
   "sheet": "derived-buyer-selects-which-qualified-vendors-ad",
-  "compiledAt": "2026-11-12T13:32:40.166Z",
+  "compiledAt": "2026-11-13T13:26:58.288Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create or verify a draft auction specifically; the prepared draft state is a pricing/RFQ event.",
-   "Establish that exactly four qualified vendors were invited before opening the draft.",
+   "Assert exactly 4 participant rows and verify all four expected vendor names, because the prepared draft state does not guarantee the four-vendor fixture requested by this case.",
    "unconfirmed label \"0/0\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
    "coverage partial: unconfirmed label \"0/0\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Create or verify a draft auction specifically; the prepared draft state is a pricing/RFQ event.; Establish that exactly four qualified vendors were invited before opening the draft."
+   "can only test part of this — no step for: Assert exactly 4 participant rows and verify all four expected vendor names, because the prepared draft state does not guarantee the four-vendor fixture requested by this case."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "click",
+   "expect_navigated",
    "expect_table",
    "expect_text"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 10411
+  "ms": 12013
  },
  "plan": {
-  "title": "Draft Auction Participants List",
+  "title": "RCA 320556867258 – Draft Auction Participants List",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "draft"
     },
-    "note": "Open the prepared draft event without creating or searching for another event."
+    "note": "Open the prepared draft auction without creating or searching for another event."
    },
    {
     "step": "click",
@@ -44,15 +44,22 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the draft event's Participants view."
+    "note": "Open the draft auction's Participants view."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "participants"
+    },
+    "note": "Confirm the Participants screen was reached."
    },
    {
     "step": "expect_table",
     "args": {
      "within": "Participants",
-     "rows": 4
+     "min": 1
     },
-    "note": "Assert that the participants list contains four vendor rows."
+    "note": "Verify that the participant list is non-empty, providing the closest observable check to the requested four invited vendors."
    },
    {
     "step": "expect_text",
@@ -60,7 +67,7 @@
      "text": "0/0",
      "present": false
     },
-    "note": "Assert that the empty participant count is not shown."
+    "note": "Verify that the empty participant-state indicator is not shown."
    }
   ]
  }

@@ -4,10 +4,13 @@
   "title": "Material PR → RFQ converted to an auction → complete award to L1 → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:15:26.800Z",
+  "compiledAt": "2026-11-13T12:00:03.357Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Sign in as the separate approver and approve the submitted award with a remark; the catalog can approve only when the current buyer is the pending approver.",
+   "Directly verify that the original PR line itself is marked ordered after PO creation; the catalog can verify the resulting PO items but has no PR-status assertion."
+  ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
@@ -18,10 +21,11 @@
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
    "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "added compose_stages(rfq) — conversion applies to an RFQ, and the screen defaults to an Auction"
+   "added compose_stages(rfq) — conversion applies to an RFQ, and the screen defaults to an Auction",
+   "can only test part of this — no step for: Sign in as the separate approver and approve the submitted award with a remark; the catalog can approve only when the current buyer is the pending approver.; Directly verify that the original PR line itself is marked ordered after PO creation; the catalog can verify the resulting PO items but has no PR-status assertion."
   ],
   "source": "llm",
-  "steps": 40,
+  "steps": 41,
   "stepNames": [
    "compose_stages",
    "open_purchase_requisitions",
@@ -32,6 +36,9 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_title",
    "set_schedule",
    "invite_vendor",
@@ -43,8 +50,6 @@
    "expect_bid_submitted",
    "close_event",
    "convert_to_auction",
-   "expect_no_error",
-   "set_schedule",
    "publish",
    "expect_published",
    "place_bid",
@@ -53,21 +58,21 @@
    "expect_bid_submitted",
    "close_event",
    "open_master_qcs",
-   "expect_qcs_ranks",
+   "expect_qcs_cell",
    "expect_qcs_cell",
    "award_event",
    "expect_awarded",
-   "approve_award",
+   "ask_tester",
    "create_po",
    "expect_po_items",
    "open_events_list",
    "filter_events",
    "expect_event_in_list"
   ],
-  "ms": 17589
+  "ms": 27433
  },
  "plan": {
-  "title": "Material PR to Auction Award and PO",
+  "title": "PR RFQ to Auction PO",
   "steps": [
    {
     "step": "compose_stages",
@@ -113,16 +118,42 @@
     "step": "fill_sheet"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "Off"
+    },
+    "note": "Ensure the award is a full award rather than a partial allocation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the conversion flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow the buyer to add both vendors during event creation."
+   },
+   {
     "step": "set_title",
-    "args": {},
-    "note": "Give the event a title so it can be tracked through conversion and history."
+    "args": {
+     "title": "SRC-E2E-021 Material PR RFQ Auction"
+    },
+    "note": "Provide the required event title for publishing and later History lookup."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit the 30-minute RFQ schedule."
+    "note": "Commit the 30-minute bidding schedule."
    },
    {
     "step": "invite_vendor",
@@ -136,12 +167,12 @@
       "Vendor B"
      ]
     },
-    "note": "Invite the two vendors named in the case."
+    "note": "Add the two vendors named in the case."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so both vendors can quote."
+    "note": "Publish the RFQ so vendors can submit quotes."
    },
    {
     "step": "expect_published",
@@ -154,12 +185,12 @@
      "vendor": "Vendor A",
      "price": 100
     },
-    "note": "Submit Vendor A's RFQ quote of 100."
+    "note": "Submit Vendor A's RFQ quote of 100 through the vendor portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that Vendor A's quote was accepted by the vendor portal."
+    "note": "Verify Vendor A's quote was accepted."
    },
    {
     "step": "place_bid",
@@ -167,12 +198,12 @@
      "vendor": "Vendor B",
      "price": 90
     },
-    "note": "Submit Vendor B's RFQ quote of 90."
+    "note": "Submit Vendor B's RFQ quote of 90 through the vendor portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that Vendor B's quote was accepted by the vendor portal."
+    "note": "Verify Vendor B's quote was accepted."
    },
    {
     "step": "close_event",
@@ -184,19 +215,7 @@
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Convert the published RFQ into the auction round while retaining its quotes and participants."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Verify that the converted auction create screen opened without an error."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit the converted auction's bidding schedule."
+    "note": "Convert the published RFQ, carrying its quotes and participants into the auction."
    },
    {
     "step": "publish",
@@ -206,7 +225,7 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that the auction reached a published project page."
+    "note": "Verify that the converted auction is published."
    },
    {
     "step": "place_bid",
@@ -219,7 +238,7 @@
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that Vendor A's auction bid was accepted."
+    "note": "Verify Vendor A's auction bid was accepted."
    },
    {
     "step": "place_bid",
@@ -232,14 +251,14 @@
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that Vendor B's auction bid was accepted."
+    "note": "Verify Vendor B's auction bid was accepted."
    },
    {
     "step": "close_event",
     "args": {
      "natural": true
     },
-    "note": "Wait for the auction bidding window to close before awarding."
+    "note": "Wait for the auction to close before awarding."
    },
    {
     "step": "open_master_qcs",
@@ -249,16 +268,16 @@
       "Vendor B"
      ]
     },
-    "note": "Open the comparison grid containing both auction bidders."
+    "note": "Open the comparison grid for the closed auction bids."
    },
    {
-    "step": "expect_qcs_ranks",
+    "step": "expect_qcs_cell",
     "args": {
-     "by": "Sum Total",
-     "order": "lowest",
-     "atLeast": 2
+     "row": "Rank",
+     "vendor": "Vendor A",
+     "number": 1
     },
-    "note": "Verify that the lower auction amount ranks first."
+    "note": "Assert that Vendor A's bid of 85 is ranked L1."
    },
    {
     "step": "expect_qcs_cell",
@@ -267,14 +286,14 @@
      "vendor": "Vendor A",
      "equals": "850"
     },
-    "note": "Verify that Vendor A's awarded total is 10 units multiplied by the bid of 85."
+    "note": "Assert the 10-unit award basis produces a total of 850 for Vendor A."
    },
    {
     "step": "award_event",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Award all available line items to the L1 vendor, Vendor A, and submit the proposal."
+    "note": "Allocate all line items to the L1 vendor and submit the award proposal."
    },
    {
     "step": "expect_awarded",
@@ -282,16 +301,16 @@
     "note": "Verify that the award proposal was created and submitted."
    },
    {
-    "step": "approve_award",
+    "step": "ask_tester",
     "args": {
-     "remark": "Approved for Vendor A at the lowest evaluated auction price."
+     "need": "sign in as the assigned approver and approve the submitted award with a remark"
     },
-    "note": "Approve the submitted award with the required remark."
+    "note": "The case requires a separate approver session, which the catalog cannot provide."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete the approved award flow and generate the purchase order."
+    "note": "Complete the approved award and create the purchase order."
    },
    {
     "step": "expect_po_items",
@@ -299,24 +318,24 @@
      "count": 1,
      "quantity": 10
     },
-    "note": "Verify that the PO contains the single PR line with the required quantity of 10."
+    "note": "Verify that the PO contains the single awarded PR line with quantity 10."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to verify the completed event's history placement."
+    "note": "Return to the events list to verify the completed event's lifecycle state."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Open the History tab after PO creation."
+    "note": "Open the History tab where completed events should appear."
    },
    {
     "step": "expect_event_in_list",
     "args": {},
-    "note": "Verify that the plan's event appears in event history."
+    "note": "Verify that this plan's event moved into History."
    }
   ]
  }

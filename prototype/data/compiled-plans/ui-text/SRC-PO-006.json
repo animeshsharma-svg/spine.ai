@@ -4,36 +4,49 @@
   "title": "Withdraw and Recreate after the PO",
   "group": "SRC-PO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:13:21.418Z",
+  "compiledAt": "2026-11-13T12:24:00.456Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the existing purchase order remains unchanged after Recreate Order"
+   "Verify that the existing purchase order is not modified by Recreate Order."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the existing purchase order remains unchanged after Recreate Order"
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Verify that the existing purchase order is not modified by Recreate Order."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_settings_menu",
    "event_menu",
+   "do_on_screen",
    "expect_navigated"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 11051
+  "ms": 11428
  },
  "plan": {
-  "title": "Withdraw and Recreate After Award",
+  "title": "Withdraw and Recreate After PO",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared awarded event as the buyer."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure the tenant configuration required for the event action visibility is applied."
    },
    {
     "step": "expect_settings_menu",
@@ -45,21 +58,28 @@
       "Recreate Order"
      ]
     },
-    "note": "Assert the awarded event's Settings menu hides Withdraw and offers Recreate Order."
+    "note": "Verify the awarded event does not offer Withdraw and does offer Recreate Order."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Choose Recreate Order from the event Settings menu."
+    "note": "Open the Recreate Order flow from the event's Settings menu."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "complete Recreate Order to create a new event without changing the existing purchase order; stop on the new event's create screen"
+    },
+    "note": "Perform the available buyer-side recreation flow; PO preservation cannot be independently verified by the catalog."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "create"
     },
-    "note": "Verify that recreating the order opens a new event creation screen."
+    "note": "Confirm the recreation flow reached the new event's create screen."
    }
   ]
  }

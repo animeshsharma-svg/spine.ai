@@ -4,21 +4,25 @@
   "title": "Extend the RFQ after it was converted to an auction",
   "group": "SRC-EXT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:26:10.335Z",
+  "compiledAt": "2026-11-13T12:08:54.415Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
    "extend_time"
   ],
   "state": "converted",
   "screen": "summary",
-  "ms": 6928
+  "ms": 9309
  },
  "plan": {
   "title": "Refuse RFQ Extension After Auction Conversion",
@@ -28,7 +32,15 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared event summary for the converted RFQ-to-auction event."
+    "note": "Open the existing prepared event whose RFQ was converted to an auction."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
    },
    {
     "step": "go_to",
@@ -36,19 +48,18 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage where the submission-time action is evaluated."
+    "note": "Navigate to the RFQ stage where the extension is being tested."
    },
    {
     "step": "extend_time",
     "args": {
      "which": "submission",
-     "option": "custom",
-     "amount": 30,
-     "unit": "minutes",
+     "option": "preset",
+     "preset": "15 minutes",
      "expect": "refused",
      "message": "You cannot extend the RFQ time after auction is created"
     },
-    "note": "Attempt to save a later RFQ submission deadline and assert Procol refuses it with the required message."
+    "note": "Attempt to extend the RFQ submission time and assert Procol refuses it with the expected message."
    }
   ]
  }

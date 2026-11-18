@@ -4,58 +4,64 @@
   "title": "Items from 2 PRs give the 'plus more' text",
   "group": "PRA-NTX",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:04:06.313Z",
+  "compiledAt": "2026-11-13T14:27:39.039Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assign one item from PR-1 and one item from PR-8 to User A and sign in as User A; this requires another user's session and PR assignment controls.",
-   "Verify the exact notification with the PR manager's dynamic name and first PR number because those values are not provided.",
-   "The notification bell's exact accessible control label is unconfirmed."
+   "Assign one item from PR-1 and one item from PR-8 to User A, then sign in as User A and open the top-right notifications.",
+   "unconfirmed label \"assigned PR No. PR-1 + 1 more to you.\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "can only test part of this — no step for: Assign one item from PR-1 and one item from PR-8 to User A and sign in as User A; this requires another user's session and PR assignment controls.; Verify the exact notification with the PR manager's dynamic name and first PR number because those values are not provided.; The notification bell's exact accessible control label is unconfirmed."
+   "coverage partial: unconfirmed label \"assigned PR No. PR-1 + 1 more to you.\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Assign one item from PR-1 and one item from PR-8 to User A, then sign in as User A and open the top-right notifications."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
+   "open_purchase_requisitions",
+   "pr_tab",
    "ask_tester",
-   "click",
-   "expect_text",
    "expect_text"
   ],
-  "ms": 13715
+  "ms": 13268
  },
  "plan": {
   "title": "PRA-NTX-007 PR assignment notification",
   "steps": [
    {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team filtering configuration before starting."
+   },
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the purchase requisitions screen where the PR assignment begins."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Use the Open PR list required for the test data."
+   },
+   {
     "step": "ask_tester",
     "args": {
-     "need": "assign one item from PR-1 and one item from PR-8 to User A, then sign in as User A and leave the buyer portal ready to open notifications"
+     "need": "assign one item from PR-1 and one item from PR-8 to User A, then sign in as User A and open the top-right notifications"
     },
-    "note": "This establishes the cross-user assignment and User A session that no catalog step can perform."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Notifications"
-    },
-    "note": "Open the notification panel after the tester establishes User A's session; the accessible label may require tester adjustment if it differs."
+    "note": "The catalog has no step for assigning items from two PRs to another user or switching to that user's session and opening their notifications."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "assigned PR No."
+     "text": "assigned PR No. PR-1 + 1 more to you."
     },
-    "note": "Assert that the notification identifies the PR assignment."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "+ 1 more to you."
-    },
-    "note": "Assert the required consolidated “plus more” suffix and recipient wording."
+    "note": "Assert the notification contains the expected first PR and plus-more wording; the manager name is dynamic and is not specified."
    }
   ]
  }

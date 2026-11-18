@@ -4,32 +4,33 @@
   "title": "Reschedule an upcoming eRFX Technical + RFQ project",
   "group": "SRC-RSC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:51:38.271Z",
+  "compiledAt": "2026-11-13T12:44:38.963Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly verify that both the Technical and RFQ stages move by exactly the same amount",
-   "Directly verify that the Technical stage still ends before the RFQ stage after rescheduling"
+   "Assert that both Technical and RFQ stages move by exactly the same amount",
+   "Assert that the Technical stage still ends before the RFQ stage"
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Directly verify that both the Technical and RFQ stages move by exactly the same amount; Directly verify that the Technical stage still ends before the RFQ stage after rescheduling"
+   "can only test part of this — no step for: Assert that both Technical and RFQ stages move by exactly the same amount; Assert that the Technical stage still ends before the RFQ stage"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "reschedule_event",
    "expect_no_error"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10217
+  "ms": 7983
  },
  "plan": {
-  "title": "Reschedule Upcoming Technical and RFQ Project",
+  "title": "Reschedule Upcoming Tech + RFQ Event",
   "steps": [
    {
     "step": "open_prepared",
@@ -39,17 +40,25 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before navigation."
+   },
+   {
     "step": "reschedule_event",
     "args": {
      "start": "+1d",
      "expect": "saved"
     },
-    "note": "Reschedule the upcoming event one day later and verify that Procol saves it while preserving the round timing."
+    "note": "Open Reschedule Event from Settings, move the start one day later, confirm with Ok, and verify the reschedule is saved while the round timing is preserved."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm that the event page shows no application error after rescheduling."
+    "note": "Confirm the event page remains healthy after rescheduling."
    }
   ]
  }

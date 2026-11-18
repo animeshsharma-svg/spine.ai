@@ -4,42 +4,76 @@
   "title": "A reason written below the system line does not count",
   "group": "EMA-REJ",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:57:21.808Z",
+  "compiledAt": "2026-11-13T14:22:36.605Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Log in to Asha's mailbox and open the Procol approval email",
-   "Click the email's Reject action and verify the Action:Reject reply subject",
-   "Leave the Comment line empty while writing \"Too expensive\" below the system-generated message",
-   "Send the unchanged-subject email and wait for Procol to process it",
-   "Observe the bounce-back stating that no comment was given",
-   "Verify from the approval workflow that the rejection was not recorded"
+   "Open Asha's mailbox and send the rejection reply with the Comment line empty and 'Too expensive' below the system-generated message.",
+   "Verify Procol reads the mailbox reply and sends the 'no comment was given' bounce-back.",
+   "Verify the company's approval mailbox is connected to Procol and can send replies."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Log in to Asha's mailbox and open the Procol approval email; Click the email's Reject action and verify the Action:Reject reply subject; Leave the Comment line empty while writing \"Too expensive\" below the system-generated message; Send the unchanged-subject email and wait for Procol to process it; Observe the bounce-back stating that no comment was given; Verify from the approval workflow that the rejection was not recorded"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Open Asha's mailbox and send the rejection reply with the Comment line empty and 'Too expensive' below the system-generated message.; Verify Procol reads the mailbox reply and sends the 'no comment was given' bounce-back.; Verify the company's approval mailbox is connected to Procol and can send replies."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 6,
   "stepNames": [
    "open_event",
-   "expect_no_error"
+   "require_setting",
+   "require_setting",
+   "ask_tester",
+   "open_events_list",
+   "expect_event_status"
   ],
-  "ms": 10623
+  "ms": 21017
  },
  "plan": {
-  "title": "EMA-REJ-003 Email rejection without valid comment",
+  "title": "Email rejection without valid comment",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Opens the named event as the closest available context, but does not access the approver's mailbox or email workflow."
+    "note": "Open the existing event under test."
    },
    {
-    "step": "expect_no_error",
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable email approvals required by the scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow required for the event."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "open Asha's mailbox, open the Procol approval request, click Reject, leave the Comment line empty, write 'Too expensive' below the system-generated message, send without changing the subject, and verify the no-comment bounce-back"
+    },
+    "note": "Mailbox access and the email reply behavior are not available through catalog steps."
+   },
+   {
+    "step": "open_events_list",
     "args": {},
-    "note": "Confirms the event page loaded without an application error; this does not assert the email rejection behavior."
+    "note": "Return to the events list so the event's approval status can be checked."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Approval in Progress",
+     "title": "QA Email Approval - Office Chairs Nov"
+    },
+    "note": "Check the rejection was not recorded and the event remains awaiting approval."
    }
   ]
  }

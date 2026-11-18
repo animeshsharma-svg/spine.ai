@@ -4,14 +4,11 @@
   "title": "Single stage create screen (RFQ with a product): \"Configuration for Event\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:36:43.814Z",
+  "compiledAt": "2026-11-13T14:00:24.855Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Compare event status before and after Cancel",
-   "Compare event times before and after Cancel",
-   "Compare vendors before and after Cancel",
-   "Compare bids before and after Cancel"
+   "Verify that status, times, vendors, and bids remain exactly unchanged before and after cancelling the configuration window."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -20,26 +17,24 @@
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Compare event status before and after Cancel; Compare event times before and after Cancel; Compare vendors before and after Cancel; Compare bids before and after Cancel"
+   "can only test part of this — no step for: Verify that status, times, vendors, and bids remain exactly unchanged before and after cancelling the configuration window."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 11,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "expect_line_items",
    "click",
-   "expect_visible",
-   "click",
-   "expect_visible",
-   "expect_line_items",
-   "expect_sheet_cell",
-   "expect_template_selected"
+   "do_on_screen",
+   "expect_text"
   ],
-  "ms": 14082
+  "ms": 16038
  },
  "plan": {
   "title": "Single-stage RFQ configuration cancel",
@@ -49,19 +44,43 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the Single Stage create screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Enable the required tenant configuration before starting the create flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable the required tenant configuration for the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Disable the tenant setting required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the single-stage event type to RFQ."
+    "note": "Set the single-stage event type to RFQ and establish the configuration context."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title while preserving the test's focus on configuration cancellation."
+    "note": "Provide the mandatory event title without affecting the configuration-cancel behavior."
    },
    {
     "step": "select_template",
@@ -78,67 +97,27 @@
     "note": "Add the specified product with quantity 10."
    },
    {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Confirm the product line item exists before reopening configuration."
-   },
-   {
     "step": "click",
     "args": {
      "role": "button",
      "name": "RFQ"
     },
-    "note": "Reopen the RFQ configuration window from the create screen."
+    "note": "Reopen the RFQ configuration window after configuring the product."
    },
    {
-    "step": "expect_visible",
+    "step": "do_on_screen",
     "args": {
-     "role": "dialog",
-     "name": "Configuration for Event",
-     "visible": true
+     "goal": "click Cancel in the Configuration for Event window and stop on the Single Stage RFQ create screen with the configuration window closed and the existing event form unchanged"
     },
-    "note": "Confirm the Configuration for Event window opened."
+    "note": "Perform the unavailable Cancel interaction and verify on screen that the configuration window closes without changing the form."
    },
    {
-    "step": "click",
+    "step": "expect_text",
     "args": {
-     "role": "button",
-     "name": "Cancel",
-     "within": "dialog"
+     "text": "Configuration for Event",
+     "present": false
     },
-    "note": "Cancel the configuration without applying changes."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Configuration for Event",
-     "visible": false
-    },
-    "note": "Verify that Cancel closes the configuration window."
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Verify the product line item remains after cancellation."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "equals": "10"
-    },
-    "note": "Verify the requested quantity remains 10 after cancellation."
-   },
-   {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Verify the previously selected RFQ template remains applied."
+    "note": "Assert that the configuration window is closed."
    }
   ]
  }

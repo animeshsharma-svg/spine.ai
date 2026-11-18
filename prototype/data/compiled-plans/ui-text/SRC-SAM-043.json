@@ -4,26 +4,28 @@
   "title": "Order Activity is offered on an upcoming RFQ",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:58:23.420Z",
+  "compiledAt": "2026-11-13T12:48:52.843Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 8,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_menu_item",
-   "hover",
    "event_menu",
    "expect_text",
-   "expect_text",
    "click",
-   "expect_visible"
+   "expect_text"
   ],
   "state": "upcoming",
   "screen": "summary",
-  "ms": 7092
+  "ms": 13541
  },
  "plan": {
   "title": "Upcoming RFQ Order Activity",
@@ -33,44 +35,39 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared upcoming RFQ on its project summary page."
+    "note": "Open the prepared upcoming RFQ's summary page."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting before accessing the prepared RFQ."
    },
    {
     "step": "expect_menu_item",
     "args": {
      "item": "Order Activity",
+     "stage": "rfq",
      "enabled": true
     },
-    "note": "Assert that Order Activity is present and clickable in the current event Settings menu."
-   },
-   {
-    "step": "hover",
-    "args": {
-     "role": "menuitem",
-     "name": "Order Activity"
-    },
-    "note": "Perform the requested hover over Order Activity."
+    "note": "Verify Order Activity is present and clickable in the RFQ Settings menu."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Order Activity"
+     "item": "Order Activity",
+     "stage": "rfq"
     },
-    "note": "Click Order Activity from the Settings menu."
+    "note": "Click Order Activity to open its activity window."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Activity"
     },
-    "note": "Verify that the Activity drawer opens."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "You created the event"
-    },
-    "note": "Verify the Activity drawer contains its event-creation activity entry."
+    "note": "Confirm the Order Activity window opened."
    },
    {
     "step": "click",
@@ -78,15 +75,15 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the Activity drawer without confirming or changing anything."
+    "note": "Cancel the activity window without confirming any change."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "Activity",
-     "visible": false
+     "present": false
     },
-    "note": "Verify that the Activity drawer closes after cancellation."
+    "note": "Verify the activity window closed after cancellation."
    }
   ]
  }

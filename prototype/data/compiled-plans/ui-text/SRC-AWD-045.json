@@ -4,23 +4,20 @@
   "title": "Show awarded bids on the proposal",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:23:03.722Z",
+  "compiledAt": "2026-11-13T11:42:46.643Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Explicitly assert that every displayed vendor line is awarded and that no unawarded vendor line is included."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Explicitly assert that every displayed vendor line is awarded and that no unawarded vendor line is included."
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "toggle",
+   "click",
    "expect_table",
    "expect_api_value",
    "expect_api_value",
@@ -28,7 +25,7 @@
   ],
   "state": "proposal",
   "screen": "proposal",
-  "ms": 13166
+  "ms": 16515
  },
  "plan": {
   "title": "Show awarded bids on proposal",
@@ -38,7 +35,7 @@
     "args": {
      "screen": "proposal"
     },
-    "note": "Open the existing submitted award proposal directly, as required for the prepared proposal state."
+    "note": "Open the existing submitted award proposal directly."
    },
    {
     "step": "require_setting",
@@ -46,23 +43,22 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project configuration before opening the proposal."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "toggle",
+    "step": "click",
     "args": {
-     "label": "Show awarded bids",
-     "on": true
+     "text": "Show awarded bids"
     },
-    "note": "Enable the proposal filter that should show awarded bids only."
+    "note": "Apply the proposal filter that should limit the view to awarded bids."
    },
    {
     "step": "expect_table",
     "args": {
      "within": "Order Allocation",
-     "min": 1
+     "rows": 1
     },
-    "note": "Verify that awarded allocation lines are listed after enabling the filter."
+    "note": "Verify that only the single awarded line in the prepared proposal is listed."
    },
    {
     "step": "expect_api_value",
@@ -70,7 +66,7 @@
      "key": "vendorName",
      "within": "Order Allocation"
     },
-    "note": "Verify that a real awarded vendor is shown in the allocation area."
+    "note": "Verify that the listed line belongs to an awarded vendor."
    },
    {
     "step": "expect_api_value",
@@ -78,7 +74,7 @@
      "key": "quantity",
      "within": "Order Allocation"
     },
-    "note": "Verify that the awarded line includes its quantity."
+    "note": "Verify that the awarded quantity is displayed."
    },
    {
     "step": "expect_api_value",
@@ -86,7 +82,7 @@
      "key": "bidTotal",
      "within": "Order Allocation"
     },
-    "note": "Verify that the awarded line includes the amount held for the proposal."
+    "note": "Verify that the awarded amount is displayed."
    }
   ]
  }

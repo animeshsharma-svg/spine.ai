@@ -1,10 +1,10 @@
 {
  "meta": {
   "caseId": "DRV-BID-003",
-  "title": "Vendor revises an existing commercial bid while the window is open",
+  "title": "Loading factor template configuration is restricted to users with buyer role",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-12T13:33:40.915Z",
+  "compiledAt": "2026-11-13T13:28:51.811Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,23 +17,23 @@
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "click",
+   "attempt",
    "expect_message",
    "expect_text"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 7595
+  "ms": 1293
  },
  "plan": {
-  "title": "Reject Bid blocked during bidding",
+  "title": "Reject bid disabled during bidding",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses tab containing Vendor A's active bid."
+    "note": "Open the prepared live RFQ Responses tab with Vendor A's active bid."
    },
    {
     "step": "require_setting",
@@ -44,13 +44,16 @@
     "note": "Enable the tenant configuration that disables bid rejection during bidding."
    },
    {
-    "step": "click",
+    "step": "attempt",
     "args": {
-     "role": "button",
-     "name": "Reject",
-     "within": "Vendor A"
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Reject"
+     },
+     "expect": "refused"
     },
-    "note": "Attempt to reject Vendor A's bid from the buyer's Responses view."
+    "note": "Attempt to reject Vendor A's bid and require the product to refuse the action."
    },
    {
     "step": "expect_message",
@@ -58,15 +61,15 @@
      "kind": "modal",
      "text": "Bid rejection is disabled while bidding is in progress"
     },
-    "note": "Verify Procol displays the expected refusal modal."
+    "note": "Verify the refusal modal shows the expected message."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Active",
-     "within": "Vendor A"
+     "present": true
     },
-    "note": "Verify Vendor A's bid remains active after the rejected action."
+    "note": "Confirm the bid remains marked Active after the rejected action."
    }
   ]
  }

@@ -4,22 +4,29 @@
   "title": "A closed RFQ: \"Rejected Bids\" opens the \"Rejected Bids\" window",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:27:39.959Z",
+  "compiledAt": "2026-11-13T13:53:58.332Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "event_menu",
-   "expect_visible",
+   "expect_text",
    "expect_visible"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 5830
+  "ms": 13488
  },
  "plan": {
   "title": "Closed RFQ Rejected Bids Window",
@@ -29,22 +36,54 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared closed RFQ on its Responses tab."
+    "note": "Open the prepared closed RFQ directly on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Apply the required post-expiry surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen configuration."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Rejected Bids"
+     "item": "Rejected Bids",
+     "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and select Rejected Bids."
+    "note": "Open Rejected Bids from the RFQ Settings menu without pressing any action in the resulting window."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Rejected Bids",
-     "visible": true
+     "text": "Rejected Bids"
     },
-    "note": "Assert that the Rejected Bids window is open."
+    "note": "Assert that the Rejected Bids window opened."
    },
    {
     "step": "expect_visible",
@@ -53,7 +92,7 @@
      "name": "Close",
      "visible": true
     },
-    "note": "Assert that the window provides the Close button."
+    "note": "Assert that the opened window provides the expected Close button."
    }
   ]
  }

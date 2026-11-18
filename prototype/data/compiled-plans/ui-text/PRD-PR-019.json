@@ -3,53 +3,50 @@
   "caseId": "PRD-PR-019",
   "title": "PR Detail View: refused for a user without the Buyer role",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:24:06.337Z",
+  "compiledAt": "2026-11-13T15:18:58.945Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as the non-Buyer and Buyer users and compare their access to the PR Detail View.",
-   "Open and assert the PR Detail View showing all line items, their statuses, and the requisitioner.",
-   "Verify the tenant's Growth plan and record whether RBAC deliberately grants PR Detail View access to additional roles."
+   "Sign in as the user without the Buyer role and verify whether PR Detail View is refused or absent.",
+   "Sign in as a Buyer on the same tenant and verify that PR Detail View is available.",
+   "Verify the PR detail view shows all line items, their statuses, and the requisitioner.",
+   "Verify or select the tenant's Growth or Enterprise plan.",
+   "Compare the two users' role-specific access in separate sessions."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as the non-Buyer and Buyer users and compare their access to the PR Detail View.; Open and assert the PR Detail View showing all line items, their statuses, and the requisitioner.; Verify the tenant's Growth plan and record whether RBAC deliberately grants PR Detail View access to additional roles."
+   "can only test part of this — no step for: Sign in as the user without the Buyer role and verify whether PR Detail View is refused or absent.; Sign in as a Buyer on the same tenant and verify that PR Detail View is available.; Verify the PR detail view shows all line items, their statuses, and the requisitioner.; Verify or select the tenant's Growth or Enterprise plan.; Compare the two users' role-specific access in separate sessions."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 3,
   "stepNames": [
    "open_purchase_requisitions",
-   "pr_tab",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_visible"
   ],
-  "ms": 10110
+  "ms": 9614
  },
  "plan": {
-  "title": "PR Detail View Role Access",
+  "title": "PR Detail View Buyer Role Access",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Reaches the closest available Purchase Requisitions screen."
-   },
-   {
-    "step": "pr_tab",
-    "args": {
-     "tab": "Open"
-    },
-    "note": "Shows open purchase requisitions before the unavailable detail-view action."
+    "note": "Reaches the closest available Purchase Requisitions screen; the catalog has no step for opening a PR detail view."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Buyer and Buyer users in the same tenant, open the PR Detail View, and compare whether the non-Buyer is refused or absent while the Buyer can view all line items, statuses, and the requisitioner"
+     "need": "sign in as the non-Buyer and Buyer users on the same Growth-or-higher tenant, open the same PR Detail View, and verify the non-Buyer is refused or lacks the action while the Buyer can view all line items, statuses, and the requisitioner"
     },
-    "note": "Role-specific sign-in, PR Detail View navigation, and the authorization comparison are not expressible by catalog steps."
+    "note": "The required role-specific sessions, PR detail view, and oracle comparison are not expressible by catalog steps."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Provides a final assertion that the reachable screen has no crash or raw error after the attempted comparison."
+    "step": "expect_visible",
+    "args": {
+     "text": "Service",
+     "visible": true
+    },
+    "note": "Confirms the closest Purchase Requisitions screen remains present after the tester interaction; it does not assert PR Detail View access."
    }
   ]
  }

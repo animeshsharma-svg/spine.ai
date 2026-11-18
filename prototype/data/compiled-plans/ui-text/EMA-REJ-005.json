@@ -4,52 +4,128 @@
   "title": "Rejecting a second time bounces back as already responded",
   "group": "EMA-REJ",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:57:29.584Z",
+  "compiledAt": "2026-11-13T14:22:53.543Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create the event as Ravi and submit it into a two-step approval workflow with Asha as step-one approver and Bikram as step-two approver",
-   "Access Asha's mailbox and open the Procol approval email",
-   "Send the first rejection with the comment \"Too expensive\" without changing the subject",
-   "Wait for Procol to read the mailbox",
-   "Send the second rejection with the comment \"Still too expensive\" and verify the email bounce-back response",
-   "Verify that only the first rejection and comment were recorded"
+   "Configure the two-step event approval workflow with Asha and Bikram.",
+   "Submit the event for approval as Ravi rather than publishing it normally.",
+   "Open Asha's mailbox and the original Procol approval email.",
+   "Click Reject in the email, compose and send the first rejection with the comment \"Too expensive\".",
+   "Wait for Procol to read the mailbox and process the first rejection.",
+   "Click Reject again in the original email, send \"Still too expensive\", and wait for processing.",
+   "Observe the bounce-back stating that a response has already been recorded and verify only the first rejection and comment were applied.",
+   "Operate separate Ravi, Asha, and mailbox sessions."
   ],
   "warnings": [
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Create the event as Ravi and submit it into a two-step approval workflow with Asha as step-one approver and Bikram as step-two approver; Access Asha's mailbox and open the Procol approval email; Send the first rejection with the comment \"Too expensive\" without changing the subject; Wait for Procol to read the mailbox; Send the second rejection with the comment \"Still too expensive\" and verify the email bounce-back response; Verify that only the first rejection and comment were recorded"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "resolved: “Connect the company's approval mailbox to Procol and verify mailbox processing.” — require_setting switches that company setting before the case and back after",
+   "can only test part of this — no step for: Configure the two-step event approval workflow with Asha and Bikram.; Submit the event for approval as Ravi rather than publishing it normally.; Open Asha's mailbox and the original Procol approval email.; Click Reject in the email, compose and send the first rejection with the comment \"Too expensive\".; Wait for Procol to read the mailbox and process the first rejection.; Click Reject again in the original email, send \"Still too expensive\", and wait for processing.; Observe the bounce-back stating that a response has already been recorded and verify only the first rejection and comment were applied.; Operate separate Ravi, Asha, and mailbox sessions."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 13,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
    "ask_tester",
    "expect_text"
   ],
-  "ms": 10246
+  "ms": 29605
  },
  "plan": {
-  "title": "EMA-REJ-005 Duplicate Email Rejection",
+  "title": "EMA-REJ-005 Double Email Rejection",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    }
+    },
+    "note": "Prepare the event in the buyer console."
    },
    {
-    "step": "set_title"
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the company-level email approval capability required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Request the approval-workflow configuration needed for the event."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "QA Email Approval - Office Chairs Nov"
+    },
+    "note": "Create the event with the exact title from the case."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ stage so the event can be configured and published."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item for the event."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a usable event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the participant required for publication."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Create the event in the closest available buyer-side state before the approval-mailbox handoff."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "create and submit the named event for approval, access Asha's mailbox, send both rejection emails with the stated comments, wait for processing, and leave the resulting bounce-back visible"
+     "need": "sign in as Ravi and submit this event for approval, then use Asha's mailbox to reject the original request twice with the comments \"Too expensive\" and \"Still too expensive\", wait for mailbox processing after each send, and leave the bounce-back and recorded rejection visible"
     },
-    "note": "The catalog cannot create approval workflows or access and send emails, so the tester must perform the complete external-mail portion."
+    "note": "The catalog has no approval submission, mailbox, email-send, wait-for-processing, or duplicate-rejection step."
    },
    {
     "step": "expect_text",
@@ -57,7 +133,7 @@
      "text": "A response to request",
      "present": true
     },
-    "note": "Checks the visible bounce-back message indicating that a response to the request was already recorded."
+    "note": "Assert the quoted bounce-back text if the tester leaves the processed mailbox response visible."
    }
   ]
  }

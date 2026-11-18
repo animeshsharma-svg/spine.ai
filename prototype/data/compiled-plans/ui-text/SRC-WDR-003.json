@@ -4,7 +4,7 @@
   "title": "Withdraw an event that is upcoming (not started) and press Cancel in the pop-up",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:22:52.796Z",
+  "compiledAt": "2026-11-13T13:15:45.278Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -14,19 +14,21 @@
    "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
    "event_menu",
+   "expect_visible",
+   "expect_text",
    "click",
    "expect_visible",
-   "expect_settings_menu"
+   "expect_text"
   ],
   "state": "upcoming",
   "screen": "summary",
-  "ms": 11673
+  "ms": 14109
  },
  "plan": {
   "title": "Cancel Upcoming Event Withdrawal",
@@ -44,7 +46,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "Off"
     },
-    "note": "Ensure the Withdraw Project action is visible for the buyer."
+    "note": "Ensure Withdraw is available in the event menu."
    },
    {
     "step": "require_setting",
@@ -52,14 +54,30 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure eRFX project functionality is enabled for the existing RFQ."
+    "note": "Ensure the RFQ project flow is enabled for the tenant."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Withdraw Project"
     },
-    "note": "Open the project withdrawal confirmation pop-up from the three-dots menu."
+    "note": "Open the project withdrawal confirmation from the event's overflow menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Withdrawing Order…",
+     "visible": true
+    },
+    "note": "Verify the withdrawal confirmation pop-up is shown."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Are you sure you want to withdraw this event?",
+     "present": true
+    },
+    "note": "Verify the pop-up asks for confirmation before withdrawal."
    },
    {
     "step": "click",
@@ -72,20 +90,18 @@
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
+     "text": "Withdrawing Order…",
      "visible": false
     },
-    "note": "Verify the withdrawal pop-up closed."
+    "note": "Verify the confirmation pop-up closes."
    },
    {
-    "step": "expect_settings_menu",
+    "step": "expect_text",
     "args": {
-     "offered": [
-      "Reschedule Event",
-      "Withdraw"
-     ]
+     "text": "Upcoming",
+     "present": true
     },
-    "note": "Verify the event remains upcoming and its upcoming-state actions are still available."
+    "note": "Verify the event remains in its upcoming state after cancellation."
    }
   ]
  }

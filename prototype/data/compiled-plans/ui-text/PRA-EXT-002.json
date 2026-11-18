@@ -4,55 +4,70 @@
   "title": "The empty-list message can be read in full",
   "group": "PRA-EXT",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:02:05.698Z",
+  "compiledAt": "2026-11-13T14:25:46.545Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
+   "click",
    "do_on_screen",
    "expect_screen_clean"
   ],
-  "ms": 78170
+  "ms": 11270
  },
  "plan": {
-  "title": "PRA-EXT-002 Empty assignment search message",
+  "title": "PRA-EXT-002 Empty PR assignment search message",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team filtering configuration before entering the PR flow."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions area where the DLF UAT open PRs are listed."
+    "note": "Open the Purchase Requisitions screen required by the case."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Limit the list to open PRs that can be selected."
+    "note": "Use an open PR, which is the eligible state for assignment actions."
    },
    {
     "step": "select_pr",
+    "args": {},
+    "note": "Tick one PR item so the assignment action becomes available."
+   },
+   {
+    "step": "click",
     "args": {
-     "items": 1
+     "text": "Assign"
     },
-    "note": "Select one open PR containing a single item, matching the test setup before assigning."
+    "note": "Open the PR assignee selection flow."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the selected purchase requisition item, click Assign, type a name that matches no vendor or person, and stop with the complete empty-list message visible and readable on screen"
+     "goal": "In the Assign flow, type a name that matches no assignee and stop with the complete empty-list message visibly readable on screen."
     },
-    "note": "Perform the assignment search and directly verify that the full no-match message is visible."
+    "note": "The exact search field and empty-list message are not named in the case or catalog, so operate the current buyer screen and verify the full message there."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the resulting screen has no crash, server error, raw identifiers, or rendering artifacts while the message is displayed."
+    "note": "Confirm the resulting screen has no crash or unrelated error while the empty-list message is displayed."
    }
   ]
  }

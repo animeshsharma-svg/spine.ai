@@ -3,131 +3,41 @@
   "caseId": "PRD-KBSRC-052",
   "title": "Actions › Show Best Prices shows suppliers the best price and adds a lowest-bid row in the QCS",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:10:34.449Z",
+  "compiledAt": "2026-11-13T14:33:57.028Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog does not define the exact UI label and complete per-line semantics of the extra lowest-bid row; the plan uses the case wording \"Lowest Bid\" as the expected QCS row label.",
-   "unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case"
+   "Assert the exact minimum best-price value for every line item in the added lowest-bid QCS row.",
+   "Prove that the exact best-price values shown to the vendor equal the minimum across all vendors."
   ],
   "warnings": [
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "coverage partial: unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: The catalog does not define the exact UI label and complete per-line semantics of the extra lowest-bid row; the plan uses the case wording \"Lowest Bid\" as the expected QCS row label."
+   "can only test part of this — no step for: Assert the exact minimum best-price value for every line item in the added lowest-bid QCS row.; Prove that the exact best-price values shown to the vendor equal the minimum across all vendors."
   ],
   "source": "llm",
-  "steps": 21,
+  "steps": 10,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
-   "expect_bid_submitted",
-   "expect_bid_submitted",
-   "go_to",
+   "open_prepared",
    "click",
+   "expect_visible",
    "click",
    "expect_text",
-   "open_master_qcs",
-   "expect_qcs_cell",
+   "open_prepared",
+   "expect_qcs_ranks",
    "switch_portal",
    "vendor_open_event",
    "expect_text"
   ],
-  "ms": 25060
+  "ms": 20457
  },
  "plan": {
-  "title": "Show Best Prices on RFQ",
+  "title": "Show Best Prices and Vendor Visibility",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Start an eRFX create flow because the case requires an RFQ."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "Show Best Prices RFQ"
-    },
-    "note": "Give the event a searchable title required for publishing."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Replace the default auction stage with the required RFQ stage."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply an RFQ pricing template before adding line items."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Create one line item so its minimum quote can be checked precisely."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a valid bidding schedule before publishing."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 2
-    },
-    "note": "Invite several vendors so a minimum across vendors can be calculated."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the RFQ so vendors can submit quotes."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event reached a real published project page."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify the first vendor's quote was accepted."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify the second vendor's quote was accepted."
-   },
-   {
-    "step": "go_to",
+    "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's response grid where Actions is available."
+    "note": "Open the prepared published RFQ with several vendor quotes on the buyer's comparison screen."
    },
    {
     "step": "click",
@@ -135,55 +45,70 @@
      "role": "button",
      "name": "Actions"
     },
-    "note": "Open the buyer actions menu."
+    "note": "Open the buyer's Actions menu where Show Best Prices is expected."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "menuitem",
+     "name": "Show Best Prices",
+     "visible": true
+    },
+    "note": "Assert that the requested action is offered."
    },
    {
     "step": "click",
     "args": {
-     "text": "Show Best Prices"
+     "role": "menuitem",
+     "name": "Show Best Prices"
     },
-    "note": "Enable display of the best price across vendor quotes."
+    "note": "Enable display of the best prices for suppliers."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Best Price"
+     "text": "Lowest Bid",
+     "present": true
     },
-    "note": "Check that the best-price result is visible after the action."
+    "note": "Check that the QCS exposes the added lowest-bid row label."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the QCS to inspect the resulting lowest-bid row."
-   },
-   {
-    "step": "expect_qcs_cell",
+    "step": "open_prepared",
     "args": {
-     "row": "Lowest Bid",
-     "equals": "100"
+     "screen": "master_qcs"
     },
-    "note": "Assert the QCS lowest-bid row shows the minimum quoted price."
+    "note": "Open the QCS view after enabling best-price display."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
+    },
+    "note": "Assert that the QCS ranking reflects the lowest vendor amounts across the quoted lines."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the supplier portal to verify supplier-side visibility."
+    "note": "Move to the invited supplier's portal to verify supplier-side visibility."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the RFQ pricing round as the invited vendor."
+    "note": "Open the prepared RFQ pricing round as the vendor."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "100"
+     "text": "Best Price",
+     "present": true
     },
-    "note": "Verify the supplier portal shows the exact best price."
+    "note": "Assert that the vendor portal displays the best-price label after the buyer enabled the action."
    }
   ]
  }

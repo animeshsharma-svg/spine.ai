@@ -4,16 +4,13 @@
   "title": "Increase Event Time: Window stays open and shows error when no radio option is selected and Ok is pressed",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:40:30.848Z",
+  "compiledAt": "2026-11-13T13:50:24.499Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Explicitly deselecting the selected duration radio option before pressing Ok"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Explicitly deselecting the selected duration radio option before pressing Ok"
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
   "steps": 10,
@@ -24,24 +21,24 @@
    "require_setting",
    "require_setting",
    "require_setting",
-   "go_to",
-   "go_to",
-   "extend_time",
-   "expect_visible"
+   "event_menu",
+   "do_on_screen",
+   "expect_visible",
+   "expect_message"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 15324
+  "ms": 19053
  },
  "plan": {
-  "title": "RFQ Increase Time Without Selection",
+  "title": "Increase Event Time Without Selection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with one vendor bid."
+    "note": "Open the prepared live RFQ with one invited vendor bid."
    },
    {
     "step": "require_setting",
@@ -65,7 +62,7 @@
      "key": "disable_reject_bid_in_bidding_time",
      "value": "Off"
     },
-    "note": "Apply the required bid-rejection configuration."
+    "note": "Apply the required bidding-time rejection configuration."
    },
    {
     "step": "require_setting",
@@ -84,30 +81,19 @@
     "note": "Enable percentage counter offers as required by the case."
    },
    {
-    "step": "go_to",
+    "step": "event_menu",
     "args": {
-     "screen": "stage",
+     "item": "Extend Submission Time",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage."
+    "note": "Open the RFQ Settings action that launches the Increase Event Time window."
    },
    {
-    "step": "go_to",
+    "step": "do_on_screen",
     "args": {
-     "screen": "responses"
+     "goal": "In the Increase Event Time window, deselect any selected radio option if the UI permits, press Ok with no option selected, and stop with the window still open showing the resulting validation error."
     },
-    "note": "Reach the Responses view described in the scenario."
-   },
-   {
-    "step": "extend_time",
-    "args": {
-     "which": "submission",
-     "option": "custom",
-     "amount": "",
-     "expect": "refused",
-     "confirm": true
-    },
-    "note": "Attempt to confirm Increase Event Time with no duration value, using the closest supported negative-path operation for the requested missing radio selection."
+    "note": "Perform the exact no-selection interaction that the domain steps cannot express directly."
    },
    {
     "step": "expect_visible",
@@ -116,7 +102,14 @@
      "name": "Increase Event Time",
      "visible": true
     },
-    "note": "Verify the Increase Event Time window remains open after the refusal."
+    "note": "Verify that the Increase Event Time window remains open after pressing Ok."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error"
+    },
+    "note": "Verify that the application reports an error for submitting without a selected option."
    }
   ]
  }

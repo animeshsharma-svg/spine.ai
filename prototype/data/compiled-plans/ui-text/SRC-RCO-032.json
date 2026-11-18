@@ -4,37 +4,39 @@
   "title": "The vendor gets the recreated event as a new invitation",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:10:39.824Z",
+  "compiledAt": "2026-11-13T12:37:54.750Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the old event remains listed with Vendor A's previous bid"
+   "Assert that the recreated event appears as a separate live event from the old event",
+   "Assert that the recreated event has no bid from Vendor A",
+   "Assert that the old event still shows Vendor A's old bid"
   ],
   "warnings": [
-   "resolved: “Assert that the recreated event appears as a separate live event in the vendor portal event list” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "can only test part of this — no step for: Assert that the old event remains listed with Vendor A's previous bid"
+   "added open_prepared(summary) — the API built this case's state",
+   "can only test part of this — no step for: Assert that the recreated event appears as a separate live event from the old event; Assert that the recreated event has no bid from Vendor A; Assert that the old event still shows Vendor A's old bid"
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_prepared",
    "switch_portal",
-   "vendor_open_event",
-   "expect_visible"
+   "expect_text",
+   "expect_screen_clean"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 14526
+  "ms": 10358
  },
  "plan": {
-  "title": "Vendor sees recreated invitation",
+  "title": "Vendor sees recreated event invitation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared recreated-event context without creating or searching for another event."
+    "note": "the API built this case's state"
    },
    {
     "step": "switch_portal",
@@ -42,23 +44,20 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
+    "note": "Sign in to Vendor A's supplier portal while keeping the buyer session separate."
    },
    {
-    "step": "vendor_open_event",
+    "step": "expect_text",
     "args": {
-     "stage": "pricing"
+     "text": "Live",
+     "present": true
     },
-    "note": "Open the prepared event from Vendor A's portal and expose its pricing invitation state."
+    "note": "Verify that the vendor portal is showing its live-events area."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Submit Quote",
-     "visible": true
-    },
-    "note": "Verify the recreated event presents Vendor A with an available quote action rather than an already-submitted bid."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the vendor live-list screen rendered without errors or broken data."
    }
   ]
  }

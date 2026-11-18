@@ -4,19 +4,19 @@
   "title": "RFQ: keep the same price (100 → 100)",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:11:15.366Z",
+  "compiledAt": "2026-11-13T12:39:14.943Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Whether the same-price submission creates no new revision or creates revision 2."
+   "Whether the resubmission creates no new revision or specifically creates revision 2."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Whether the same-price submission creates no new revision or creates revision 2."
+   "can only test part of this — no step for: Whether the resubmission creates no new revision or specifically creates revision 2."
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -27,22 +27,23 @@
    "switch_portal",
    "go_to",
    "expect_responses",
-   "open_master_qcs",
+   "go_to",
+   "expect_qcs_vendors",
    "expect_qcs_cell"
   ],
   "state": "two_bids",
   "screen": "master_qcs",
-  "ms": 10619
+  "ms": 16355
  },
  "plan": {
-  "title": "SRC-REV-003 RFQ Same-Price Revision",
+  "title": "SRC-REV-003 — RFQ Same-Price Revision",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared RFQ with Vendor A at 100 and Vendor B at 90; this is the required starting screen for the prepared state."
+    "note": "Open the prepared RFQ with Vendor A at 100 and Vendor B at 90; this is the required starting screen for the prepared two-bid state."
    },
    {
     "step": "require_setting",
@@ -58,57 +59,67 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Switch to Vendor A's supplier portal while keeping the buyer session available."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared RFQ's pricing round in Vendor A's portal."
+    "note": "Open the prepared RFQ's pricing round in Vendor A's event list."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Resubmit Vendor A's bid at the same price to exercise the revision flow."
+    "note": "Revise and resubmit Vendor A's existing bid at the same price of 100."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the vendor portal accepted the submission."
+    "note": "Confirm the vendor portal shows the revised RFQ bid as submitted."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's console to verify the resulting buyer-side records."
+    "note": "Return to the buyer's session to inspect the resulting bid data."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses view for the buyer-side bid verification."
+    "note": "Open the buyer's Responses view for the RFQ."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 2
+     "count": 2,
+     "direct": 2
     },
-    "note": "Confirm both Vendor A and Vendor B responses remain visible after the resubmission."
+    "note": "Confirm both vendor responses remain visible to the buyer after Vendor A's resubmission."
    },
    {
-    "step": "open_master_qcs",
+    "step": "go_to",
     "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the buyer's Master QCS comparison grid."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
      "vendors": [
       "Vendor A",
       "Vendor B"
-     ]
+     ],
+     "realNames": true
     },
-    "note": "Open the comparison grid containing both bidding vendors."
+    "note": "Confirm the comparison still contains the two real bidding vendors."
    },
    {
     "step": "expect_qcs_cell",
@@ -117,7 +128,7 @@
      "vendor": "Vendor A",
      "equals": "100"
     },
-    "note": "Verify Vendor A's current RFQ price remains 100 after the same-price revision."
+    "note": "Verify Vendor A's displayed unit price remains 100 after the same-price revision."
    }
   ]
  }

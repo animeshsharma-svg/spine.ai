@@ -4,15 +4,22 @@
   "title": "Increase Event Time: Increase Event Time with default 15‑minute option updates end time",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:47:38.721Z",
+  "compiledAt": "2026-11-13T14:14:24.194Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "extend_time",
@@ -20,17 +27,49 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 7608
+  "ms": 20580
  },
  "plan": {
-  "title": "Increase live RFQ time by 15 minutes",
+  "title": "Extend Live RFQ by 15 Minutes",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ event without searching or creating another event."
+    "note": "Open the API-prepared live RFQ summary; prepared-state plans must start here."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration for hiding Withdraw."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Ensure live-event withdrawal is not disabled by configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
    },
    {
     "step": "go_to",
@@ -38,23 +77,24 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage referenced by the case."
+    "note": "Open the RFQ stage of the live project."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Reach the Responses tab before opening the event settings action."
+    "note": "Reach the Responses tab specified by the case."
    },
    {
     "step": "extend_time",
     "args": {
+     "which": "submission",
      "option": "preset",
      "preset": "15 minutes",
      "expect": "saved"
     },
-    "note": "Open Extend Submission Time, choose the 15-minute preset, save it, and verify the end time moved 15 minutes later."
+    "note": "Open Extend Submission Time, choose the 15-minute preset, save it, and verify the end time moved 15 minutes after the prior end."
    },
    {
     "step": "expect_toast",
@@ -62,7 +102,7 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Verify the expected confirmation toast appears after the extension."
+    "note": "Verify the expected confirmation toast after the time extension."
    }
   ]
  }

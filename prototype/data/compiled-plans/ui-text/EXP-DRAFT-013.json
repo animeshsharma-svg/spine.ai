@@ -4,31 +4,27 @@
   "title": "A saved eRFX draft: \"Savings\" opens the \"Savings Calculation\" window",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:40:15.332Z",
+  "compiledAt": "2026-11-13T14:03:52.650Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Prove that nothing on the event changes before a button in the Savings Calculation window is pressed."
+   "Prove that no event data changes until a button in the Savings Calculation window is pressed"
   ],
   "warnings": [
-   "can only test part of this — no step for: Prove that nothing on the event changes before a button in the Savings Calculation window is pressed."
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Prove that no event data changes until a button in the Savings Calculation window is pressed"
   ],
   "source": "llm",
-  "steps": 22,
+  "steps": 16,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "save_draft",
-   "expect_no_error",
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_events_list",
    "filter_events",
-   "expect_event_in_list",
-   "open_event",
+   "open_first_event",
    "click",
    "expect_visible",
    "expect_text",
@@ -39,87 +35,58 @@
    "expect_visible",
    "expect_visible"
   ],
-  "ms": 12508
+  "ms": 22497
  },
  "plan": {
-  "title": "EXP-DRAFT-013 Savings Window",
+  "title": "Saved eRFX draft Savings window",
   "steps": [
-   {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Create the eRFX draft required by the case."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "EXP-DRAFT-013 Savings Draft"
-    },
-    "note": "A title is required before saving a draft."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply a pricing template so the draft can contain a configured eRFX sheet."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add a line item so the draft is complete enough to save."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet before saving the draft."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a schedule required for the draft flow."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Add a participant so the draft represents a usable event."
-   },
-   {
-    "step": "save_draft",
-    "args": {},
-    "note": "Save the eRFX event as an unpublished draft."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Verify the draft save did not produce an application error."
-   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the Events list to locate the saved draft."
+    "note": "Open the Events list to reach the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the saved eRFX draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-lock tenant configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage-addition tenant configuration."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the Events list rendered before navigating to Drafts."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab specified by the case."
+    "note": "Show saved eRFX drafts."
    },
    {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Verify the newly saved draft appears in the Drafts list."
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Open this plan's saved draft, returning to its create screen."
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the first available saved draft, which reopens its create screen."
    },
    {
     "step": "click",
@@ -127,16 +94,15 @@
      "role": "button",
      "name": "Savings"
     },
-    "note": "Open the Savings control on the saved draft."
+    "note": "Open the draft's Savings control."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "heading",
-     "name": "Savings Calculation",
+     "text": "Savings Calculation",
      "visible": true
     },
-    "note": "Verify that the Savings Calculation window opens."
+    "note": "Verify that the Savings Calculation window opened."
    },
    {
     "step": "expect_text",
@@ -144,7 +110,7 @@
      "text": "How do you want to measure savings?",
      "present": true
     },
-    "note": "Verify the measurement prompt is shown."
+    "note": "Verify the savings measurement prompt."
    },
    {
     "step": "expect_text",
@@ -152,7 +118,7 @@
      "text": "Gross Total",
      "present": true
     },
-    "note": "Verify the Gross Total option is offered."
+    "note": "Verify the Gross Total option is shown."
    },
    {
     "step": "expect_text",
@@ -160,7 +126,7 @@
      "text": "Line Item",
      "present": true
     },
-    "note": "Verify the Line Item option is offered."
+    "note": "Verify the Line Item option is shown."
    },
    {
     "step": "expect_text",
@@ -168,7 +134,7 @@
      "text": "Choose column to calculate savings on",
      "present": true
     },
-    "note": "Verify the column-selection control is present."
+    "note": "Verify the column-selection prompt is shown."
    },
    {
     "step": "expect_visible",
@@ -177,7 +143,7 @@
      "name": "Add Custom Reference",
      "visible": true
     },
-    "note": "Verify the Add Custom Reference button is present."
+    "note": "Verify the Add Custom Reference action is available."
    },
    {
     "step": "expect_visible",
@@ -186,7 +152,7 @@
      "name": "Cancel",
      "visible": true
     },
-    "note": "Verify the Cancel button is present."
+    "note": "Verify the Cancel action is available."
    },
    {
     "step": "expect_visible",
@@ -195,7 +161,7 @@
      "name": "Save",
      "visible": true
     },
-    "note": "Verify the Save button is present."
+    "note": "Verify the Save action is available."
    }
   ]
  }

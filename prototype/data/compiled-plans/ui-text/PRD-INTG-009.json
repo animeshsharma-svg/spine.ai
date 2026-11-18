@@ -3,39 +3,56 @@
   "caseId": "PRD-INTG-009",
   "title": "SAP PR Sync Mode with SAP RFC Connection Config correctly configured (DEP-003)",
   "group": "PRD-INTG",
-  "compiledAt": "2026-11-10T06:41:27.809Z",
+  "compiledAt": "2026-11-13T15:35:02.642Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure SAP RFC Connection Config (CONF-INT-002) correctly.",
-   "Configure SAP PR Sync Mode (CONF-INT-001).",
-   "Exercise SAP PR Sync Mode and verify that the DEP-003 failure impact is absent."
+   "Exercise the SAP PR Sync Mode behavior through the configured SAP RFC connection",
+   "Verify that the DEP-003 failure impact is absent"
   ],
   "warnings": [
-   "can only test part of this — no step for: Configure SAP RFC Connection Config (CONF-INT-002) correctly.; Configure SAP PR Sync Mode (CONF-INT-001).; Exercise SAP PR Sync Mode and verify that the DEP-003 failure impact is absent."
+   "can only test part of this — no step for: Exercise the SAP PR Sync Mode behavior through the configured SAP RFC connection; Verify that the DEP-003 failure impact is absent"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_no_error"
   ],
-  "ms": 7396
+  "ms": 12530
  },
  "plan": {
-  "title": "SAP PR Sync Mode with RFC Configuration",
+  "title": "SAP PR Sync Mode with RFC Config",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "SAP RFC Connection Config",
+     "value": "configured correctly"
+    },
+    "note": "Apply the required SAP RFC connection configuration before enabling the sync mode."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "integration.sap.pr.sync_mode",
+     "value": "configured correctly"
+    },
+    "note": "Apply the SAP PR Sync Mode configuration after its required RFC dependency."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "configure SAP RFC Connection Config and SAP PR Sync Mode, then exercise SAP PR Sync Mode and verify the DEP-003 failure impact is absent"
+     "need": "exercise SAP PR Sync Mode through the configured SAP RFC connection and verify that the DEP-003 failure impact is absent"
     },
-    "note": "The required integration configuration and SAP synchronization behavior are not available in the catalog."
+    "note": "No catalog step can invoke or observe the SAP integration flow or its external failure impact."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Check that the resulting screen has no visible application errors after the tester's actions, although this does not verify SAP synchronization itself."
+    "note": "Assert that the current session shows no application error after the tester completes the integration exercise."
    }
   ]
  }

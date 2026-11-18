@@ -4,66 +4,84 @@
   "title": "The award proposal page: with ntd_required_on_proposal Off — blocked",
   "group": "EXP-PROPOSAL",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:52:33.100Z",
+  "compiledAt": "2026-11-13T14:17:30.602Z",
   "tier": "fast",
-  "coverage": "full",
+  "coverage": "partial",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “The exact behavior or block resulting from clicking ntd_required_on_proposal on the award proposal page” — require_setting switches that company setting before the case and back after",
+   "the model judged coverage none, but every gap it named is done by a step in this plan — read as partial",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "start_awarding",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_navigated",
-   "do_on_screen",
+   "capture_screen",
    "expect_screen_clean"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 71850
+  "ms": 21279
  },
  "plan": {
-  "title": "Proposal NTD setting off behavior",
+  "title": "EXP-PROPOSAL-012 — ntd_required_on_proposal Off",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ in Master QCS."
+    "note": "Open the prepared closed RFQ with an award proposal from the buyer-side Master QCS."
    },
    {
-    "step": "start_awarding",
-    "args": {},
-    "note": "Enter the existing award proposal allocation flow."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "ntd_required_on_proposal",
+     "value": "Off"
+    },
+    "note": "Set the tenant configuration under test before opening the proposal."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Create Proposal"
+     "name": "Bid Selection Proposal"
     },
-    "note": "Open the award proposal page from the awarding screen."
+    "note": "Open the existing award proposal from Master QCS."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "proposal"
     },
-    "note": "Confirm the award proposal page opened."
+    "note": "Verify that the award proposal page was reached."
    },
    {
-    "step": "do_on_screen",
+    "step": "capture_screen",
     "args": {
-     "goal": "on the award proposal page, click the control or setting labelled ntd_required_on_proposal and record what opens or changes while the company setting is Off; stop on the resulting screen"
+     "label": "award-proposal-ntd-off"
     },
-    "note": "Explore the setting interaction and capture the resulting buyer-side behavior."
+    "note": "Record the proposal page state for the requested exploratory observation."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert the resulting screen has no crash, server error, raw identifiers, or invalid rendering."
+    "note": "Assert that the proposal page rendered without a crash or visible server error."
    }
   ]
  }

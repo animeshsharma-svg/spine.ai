@@ -4,32 +4,44 @@
   "title": "An awarded event: \"Rejected Bids\" opens the \"Rejected Bids\" window",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:14:22.728Z",
+  "compiledAt": "2026-11-13T13:44:11.719Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
    "expect_visible",
    "expect_visible"
   ],
   "state": "awarded",
   "screen": "responses",
-  "ms": 7664
+  "ms": 16516
  },
  "plan": {
-  "title": "Rejected Bids window on awarded event",
+  "title": "Awarded Event Rejected Bids Window",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the awarded event directly on its RFQ Responses tab."
+    "note": "Open the prepared awarded event directly on its RFQ Responses screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled for the buyer tenant as required by the case."
    },
    {
     "step": "event_menu",
@@ -37,24 +49,26 @@
      "item": "Rejected Bids",
      "stage": "rfq"
     },
-    "note": "Open Rejected Bids from the RFQ stage Settings menu without pressing any dialog action."
+    "note": "Open the RFQ Settings menu and choose Rejected Bids."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Rejected Bids",
+     "role": "dialog",
+     "name": "Rejected Bids",
      "visible": true
     },
-    "note": "Verify the Rejected Bids window is open."
+    "note": "Verify that the Rejected Bids window opens."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Close",
+     "within": "dialog",
      "visible": true
     },
-    "note": "Verify the window provides the Close button and remains ready for user action."
+    "note": "Verify that the window provides the Close button and remains open for inspection."
    }
   ]
  }

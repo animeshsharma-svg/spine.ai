@@ -4,29 +4,30 @@
   "title": "All Vendors: Cancel closes the All Vendors window without saving a new selection",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:55:21.515Z",
+  "compiledAt": "2026-11-13T14:09:16.209Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Whether the checkbox selection for vendor \"12 - check@gmail.com\" is discarded and the vendor remains unselected in the saved draft's Participants view"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Whether the checkbox selection for vendor \"12 - check@gmail.com\" is discarded and the vendor remains unselected in the saved draft's Participants view"
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 11,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
    "click",
    "expect_visible",
-   "click",
-   "click",
-   "expect_visible"
+   "do_on_screen",
+   "expect_text"
   ],
-  "ms": 9554
+  "ms": 16067
  },
  "plan": {
   "title": "Draft All Vendors Cancel",
@@ -34,7 +35,31 @@
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to locate the saved draft."
+    "note": "Open the Events list to reach the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-addition configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage configuration."
    },
    {
     "step": "expect_events_list",
@@ -46,14 +71,14 @@
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the Drafts tab as required by the case."
+    "note": "Switch to saved drafts."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first saved draft."
+    "note": "Open the available saved eRFX draft."
    },
    {
     "step": "click",
@@ -61,7 +86,7 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the draft's Participants view and the All Vendors window."
+    "note": "Open the draft's Participants view and its All Vendors window."
    },
    {
     "step": "expect_visible",
@@ -69,31 +94,22 @@
      "text": "All Vendors",
      "visible": true
     },
-    "note": "Confirm the All Vendors window opened."
+    "note": "Confirm the All Vendors window is open."
    },
    {
-    "step": "click",
+    "step": "do_on_screen",
     "args": {
-     "role": "checkbox",
-     "within": "12 - check@gmail.com"
+     "goal": "In the All Vendors window, select the checkbox in the vendor row containing \"12 - check@gmail.com\", click Cancel, confirm the All Vendors window closes, return to the draft's Participants view, and verify that the vendor remains unselected and was not added by the cancelled action."
     },
-    "note": "Select the specified vendor checkbox before cancelling."
+    "note": "Perform and verify the buyer-side selection rollback that no dedicated catalog assertion can express."
    },
    {
-    "step": "click",
+    "step": "expect_text",
     "args": {
-     "role": "button",
-     "name": "Cancel"
+     "text": "12 - check@gmail.com",
+     "present": true
     },
-    "note": "Cancel the All Vendors window without saving the selection."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "All Vendors",
-     "visible": false
-    },
-    "note": "Verify that the All Vendors window closed after Cancel."
+    "note": "Confirm the named vendor row is visible again in the Participants view after cancellation."
    }
   ]
  }

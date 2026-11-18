@@ -3,43 +3,130 @@
   "caseId": "PRD-KBSRC-609",
   "title": "Counter offer dialog shows original vendor value next to the counter value",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:24:31.070Z",
+  "compiledAt": "2026-11-13T14:47:06.352Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 3,
+  "steps": 15,
   "stepNames": [
-   "open_prepared",
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "open_master_qcs",
    "do_on_screen",
    "expect_text"
   ],
-  "ms": 13546
+  "ms": 18091
  },
  "plan": {
-  "title": "RFQ Counter Offer Value Comparison",
+  "title": "Counter offer shows original and counter values",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "open_create",
     "args": {
-     "screen": "master_qcs"
+     "path": "erfx"
     },
-    "note": "Open the prepared RFQ Master QCS containing a vendor bid."
+    "note": "Open the eRFX create screen for the RFQ event."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event with an RFQ pricing stage."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Counter Offer Value Comparison"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item for the vendor bid."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite a vendor who will provide the QCS bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached its published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Create the known original vendor value of 100 in the RFQ QCS."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor bid was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the RFQ QCS containing the vendor bid."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the RFQ Master QCS, click Counter Offer beneath a vendor's name, enter 90 in the Price field, and verify that the open counter-offer dialog displays the vendor's original value and the entered counter offer value side by side; leave the dialog open without sending the offer."
+     "goal": "On the RFQ Master QCS, click Counter Offer beneath the vendor's name, select the Price field, enter 90, and stop with the counter-offer dialog showing the original vendor value 100 and the entered counter offer value 90 side by side."
     },
-    "note": "Directly verifies the dialog contents and comparison between the original vendor value and the entered counter value, which no dedicated assertion step exposes."
+    "note": "Inspect the dialog state and verify both comparison values before sending the counter offer."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Counter Offer"
+     "text": "Counter Offer",
+     "present": true
     },
-    "note": "Confirm the counter-offer dialog remains visible after the comparison is checked."
+    "note": "Assert that the counter-offer dialog remains open on screen."
    }
   ]
  }

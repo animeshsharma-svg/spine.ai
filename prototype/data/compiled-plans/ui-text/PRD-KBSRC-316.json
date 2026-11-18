@@ -3,18 +3,18 @@
   "caseId": "PRD-KBSRC-316",
   "title": "Rank Based: vendors see only their rank, not prices",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:13:12.493Z",
+  "compiledAt": "2026-11-13T14:37:00.918Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"200\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "unconfirmed label \"90\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"200\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "coverage partial: unconfirmed label \"90\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
    "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 17,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -26,16 +26,15 @@
    "invite_vendor",
    "publish",
    "expect_published",
-   "place_bid",
-   "expect_bid_submitted",
-   "place_bid",
+   "place_surrogate_bid",
    "expect_bid_submitted",
    "switch_portal",
    "vendor_open_event",
+   "vendor_bid",
    "expect_text",
    "expect_text"
   ],
-  "ms": 10576
+  "ms": 16396
  },
  "plan": {
   "title": "Rank auction hides competitor prices",
@@ -54,26 +53,26 @@
      "auctionSubtype": "rank",
      "awarding": "lot"
     },
-    "note": "Configure the event as a rank-based auction awarded as one lot."
+    "note": "Configure the event as a rank-based auction awarded to one vendor."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Rank Visibility Auction"
+     "title": "Rank Visibility QA Auction"
     },
     "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction pricing template."
+    "note": "Apply the first available auction template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one product so vendors have a bidding line."
+    "note": "Add one item for the auction."
    },
    {
     "step": "fill_sheet",
@@ -85,14 +84,14 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding schedule."
+    "note": "Commit a valid bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two vendors so competitor visibility can be checked."
+    "note": "Invite two vendors so the auction has competing bids."
    },
    {
     "step": "publish",
@@ -102,15 +101,14 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the auction reached a published project page."
+    "note": "Confirm the auction reached a real published project page."
    },
    {
-    "step": "place_bid",
+    "step": "place_surrogate_bid",
     "args": {
-     "vendor": 1,
-     "price": 100
+     "price": 90
     },
-    "note": "Submit the first vendor's bid at a known price."
+    "note": "Place a bid for one vendor at a known price that can be checked as hidden from the other vendor."
    },
    {
     "step": "expect_bid_submitted",
@@ -118,31 +116,25 @@
     "note": "Confirm the first vendor's bid was accepted."
    },
    {
-    "step": "place_bid",
-    "args": {
-     "vendor": 2,
-     "price": 200
-    },
-    "note": "Submit the competing vendor's bid at a distinct known price."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the competing vendor's bid was accepted."
-   },
-   {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Inspect the invited vendor's supplier-portal view."
+    "note": "Open the invited vendor's supplier portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the auction's bidding screen in the vendor portal."
+    "note": "Open the auction pricing round as the vendor."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the second vendor's own bid and leave the vendor bid screen available for inspection."
    },
    {
     "step": "expect_text",
@@ -150,15 +142,15 @@
      "text": "Rank",
      "present": true
     },
-    "note": "Verify that the vendor receives rank feedback."
+    "note": "Assert that the vendor screen exposes rank feedback."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "200",
+     "text": "90",
      "present": false
     },
-    "note": "Verify that the known competitor bid price is not exposed on the vendor screen."
+    "note": "Assert that the known competing bid price is not visible to this vendor."
    }
   ]
  }

@@ -4,33 +4,31 @@
   "title": "A user whose team has a different category is not shown for the PR",
   "group": "PRA-ONE",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-12T13:48:10.480Z",
+  "compiledAt": "2026-11-13T14:28:14.550Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"User C\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "Authenticate as the specified PR manager and provide that user's session credentials",
+   "unconfirmed label \"Engg Buyer\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"User C\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "coverage partial: unconfirmed label \"Engg Buyer\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Authenticate as the specified PR manager and provide that user's session credentials"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 6,
   "stepNames": [
    "require_setting",
+   "ask_tester",
    "open_purchase_requisitions",
    "pr_tab",
-   "select_pr",
-   "click",
-   "expect_visible",
-   "expect_text",
-   "fill",
+   "do_on_screen",
    "expect_text"
   ],
-  "ms": 20202
+  "ms": 15055
  },
  "plan": {
-  "title": "PR Assignee Category Filtering",
+  "title": "Hide wrong-category PR assignee",
   "steps": [
    {
     "step": "require_setting",
@@ -38,67 +36,41 @@
      "key": "is_pr_teams_filtering_enabled",
      "value": "On"
     },
-    "note": "Enable the tenant configuration required for category-based PR assignee filtering."
+    "note": "Enable the category-based PR team filtering required by the case."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide or authorize the PR manager session so the test can continue as the user who assigns PRs"
+    },
+    "note": "The catalog cannot obtain or switch to the specified PR manager's credentials."
    },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen."
+    "note": "Open the Purchase Requisitions area required by the case."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open PR tab where PR-1 is available."
+    "note": "Stay on the Open PR tab, where PR-1 is expected to be available."
    },
    {
-    "step": "select_pr",
+    "step": "do_on_screen",
     "args": {
-     "pr": "PR-1",
-     "items": 1
+     "goal": "search for PR-1, show its line items, tick one line item, open the Assign user picker next to Upload PRs, inspect the complete user list including its end, search for Engg, and stop on the picker showing that Engg Buyer (User C) is absent"
     },
-    "note": "Select one line item from the named PR so assignment controls become available."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Assign"
-    },
-    "note": "Open the assignee chooser for the selected PR line item."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "label": "Search a user",
-     "visible": true
-    },
-    "note": "Confirm the user-assignment search field is open."
+    "note": "The catalog has no dedicated step for searching PR line items or opening and inspecting the assignee picker."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "User C",
+     "text": "Engg Buyer",
      "present": false
     },
-    "note": "Assert the wrong-category user is not present in the unfiltered assignee list."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Search a user",
-     "value": "Engg"
-    },
-    "note": "Search the assignee list for the excluded user's name."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "User C",
-     "present": false
-    },
-    "note": "Assert Engg Buyer/User C does not appear even when searched by name."
+    "note": "Assert that the wrong-category user does not appear even after searching by Engg."
    }
   ]
  }

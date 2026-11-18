@@ -4,46 +4,66 @@
   "title": "Asha replying-all to Chetan's answer is not recorded as a second reply",
   "group": "EMA-RPL",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:58:27.818Z",
+  "compiledAt": "2026-11-13T14:23:39.588Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as Asha, open Chetan’s answer in her mailbox, use Reply-all, send “Thanks,” and wait for Procol to process the email.",
-   "Determine whether the quoted Ref line is misread as an action, whether a bounce occurs, or whether a duplicate reply is recorded on the event."
+   "Access Asha's mailbox and click Reply-all on Chetan's answer with the quoted Ref line, send \"Thanks\", and wait for Procol to process it",
+   "Observe whether the quoted Ref line is misread as an action and verify that no bounce or duplicate reply appears on the event"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as Asha, open Chetan’s answer in her mailbox, use Reply-all, send “Thanks,” and wait for Procol to process the email.; Determine whether the quoted Ref line is misread as an action, whether a bounce occurs, or whether a duplicate reply is recorded on the event."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Access Asha's mailbox and click Reply-all on Chetan's answer with the quoted Ref line, send \"Thanks\", and wait for Procol to process it; Observe whether the quoted Ref line is misread as an action and verify that no bounce or duplicate reply appears on the event"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_no_error"
   ],
-  "ms": 11226
+  "ms": 16516
  },
  "plan": {
-  "title": "EMA-RPL-007 — Asha Reply-All Handling",
+  "title": "EMA-RPL-007 Email Reply-All Handling",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named approval event so the tester can perform and inspect the mailbox-driven reply scenario in the correct event context."
+    "note": "Open the existing event named in the test case so the tester can perform the mailbox action in the correct approval context."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required email-approval company setting before opening the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the workflow configuration required by the test case."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Asha, reply-all to Chetan's answer with “Thanks,” wait 1–2 minutes for mailbox processing, and verify whether the event shows a bounce or duplicate reply and whether the quoted Ref line was interpreted as an action"
+     "need": "access Asha's connected approval mailbox, reply-all to Chetan's answer with the quoted Ref line, send \"Thanks\", wait 1-2 minutes for Procol to process the mailbox, and inspect whether the reply is ignored without a bounce or duplicate event reply"
     },
-    "note": "Mailbox access, email sending, processing delay, and the resulting reply record are not expressible by catalog steps."
+    "note": "The catalog has no mailbox or email-ingestion step, so tester intervention is required for the actual subject."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the event page remains usable after the tester completes the email-driven scenario."
+    "note": "Check that the event page remains free of an application error after the mailbox-processing attempt; this does not verify the email-thread outcome."
    }
   ]
  }

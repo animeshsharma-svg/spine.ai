@@ -3,35 +3,38 @@
   "caseId": "PRD-KBSRC-057",
   "title": "Unlock bids \"For Myself\" with a second-user OTP",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:10:42.902Z",
+  "compiledAt": "2026-11-13T14:34:18.903Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Obtain and enter an OTP delivered to the second user's email/SMS account.",
-   "Verify that bids remain hidden from another user with access while visible to the initiating user."
+   "Have the second pre-set user receive the OTP by email or SMS and provide it",
+   "Enter and submit the OTP for the second-user authorization",
+   "Verify that bids remain hidden for another user with access while visible to the initiator"
   ],
   "warnings": [
-   "can only test part of this — no step for: Obtain and enter an OTP delivered to the second user's email/SMS account.; Verify that bids remain hidden from another user with access while visible to the initiating user."
+   "can only test part of this — no step for: Have the second pre-set user receive the OTP by email or SMS and provide it; Enter and submit the OTP for the second-user authorization; Verify that bids remain hidden for another user with access while visible to the initiator"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 8,
   "stepNames": [
    "open_event",
    "go_to",
-   "event_menu",
-   "do_on_screen",
+   "open_event_settings",
+   "click",
+   "expect_visible",
+   "click",
    "ask_tester",
    "expect_text"
   ],
-  "ms": 14027
+  "ms": 21875
  },
  "plan": {
-  "title": "Unlock bids with second-user OTP",
+  "title": "Unlock Bids with Second-User OTP",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open a suitable existing event whose submission window has closed."
+    "note": "Open an existing event whose submission window has closed and whose bids can be unlocked."
    },
    {
     "step": "go_to",
@@ -41,25 +44,39 @@
     "note": "Open the event's Responses tab, which is the subject of the test."
    },
    {
-    "step": "event_menu",
-    "args": {
-     "item": "Unlock Bids"
-    },
-    "note": "Open the settings action that starts the sealed-bid unlock flow."
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the event Settings menu where Unlock Bids is expected to be available."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "Choose For Myself, select the second pre-set user as the OTP recipient, and leave the unlock dialog ready to send the OTP."
+     "role": "menuitem",
+     "name": "Unlock Bids"
     },
-    "note": "Configure the buyer-side unlock dialog before the external OTP step."
+    "note": "Open the Unlock Bids dialog."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Unlock Bids",
+     "visible": true
+    },
+    "note": "Confirm that the Unlock Bids dialog or flow is visible."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "For Myself"
+    },
+    "note": "Choose the initiating-user visibility option required by the case."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "obtain the OTP from the selected second user, enter it, submit it, and verify that bids are visible to the initiating user but remain hidden for another user with access"
+     "need": "select the second pre-set user as the OTP recipient, send the OTP, obtain it from that user, enter and submit it, then verify the unlocked bids are visible only to the initiator and hidden for another user with access"
     },
-    "note": "This requires the second user's email/SMS and another user's session, which the catalog cannot access."
+    "note": "The remaining flow requires another user's OTP and a second-user session, which the catalog cannot perform."
    },
    {
     "step": "expect_text",
@@ -67,7 +84,7 @@
      "text": "The bids have been unlocked",
      "present": true
     },
-    "note": "Assert the expected unlock confirmation after OTP verification."
+    "note": "Assert the stated successful unlock confirmation after the tester completes the missing authorization flow."
    }
   ]
  }

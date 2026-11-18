@@ -3,59 +3,66 @@
   "caseId": "PRD-PO-007",
   "title": "Award Proposal for Approval: refused for a user without the Buyer role",
   "group": "PRD-PO",
-  "compiledAt": "2026-11-10T05:15:10.923Z",
+  "compiledAt": "2026-11-13T15:25:59.175Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role, attempt Award Proposal for Approval, then repeat the same action as a Buyer and compare the authorization outcome; the catalog cannot switch user identities or verify their RBAC roles."
+   "Sign in as a user without the Buyer role, attempt to route the award proposal for approval, then repeat as a Buyer and compare whether the action is refused, absent, or available."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role, attempt Award Proposal for Approval, then repeat the same action as a Buyer and compare the authorization outcome; the catalog cannot switch user identities or verify their RBAC roles."
+   "can only test part of this — no step for: Sign in as a user without the Buyer role, attempt to route the award proposal for approval, then repeat as a Buyer and compare whether the action is refused, absent, or available."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "expect_visible",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
    "ask_tester",
    "expect_visible"
   ],
-  "ms": 16587
+  "ms": 16033
  },
  "plan": {
-  "title": "Award Proposal RBAC Authorization",
+  "title": "Award proposal RBAC by Buyer role",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
-     "screen": "proposal"
+     "screen": "master_qcs"
     },
-    "note": "Open the prepared award proposal needed for the authorization check."
+    "note": "Open a prepared event with bids so the award proposal flow can be reached."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Submit Proposal",
-     "visible": true
-    },
-    "note": "Confirm that the proposal-routing control is present before the role-specific attempt."
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding flow required before routing an award proposal for approval."
+   },
+   {
+    "step": "allocate_award",
+    "args": {},
+    "note": "Allocate the available award so the Create Proposal action becomes applicable."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {},
+    "note": "Verify that the award allocation is present before the role-specific approval attempt."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a user without the Buyer role, attempt Award Proposal for Approval and record the refusal or absence, then repeat the same action as a Buyer and record whether it is available"
+     "need": "sign in as a user without the Buyer role and as a Buyer, attempt to route the award proposal for approval in both sessions, and record whether the action is refused, absent, or available"
     },
-    "note": "The required comparison depends on two user identities and roles that the catalog cannot authenticate or switch between."
+    "note": "The catalog cannot obtain or switch between the required user roles, which is the subject of this test."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "Submit Proposal",
+     "text": "Create Proposal",
      "visible": true
     },
-    "note": "Retain a final observable assertion on the proposal screen after the tester's role-specific check."
+    "note": "Confirm the awarding screen still exposes the known proposal action after the role comparison."
    }
   ]
  }

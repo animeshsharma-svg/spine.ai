@@ -4,7 +4,7 @@
   "title": "Increase Event Time: Cancel button closes the Increase Event Time window without changes",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:42:28.379Z",
+  "compiledAt": "2026-11-13T13:57:04.698Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -13,7 +13,7 @@
    "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -22,15 +22,14 @@
    "require_setting",
    "go_to",
    "go_to",
-   "expect_text",
-   "extend_time",
+   "event_menu",
    "click",
    "expect_visible",
    "expect_text"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 17882
+  "ms": 21052
  },
  "plan": {
   "title": "Cancel Increase Event Time on Closed RFQ",
@@ -40,7 +39,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ instead of creating or searching for an event."
+    "note": "Open the prepared closed RFQ, as required for this test state."
    },
    {
     "step": "require_setting",
@@ -56,7 +55,7 @@
      "key": "is_allowed_to_add_surrogate_bid_post_expiry",
      "value": "Off"
     },
-    "note": "Keep post-expiry surrogate bidding disabled for the closed RFQ."
+    "note": "Configure post-expiry surrogate bidding to be off."
    },
    {
     "step": "require_setting",
@@ -64,7 +63,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Apply the required buyer bid-edit configuration."
+    "note": "Enable buyer bid-field editing as required."
    },
    {
     "step": "require_setting",
@@ -72,7 +71,7 @@
      "key": "allow_event_evaluation_reopen_for_everyone",
      "value": "Off"
     },
-    "note": "Apply the required evaluation-reopen configuration."
+    "note": "Configure evaluation reopening permissions as required."
    },
    {
     "step": "go_to",
@@ -87,23 +86,15 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab where the stage Settings action is available."
+    "note": "Open the RFQ Responses tab."
    },
    {
-    "step": "expect_text",
+    "step": "event_menu",
     "args": {
-     "text": "29 October 2026 05:49 PM"
+     "item": "Extend Submission Time",
+     "stage": "rfq"
     },
-    "note": "Record the expected unchanged event end time before opening the dialog."
-   },
-   {
-    "step": "extend_time",
-    "args": {
-     "which": "submission",
-     "option": "custom",
-     "confirm": false
-    },
-    "note": "Open the Increase Event Time window and leave it unsaved so Cancel can be tested."
+    "note": "Open the Increase Event Time window from the RFQ Settings menu."
    },
    {
     "step": "click",
@@ -111,7 +102,7 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the Increase Event Time window."
+    "note": "Cancel the Increase Event Time operation without saving changes."
    },
    {
     "step": "expect_visible",
@@ -120,14 +111,15 @@
      "name": "Increase Event Time",
      "visible": false
     },
-    "note": "Verify that cancelling closes the Increase Event Time window."
+    "note": "Verify that the Increase Event Time window closed."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "29 October 2026 05:49 PM"
+     "text": "29 October 2026 05:49 PM",
+     "present": true
     },
-    "note": "Verify that the event end time remains unchanged after cancellation."
+    "note": "Verify that the RFQ end time remains unchanged."
    }
   ]
  }

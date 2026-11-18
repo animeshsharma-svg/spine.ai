@@ -4,32 +4,141 @@
   "title": "A saved eRFX draft: \"Add Attachments\" opens the \"Upload Attachments\" window",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:40:23.643Z",
+  "compiledAt": "2026-11-13T14:04:04.287Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "That no event data changes until one of the attachment-window buttons is pressed."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: That no event data changes until one of the attachment-window buttons is pressed."
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 19,
   "stepNames": [
-   "open_prepared",
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
+   "open_events_list",
+   "filter_events",
+   "open_first_event",
    "click",
    "expect_visible",
    "expect_visible",
    "expect_visible",
    "expect_visible"
   ],
-  "ms": 8310
+  "ms": 13475
  },
  "plan": {
-  "title": "Saved Draft Add Attachments Window",
+  "title": "Saved eRFX Draft Add Attachments Window",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "open_create",
     "args": {
-     "screen": "draft"
+     "path": "erfx"
     },
-    "note": "Open the existing saved eRFX draft without creating or publishing an event."
+    "note": "Open the eRFX create screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration for vendor addition during event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage configuration."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-016 Attachment Window"
+    },
+    "note": "Give the draft a searchable title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Choose a template so the draft can be populated and saved."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item to make the draft representative and saveable."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet fields for the draft."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule before saving the draft."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Create the saved eRFX draft that the case starts from."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to reach the saved draft through the buyer flow."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the Drafts tab specified by the case."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-016 Attachment Window"
+    },
+    "note": "Open the draft created for this test."
    },
    {
     "step": "click",
@@ -37,7 +146,7 @@
      "role": "button",
      "name": "Add Attachments"
     },
-    "note": "Open the attachment upload control from the draft."
+    "note": "Open the attachment control on the saved draft."
    },
    {
     "step": "expect_visible",
@@ -46,7 +155,7 @@
      "name": "Upload Attachments",
      "visible": true
     },
-    "note": "Verify that the Upload Attachments window opened."
+    "note": "Verify that the Upload Attachments window opens."
    },
    {
     "step": "expect_visible",
@@ -56,7 +165,7 @@
      "within": "dialog",
      "visible": true
     },
-    "note": "Verify the modal provides an Upload button."
+    "note": "Verify the dialog offers Upload."
    },
    {
     "step": "expect_visible",
@@ -66,7 +175,7 @@
      "within": "dialog",
      "visible": true
     },
-    "note": "Verify the modal provides a Cancel button."
+    "note": "Verify the dialog offers Cancel."
    },
    {
     "step": "expect_visible",
@@ -76,7 +185,7 @@
      "within": "dialog",
      "visible": true
     },
-    "note": "Verify the modal provides a Save button while leaving the draft unchanged."
+    "note": "Verify the dialog offers Save."
    }
   ]
  }

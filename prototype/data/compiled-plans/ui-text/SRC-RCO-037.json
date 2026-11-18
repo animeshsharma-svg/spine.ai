@@ -4,64 +4,63 @@
   "title": "Recreate Order with \"Price\" cleared (a required * column)",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:45:43.541Z",
+  "compiledAt": "2026-11-13T12:38:21.694Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Directly verify that no new event record was created after refusal"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Directly verify that no new event record was created after refusal"
+  ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
    "open_prepared",
    "event_menu",
-   "set_sheet_cell",
-   "attempt",
+   "fill",
+   "click",
    "expect_toast",
    "expect_field_error",
-   "expect_visible"
+   "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 72924
+  "ms": 17991
  },
  "plan": {
-  "title": "Recreate Order Rejects Empty Price",
+  "title": "Recreate Order rejects cleared Price",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary instead of searching or recreating the event setup."
+    "note": "Open the prepared closed RFQ summary instead of searching or creating an event."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open the stage Settings menu and choose Recreate Order."
+    "note": "Open the RFQ stage's Recreate Order form."
    },
    {
-    "step": "set_sheet_cell",
+    "step": "fill",
     "args": {
-     "row": 1,
-     "column": "Price",
+     "label": "Price",
      "value": ""
     },
-    "note": "Clear the required Price cell in the recreated order form."
+    "note": "Clear the required Price cell."
    },
    {
-    "step": "attempt",
+    "step": "click",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Create Order"
-     },
-     "expect": "refused",
-     "because": "Please fill valid event details to proceed"
+     "role": "button",
+     "name": "Create Order"
     },
-    "note": "Submit the incomplete order and require Procol to refuse it."
+    "note": "Submit the recreate form to trigger validation."
    },
    {
     "step": "expect_toast",
@@ -76,16 +75,15 @@
     "args": {
      "field": "Price"
     },
-    "note": "Assert that the empty required Price cell is highlighted as invalid."
+    "note": "Assert that the empty required Price field is marked invalid."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "button",
-     "name": "Create Order",
-     "visible": true
+     "text": "Create Order",
+     "present": true
     },
-    "note": "Confirm the recreate form remains open, indicating no order was created."
+    "note": "Confirm the recreate form remains open after refusal, providing evidence that submission did not navigate to a created order."
    }
   ]
  }

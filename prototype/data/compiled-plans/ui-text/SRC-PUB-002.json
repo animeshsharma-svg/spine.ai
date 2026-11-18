@@ -4,22 +4,25 @@
   "title": "Publish a complete eRFX Technical + RFQ project",
   "group": "SRC-PUB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:37:24.494Z",
+  "compiledAt": "2026-11-13T12:32:33.114Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that both published stages display their own individual start and end times.",
-   "Verify the Addendum Remarks field and confirmation behavior when remarks are optionally entered."
+   "Assert that both published stages display their own specific start and end times."
   ],
   "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "can only test part of this — no step for: Verify that both published stages display their own individual start and end times.; Verify the Addendum Remarks field and confirmation behavior when remarks are optionally entered."
+   "can only test part of this — no step for: Assert that both published stages display their own specific start and end times."
   ],
   "source": "llm",
-  "steps": 21,
+  "steps": 22,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
@@ -34,17 +37,16 @@
    "invite_vendor",
    "publish",
    "expect_published",
-   "expect_stages",
    "expect_visible",
    "expect_visible",
    "expect_visible",
    "expect_visible",
-   "expect_visible"
+   "expect_text"
   ],
-  "ms": 11607
+  "ms": 27272
  },
  "plan": {
-  "title": "Publish eRFX Technical and RFQ Project",
+  "title": "Publish complete Technical + RFQ eRFX project",
   "steps": [
    {
     "step": "open_create",
@@ -54,11 +56,25 @@
     "note": "Open the eRFX project creation screen."
    },
    {
-    "step": "set_title",
+    "step": "require_setting",
     "args": {
-     "title": "Technical and RFQ Publication Test"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Provide the mandatory project title."
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation so publishing is possible."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Set a unique project title, which is required before publishing."
    },
    {
     "step": "compose_stages",
@@ -68,7 +84,7 @@
       "rfq"
      ]
     },
-    "note": "Configure the project with Technical and RFQ stages instead of the default Auction stage."
+    "note": "Configure the required Technical and RFQ stages."
    },
    {
     "step": "switch_stage",
@@ -86,7 +102,7 @@
     "args": {
      "count": 1
     },
-    "note": "Add the requested one line item to the project."
+    "note": "Add the required line item to the project."
    },
    {
     "step": "fill_questionnaires"
@@ -113,34 +129,24 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit the event schedule before publishing."
+    "note": "Set and save the event duration schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Add two QA test vendors, corresponding to Vendor A and Vendor B."
+    "note": "Add two QA test vendors to the project audience."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed eRFX project."
+    "note": "Publish the completed eRFX project and handle the confirmation flow."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publication reached a real project page."
-   },
-   {
-    "step": "expect_stages",
-    "args": {
-     "stages": [
-      "rfp",
-      "rfq"
-     ]
-    },
-    "note": "Verify that the published project contains exactly the Technical and RFQ stage tabs."
+    "note": "Verify that publishing reached a real project page."
    },
    {
     "step": "expect_visible",
@@ -148,7 +154,7 @@
      "text": "Project Details",
      "visible": true
     },
-    "note": "Verify the project page exposes Project Details."
+    "note": "Verify the published project details area is present."
    },
    {
     "step": "expect_visible",
@@ -156,7 +162,7 @@
      "text": "Technical Stage",
      "visible": true
     },
-    "note": "Verify the Technical Stage is shown on the published project page."
+    "note": "Verify the Technical stage is shown on the published project."
    },
    {
     "step": "expect_visible",
@@ -164,24 +170,23 @@
      "text": "RFQ",
      "visible": true
     },
-    "note": "Verify the RFQ stage is shown on the published project page."
+    "note": "Verify the RFQ stage is shown on the published project."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "tab",
-     "name": "Master QCS",
+     "text": "Master QCS",
      "visible": true
     },
-    "note": "Verify the Master QCS tab is available on the published project page."
+    "note": "Verify the published project exposes the Master QCS view."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "Published Stages",
-     "visible": true
+     "present": true
     },
-    "note": "Verify the published project page shows its Published Stages section."
+    "note": "Verify the published-stage section is rendered."
    }
   ]
  }

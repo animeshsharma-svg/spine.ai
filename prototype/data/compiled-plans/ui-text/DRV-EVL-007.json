@@ -4,50 +4,72 @@
   "title": "QCS ranking updates correctly when a bid is submitted just before window closes",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-12T13:36:19.419Z",
+  "compiledAt": "2026-11-13T13:35:57.484Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Wait until 1 second before bidding end time in a live event",
-   "Vendor A submitting a bid via a separate session 1 second before expiry"
+   "Waiting until exactly 1 second before the bidding end time",
+   "Having Vendor A submit through a separate vendor session at that precise time",
+   "Verifying that Master QCS updates immediately after that just-submitted bid",
+   "Using the specified bid values of price 95 and freight 5 to verify a landed price of 100"
   ],
   "warnings": [
-   "can only test part of this — no step for: Wait until 1 second before bidding end time in a live event; Vendor A submitting a bid via a separate session 1 second before expiry"
+   "can only test part of this — no step for: Waiting until exactly 1 second before the bidding end time; Having Vendor A submit through a separate vendor session at that precise time; Verifying that Master QCS updates immediately after that just-submitted bid; Using the specified bid values of price 95 and freight 5 to verify a landed price of 100"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_amounts",
    "expect_qcs_ranks"
   ],
   "state": "bid",
   "screen": "master_qcs",
-  "ms": 18731
+  "ms": 9046
  },
  "plan": {
-  "title": "QCS ranking updates correctly when a bid is submitted just before window closes",
+  "title": "QCS late-bid ranking",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS on the event"
+    "note": "Open the prepared Master QCS screen for the existing bid state."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
+     "count": 1,
      "realNames": true
     },
-    "note": "Assert the vendor columns are visible"
+    "note": "Verify that the submitted bid is represented by a real vendor column."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 1,
+     "number": 1
+    },
+    "note": "Verify that the available bid is ranked L1 in the QCS grid."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": 1
+    },
+    "note": "Verify that the QCS landed-price arithmetic and total are internally consistent for the available bid."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "order": "lowest"
+     "order": "lowest",
+     "atLeast": 1
     },
-    "note": "Assert ranks follow the amounts correctly"
+    "note": "Verify that ranking follows the lowest landed amount among the bids present in this prepared state."
    }
   ]
  }

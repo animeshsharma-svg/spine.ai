@@ -3,63 +3,136 @@
   "caseId": "PRD-KBSRC-364",
   "title": "Vendor can bid only on the current active line item",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:17:45.250Z",
+  "compiledAt": "2026-11-13T14:41:20.596Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Target a bid specifically to the current active line item and then attempt a bid on another inactive line item in a serial bidding auction, including asserting that only the active line item accepts the bid."
+   "Configure a live serial bidding auction with several line items and verify that bidding on a non-current line item is refused while bidding on the current line item succeeds."
   ],
   "warnings": [
-   "can only test part of this — no step for: Target a bid specifically to the current active line item and then attempt a bid on another inactive line item in a serial bidding auction, including asserting that only the active line item accepts the bid."
+   "can only test part of this — no step for: Configure a live serial bidding auction with several line items and verify that bidding on a non-current line item is refused while bidding on the current line item succeeds."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 15,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
    "switch_portal",
    "vendor_open_event",
    "ask_tester",
    "expect_visible"
   ],
-  "ms": 70828
+  "ms": 16949
  },
  "plan": {
-  "title": "Serial Auction Active Line Item Bid Restriction",
+  "title": "Serial bidding active-line restriction",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the multi-stage event screen needed for an auction with multiple line items."
+   },
+   {
+    "step": "set_title",
     "args": {},
-    "note": "Open an existing live event matching the prepared serial bidding auction setup."
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    },
+    "note": "Configure the event with an auction stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "auction"
+    },
+    "note": "Move to the auction stage before configuring its template and sheet."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an auction pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create several line items so the active-line restriction could be exercised."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor needed for the vendor-side bidding check."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the auction reached a published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier-portal session."
+    "note": "Open the invited vendor session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the auction's vendor bid sheet."
+    "note": "Open the vendor's auction bid sheet."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "place a bid on the current active line item, then try to bid on another line item and verify that only the active line item accepts the bid"
+     "need": "configure the auction as serial bidding, bid on the current active line item, then try to bid on a different line item and report that only the active line accepts bidding"
     },
-    "note": "The catalog cannot select or submit a bid for one specific line item or determine which line item is active."
+    "note": "The catalog has no serial-bidding configuration or line-specific bid action."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "Submit Quote",
+     "text": "Submit Quote",
      "visible": true
     },
-    "note": "Confirm the vendor bid sheet remains available after the manual active/inactive line-item check."
+    "note": "Assert that the vendor pricing screen remains available after the tester's interaction."
    }
   ]
  }

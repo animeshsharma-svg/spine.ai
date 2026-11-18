@@ -4,46 +4,64 @@
   "title": "Send with nothing changed",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:04:06.163Z",
+  "compiledAt": "2026-11-13T12:18:15.862Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "pre-requisite set-up case SRC-SET-003 with specific vendor bids A 100 and B 90"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: pre-requisite set-up case SRC-SET-003 with specific vendor bids A 100 and B 90"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "attempt"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 59210
+  "ms": 17293
  },
  "plan": {
-  "title": "Counter offer validation rules for no change",
+  "title": "Counter Offer Unchanged Bid Refusal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the responses tab on the prepared event"
+    "note": "Opens the prepared RFQ Responses tab containing Vendor A's normal bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Enables the counter-offer control on the RFQ."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensures eRFX project functionality is enabled for the prepared RFQ."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
+     "step": "place_counter_offer",
      "args": {
-      "role": "button",
-      "name": "Counter Offer"
+      "vendor": "Vendor A",
+      "price": 100
      },
+     "expect": "refused",
      "because": "You must change atleast one column to send counter offer"
     },
-    "note": "Attempt to open and send counter offer without making any changes"
+    "note": "Attempts to send a counter offer without changing Vendor A's bid and requires Procol's unchanged-value refusal."
    }
   ]
  }
