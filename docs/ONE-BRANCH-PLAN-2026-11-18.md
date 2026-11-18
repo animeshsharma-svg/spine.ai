@@ -41,6 +41,8 @@ It is mostly not the code. It is state that git never carries:
 
 ## 4. The steps, in order (about half a day; nobody loses a line)
 
+> **Executed 18 Nov 2026, 11:00–12:30.** Steps 1–5 are done; `spine/demo` = `rca-wt` = d4c95414 (a fast-forward of the old demo 4c16953a). Step 1: 47c6273a. Step 2: the main checkout committed on `animesh` as 7b4e989a (a bug-sheet xlsx slipped in and was taken out again within the minute by amending that just-pushed head) and merged as 6c58ea03 with the 8 hunks resolved as §4 says, plus two notes files concatenated and the generated ledgers kept from rca-wt. Step 3: f7b2e79f merged as 7a706ed2 (newer compiles win; vocabulary-gap ledger = union of both sides, 9,426 needs; the QA-vendor workspace rule keeps the config list and the per-run env override). Step 4: merged as d4c95414, `fill_sheet` keeps the 17 Nov side. Typecheck and `hubspot:unit` (32 pass) green after each merge. Step 6 remains, by hand.
+
 Every step ends with a push, so the other person can see it. Nothing is rebased, nothing force-pushed, no branch deleted until §5.
 
 **Step 1 — `procol-rca-wt` commits its own pile (Animesh's Claude, this session).**
