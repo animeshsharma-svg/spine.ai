@@ -663,6 +663,13 @@ VALUE_KEYS.closed_two_bids = VALUE_KEYS.two_bids;
 VALUE_KEYS.awarded = VALUE_KEYS.bid;
 VALUE_KEYS.proposal = VALUE_KEYS.bid;
 VALUE_KEYS.converted = VALUE_KEYS.bid;
+// In-Principle Approval (18 Nov 2026, uiSetup.ts IPA_STATES): the raised request and what the pop-up computed
+const IPA_KEYS = ["ipaWorkflow", "ipaApprovalValue", "ipaL1Vendor", "ipaLineItems", "ipaRequestUuid", "ipaApprovalPath", "ipaRequestStatus"];
+VALUE_KEYS.ipa_pending = [...VALUE_KEYS.two_bids, ...IPA_KEYS];
+VALUE_KEYS.ipa_step1 = VALUE_KEYS.ipa_pending;
+VALUE_KEYS.ipa_rejected = [...VALUE_KEYS.ipa_pending, "ipaRejectReason"];
+VALUE_KEYS.ipa_rejected_step1 = VALUE_KEYS.ipa_rejected;
+VALUE_KEYS.ipa_approved = [...VALUE_KEYS.ipa_pending, "rfq2Ref", "rfq2Title", "rfq2StageUuid"];
 
 /**
  * Which event the cases of a screen must run on. A screen photographed on a published event

@@ -48,6 +48,7 @@ import { lookUpVendor, vendorNameForEmail } from "../support/vendorDirectory.js"
 import { controlHeld, handedBackAt, handPart, released, takeHandSteps, pendingTold, takeTold } from "../support/liveControl.js";
 import { needOf, roundNow, cannotTakeBid, takesBid, evaluationEvents, eventRoute, stagesOfEvent, usersNamed, responsesOf } from "../db/pickEvent.js";
 import { loginAsCompany, signInUser, type SignedIn } from "../db/dbLogin.js";
+import { identities, identityFor } from "../db/identities.js";
 import { orchestrate } from "../support/orchestrator.js";
 import { EvaluationPage } from "../pages/EvaluationPage.js";
 import { runEventMenuStep, type EventMenuState } from "./eventMenuSteps.js";
@@ -336,8 +337,18 @@ interface PortalState {
   buyer: { page: Page; events: EventsPage };
 }
 
+/** Other people of the buyer's company in this run (act_as): a browser each, opened once and kept. */
+interface PeopleState {
+  /** the buyer's own page — where act_as{who:"buyer"} returns */
+  home: { page: Page; events: EventsPage };
+  open: Map<string, { ctx: BrowserContext; page: Page; side: { stop: () => Promise<void> }; name: string; userId: number }>;
+  /** "buyer" or the identity key whose page the steps act on now */
+  on: string;
+}
+
 interface RunState {
   portal?: PortalState;
+  people?: PeopleState;
   /** the tester did part of this run by hand: a later step's work may already be in Procol */
   handDone?: boolean;
   /** set by place_surrogate_bid when Procol already holds what it was about to enter (done by hand) */
@@ -1111,6 +1122,67 @@ async function otherVendorOnEvent(s: RunState): Promise<{ email: string; name: s
   throw new Error(`no other vendor on “${title || "this event"}” that this run can sign in as (on the event: ${onEvent.slice(0, 5).join(", ") || "unknown"}${onEvent.length > 5 ? ", …" : ""}; already used: ${[...used].join(", ") || "none"}) — invite a second QA vendor to the event`);
 }
 
+/**
+ * act_as (18 Nov 2026): the next steps are done by ANOTHER person of the buyer's company — Approver A approves,
+ * the view-only user looks for the button, the new owner publishes. The person is a QA identity spine.ai created
+ * for this company (db/identities.ts), found by the case's own words for them; they get a browser of their own,
+ * signed in as themselves (signInUser: their saved session, else the login screen with the UAT code the backend
+ * accepts for them), opened on the page the buyer is on. act_as{who:"buyer"} goes back to the buyer's page; the
+ * other browsers stay open until the plan ends, so a plan can go back and forth. Never a real person: someone the
+ * company has no QA identity for is "not checked", not a guess.
+ */
+const BUYER_WORDS = /^(the )?(buyer|initiator|event owner|owner|project owner|procol support|requester|back)$/i;
+async function actAs(s: RunState, who: unknown): Promise<string> {
+  const words = String(who ?? "").trim();
+  if (!words) throw new Error("act_as needs who: the person as the case names them");
+  if (s.portal?.on === "vendor") await switchPortal(s, "buyer");
+  s.people ??= { home: { page: s.page, events: s.events }, open: new Map(), on: "buyer" };
+  const people = s.people;
+  if (BUYER_WORDS.test(words)) {
+    if (people.on === "buyer") return "acting as the buyer already";
+    s.page = people.home.page;
+    s.events = people.home.events;
+    people.on = "buyer";
+    await s.page.bringToFront().catch(() => {});
+    return `back as the buyer, on ${new URL(s.page.url()).pathname}`;
+  }
+  const cid = Number(process.env.COMPANY_ID) || 0;
+  const id = identityFor(cid, words);
+  if (!id) {
+    const have = identities(cid).map((i) => i.plays[0]).join(", ");
+    throw new Error(`not checked: this company has no QA test user who plays "${words}"${have ? ` (it has: ${have})` : ""} — the run never signs in as a real person`);
+  }
+  let p = people.open.get(id.key);
+  if (!p) {
+    const browser = people.home.page.context().browser();
+    if (!browser) throw new Error(`no browser available to open ${id.name}'s session`);
+    const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 } });
+    await orchestrate(ctx).catch(() => {});
+    const page = await ctx.newPage();
+    shareObserver(people.home.page, page);
+    installSpotlight(page, joinInv(process.cwd(), "evidence", (process.env.QA_RUN_ID ?? `plan-${Date.now().toString(36)}`).replace(/[^\w.-]+/g, "_")));
+    const side = sideFrames(page, `${words} · ${id.name}`);
+    try {
+      const signed = await signInUser(page, cid, id.userId, id.name);
+      console.log(`[act_as] ${id.name} (${words}) signed in — ${signed.how}${signed.fellBackBecause ? ` (${signed.fellBackBecause})` : ""}`);
+    } catch (e) {
+      await side.stop().catch(() => {});
+      await ctx.close().catch(() => {});
+      throw new Error(`could not sign in as ${id.name} (${words}): ${(e as Error).message.split("\n")[0]}`);
+    }
+    // the same page the buyer is on (the project, its Master QCS …): the person then navigates like anyone would
+    const here = new URL(people.home.page.url());
+    if (!/\/(login|home)\/?$/.test(here.pathname)) await page.goto(here.href, NAV).catch(() => {});
+    p = { ctx, page, side, name: id.name, userId: id.userId };
+    people.open.set(id.key, p);
+  }
+  s.page = p.page;
+  s.events = new EventsPage(p.page);
+  people.on = id.key;
+  await s.page.bringToFront().catch(() => {});
+  return `now acting as ${id.name} — the case's "${words}" — signed in as themselves, on ${new URL(s.page.url()).pathname}`;
+}
+
 async function switchPortal(s: RunState, to: "buyer" | "vendor", vendor?: unknown): Promise<string> {
   if (to === "buyer") {
     if (!s.portal || s.portal.on === "buyer") return "on the buyer's console already";
@@ -1277,6 +1349,11 @@ async function vendorOpenEvent(s: RunState, a: Record<string, unknown>): Promise
 }
 
 async function runStep(s: RunState, step: PlanStep): Promise<string | undefined> {
+  // "{key}" in a string argument = a value the API set-up recorded for THIS run's event (18 Nov 2026: the approval
+  // page of the In-Principle request just raised, go_to{screen:"path", path:"{ipaApprovalPath}"}). Unknown keys stay.
+  const known: Record<string, unknown> = { ...(s.context?.values ?? {}), eventGroupUuid: s.context?.eventGroupUuid, stageUuid: s.context?.stageUuid };
+  const fill = (v: unknown): unknown => (typeof v === "string" ? v.replace(/\{([A-Za-z][\w]*)\}/g, (m, k) => (known[k] !== undefined && known[k] !== null && known[k] !== "" ? String(known[k]) : m)) : v);
+  if (step.args) for (const k of Object.keys(step.args)) step.args[k] = fill(step.args[k]);
   const a = step.args ?? {};
   // The tester took the browser and published the event themselves: the page
   // handed back is the event's project, and a create-screen step driven
@@ -1291,6 +1368,8 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
   }
   // The supplier portal (vendorPortalCatalog.ts): a second browser the generic steps then act on.
   if (step.step === "switch_portal") return switchPortal(s, String(a.to ?? "vendor").toLowerCase() === "buyer" ? "buyer" : "vendor", a.vendor);
+  // Another person of the buyer's company (an approver, a collaborator, the new owner): their own browser.
+  if (step.step === "act_as") return actAs(s, a.who);
   if (step.step === "vendor_open_event") return vendorOpenEvent(s, a);
   if (step.step === "vendor_bid") return vendorBid(s, a);
   // open_prepared{screen:"vendor"}: the vendor side of an API-built event — sign in and open it there.
@@ -4042,7 +4121,9 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
       }
       results.push({ step: step.step, args: step.args, status: "ok", detail, ...(s.lastStrategy ? { strategy: s.lastStrategy } : {}), ms: Date.now() - started, ...(stepShots().length ? { spotlights: stepShots() } : {}) });
       console.log(`[plan] ${i + 1}/${plan.steps.length} ${step.step} ✓ ${detail ?? ""}`);
-      await look(i, step.step, i === plan.steps.length - 1, false, results.length - 1);
+      // the screen a case starts from (its opening step) and each person it switches to, photographed (18 Nov 2026: the
+      // report shows a before and an after picture for every case)
+      await look(i, step.step, i === plan.steps.length - 1, i === 0 || /^(open_prepared|act_as|switch_portal)$/.test(step.step), results.length - 1);
     } catch (err) {
       // Keep the first line AND the locator Playwright names in its call log.
       // Reporting only "locator.click: Timeout 15000ms exceeded" cost an
@@ -4224,6 +4305,18 @@ export async function runPlan(page: Page, plan: TestPlan): Promise<PlanResult> {
     }
   }
 
+  // Other people's browsers (act_as): closed, and the buyer's page is the run's page again.
+  if (s.people) {
+    for (const p of s.people.open.values()) {
+      await p.side.stop().catch(() => {});
+      await p.ctx.close().catch(() => {});
+    }
+    if (s.people.on !== "buyer") {
+      s.page = s.people.home.page;
+      s.events = s.people.home.events;
+    }
+    s.people = undefined;
+  }
   // The supplier portal, when a step opened one: its last frame stays in the stream, the browser closes.
   if (s.portal) {
     await s.portal.side.stop().catch(() => {});

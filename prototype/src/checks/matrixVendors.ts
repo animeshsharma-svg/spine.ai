@@ -18,17 +18,32 @@
  *   4. the link, the membership and the invitation are read back with SELECT,
  *      and the vendor signs in once more as a registered user.
  *
- * Only on PROCOL DEMO 198678 and Demo Account 2 32461 — never a customer's
- * tenant. The vendors are recorded in spine.ai's own database (qa_vendors) so
+ * Only on PROCOL DEMO 198678 and Demo Account 2 32461, plus a company the
+ * tester approved by name in config/qa-workspaces.json — never another tenant. The vendors are recorded in spine.ai's own database (qa_vendors) so
  * later runs reuse them instead of creating more.
  */
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { PROCOL_TEST } from "../executor.js";
 import { spineDb } from "../db/spineDb.js";
 
 export const QA_VENDOR_WORKSPACES = [198678, 32461] as const;
+
+/**
+ * Companies where the tester approved QA test vendors and users beyond the two above (config/qa-workspaces.json,
+ * one entry per approval — 18 Nov 2026: Amity University 55379 for the In-Principle Approval run).
+ */
+export function approvedQaWorkspaces(): number[] {
+  try {
+    const file = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "config", "qa-workspaces.json");
+    const j = JSON.parse(readFileSync(file, "utf8")) as { approved?: Array<{ companyId: number }> };
+    return [...QA_VENDOR_WORKSPACES, ...(j.approved ?? []).map((a) => Number(a.companyId)).filter(Boolean)];
+  } catch {
+    return [...QA_VENDOR_WORKSPACES];
+  }
+}
 const QA_EMAIL = /^qa_[a-z0-9_.-]+@example\.com$/i;
 
 export interface QaVendor {
@@ -202,8 +217,8 @@ export async function ensureQaVendors(
   count: number,
   opts: { buyerApi: any; baseURL?: string; onLine?: (l: string) => void },
 ): Promise<{ vendors: QaVendor[]; created: number; steps: QaVendorStep[] }> {
-  if (!(QA_VENDOR_WORKSPACES as readonly number[]).includes(workspaceId)) {
-    throw new Error(`QA vendors are only created on ${QA_VENDOR_WORKSPACES.join(" and ")}, not ${workspaceId}`);
+  if (!approvedQaWorkspaces().includes(workspaceId)) {
+    throw new Error(`QA vendors are only created on ${approvedQaWorkspaces().join(", ")} (config/qa-workspaces.json), not ${workspaceId}`);
   }
   const say = opts.onLine ?? (() => {});
   const steps: QaVendorStep[] = [];

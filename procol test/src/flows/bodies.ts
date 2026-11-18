@@ -479,10 +479,14 @@ export function buildBidProductsBody(a: {
   quantityUnit: string;
   price: number;
   tradeProduct: TradeProduct;
+  /** GST % the vendor quotes (the template's "GST" column) — 18 Nov 2026, Amity's Buy Template totals price × qty × (1 + GST%) */
+  gst?: number;
 }) {
   const unit = a.quantityUnit;
   const qty = a.quantityValue;
   const total = a.price * qty;
+  // The template's Total Amount = price*qty + price*qty*(gst/100); before tax when no GST is quoted.
+  const withTax = a.gst ? Math.round(total * (1 + a.gst / 100) * 100) / 100 : total;
   const row = {
     action: { value: null, configuration: { mode_type: "hidden" }, key: "action" },
     status: { value: null, label: null, key: "status" },
@@ -490,8 +494,8 @@ export function buildBidProductsBody(a: {
     creator_quantity: { value: String(qty), configuration: { unit_type: unit, suffix: unit }, key: "creator_quantity", postfix: unit },
     participant_quantity: { value: String(qty), validations: [], configuration: { unit_type: unit, suffix: unit }, key: "participant_quantity", postfix: unit },
     price: { validations: [], configuration: { unit_type: unit, prefix: "₹", suffix: "/" + unit }, key: "price", postfix: "/" + unit, prefix: "₹", value: a.price, precision: 2 },
-    gst: { validations: [], configuration: { suffix: "%" }, key: "gst", postfix: "%" },
-    total_amount: { configuration: { prefix: "₹" }, key: "total_amount", prefix: "₹", value: total, precision: 2 },
+    gst: { validations: [], configuration: { suffix: "%" }, key: "gst", postfix: "%", ...(a.gst ? { value: a.gst } : {}) },
+    total_amount: { configuration: { prefix: "₹" }, key: "total_amount", prefix: "₹", value: withTax, precision: 2 },
     product: {
       value: "product",
       id: a.tradeProduct.product_id,
@@ -590,10 +594,14 @@ export function buildSurrogateRfqBody(a: {
   quantityUnit: string;
   price: number;
   tradeProduct: TradeProduct;
+  /** GST % the vendor quotes (the template's "GST" column) — 18 Nov 2026, Amity's Buy Template totals price × qty × (1 + GST%) */
+  gst?: number;
 }) {
   const unit = a.quantityUnit;
   const qty = a.quantityValue;
   const total = a.price * qty;
+  // The template's Total Amount = price*qty + price*qty*(gst/100); before tax when no GST is quoted.
+  const withTax = a.gst ? Math.round(total * (1 + a.gst / 100) * 100) / 100 : total;
   const row = {
     action: { value: null, configuration: { mode_type: "hidden" }, key: "action" },
     status: { value: null, label: null, key: "status", type: "checkbox" },
@@ -601,8 +609,8 @@ export function buildSurrogateRfqBody(a: {
     creator_quantity: { value: String(qty), configuration: { unit_type: unit, suffix: unit }, key: "creator_quantity", postfix: unit },
     participant_quantity: { value: String(qty), validations: [], configuration: { unit_type: unit, suffix: unit }, key: "participant_quantity", postfix: unit },
     price: { validations: [], configuration: { unit_type: unit, prefix: "₹", suffix: "/" + unit }, key: "price", postfix: "/" + unit, prefix: "₹", value: a.price, precision: 2 },
-    gst: { validations: [], configuration: { suffix: "%" }, key: "gst", postfix: "%" },
-    total_amount: { configuration: { prefix: "₹" }, key: "total_amount", prefix: "₹", value: total, precision: 2 },
+    gst: { validations: [], configuration: { suffix: "%" }, key: "gst", postfix: "%", ...(a.gst ? { value: a.gst } : {}) },
+    total_amount: { configuration: { prefix: "₹" }, key: "total_amount", prefix: "₹", value: withTax, precision: 2 },
     product: {
       value: "product",
       id: a.tradeProduct.product_id,

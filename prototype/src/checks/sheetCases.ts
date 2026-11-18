@@ -18,7 +18,7 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as XLSX from "xlsx";
 import type { CatalogCase } from "./testCatalog.js";
-import type { UiState } from "../ui/uiSetup.js";
+import type { StateShape, UiState } from "../ui/uiSetup.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..");
@@ -329,7 +329,7 @@ export interface SheetPrep {
   /** the case starts from something the API cannot build: the run says so instead of guessing */
   unbuilt?: string;
   /** the event's shape when the pre-conditions state it: line items, quantity, each bidder's price (uiSetup StateShape) */
-  shape?: { lines?: number; quantity?: number; prices?: number[]; product?: string };
+  shape?: StateShape;
   /** the auction strategy the pre-conditions name (dynamic time extension, traffic light) — built into the API-made round */
   strategy?: AuctionStrategy;
 }
@@ -395,8 +395,48 @@ export function compilePrepared(sp: { state: UiState; screen: string; screenWhat
   return { state: sp.state, screen: sp.screen, screenWhat: sp.screenWhat, valueKeys, technical: !!sp.technical, ...(sp.shape ? { shape: sp.shape } : {}), ...(sp.auction ? { auction: true } : {}), ...(sp.strategy ? { strategy: sp.strategy } : {}) };
 }
 
+/**
+ * A SHEET PROFILE (config/sheet-profiles.json, 18 Nov 2026): a sheet whose set-up names its projects ("A fresh copy
+ * of Project A", "Project B (bidding still live)") and whose pre-conditions name the approval's state ("… has been
+ * raised on Project A and is PENDING"). The profile says which words mean which start state, the shape every event of
+ * the sheet has, and how its events are named — so the In-Principle sheet starts each case from the project it
+ * describes instead of whatever the generic word rules guess.
+ */
+export interface SheetProfile {
+  companyId?: number;
+  why?: string;
+  title?: string;
+  shape?: StateShape;
+  rules: Array<{ in: "pre" | "data" | "any"; match: string; state?: UiState; unbuilt?: string; shape?: StateShape; /** the screen the case opens first, instead of the one its words suggest */ screen?: string; note?: string }>;
+}
+const PROFILES = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "config", "sheet-profiles.json");
+export function sheetProfile(sheet: string): SheetProfile | null {
+  try {
+    const all = JSON.parse(readFileSync(PROFILES, "utf8"));
+    return all[sheet] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function profilePrep(c: SheetCase, p: SheetProfile): SheetPrep | null {
+  const text = { pre: c.preconditions, data: c.testData !== "-" ? c.testData : "", any: `${c.preconditions} ${c.testData}` };
+  const rule = p.rules.find((r) => new RegExp(r.match, "i").test(text[r.in] ?? ""));
+  if (!rule) return null;
+  const why = `${p.why ? "" : ""}${rule.in === "data" ? c.testData : c.preconditions}`.trim();
+  if (rule.unbuilt || !rule.state) return { prepared: false, state: "none", screen: "summary", screenWhat: "the event", technical: false, why, unbuilt: rule.unbuilt ?? "no start state is named for this case" };
+  const shape: StateShape = { ...(p.shape ?? {}), ...(rule.shape ?? {}), ...(p.title ? { title: p.title.replace("{id}", c.id) } : {}) };
+  const screen = rule.screen ?? screenFor(c, rule.state);
+  return { prepared: true, state: rule.state, screen, screenWhat: WHAT[screen] ?? (screen === "rfq2_draft" ? "the RFQ 2 draft's create screen (schedule, vendors, publish)" : screen), technical: false, why, shape, note: rule.note ? `${rule.note}. ${p.why ?? ""}` : p.why };
+}
+
 export function sheetPrep(c: SheetCase): SheetPrep | null {
   if (c.id.startsWith("SRC-SET-")) return null; // the set-up cases build their events through the screens
+  const prof = sheetProfile(c.sheet);
+  if (prof) {
+    const p = profilePrep(c, prof);
+    if (p) return p;
+  }
   const pre = c.preconditions;
   const ids = [...pre.matchAll(/\bSRC-SET-\d{3}\b/g)].map((m) => m[0]);
   const ev = Object.entries(SETUP_EVENTS).find(([id, e]) => ids.includes(id) || e.names.test(pre))?.[1];

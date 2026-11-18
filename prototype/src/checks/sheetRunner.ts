@@ -128,6 +128,25 @@ export function listSheetRuns(limit = 30): Array<Pick<SheetRun, "id" | "sheet" |
 const SEV: Record<string, SheetBug["severity"]> = { critical: "Critical", high: "High", medium: "Medium", low: "Low" };
 
 /** Run the cases one by one. Resolves with the finished run; events stream through `emit`. */
+/**
+ * The screen before a case's action and the screen after it: the first and the last picture of its run's evidence
+ * folder (procol-ui-tests/evidence/<planRunId>/: spotlight frames NN-<step>.png, the end frame NN-end.png). Pictures
+ * already chosen are not repeated.
+ */
+function beforeAfterShots(planRunId: string | undefined, have: Shot[]): Shot[] {
+  if (!planRunId) return [];
+  const dir = join(here, "..", "..", "..", "procol-ui-tests", "evidence", planRunId);
+  if (!existsSync(dir)) return [];
+  const pngs = readdirSync(dir).filter((f) => /\.png$/i.test(f)).sort();
+  if (!pngs.length) return [];
+  const out: Shot[] = [];
+  const first = pngs[0];
+  const end = pngs.filter((f) => /-end\.png$/i.test(f)).pop() ?? pngs[pngs.length - 1];
+  if (first !== end) out.push({ file: join(dir, first), caption: "Before — the screen the case starts from" });
+  out.push({ file: join(dir, end), caption: "After — the screen when the case finished" });
+  return out.filter((s) => !have.some((h) => h.file === s.file));
+}
+
 export async function runSheetCases(cases: SheetCase[], opts: { companyId: number; sheet: string; headed?: boolean; repair?: boolean; emit: (e: SheetEvent) => void }): Promise<SheetRun> {
   if (active) throw new Error(`a sheet run is already going (${active.id}) — wait for it or stop it`);
   const run: SheetRun = { id: `sheet-${Date.now().toString(36)}`, sheet: opts.sheet, companyId: opts.companyId, startedAt: new Date().toISOString(), status: "running", total: cases.length, cases: [] };
@@ -166,7 +185,7 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
         // over the sheet's own default_event_type line (13 Nov, SRC-AUC-006: the sheet said "auction" because the
         // case is about an auction, but the plan reaches Dutch through an RFQ that is converted — its first screen
         // is the RFQ's, and opening it as an auction lost the RFQ choice in the drawer).
-        if (c.layer === "ui") await ensureStoredTextPlan(c, line);
+        if (c.layer === "ui") await ensureStoredTextPlan(c, line, opts.companyId);
         if (c.layer === "ui") {
           const planned = storedTextPlan(c.id)?.plan?.steps?.find((st: { step: string; args?: Record<string, unknown> }) => st.step === "configure_single_stage")?.args?.eventType;
           if (typeof planned === "string" && ["rfq", "rfp", "auction"].includes(planned)) {
@@ -325,14 +344,14 @@ function savePlanFor(c: SheetCase, sp: ReturnType<typeof sheetPrep>, compiled: C
  * plan's first create screen (13 Nov, SRC-AUC-009: a fresh compile had no stored plan yet, the screen opened as
  * RFP and the drawer lost the RFQ choice). The run then reuses this plan — one compile, not two.
  */
-async function ensureStoredTextPlan(c: SheetCase, line: (l: string) => void): Promise<void> {
+async function ensureStoredTextPlan(c: SheetCase, line: (l: string) => void, companyId?: number): Promise<void> {
   const sp = sheetPrep(c);
   if (sp?.unbuilt) return;
   const stored = storedTextPlan(c.id);
   if (stored && stored.meta.source !== "fallback" && textPlanIsFresh(stored) && (stored.meta.state ?? "none") === (sp?.prepared && !sp.unbuilt ? sp.state : "none") && stored.plan?.steps?.length) return;
   line("Compiling the case's steps first, so the company can be set up for the screen the plan opens.");
   const compiled = await compileTestCase(sheetCaseProse(c), "events", {
-    ...(sp?.prepared ? { prepared: compilePrepared(sp, VALUE_KEYS[sp.state] ?? []) } : {}),
+    ...(sp?.prepared ? { prepared: { ...compilePrepared(sp, VALUE_KEYS[sp.state] ?? []), companyId } } : {}),
   }).catch(() => null as Compiled | null);
   if (compiled) savePlanFor(c, sp, compiled);
 }
@@ -353,7 +372,7 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     : reuse
     ? { plan: structuredClone(stored!.plan), coverage: stored!.meta.coverage, gaps: stored!.meta.gaps, warnings: stored!.meta.warnings, source: stored!.meta.source as "llm" | "fallback", errors: [] as string[] }
     : await compileTestCase(prose, "events", {
-        ...(sp?.prepared ? { prepared: compilePrepared(sp, VALUE_KEYS[sp.state] ?? []) } : {}),
+        ...(sp?.prepared ? { prepared: { ...compilePrepared(sp, VALUE_KEYS[sp.state] ?? []), companyId: opts.companyId } } : {}),
         ...(ground ? { screen: { label: ground.label, path: ground.path, controls: ground.controls, headings: ground.headings } } : {}),
       });
   const plan = compiled.plan as { title?: string; steps: Array<{ step: string; args?: Record<string, unknown> }>; context?: Record<string, unknown> };
@@ -435,6 +454,9 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
     const lastVerify = [...steps.keys()].reverse().find((i) => (steps[i].spotlights ?? []).length);
     if (lastVerify !== undefined) r.shots.push(...spot(steps[lastVerify], lastVerify + 1).slice(-2));
   }
+  // Every case carries the screen BEFORE its action and the screen AFTER it (18 Nov 2026, the tester: screenshots
+  // visible in the report for every case): the run's first picture and its end picture, from its evidence folder.
+  r.shots = [...beforeAfterShots(planRunId, r.shots), ...r.shots].filter((s, i, all) => all.findIndex((x) => x.file === s.file) === i);
   const serverErrors = (result.observations ?? []).filter((o) => o.findings.some((f) => f.rule === "server-error"));
   if (failedAt < 0) {
     r.status = compiled.coverage === "partial" ? "Partly checked" : "Pass";

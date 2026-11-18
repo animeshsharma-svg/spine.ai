@@ -45,7 +45,20 @@ function addBlocker(key: string, why: string): void {
   writeFileSync(BLOCKERS, JSON.stringify(all, null, 1));
 }
 
-export const ALLOWED = (process.env.SETTINGS_ALLOWED_COMPANIES ?? "198678").split(",").map((s) => Number(s.trim())).filter(Boolean);
+/** Companies whose settings the tester approved switching (config/qa-workspaces.json entries with settings: true — 18 Nov 2026: Amity University 55379). */
+function approvedSettingCompanies(): number[] {
+  try {
+    const j = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "config", "qa-workspaces.json"), "utf8"));
+    return (j.approved ?? []).filter((a: any) => a.settings === true).map((a: any) => Number(a.companyId)).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+export const ALLOWED = [
+  ...(process.env.SETTINGS_ALLOWED_COMPANIES ?? "198678").split(",").map((s) => Number(s.trim())).filter(Boolean),
+  ...approvedSettingCompanies(),
+];
 
 let pool: pg.Pool | null = null;
 async function read<T = any>(sql: string, params: unknown[] = []): Promise<T[]> {

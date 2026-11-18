@@ -1,5 +1,20 @@
 import { Pool } from "pg";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { CONST } from "../config.js";
+
+/** The buyer user the tester named for a company (prototype/config/qa-workspaces.json "buyerUserId"), if any. */
+export function namedBuyerUser(companyId: number): number | undefined {
+  try {
+    const file = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "prototype", "config", "qa-workspaces.json");
+    const j = JSON.parse(readFileSync(file, "utf8"));
+    const hit = (j.approved ?? []).find((a: any) => Number(a.companyId) === companyId && a.buyerUserId);
+    return hit ? Number(hit.buyerUserId) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * DB-session multi-client support. Mirrors the API framework's OTP-free auth:
@@ -71,7 +86,8 @@ function buildAccessToken(sessionAccessToken: string): string {
  */
 export async function resolveCompanyLogin(companyId: number, preferUserId?: number): Promise<CompanyLogin | null> {
   try {
-    return await resolveCompanyLoginRaw(companyId, preferUserId);
+    // The buyer the tester named for this company comes first (18 Nov 2026: never a placeholder user's session).
+    return await resolveCompanyLoginRaw(companyId, preferUserId ?? namedBuyerUser(companyId));
   } catch (e) {
     throw plainDbError(e);
   }

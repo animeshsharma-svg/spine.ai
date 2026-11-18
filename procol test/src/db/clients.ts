@@ -1,4 +1,19 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { query } from "./pool.js";
+
+/** The buyer user the tester named for a company (prototype/config/qa-workspaces.json "buyerUserId"), if any. */
+function namedBuyerUser(companyId: number): number | undefined {
+  try {
+    const file = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "prototype", "config", "qa-workspaces.json");
+    const j = JSON.parse(readFileSync(file, "utf8"));
+    const hit = (j.approved ?? []).find((a: any) => Number(a.companyId) === companyId && a.buyerUserId);
+    return hit ? Number(hit.buyerUserId) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export interface DbUserSession {
   userId: number;
@@ -61,6 +76,30 @@ export async function resolveClient(companyId: number): Promise<ResolvedClient> 
          and (eg.title like 'spine-%' or eg.title like 'QA\_Platform%' or eg.title like 'API\_Test%')
        group by eg.user_id order by count(*) desc limit 1`, [companyId]).catch(() => [] as any[]);
   const autoId = auto[0]?.user_id ?? -1;
+  // 0) the buyer the tester named for this company (prototype/config/qa-workspaces.json "buyerUserId") wins over both:
+  //    18 Nov 2026 an Amity build ran as a placeholder user (User8@gmail.com) because that was the freshest session.
+  const namedId = namedBuyerUser(companyId) ?? -1;
+  // The named buyer is looked up on its own — its home company may be another one (Procol Support's is 55380, it
+  // works inside Amity through a company mapping), so the "direct users" query below would never see it.
+  if (namedId > 0) {
+    const named = await query(
+      `select u.id, u.first_name, u.phone, u.email, u.role, s.access_token, s.app_version, s.created_at
+       from sessions s
+       join users u on u.id = s.user_id
+       join user_company_mappings m on m.user_id = u.id and m.company_id = $1 and m.status = 1
+       where u.id = $2 and ${CONSOLE_SESSION}
+       order by s.created_at desc limit 1`,
+      [companyId, namedId],
+    );
+    if (!named.length) {
+      throw new Error(
+        `the tester named user ${namedId} as the buyer for company ${companyId}, and that user has no live console session — ` +
+          `sign them in to the console once (the run never falls back to another person's session)`,
+      );
+    }
+    const nameRow = await query(`select name from companies where id = $1`, [companyId]);
+    return { companyId, companyName: nameRow[0]?.name ?? null, buyer: toSession(named[0]) };
+  }
   // 1) direct users of the company with a live console session
   let rows = await query(
     `select u.id, u.first_name, u.phone, u.email, u.role, s.access_token, s.app_version, s.created_at

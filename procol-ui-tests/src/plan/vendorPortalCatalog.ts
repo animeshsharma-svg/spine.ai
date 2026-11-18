@@ -20,6 +20,13 @@ export const VENDOR_PORTAL_CATALOG: StepSpec[] = [
     args: { to: '"vendor" | "buyer"', vendor: 'the vendor to sign in as — an email or the name the case gives; N = the N-th bidder of this plan; "other" = a DIFFERENT vendor on the event this run has not used yet (for "check it in another vendor\'s own session"); optional: the event\'s QA vendor, or the one that bid in this plan' },
   },
   {
+    // 18 Nov 2026 — the identity vault (In-Principle Approval on Amity University): the other people of the BUYER's company.
+    name: "act_as",
+    purpose:
+      "The next steps are done by ANOTHER PERSON OF THE BUYER'S COMPANY, in a browser of their own signed in as them: an approver (\"Approver A\", \"Rohan Mehta\", \"Anita Rao (CFO)\", \"step 2 approver\"), a collaborator (\"Karthik Iyer\"), the new owner after Change owner (\"Karan Joshi\"), a view-only user (\"Neha\"), a user without sourcing rights (\"Sunil\"), an unrelated user. who = the case's own words for the person; they open on the page the buyer is on, then every later generic step (go_to, click, fill, hover, expect_text, expect_visible, attempt …) acts as them. who:\"buyer\" (or \"initiator\", \"event owner\") goes back to the buyer's page; a plan can go back and forth (raise as the buyer, approve as Approver A, approve as Approver B, read the result as the buyer). Use it for EVERY step the case gives to someone other than the buyer — never ask_tester for an approver's action. Never for a vendor (that is switch_portal). The run refuses anyone the company has no QA test user for (\"not checked\").",
+    args: { who: 'the person as the case names them ("Approver A", "Anita Rao", "the view-only user"), or "buyer" to go back' },
+  },
+  {
     name: "vendor_open_event",
     purpose:
       "In the supplier portal (after switch_portal{to:\"vendor\"}), open THIS plan's event from the vendor's events list and land on its round: stage:\"pricing\" (default: the RFQ/auction bid sheet, with the Add Bid / bid form opened when the round offers it) or stage:\"technical\" (the RFP questionnaire), or overview:true to stay on the Event Overview. Fails as NOT INVITED when the event is not in the vendor's list — a finding, never covered by opening another event.",

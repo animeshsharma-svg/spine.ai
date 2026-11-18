@@ -1,4 +1,7 @@
 import { Pool } from "pg";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /**
  * The client's own QA TEST vendors — the only vendors a browser run may invite.
@@ -35,7 +38,18 @@ function db(): Pool | null {
  * comes back with SPINE_QA_VENDORS_ONLY=1.
  */
 export function allowRealVendors(): boolean {
-  return process.env.SPINE_QA_VENDORS_ONLY !== "1";
+  if (process.env.SPINE_QA_VENDORS_ONLY === "1") return false;
+  // A company the tester approved for QA vendors only (prototype/config/qa-workspaces.json) never uses real ones
+  // (18 Nov 2026, Amity University 55379).
+  const cid = Number(process.env.COMPANY_ID) || 0;
+  if (!cid) return true;
+  try {
+    const file = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "prototype", "config", "qa-workspaces.json");
+    const j = JSON.parse(readFileSync(file, "utf8"));
+    return !(j.approved ?? []).some((a: any) => Number(a.companyId) === cid && a.qaVendorsOnly !== false);
+  } catch {
+    return true;
+  }
 }
 
 const vendorLoginCache = new Map<number, Array<{ name: string; email: string }>>();

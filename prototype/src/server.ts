@@ -2028,7 +2028,7 @@ const server = createServer(async (req, res) => {
           // Aanya, 2026-10-09: the bids come from the vendors invited — Procol's own
           // suggestion for the product — not QA test vendors (eventVendors.ts).
           // The journey says who it invited and who bids once it has read them.
-          const eventVendors = !qaVendorsOnly();
+          const eventVendors = !qaVendorsOnly(c);
           if (eventVendors) {
             send("line", {
               line:

@@ -47,7 +47,10 @@
  * reported as "could not build the state" (a couldn't-tell, never a failure).
  */
 import type { AuctionStrategy } from "./uiCasePrep.js";
-import { openClientContext } from "../executor.js";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { openClientContext, PROCOL_TEST } from "../executor.js";
+import { decodeId, encodeId } from "../checks/procolIds.js";
 import { runEventJourney } from "../checks/eventJourney.js";
 import { journeyPlan } from "../checks/journeyModel.js";
 import { withWatchdog } from "../checks/resilience.js";
@@ -56,18 +59,44 @@ import { qaVendorsFor } from "../checks/matrixVendors.js";
 
 export type UiState =
   | "none" | "draft" | "upcoming" | "live" | "bid" | "closed" | "proposal" | "awarded" | "converted"
-  | "two_invited" | "two_bids" | "closed_two_bids" | "uninvited" | "withdrawn" | "amended" | "amendment" | "dutch" | "knockout" | "forward" | "masked" | "pr_rfq";
+  | "two_invited" | "two_bids" | "closed_two_bids" | "uninvited" | "withdrawn" | "amended" | "amendment" | "dutch" | "knockout" | "forward" | "masked" | "pr_rfq"
+  // In-Principle Approval (18 Nov 2026, ipaStates.ts): a closed RFQ with two quotes, and the approval raised / approved by step 1 /
+  // approved by both (RFQ 2 in Draft) / rejected at step 2 / rejected at step 1
+  | "ipa_pending" | "ipa_step1" | "ipa_approved" | "ipa_rejected" | "ipa_rejected_step1";
 
 /**
  * The event's shape when the case states it (12 Nov): its line items, the quantity on each, and each bidder's
  * price per unit in bidding order — "a closed RFQ for 10 units where Vendor A quoted 100 and Vendor B quoted 90"
  * is {quantity:10, prices:[100, 90]}. Vendor A is the first QA vendor, Vendor B the second.
  */
-export interface StateShape { lines?: number; quantity?: number; prices?: number[]; /** the product the case names — resolved against the company's catalog by name */ product?: string }
+export interface StateShape {
+  lines?: number;
+  quantity?: number;
+  prices?: number[];
+  /** the product the case names — resolved against the company's catalog by name */
+  product?: string;
+  /** GST % every bid quotes (18 Nov 2026: "₹480 + 15% tax on 10 gms = ₹5,520") */
+  gst?: number;
+  /** the delivery location the case names ("AES NOIDA HO") — the company's buyer hub of that name */
+  location?: string;
+  /** the RFQ's pricing template by name ("Buy Template") */
+  template?: string;
+  /** QA vendors invited besides the bidders who never quote ("ads": invited, never quotes) */
+  idleInvitees?: number;
+  /** the In-Principle workflow the ipa_* states raise the approval with (default "QA_Platform IPA 2-step") */
+  ipaFlow?: string;
+  /** the reason the rejecting approver gives in ipa_rejected (default the sheet's "Budget frozen for this quarter") */
+  rejectReason?: string;
+  /** the event's exact title ("QA IPA IPA-SUB-017") — a sheet profile names its events after the case */
+  title?: string;
+}
 export const UI_STATES: UiState[] = [
   "none", "draft", "live", "bid", "closed", "proposal", "awarded", "converted",
   "two_invited", "two_bids", "closed_two_bids", "uninvited", "withdrawn", "amended", "amendment", "dutch", "knockout", "forward", "masked", "pr_rfq",
+  "ipa_pending", "ipa_step1", "ipa_approved", "ipa_rejected", "ipa_rejected_step1",
 ];
+/** The In-Principle Approval states: closed_two_bids, then the approval (ipaStates.ts). */
+export const IPA_STATES = new Set<UiState>(["ipa_pending", "ipa_step1", "ipa_approved", "ipa_rejected", "ipa_rejected_step1"]);
 
 /** What the browser (and the screen assertions) get from the build. */
 export interface UiSetupContext {
@@ -126,14 +155,19 @@ const PREFIX: Record<Exclude<UiState, "none">, string> = {
   forward: "read_back",
   masked: "bid_submit",
   pr_rfq: "read_back",
+  ipa_pending: "wait_close",
+  ipa_step1: "wait_close",
+  ipa_approved: "wait_close",
+  ipa_rejected: "wait_close",
+  ipa_rejected_step1: "wait_close",
 };
 
 /** The states that are a live AUCTION round of a particular kind (the plan builds an auction, not an RFQ). */
 const AUCTION_VARIANT: Partial<Record<UiState, "dutch" | "knockout" | "forward">> = { dutch: "dutch", knockout: "knockout", forward: "forward" };
 /** The states that invite a second QA vendor besides the one that bids. */
-const WANTS_SECOND_VENDOR = new Set<UiState>(["two_invited", "two_bids", "closed_two_bids", "dutch", "knockout", "forward"]);
+const WANTS_SECOND_VENDOR = new Set<UiState>(["two_invited", "two_bids", "closed_two_bids", "dutch", "knockout", "forward", "ipa_pending", "ipa_step1", "ipa_approved", "ipa_rejected", "ipa_rejected_step1"]);
 /** The states in which two QA vendors each place their own bid. */
-const TWO_BIDDERS = new Set<UiState>(["two_bids", "closed_two_bids"]);
+const TWO_BIDDERS = new Set<UiState>(["two_bids", "closed_two_bids", "ipa_pending", "ipa_step1", "ipa_approved", "ipa_rejected", "ipa_rejected_step1"]);
 
 /**
  * The dutch / knockout strategy of a QA_Platform round, on the TOTAL amount (not the base price), as the
@@ -170,6 +204,36 @@ export async function qaVendorOf(companyId: number): Promise<{ name: string; ema
 }
 
 /** Another QA test vendor of the client (not the one the client context bids as), with a login; null when there is none. */
+/**
+ * A delivery location or pricing template of this company, by the name the case gives (exact, ignoring case and
+ * spacing; then the only one that contains it). SELECT only. 18 Nov 2026 — "AES NOIDA HO", "Buy Template" on Amity.
+ */
+async function rowByName(kind: "location" | "template", companyId: number, name: string): Promise<{ id: number; name: string } | null> {
+  const { query } = await import(pathToFileURL(join(PROCOL_TEST, "src", "db/pool.ts")).href);
+  const rows: Array<{ id: number; name: string }> =
+    kind === "location"
+      ? await query(`select id, name from buyer_hubs where company_id = $1 and status = 1 and name ilike $2 order by id`, [companyId, `%${name.trim()}%`])
+      : await query(
+          `select id, name from templates where (company_id = $1 or company_id is null) and status = 1 and 't-trade' = any(type_identifier) and name ilike $2 order by company_id nulls last, id`,
+          [companyId, `%${name.trim()}%`],
+        );
+  const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
+  const exact = rows.find((r) => norm(r.name) === norm(name));
+  return exact ?? (rows.length === 1 ? rows[0] : null);
+}
+
+/** The company's active product of exactly this name (ignoring case) and its first active variant. SELECT only. */
+async function productByName(companyId: number, name: string): Promise<{ id: number; name: string; variantId: number } | null> {
+  const { query } = await import(pathToFileURL(join(PROCOL_TEST, "src", "db/pool.ts")).href);
+  const rows: Array<{ id: number; name: string; variant_id: number }> = await query(
+    `select p.id, p.name, (select q.id from product_qualities q where q.product_id = p.id and q.status = 1 order by q.id limit 1) as variant_id
+       from products p where p.company_id = $1 and p.status = 1 and lower(trim(p.name)) = lower(trim($2)) order by p.id limit 1`,
+    [companyId, name],
+  );
+  const r = rows[0];
+  return r?.variant_id ? { id: Number(r.id), name: r.name, variantId: Number(r.variant_id) } : null;
+}
+
 async function secondQaVendor(companyId: number, client: any): Promise<{ companyUuid: string; email: string; name: string } | null> {
   const first = String(client?.ctx?.vendor?.uuid ?? "");
   const all = await withWatchdog(qaVendorsFor(companyId, client?.ctx?.buyerApi, 6), 60_000, "listing the client's QA vendors").catch(() => []);
@@ -347,7 +411,7 @@ async function readRound(api: any, tradeUuid: string): Promise<{ auctionConfig?:
 export async function buildUiState(
   companyId: number,
   state: UiState,
-  opts: { technical?: boolean; auction?: boolean; budgetMs?: number; onLine?: (l: string) => void; shape?: StateShape; strategy?: AuctionStrategy } = {},
+  opts: { technical?: boolean; auction?: boolean; budgetMs?: number; onLine?: (l: string) => void; shape?: StateShape; strategy?: AuctionStrategy; /** the event's exact title ("QA IPA <case id>") */ title?: string } = {},
 ): Promise<UiSetupResult> {
   const t0 = Date.now();
   if (state === "none") return { ok: true, context: { state, technical: false, companyId, made: {}, values: {}, builtInMs: 0 } };
@@ -360,7 +424,7 @@ export async function buildUiState(
     return { ok: false, why: `could not sign in to client ${companyId}: ${(e as Error).message}` };
   }
   // The event's own vendors unless the run is QA-only (eventVendors.ts qaVendorsOnly).
-  const eventVendors = !qaVendorsOnly();
+  const eventVendors = !qaVendorsOnly(companyId);
   const email = String(client?.ctx?.vendor?.email ?? "");
   if (!eventVendors && !/^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i.test(email)) {
     return { ok: false, why: `client ${companyId} has no QA test vendor to bid with (${client?.ctx?.noQaVendor ?? "none configured"}) — refusing to build with a real supplier` };
@@ -373,6 +437,13 @@ export async function buildUiState(
   const wantsSecond = WANTS_SECOND_VENDOR.has(state) || (!!opts.strategy?.trafficLight && ["live", "bid", "closed"].includes(state));
   if (wantsSecond || state === "uninvited") {
     second = await secondQaVendor(companyId, client);
+    if (!second && !eventVendors) {
+      // An empty list from a long-lived sign-in is not "no second vendor" (Amity, 18 Nov 2026: three QA vendors
+      // active in the DB, the cached buyer context's lookups came back empty after ~3 h): sign in afresh, ask again.
+      clients.delete(companyId);
+      client = await withWatchdog(clientFor(companyId), 120_000, "signing in to the client again").catch(() => client);
+      second = await secondQaVendor(companyId, client);
+    }
     if (!second && (TWO_BIDDERS.has(state) || state === "two_invited" || state === "uninvited"))
       return { ok: false, why: `client ${companyId} has only one QA test vendor with a login — the ${state} state needs a second one (QA vendors only; a real supplier is never invited)` };
     if (second) opts.onLine?.(state === "uninvited" ? `${second.name} is the QA vendor the event will NOT be sent to` : `${second.name} is the second QA vendor on the event${TWO_BIDDERS.has(state) ? " and bids after the first" : ""}`);
@@ -414,7 +485,7 @@ export async function buildUiState(
   // States that must stay open get an hour; closed/awarded get a short window the run can wait out
   // — 3 minutes, not 75 s: on 23 Oct (C04) one vendor GET took 30 s on UAT and the bid arrived after
   // a 75 s round had closed ("Order not active"), so the state was never built.
-  let stageSeconds = state === "closed" || state === "closed_two_bids" || state === "proposal" || state === "awarded" ? (TWO_BIDDERS.has(state) ? 300 : 180) : 3600;
+  let stageSeconds = state === "closed" || state === "closed_two_bids" || IPA_STATES.has(state) || state === "proposal" || state === "awarded" ? (TWO_BIDDERS.has(state) ? 300 : 180) : 3600;
   // a dynamic time extension's trigger must stay under HALF the bidding time (trade_controller_helper ~3085, 501
   // "Invalid Trigger Time for Dynamic Time Extension."): a short closed-state window grows to fit it (17 Nov, FL5)
   if (opts.strategy?.dynamic) {
@@ -477,10 +548,41 @@ export async function buildUiState(
     const norm = (t: unknown) => String(t ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
     const hit = products.find((p) => norm(p?.name) === norm(q)) ?? products.find((p) => norm(p?.name).includes(norm(q)) || norm(q).includes(norm(p?.name))) ?? null;
     const variant = hit ? (hit.variants ?? hit.product_qualities ?? [])[0] : null;
+    // The search API can miss a product the company does have (18 Nov 2026: Amity's "DAB Hi-Media Make" → 0 results);
+    // then the company's own product of exactly that name and its first active variant, read with a SELECT.
+    const fromDb = !(hit?.uuid && variant?.uuid) ? await productByName(companyId, q).catch(() => null) : null;
     if (hit?.uuid && variant?.uuid) {
       choose = { productUuid: String(hit.uuid), productQualityUuid: String(variant.uuid) };
       opts.onLine?.(`the event is built on the product the case names: "${hit.name}"${hit.code || hit.product_code ? ` (${hit.code ?? hit.product_code})` : ""}`);
+    } else if (fromDb) {
+      choose = { productUuid: encodeId(fromDb.id), productQualityUuid: encodeId(fromDb.variantId) };
+      opts.onLine?.(`the event is built on the product the case names: "${fromDb.name}" (found in the company's catalog; the search did not list it)`);
     } else opts.onLine?.(`the company's catalog has no product named "${shape.product}" (search found ${products.length}) — the catalog's own first product is used`);
+  }
+  // The delivery location and pricing template the case names, found by name among the company's own (SELECT).
+  for (const [kind, name] of [["location", shape.location], ["template", shape.template]] as const) {
+    if (!name) continue;
+    const found = await rowByName(kind, companyId, name).catch(() => null);
+    if (!found) {
+      opts.onLine?.(`the company has no ${kind === "location" ? "delivery location" : "pricing template"} named "${name}" — the catalog's own is used`);
+      continue;
+    }
+    choose = { ...(choose ?? {}), ...(kind === "location" ? { locationUuid: encodeId(found.id) } : { pricingTemplateUuid: encodeId(found.id) }) };
+    opts.onLine?.(`the event uses the ${kind === "location" ? "delivery location" : "pricing template"} the case names: "${found.name}"`);
+  }
+  // QA vendors invited who never quote (after the bidders), so "only the vendors who quoted" can be judged.
+  const idle: string[] = [];
+  if ((shape.idleInvitees ?? 0) > 0) {
+    const taken = new Set([String(client?.ctx?.vendor?.uuid ?? ""), second?.companyUuid ?? ""]);
+    const all = await withWatchdog(qaVendorsFor(companyId, client?.ctx?.buyerApi, 8), 60_000, "listing the client's QA vendors").catch(() => []);
+    for (const v of all) {
+      if (idle.length >= (shape.idleInvitees ?? 0)) break;
+      if (v.vendorCompanyUuid && !taken.has(v.vendorCompanyUuid) && /^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i.test(v.email ?? "")) {
+        idle.push(v.vendorCompanyUuid);
+        opts.onLine?.(`${v.name} is invited too and never quotes`);
+      }
+    }
+    if (idle.length < (shape.idleInvitees ?? 0)) opts.onLine?.(`only ${idle.length} more QA vendor(s) to invite without a quote — asked for ${shape.idleInvitees}`);
   }
   let r: any;
   try {
@@ -488,12 +590,15 @@ export async function buildUiState(
       runEventJourney(client, plan, {
         stageSeconds,
         ...(choose ? { choose } : {}),
+        ...(shape.gst ? { bidGst: shape.gst } : {}),
         // upcoming: published, not yet open — and with a Delivery Date, so the Reschedule
         // dialog shows that field and its "start on or before delivery" rule can be checked
         ...(state === "upcoming" ? { startDelaySec: 30 * 60, deliveryInDays: 2 } : {}),
         titlePrefix: "QA_Platform_UI",
+        ...(opts.title || shape.title ? { title: opts.title ?? shape.title } : {}),
         eventVendors,
         ...(second && TWO_BIDDERS.has(state) ? { extraBidders: [second] } : second && wantsSecond ? { alsoInvite: [second.companyUuid] } : {}),
+        ...(idle.length ? { alsoInvite: [...(second && wantsSecond && !TWO_BIDDERS.has(state) ? [second.companyUuid] : []), ...idle] } : {}),
         ...(shape.prices?.length ? { bidPrices: shape.prices } : {}),
         ...(shape.quantity ? { quantity: shape.quantity } : {}),
         ...((shape.lines ?? 1) > 1 ? { lineItemCount: shape.lines } : {}),
@@ -610,6 +715,52 @@ export async function buildUiState(
     }
     opts.onLine?.(problems.length ? `the round's strategy did NOT take: ${problems.join("; ")}` : `the round reads back with the case's strategy${values.dynamicExtensionReadBack ? ` — dynamic time extension ${values.dynamicExtensionReadBack}` : ""}${values.trafficLightReadBack ? ` — traffic light (${values.trafficLightReadBack})` : ""}`);
     if (problems.length) return { ok: false, why: `the API build of the ${state} state stopped: the round was created but ${problems.join("; ")} — the case would run on a plain auction and prove nothing about its strategy` };
+  }
+
+  // In-Principle Approval (18 Nov 2026): the closed RFQ goes for approval — raised as the submit pop-up raises it,
+  // then approved / rejected by the QA approvers as the approval page does it (ipaStates.ts); each step read back.
+  if (IPA_STATES.has(state)) {
+    const ipa = await import("../checks/ipaStates.js");
+    const flow = shape.ipaFlow ?? "QA_Platform IPA 2-step";
+    const raised = await withWatchdog(ipa.raiseIpa(api, eventGroupUuid, flow), 90_000, "raising the In-Principle approval").catch((e) => ({ ok: false, why: (e as Error).message } as Awaited<ReturnType<typeof ipa.raiseIpa>>));
+    if (!raised.ok || !raised.request) return { ok: false, why: `the API build of the ${state} state stopped: ${raised.why}` };
+    let req = raised.request;
+    values.ipaWorkflow = flow;
+    values.ipaApprovalValue = String(raised.value ?? "");
+    values.ipaL1Vendor = String(raised.l1 ?? "");
+    values.ipaLineItems = String(raised.lines ?? "");
+    made.ipaRequestUuid = req.uuid;
+    values.ipaRequestUuid = req.uuid;
+    values.ipaApprovalPath = `/project/${eventGroupUuid}/in-principle-approval/${req.uuid}`;
+    opts.onLine?.(`raised In-Principle Approval with "${flow}" — value ₹${raised.value}, L1 ${raised.l1} (request ${req.id})`);
+    const act = async (key: string, resolution: "approved" | "rejected", remarks: string, who: string) => {
+      const r = await withWatchdog(ipa.resolveIpaAs(companyId, key, req, resolution, remarks), 120_000, `${who} ${resolution === "approved" ? "approving" : "rejecting"}`).catch((e) => ({ ok: false, why: (e as Error).message } as Awaited<ReturnType<typeof ipa.resolveIpaAs>>));
+      if (!r.ok) throw new Error(r.why);
+      if (r.after) req = r.after;
+      opts.onLine?.(`${who} ${resolution} it${remarks ? ` ("${remarks}")` : ""} — the request now reads status ${req.status}, step ${req.currentStep}`);
+    };
+    try {
+      const reason = shape.rejectReason ?? "Budget frozen for this quarter";
+      if (state === "ipa_rejected_step1") await act("approver_a", "rejected", reason, "Approver A");
+      if (["ipa_step1", "ipa_approved", "ipa_rejected"].includes(state)) await act("approver_a", "approved", "", "Approver A");
+      if (state === "ipa_approved") await act("approver_b", "approved", "", "Approver B");
+      if (state === "ipa_rejected") await act("approver_b", "rejected", reason, "Approver B");
+      if (state.startsWith("ipa_rejected")) values.ipaRejectReason = reason;
+    } catch (e) {
+      return { ok: false, why: `the API build of the ${state} state stopped: ${(e as Error).message}` };
+    }
+    values.ipaRequestStatus = String(req.status);
+    if (state === "ipa_approved") {
+      const egId = Number(made.eventGroupId) || decodeId(eventGroupUuid) || 0;
+      const first = decodeId(String(stageUuid ?? "")) ?? 0;
+      const rfq2 = await ipa.waitForRfq2(egId, first, 150_000);
+      if (!rfq2) return { ok: false, why: `the API build of the ${state} state stopped: both approved, but no RFQ 2 stage appeared on the project within 2½ minutes` };
+      made.rfq2StageUuid = rfq2.uuid;
+      values.rfq2StageUuid = rfq2.uuid;
+      values.rfq2Ref = rfq2.ref;
+      values.rfq2Title = rfq2.title;
+      opts.onLine?.(`RFQ 2 was created: ${rfq2.ref} "${rfq2.title}"`);
+    }
   }
 
   // The name Procol shows: the API client tags a generated title as it sends it (spine-API-automation-<n>,

@@ -137,6 +137,8 @@ export interface JourneyRunOptions {
     productUuid?: string;
     /** the quality that goes with productUuid (the catalog's is kept when absent) */
     productQualityUuid?: string;
+    /** the delivery location (buyer hub) the case names, instead of the catalog's first */
+    locationUuid?: string;
     /** a QA vendor to invite and sign in as instead of the catalog's vendor */
     vendor?: { uuid: string; email: string; name?: string };
   };
@@ -146,6 +148,8 @@ export interface JourneyRunOptions {
   stepBoundMs?: number;
   /** The event title's prefix (default "API_Journey"); e.g. "QA_Platform_XCHK" for the UI cross-check's events. */
   titlePrefix?: string;
+  /** the event's exact title, when the run names its events itself ("QA IPA <case id>") */
+  title?: string;
   /** The line item's quantity (the dashboard's input); the sibling's test data otherwise. */
   quantity?: number;
   /**
@@ -153,6 +157,8 @@ export interface JourneyRunOptions {
    * quoted 100 and Vendor B quoted 90" (12 Nov). A bidder without one bids the sibling's test-data price.
    */
   bidPrices?: number[];
+  /** GST % every bid quotes, in the template's GST column (18 Nov 2026 — "₹480 + 15% tax = ₹5,520 on 10 gms") */
+  bidGst?: number;
   /**
    * How many line items the draft is created with (default 1): the catalog
    * product repeated, which the backend accepts. Every later step still works
@@ -1384,6 +1390,7 @@ const bidProducts: StepSpec = {
         quantityUnit: j.unit,
         price: j.price,
         tradeProduct: l.tradeProduct,
+        gst: j.opts.bidGst,
       });
       total += built.total;
       const row = built.body.sheets.inline_components.data[j.vendorCompanyUuid][0];
@@ -1516,6 +1523,7 @@ const surrogateRfq: StepSpec = {
         quantityUnit: j.unit,
         price: j.price,
         tradeProduct: l.tradeProduct,
+        gst: j.opts.bidGst,
       });
       const row = one.sheets.inline_components.data[j.vendorCompanyUuid][0];
       rows.push({ ...row, serial_number: { ...row.serial_number, value: i + 1 } });
@@ -2790,8 +2798,10 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
   // it, so a journey named the old way narrated one name, showed it in its
   // curl, and failed its own "title came back as sent" check against the
   // other. Named that way from the start, all three agree with Procol.
-  const title =
-    opts.titlePrefix && !/^(API_Journey|QA_Platform|API_Test)$/.test(opts.titlePrefix)
+  // An exact title the case names ("QA IPA IPA-SUB-017", 18 Nov 2026) is used as it is.
+  const title = opts.title?.trim()
+    ? opts.title.trim()
+    : opts.titlePrefix && !/^(API_Journey|QA_Platform|API_Test)$/.test(opts.titlePrefix)
       ? `${opts.titlePrefix}_${TITLE_TAG[plan.eventType]}_${Date.now()}`
       : spineTitle();
   const planned = plan.steps.length;
@@ -2908,6 +2918,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
   }
   if (ch.pricingTemplateUuid) j.catalog.pricingTemplateUuid = ch.pricingTemplateUuid;
   if (ch.technicalTemplateUuid) j.catalog.technicalTemplateUuid = ch.technicalTemplateUuid;
+  if (ch.locationUuid) j.catalog.locationUuid = ch.locationUuid;
   if (ch.vendor?.uuid && ch.vendor.email) {
     j.vendorCompanyUuid = ch.vendor.uuid;
     j.catalog.vendorBidCompanyUuid = ch.vendor.uuid;

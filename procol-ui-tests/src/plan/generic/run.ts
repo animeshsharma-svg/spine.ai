@@ -563,6 +563,19 @@ async function clickTarget(ctx: GenericCtx, t: Target, timeoutMs: number): Promi
       continue;
     }
     if (await ignoresPointer(el)) {
+      // Words drawn inside a card button that takes the click itself (the In-Principle Approval
+      // pop-up's workflow cards, 18 Nov 2026: the name's <span> is inert, the "Clause: …" button
+      // around it is not): press that control instead of skipping the only match.
+      const host = el.locator("xpath=ancestor::*[self::button or self::label or @role='button' or @role='radio' or @role='option'][1]");
+      if ((await host.count().catch(() => 0)) && !(await ignoresPointer(host)) && !(await isDisabled(host))) {
+        const ok = await host.click({ timeout: 5_000 }).then(() => true).catch(() => false);
+        if (ok) {
+          ctx.lastClick = t;
+          noteSeen(targetWords(t)[0], page.url(), strategy);
+          await page.waitForTimeout(400);
+          return { detail: `clicked ${describe(t)} (the control around its words)`, strategy };
+        }
+      }
       skipped.push(`#${i + 1} ignores the pointer`);
       continue;
     }
@@ -595,7 +608,7 @@ async function clickTarget(ctx: GenericCtx, t: Target, timeoutMs: number): Promi
   // Every match was covered or inert: something is over them — an open menu
   // left by a hover, a dialog with a "No thanks", a Procol pop-up. Close it
   // as a person would and try once more.
-  const closed = await closeCover(ctx);
+  const closed = await closeCover(ctx, matches[0]);
   if (closed) {
     const again = await findVisible(page, t, 5_000);
     const el = again?.locator ?? found.locator;
@@ -615,9 +628,9 @@ const DECLINE = /^(no,? thanks?|not now|maybe later|later|dismiss|close|skip|got
  * Close whatever covers the screen: an open menu (Escape, pointer away), a
  * dialog with a declining button, a Procol pop-up. Says what it closed.
  */
-async function closeCover(ctx: GenericCtx): Promise<string> {
+async function closeCover(ctx: GenericCtx, keep?: Locator): Promise<string> {
   const { page } = ctx;
-  const declined = await declineDialog(page);
+  const declined = await declineDialog(page, keep);
   if (declined) return declined;
   const menus = page.locator("[role='menu'], .ant-dropdown:not(.ant-dropdown-hidden)").filter({ visible: true });
   if (await menus.count().catch(() => 0)) {
@@ -630,12 +643,18 @@ async function closeCover(ctx: GenericCtx): Promise<string> {
   return "";
 }
 
-/** A pop-up with a declining button ("No thanks", "Maybe later", "Close"): press it. Says what was pressed. */
-async function declineDialog(page: Page): Promise<string> {
+/**
+ * A pop-up with a declining button ("No thanks", "Maybe later", "Close"): press it. Says what was pressed.
+ * Never the pop-up that holds `keep` — the thing being clicked is IN it, so closing it loses the case
+ * (the In-Principle Approval dialog was closed by its own "Close" this way, 18 Nov 2026).
+ */
+async function declineDialog(page: Page, keep?: Locator): Promise<string> {
   const dialogs = page.locator("[role='dialog'], [role='alertdialog'], [class*='modal' i], [class*='popup' i], [class*='banner' i], [class*='overlay' i], [class*='toast' i], [class*='cookie' i]").filter({ visible: true });
   const n = await dialogs.count().catch(() => 0);
+  const target = keep ? await keep.elementHandle({ timeout: 1_000 }).catch(() => null) : null;
   for (let i = n - 1; i >= 0; i--) {
     const d = dialogs.nth(i);
+    if (target && (await d.evaluate((box, el) => box.contains(el as Node), target).catch(() => false))) continue;
     const btn = d.locator("button, [role='button'], a").filter({ hasText: DECLINE }).filter({ visible: true }).first();
     const labelled = d.locator("button[aria-label], [role='button'][aria-label]").filter({ visible: true });
     let pick = (await btn.count().catch(() => 0)) ? btn : null;

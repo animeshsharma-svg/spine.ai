@@ -1,0 +1,26 @@
+{
+  "_why": "Per imported sheet: the company it runs on, the event shape its set-up describes, how its events are named, and word rules that map a case's own words (pre-conditions, test data) to a start state. Rules are tried in order; the first whose pattern matches wins. 'unbuilt' = the API set-up cannot build that state yet (the case is Not run with that reason). 18 Nov 2026.",
+  "in-principle-approval": {
+    "companyId": 55379,
+    "why": "In-Principle Approval & Price Recovery (Amity University UAT). Project A of IPA-SET-004: DAB Hi-Media Make, 10 gms, AES NOIDA HO; asd ₹500 − ₹20 discount and demo123 ₹600 − ₹10, 15% tax, so totals ₹5,520 / ₹6,785. Amity's Buy Template has Price + GST and no discount column, so the NET prices are quoted (₹480 / ₹590) with 15% GST — the totals are the guide's. QA Vendor 1 plays asd, QA Vendor 2 demo123, QA Vendor 3 ads (invited, never quotes). RFQ only: the guide makes the Technical stage optional.",
+    "title": "QA IPA {id}",
+    "shape": { "product": "DAB Hi-Media Make", "quantity": 10, "prices": [480, 590], "gst": 15, "location": "AES NOIDA HO", "template": "Buy Template", "idleInvitees": 1 },
+    "rules": [
+      { "in": "pre", "match": "^Admin access to company settings", "state": "closed_two_bids" },
+      { "in": "pre", "match": "RFQ 2 (has been )?published|RFQ 2 published", "state": "ipa_approved", "screen": "rfq2_draft", "note": "RFQ 2 is published ON SCREEN by the run first (schedule + Publish on its draft), then the case" },
+      { "in": "pre", "match": "approved by both approvers and RFQ 2 has been created", "state": "ipa_approved" },
+      { "in": "pre", "match": "REJECTED by", "state": "ipa_rejected" },
+      { "in": "pre", "match": "parallel workflow", "state": "ipa_pending", "shape": { "ipaFlow": "QA_Platform IPA parallel" } },
+      { "in": "pre", "match": "has been raised on Project A and is PENDING", "state": "ipa_pending" },
+      { "in": "data", "match": "^Project B\\b", "state": "two_bids" },
+      { "in": "data", "match": "^Project C\\b", "unbuilt": "a closed RFQ where no vendor quoted is not built by the API set-up yet" },
+      { "in": "data", "match": "^Project D\\b", "state": "proposal" },
+      { "in": "data", "match": "^Project E\\b", "unbuilt": "a project whose latest stage is an auction is not built by the API set-up yet" },
+      { "in": "data", "match": "^Project F\\b", "state": "withdrawn" },
+      { "in": "data", "match": "^Project G\\b", "unbuilt": "3 line items with demo123 quoting only 2 is not built by the API set-up yet" },
+      { "in": "data", "match": "^Project H\\b", "state": "closed_two_bids" },
+      { "in": "data", "match": "^Project I\\b", "unbuilt": "a lot-based project is not built by the API set-up yet" },
+      { "in": "data", "match": "fresh copy of Project A", "state": "closed_two_bids" }
+    ]
+  }
+}

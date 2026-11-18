@@ -50,6 +50,8 @@ const BASE_STATE: Record<string, NonNullable<PlanContext["state"]>> = {
   two_invited: "live", uninvited: "live", dutch: "live", knockout: "live", forward: "live", pr_rfq: "live", withdrawn: "live",
   two_bids: "bid", masked: "bid", amended: "bid", amendment: "bid",
   closed_two_bids: "closed",
+  // In-Principle Approval (18 Nov 2026): a closed RFQ with two quotes whose approval is raised / approved / rejected
+  ipa_pending: "closed", ipa_step1: "closed", ipa_approved: "closed", ipa_rejected: "closed", ipa_rejected_step1: "closed",
 };
 export function screenState(state: string | undefined): NonNullable<PlanContext["state"]> {
   const s = state ?? "none";
@@ -75,6 +77,15 @@ export const SCREENS: Record<string, ScreenSpec> = {
     lands: /\/orders\/quick-create\?.*projectId=/,
     what: "the draft event's create screen",
   },
+  // In-Principle Approval (18 Nov 2026): the RFQ 2 stage Procol made in Draft after both approvals, on its own
+  // create screen in edit mode (schedule, vendors, publish) — the same screen a buyer reaches from the RFQ 2 tab
+  rfq2_draft: {
+    path: "/orders/quick-create?projectCreation=true&projectId={eg}&draftStageIds={rfq2}&isEditingAllowed=true",
+    feeds: [],
+    needs: ["closed"],
+    lands: /\/orders\/quick-create\?.*projectId=/,
+    what: "the RFQ 2 draft's create screen (schedule, vendors, publish)",
+  },
   // the award proposal (Master QCS → Bid Selection Proposal), crosscheck/screens.ts:248-253
   proposal: { path: "/project/{eg}/proposal/{proposal}", feeds: ["/api/proposal/{proposal}$"], needs: ["proposal", "awarded"], lands: /\/proposal\//, what: "the award proposal page" },
   summary: { path: "/project/{eg}/details", feeds: ["/api/event_groups/{eg}$", "/get_line_items"], needs: ANY_EVENT, lands: /\/project\/[^/]+\/details/, what: "the event's summary" },
@@ -94,16 +105,16 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export function resolveScreen(name: string, ctx: PlanContext): { path: string; feeds: RegExp[]; spec: ScreenSpec } {
   const spec = SCREENS[name];
   if (!spec) throw new Error(`no screen "${name}" in the screen model — known: ${SCREEN_NAMES.join(", ")}`);
-  const ids: Record<string, string | undefined> = { eg: ctx.eventGroupUuid, stage: ctx.stageUuid, tstage: ctx.technicalStageUuid, proposal: ctx.proposalUuid };
+  const ids: Record<string, string | undefined> = { eg: ctx.eventGroupUuid, stage: ctx.stageUuid, tstage: ctx.technicalStageUuid, proposal: ctx.proposalUuid, rfq2: ctx.values?.rfq2StageUuid };
   const fill = (t: string, forRegex: boolean) =>
-    t.replace(/\{(eg|stage|tstage|proposal)\}/g, (_m, k: string) => {
+    t.replace(/\{(eg|stage|tstage|proposal|rfq2)\}/g, (_m, k: string) => {
       const v = ids[k];
       if (!v) throw new Error(`the screen "${name}" needs the ${k === "eg" ? "event" : k === "stage" ? "pricing round" : k === "proposal" ? "award proposal" : "technical round"} id, and the API setup did not build one (state ${ctx.state ?? "none"})`);
       return forRegex ? esc(encodeURIComponent(v)) + "|" + esc(v) : encodeURIComponent(v);
     });
   const feeds = spec.feeds.map((f) => {
     // An id may appear encoded or not in the request; accept either.
-    const src = f.replace(/\{(eg|stage|tstage|proposal)\}/g, (m) => `(?:${fill(m, true)})`);
+    const src = f.replace(/\{(eg|stage|tstage|proposal|rfq2)\}/g, (m) => `(?:${fill(m, true)})`);
     return new RegExp(src.replace(/\$$/, "(\\?|$)"));
   });
   return { path: fill(spec.path, false), feeds, spec };

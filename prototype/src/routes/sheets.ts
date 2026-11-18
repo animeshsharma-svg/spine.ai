@@ -18,7 +18,7 @@
  *   GET  /api/sheets/questions[?format=xlsx] the product questions the derivations could not settle
  */
 import type { RouteHandler } from "./index.js";
-import { addSheetCases, importSheetBuffer, listSheets, sheetCaseById, sheetCases, sheetPrep, TYPED_SHEET } from "../checks/sheetCases.js";
+import { addSheetCases, importSheetBuffer, listSheets, sheetCaseById, sheetCases, sheetPrep, sheetProfile, TYPED_SHEET } from "../checks/sheetCases.js";
 import { caseFromText, suggestEdgeCases, understandCase } from "../checks/singleCase.js";
 import { deriveCases, allQuestions } from "../agents/deriveCases.js";
 import { askQuestion, cancelQuestions } from "../agents/questions.js";
@@ -93,7 +93,7 @@ export const handle: RouteHandler = async (ctx) => {
     });
     out.send("plan", { total: picked.length, cases: picked.map((c) => ({ id: c.id, title: c.title, layer: c.layer })) });
     await runSheetCases(picked, {
-      companyId: Number(sp.get("c")) || 198678,
+      companyId: Number(sp.get("c")) || sheetProfile(sheet)?.companyId || 198678,
       sheet: sheet || picked[0].sheet,
       headed: sp.get("headed") === "1",
       emit: (e) => {
@@ -191,7 +191,7 @@ export const handle: RouteHandler = async (ctx) => {
         return true;
       }
       const run = await runSheetCases([c], {
-        companyId: Number(sp.get("c")) || 198678, sheet: c.sheet, headed: sp.get("headed") === "1",
+        companyId: Number(sp.get("c")) || sheetProfile(c.sheet)?.companyId || 198678, sheet: c.sheet, headed: sp.get("headed") === "1",
         emit: (e) => {
           if (closed) return;
           if (e.type === "done") return;

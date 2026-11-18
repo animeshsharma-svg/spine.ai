@@ -384,7 +384,7 @@ async function runOnce(c: CatalogCase, p: Prep, plan: any, fresh = false): Promi
   // leaves the choice to place_bid, which signs in as a vendor on that event (runPlan.ts
   // bidderEmail) — unless the run is QA-only, which invites and bids as the QA vendor.
   if (plan.steps.some((st: any) => ["place_bid", "accept_counter_offer"].includes(st.step))) {
-    const qaOnly = qaVendorsOnly();
+    const qaOnly = qaVendorsOnly(COMPANY);
     const qa = !qaOnly || context?.vendorEmail ? null : await qaVendorOf(COMPANY);
     if (qa) {
       for (const st of plan.steps) if (st.step === "invite_vendor" && !st.args?.vendors) st.args = { ...(st.args ?? {}), vendors: [qa.name] };
@@ -502,7 +502,7 @@ for (const c of pick) {
     continue;
   }
   // Vendor names a case gives are dropped only when the run is QA-only; by default they are the event's own.
-  const removed = qaVendorsOnly() ? keepQaVendorsOnly(comp.plan) : [];
+  const removed = qaVendorsOnly(COMPANY) ? keepQaVendorsOnly(comp.plan) : [];
   if (removed.length) log(`   removed vendor(s) that are not QA test vendors: ${removed.join(", ")}`);
 
   const first = await runOnce(c, p, comp.plan);

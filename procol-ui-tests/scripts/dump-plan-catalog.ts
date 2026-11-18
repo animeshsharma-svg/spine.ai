@@ -18,6 +18,7 @@ import { knownLabels, labelsForPrompt, seenLabels } from "../src/plan/generic/la
  */
 const out = join(dirname(fileURLToPath(import.meta.url)), "..", "plan-catalog.json");
 const SOURCE = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "plan", "generic", "sourceLabels.json");
+const DEPLOYED = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "plan", "generic", "deployedLabels.json");
 const labels = labelsForPrompt();
 writeFileSync(
   out,
@@ -30,7 +31,12 @@ writeFileSync(
       labels,
       // every UI string the product's source renders (scan-dashboard-labels.ts): the compiler's guard accepts
       // these on an exact match, so a real label ("Ok", "Increase Event Time") is not reported as a guess
-      sourceLabels: existsSync(SOURCE) ? (JSON.parse(readFileSync(SOURCE, "utf8")).labels as Array<{ text: string }>).map((l) => l.text) : [],
+      // plus every UI string the DEPLOYED app serves that the source scan lacks (scan-deployed-labels.ts, 18 Nov 2026 —
+      // a feature live on UAT but newer than the scanned ref, like In-Principle Approval)
+      sourceLabels: [
+        ...(existsSync(SOURCE) ? (JSON.parse(readFileSync(SOURCE, "utf8")).labels as Array<{ text: string }>).map((l) => l.text) : []),
+        ...(existsSync(DEPLOYED) ? (JSON.parse(readFileSync(DEPLOYED, "utf8")).labels as Array<{ text: string }>).map((l) => l.text) : []),
+      ],
       labelCounts: { fromSource: knownLabels().length, seenLive: seenLabels().length },
     },
     null,

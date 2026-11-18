@@ -14,6 +14,8 @@ const arg = (n: string) => {
   const i = process.argv.indexOf(`--${n}`);
   return i >= 0 ? process.argv[i + 1] : undefined;
 };
-const r = await buildUiState(Number(arg("c") ?? 198678), (arg("state") ?? "live") as any, { technical: process.argv.includes("--technical"), onLine: (l) => console.log(`  · ${l.slice(0, 140)}`) });
+// --shape '{"product":"DAB Hi-Media Make","quantity":10,"prices":[480,590],"gst":15,"location":"AES NOIDA HO","template":"Buy Template","idleInvitees":1}'
+const shape = arg("shape") ? JSON.parse(arg("shape")!) : undefined;
+const r = await buildUiState(Number(arg("c") ?? 198678), (arg("state") ?? "live") as any, { technical: process.argv.includes("--technical"), ...(shape ? { shape } : {}), onLine: (l) => console.log(`  · ${l.slice(0, 140)}`) });
 console.log(`UI_STATE ${JSON.stringify(r)}`);
 process.exit(r.ok ? 0 : 1);

@@ -1,5 +1,6 @@
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { PROCOL_TEST } from "../executor.js";
 
 /**
@@ -15,7 +16,24 @@ import { PROCOL_TEST } from "../executor.js";
  */
 const imp = (rel: string) => import(pathToFileURL(join(PROCOL_TEST, "src", rel)).href);
 
-export const qaVendorsOnly = (): boolean => process.env.SPINE_QA_VENDORS_ONLY === "1";
+/**
+ * QA-only: SPINE_QA_VENDORS_ONLY=1, or a company the tester approved for QA vendors only (config/qa-workspaces.json
+ * "qaVendorsOnly": true). 18 Nov 2026: an Amity University build without the env went to 8 of Amity's own vendors and
+ * bid as two of them — a company approved for QA vendors never gets the suggested (real) audience, whatever the env.
+ */
+export function qaVendorsOnly(companyId?: number | null): boolean {
+  if (process.env.SPINE_QA_VENDORS_ONLY === "1") return true;
+  return !!companyId && qaOnlyCompanies().includes(Number(companyId));
+}
+
+export function qaOnlyCompanies(): number[] {
+  try {
+    const j = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "config", "qa-workspaces.json"), "utf8"));
+    return (j.approved ?? []).filter((a: any) => a.qaVendorsOnly !== false).map((a: any) => Number(a.companyId)).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
 
 /** A QA test vendor's login: these never bid in event-vendor mode. */
 export const QA_LOGIN = /^qa_[a-z0-9_.-]+@example\.(com|org|net)$/i;
