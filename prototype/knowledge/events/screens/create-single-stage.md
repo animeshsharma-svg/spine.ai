@@ -1,6 +1,6 @@
 # Screen: create-single-stage (/orders/quick-create)
 
-Captured 2026-10-21 on company 198678. 10 controls, 10 with a known effect, 9 test cases written from it.
+Captured 2026-11-02 on company 198678. 10 controls, 9 with a known effect, 15 test cases written from it.
 
 ## How to reach the create-single-stage screen
 
@@ -8,16 +8,17 @@ Plan steps: open_create {"path":"single-stage"}. Path: `/orders/quick-create`.
 
 ## What each control on create-single-stage does
 
-- **Ask Clara** (button): Opens Clara's AI assistance for creating RFP content. Affects: May generate or update the event's RFP questions and related event data.. Leads to: Clara assistance panel. Rule R-FCR-042-4. Check: Click Ask Clara and verify that the Clara panel opens and an AI request can be started.
-- **RFP** (button): Selects RFP as the event type. Affects: Changes the current event mode and the fields and validation used for the event.. Leads to: stays here. Check: Click RFP and verify that the event type is shown as RFP and the relevant RFP controls appear.
-- **Select Templates** (button): Opens the template picker for selecting a template. Affects: Sets or changes the current stage's template, which supplies stage configuration and may unlock later actions.. Leads to: template picker. Check: Click Select Templates and verify that templates can be filtered and selected.
-- **Participants** (button): Opens participant management for adding or removing event vendors. Affects: Changes the event's participant or audience records used when publishing and inviting vendors.. Leads to: participants drawer. Check: Click Participants and verify that the participant management drawer opens.
+- **Ask Clara** (button): It opens Clara's AI RFP assistance flow. Affects: It may generate RFP questions after the project has line items.. Leads to: Clara's AI question panel. Rule R-FCR-042-4. Check: Click the button and verify the Clara panel opens and requests cannot run without project line items.
+- **RFP** (button): It selects RFP as the event type. Affects: It changes the current event strategy to RFP.. Leads to: stays here. Check: Click it and verify RFP is shown as the selected event type.
+- **Select Templates** (button): It opens the template picker. Affects: It lets the buyer select or change the template used by this stage.. Leads to: Template picker. Check: Click it and verify templates can be listed, filtered, and selected.
+- **Participants** (button): It opens participant management. Affects: It changes the vendors included in the event audience.. Leads to: Participants drawer. Check: Click it and verify the participant drawer opens with vendor search or selection controls.
 - **Terms & Conditions** (button, disabled): Does nothing because the control is disabled. Affects: nothing. Leads to: stays here. Check: Verify that Terms & Conditions is disabled and clicking it does not open a drawer or change the form.
-- **Now - 04:48 pm, 21st Oct ( 30 Mins )** (button, disabled): Does nothing because the schedule control is disabled. Affects: nothing. Leads to: stays here. Check: Verify that the schedule button is disabled and clicking it does not open scheduling controls.
-- **Publish Event** (button, disabled): Does nothing because publishing is disabled. Affects: nothing. Leads to: stays here. Check: Verify that Publish Event is disabled and clicking it does not create or publish an event.
-- **Events** (link): Navigates back to the Events list. Affects: nothing. Leads to: Events list. Check: Click Events and verify that the events listing screen loads.
-- **Enter the title of this event** (field): Accepts or edits the title of the event. Affects: Changes the event title stored in the draft and used during publish validation.. Leads to: stays here. Rule R-FCR-025-1. Check: Enter a title and verify that the field value changes and the title validation error clears.
+- **Publish Event** (button, disabled): It is disabled, so clicking it does not publish the event. Affects: Nothing because the event remains unpublished.. Leads to: stays here. Check: Verify the button is disabled and no publish confirmation or success state appears when it is clicked.
+- **Events** (link): It navigates to the Events page. Affects: Nothing in the current event's data or flow.. Leads to: Events screen. Check: Click the link and verify the Events listing screen opens.
+- **Enter the title of this event** (field): It lets the buyer enter or edit the event title. Affects: It changes the event title stored for the event and used by later publishing.. Leads to: stays here. Rule R-FCR-025-1. Check: Enter a title and verify the field value changes and the title is included in the event data.
 - **Search vendors you want to add** (select, disabled): Does nothing because vendor search and selection are disabled. Affects: nothing. Leads to: stays here. Check: Verify that the vendor selector cannot be focused or used to select a vendor.
+
+Not yet described: "Now - 04:46 pm, 2nd Nov ( 30 Mins )".
 
 ## Test cases written from the create-single-stage screen
 
@@ -30,3 +31,9 @@ Plan steps: open_create {"path":"single-stage"}. Path: `/orders/quick-create`.
 - GEN-SCR-365: Accept a whitespace-only event title. Steps: Click "Enter the title of this event". Enter one or more spaces. Click outside the field. Expected: The title field does not show the empty-title validation state caused by a blank value. [plan: partial]
 - GEN-SCR-366: Open participant selection. Steps: Click "Participants". Expected: The participant selection view opens. Vendor search and selection options are displayed there. [plan: full]
 - GEN-SCR-367: Check disabled schedule and terms controls. Steps: Click "Terms & Conditions". Click "Now - 04:48 pm, 21st Oct ( 30 Mins )". Click "Publish Event". Expected: None of the three controls opens a dialog, changes the page, or performs an action. Each remains visibly disabled. [plan: full]
+- GEN-SCR-424: RFP opens the RFP event creation flow. Steps: Log in to Procol (buyer side) with the buyer user Click "RFP" Expected: The screen changes to the RFP event creation flow. Record the fields and sections shown after selecting "RFP". [plan: full]
+- GEN-SCR-425: Select Templates opens the template picker. Steps: Log in to Procol (buyer side) with the buyer user Click "Select Templates" Expected: The template picker opens and shows the available RFP templates. Record the list, filter, and selection controls displayed. [plan: partial]
+- GEN-SCR-426: Ask Clara starts AI RFP generation when line items exist. Steps: Log in to Procol (buyer side) with the buyer user Click "Ask Clara" Expected: The AI RFP generation flow opens or starts loading questions for the project. Record the questions, loading state, or message shown after "Ask Clara" is clicked. [plan: full]
+- GEN-SCR-427: Terms & Conditions is disabled on the initial screen. Steps: Log in to Procol (buyer side) with the buyer user Click "Terms & Conditions" Expected: Nothing opens and no terms editor is displayed because "Terms & Conditions" is disabled. The control remains visibly disabled. [plan: full]
+- GEN-SCR-428: The event schedule control is disabled on the initial screen. Steps: Log in to Procol (buyer side) with the buyer user Click "Now - 04:46 pm, 2nd Nov ( 30 Mins )" Expected: No schedule popover or drawer opens because "Now - 04:46 pm, 2nd Nov ( 30 Mins )" is disabled. The displayed schedule value remains unchanged. [plan: full]
+- GEN-SCR-429: Publish Event is disabled until the event setup is complete. Steps: Log in to Procol (buyer side) with the buyer user Click "Enter the title of this event" Type "Quarterly QA office supplies sourcing event" Click "Publish Event" Expected: The event is not published. "Publish Event" remains disabled and no success message or event confirmation appears. [plan: full]

@@ -27,6 +27,8 @@ import { addToBacklog, clearFromBacklog, screenFor, stuckSince, teachStuck, type
 import { isSettingKey, settingsFor, withSettings } from "./companySettings.js";
 import { parseConfigs } from "../agents/caseStyle.js";
 import { plainBug } from "../ai/plainWords.js";
+import { oracleText, understandCase, type CaseUnderstanding } from "../agents/caseUnderstanding.js";
+import { prdForSheet } from "./prdDocs.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS = join(here, "..", "..", "data", "sheet-runs");
@@ -68,6 +70,8 @@ export interface SheetRunCase {
   failedStep?: string;
   /** company settings switched for this case (and switched back after) */
   settings?: Array<{ key: string; from: unknown; to: unknown }>;
+  /** how the case was read before it ran (prompts/test-case-runner.md, against the sheet's PRD) */
+  understanding?: CaseUnderstanding;
   case: SheetCase;
 }
 export interface SheetRun {
@@ -147,7 +151,7 @@ function beforeAfterShots(planRunId: string | undefined, have: Shot[]): Shot[] {
   return out.filter((s) => !have.some((h) => h.file === s.file));
 }
 
-export async function runSheetCases(cases: SheetCase[], opts: { companyId: number; sheet: string; headed?: boolean; repair?: boolean; emit: (e: SheetEvent) => void }): Promise<SheetRun> {
+export async function runSheetCases(cases: SheetCase[], opts: { companyId: number; sheet: string; headed?: boolean; repair?: boolean; understand?: boolean; emit: (e: SheetEvent) => void }): Promise<SheetRun> {
   if (active) throw new Error(`a sheet run is already going (${active.id}) — wait for it or stop it`);
   const run: SheetRun = { id: `sheet-${Date.now().toString(36)}`, sheet: opts.sheet, companyId: opts.companyId, startedAt: new Date().toISOString(), status: "running", total: cases.length, cases: [] };
   let stopped = false;
@@ -165,7 +169,17 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
       const line = (l: string) => opts.emit({ type: "line", id: c.id, line: mask(l) });
       const t0 = Date.now();
       let r: SheetRunCase;
+      let u: CaseUnderstanding | null = null;
       try {
+        // Read the case first (the runner prompt + the sheet's PRD): its checks, what the PRD says must be true,
+        // and anything it needs that this run cannot use. The PRD is the judge, never the code under test.
+        if (opts.understand !== false) {
+          const prd = prdForSheet(opts.sheet);
+          line(prd ? `Reading the case against the PRD "${prd.name}"…` : "Reading the case…");
+          u = await understandCase(c, prd).catch(() => null);
+          if (u?.difference) line(`The case and the PRD differ — judging by the PRD: ${u.difference}`);
+        }
+        const cc: SheetCase = u?.judgeBy ? { ...c, oracle: oracleText(u) } : c;
         // A case that needs a company set up a certain way: its "Configs Needed" names the settings (else they are
         // looked up from the pre-condition's words); switch them for this case, switch them back.
         const listed = parseConfigs(c.configs);
@@ -176,7 +190,7 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
             if (st.step === "require_setting" && typeof st.args?.key === "string" && !listed.some((n) => n.key === st.args!.key) && (await isSettingKey(st.args.key)))
               listed.push(...parseConfigs(`${st.args.key} = ${String(st.args.value ?? "On")}`).map((n) => ({ ...n, why: "the case's plan needs it (require_setting)" })));
         const caseOpts = { ...opts, applied: listed.map((n) => n.key) };
-        const runOne = () => (c.layer === "api" ? runApiCase(c, opts.companyId, line) : runUiWithRepair(c, caseOpts, line, (s) => (stopChild = s), (e) => opts.emit(e)));
+        const runOne = () => (cc.layer === "api" ? runApiCase(cc, opts.companyId, line) : runUiWithRepair(cc, caseOpts, line, (s) => (stopChild = s), (e) => opts.emit(e)));
         // The single-stage drawer re-renders when its event type is changed and loses the choice (the drawer
         // "closed before Save"): 6 cases in a row on 10 Nov, 20 min each. The create screen opens with the
         // company's default event type, so a case whose plan configures one (rfq / rfp / auction — the values
@@ -195,7 +209,8 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
           }
         }
         const setting = listed.length ? `the settings in its "Configs Needed"` : companySetting(c.preconditions);
-        if (setting) {
+        if (u?.blocked) r = base(c, "Not run", `Blocked: ${u.blocked}`, 0);
+        else if (setting) {
           const needed = listed.length ? listed.map((n) => ({ key: n.key, value: n.value, why: n.why ?? "named in the case" })) : await settingsFor(setting).catch(() => null);
           if (!needed) {
             r = base(c, "Not run", `It needs ${setting}, and no company setting in Procol's settings catalogue clearly means that, so the company could not be set up for it. Run it on a company set up as it says.`, 0);
@@ -216,6 +231,12 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
         } else r = await runOne();
       } catch (e) {
         r = base(c, "Couldn't tell", `The run broke before it could finish: ${mask((e as Error).message)}.`, 0);
+      }
+      r.case = c;
+      if (u) {
+        r.understanding = u;
+        if (u.difference && !/^Blocked/.test(r.why)) r.why += ` Note: the case differs from the PRD (${u.difference}); it was judged by the PRD — correct the case.`;
+        if (r.bug && u.difference) r.bug.expected = u.judgeBy;
       }
       r.ms = Date.now() - t0;
       // a bug reaches the Bugs page and the bug sheet in the team's plain words (src/ai/plainWords.ts); the

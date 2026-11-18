@@ -33,6 +33,8 @@ export interface ChatOptions {
   tier?: Tier;
   /** How long Slingring may take before the next provider is tried; each tier has its own default. */
   deadlineMs?: number;
+  /** How long to wait for Slingring before falling through (default: by tier). For a long answer on a cheap tier. */
+  timeoutMs?: number;
 }
 
 type Mode = "slingring" | "groq" | "fallback";
@@ -135,7 +137,7 @@ async function slingringChat(messages: ChatMessage[], opts: ChatOptions): Promis
    * someone watch a spinner. Overridable per environment: a faster day on the
    * gateway only needs SLINGRING_FAST_TIMEOUT_MS raised.
    */
-  const deadline = opts.deadlineMs ?? (opts.tier === "reason" || opts.tier === "long"
+  const deadline = opts.deadlineMs ?? opts.timeoutMs ?? (opts.tier === "reason" || opts.tier === "long"
     ? Number(process.env.SLINGRING_SLOW_TIMEOUT_MS ?? 90_000)
     : Number(process.env.SLINGRING_FAST_TIMEOUT_MS ?? 4_000));
   // The gateway's HACK26 GPT models are reasoning models that refuse ANY

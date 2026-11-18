@@ -50,6 +50,10 @@ export interface SheetCase {
   /** generated cases: the catalog case this one duplicates ("already have it"), when there is one */
   twin?: string;
   layer: "ui" | "api";
+  /** "PRD Reference": the requirement and the PRD's words the expected result comes from (cases written from a PRD) */
+  prdRef?: string;
+  /** set by the runner for one run: what must be true to pass, from the PRD (caseUnderstanding.ts) */
+  oracle?: string;
 }
 export interface SheetInfo { id: string; name: string; file: string; importedAt: string; count: number; skipped: number }
 interface Store { sheets: SheetInfo[]; cases: SheetCase[] }
@@ -71,6 +75,7 @@ const HEAD: Array<[RegExp, keyof SheetCase]> = [
   [/^(test ?type|type|case ?type)$/i, "testType"],
   [/^(status|result|actual ?status)$/i, "status"],
   [/^(reference|refs?|source|ticket|ticket ?id)$/i, "reference"],
+  [/^(prd ?ref(erence)?|prd|requirement)$/i, "prdRef"],
 ];
 
 let cache: Store | null = null;
@@ -143,6 +148,7 @@ export function parseSheet(name: string, buf: Buffer): { cases: Omit<SheetCase, 
         module: v.module || "-", scenario: v.scenario || "-", title: v.title, role: v.role || "Buyer", portal: v.portal || "Buyer portal",
         preconditions: v.preconditions || "-", configs: v.configs || "None", testData: v.testData || "-", steps, expected: v.expected || "-",
         priority: v.priority || "Medium", testType: v.testType || "Positive", status: v.status || "Not Run", reference: v.reference || undefined,
+        ...(v.prdRef ? { prdRef: v.prdRef } : {}),
       };
       cases.push({ ...base, layer: layerOf(base) });
     });
@@ -241,6 +247,8 @@ export function sheetCaseProse(c: SheetCase, companyId = Number(process.env.SHEE
     c.testData !== "-" ? `Test data: ${c.testData}` : "",
     `Steps:\n${c.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")}`,
     `Expected: ${c.expected}`,
+    c.prdRef ? `PRD says: ${c.prdRef}` : "",
+    c.oracle ?? "",
   ].filter(Boolean).join("\n");
   return mapTestData(text, companyId);
 }
