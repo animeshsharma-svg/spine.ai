@@ -347,7 +347,7 @@ function bodyArgs(rc: RunCtx, inst: SetupInstance, vendorUuid: string): BodyArgs
 }
 
 /** A vendor places a complete bid: open → price → submit; stops at the first refusal. */
-async function placeBid(rc: RunCtx, inst: SetupInstance, who: "vendor" | "vendor2", price: number, change?: Change[]): Promise<{ decider: Reply; call: PlanStepResult["call"]; also: NonNullable<PlanStepResult["alsoCalled"]>; bidUuid?: string; error?: string }> {
+async function placeBid(rc: RunCtx, inst: SetupInstance, who: "vendor" | "vendor2", price: number, change?: Change[]): Promise<{ decider: Reply; call: PlanStepResult["call"]; also: NonNullable<PlanStepResult["alsoCalled"]>; bidUuid?: string; tradeProductUuid?: string; error?: string }> {
   const { api, error } = await actorApi(rc, who);
   if (!api) return { decider: { status: 0, ok: false, data: null, message: error, ms: 0 }, call: undefined, also: [], error };
   const B = await loadBodies();
@@ -368,7 +368,7 @@ async function placeBid(rc: RunCtx, inst: SetupInstance, who: "vendor" | "vendor
   also.push({ method: "POST", path: E.createBidProducts(bidUuid), status: prod.status });
   const subBody = B.buildSubmitBidBody({ pricingTradeUuid: a.pricingTradeUuid, vendorCompanyUuid: vu, total: priced.total });
   const sub = await send(api, "PATCH", E.submitBid(bidUuid), subBody);
-  return { decider: sub, call: { method: "PATCH", path: E.submitBid(bidUuid), body: redact(subBody) }, also, bidUuid };
+  return { decider: sub, call: { method: "PATCH", path: E.submitBid(bidUuid), body: redact(subBody) }, also, bidUuid, tradeProductUuid: tp.trade_product_uuid ? String(tp.trade_product_uuid) : undefined };
 }
 
 const SETUP_BUDGET_MS = 12 * 60_000;
@@ -482,6 +482,15 @@ async function buildSetup(rc: RunCtx, recipe: Recipe, lineItems?: number, fromPr
         journeyBudgetMs: SETUP_BUDGET_MS,
         ...(pr ? { fromPr: pr } : lineItems && lineItems > 1 ? { lineItemCount: lineItems } : {}),
         ...(v1 ? { choose: { vendor: { uuid: v1.vendorCompanyUuid, email: v1.email, name: `QA vendor ${v1.n}` } } } : {}),
+        // an auction recipe's strategy goes on the auction round (bodies.ts sets rank_type "inline" for rank)
+        ...(recipe.auction
+          ? {
+              stageBody: (b: Record<string, any>, sk: string) => {
+                if (sk !== "auction") return;
+                b.configurations = { ...(b.configurations ?? {}), auction_config: recipe.auction, ...(recipe.auction === "rank" ? { rank_type: "inline" } : {}) };
+              },
+            }
+          : {}),
         onStep: (st) => rc.onLine(`  setup · ${st.title}: ${st.verdict} — ${st.actual}`),
         onLine: (l) => rc.onLine(`  setup · ${l}`),
       }),
@@ -893,7 +902,11 @@ async function attemptPhases(plan: ApiPlan, rc: RunCtx, opts: PlanRunOptions, al
       reply = pb.decider;
       call = pb.call;
       also = pb.also;
-      if (pb.bidUuid) tc.vals.bidUuid = pb.bidUuid;
+      // the second QA vendor's bid is bid2Uuid: writing it over bidUuid made "the vendor reads its own bid" read
+      // QA vendor 2's bid and get "Bid not found" (HS-320401698541-1, 18 Nov 2026)
+      if (pb.bidUuid) tc.vals[who === "vendor2" ? "bid2Uuid" : "bidUuid"] = pb.bidUuid;
+      // the comparison (event_indicators) keys a line by the round's trade product, not the event line item
+      if (pb.tradeProductUuid && !tc.vals.tradeProductUuid) tc.vals.tradeProductUuid = pb.tradeProductUuid;
       sentBody = call?.body;
     } else {
       // method, path, body: the op's template or the library case

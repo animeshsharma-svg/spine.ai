@@ -67,6 +67,7 @@ export type RecipeId =
   | "draft_auction"
   | "draft_rfp_auction"
   | "published_rfq"
+  | "published_auction"
   | "published_rfq_short"
   | "published_rfp_rfq"
   | "rfq_with_bid"
@@ -279,6 +280,8 @@ export interface Recipe {
   provides: string[];
   /** rough minutes to build, for the reader */
   minutes: number;
+  /** an auction round's strategy (sent as the round's auction_config); "rank" makes Procol show ranks */
+  auction?: "rank" | "price";
 }
 
 const BUILD: StepKind[] = ["buyer_login", "create_draft"];
@@ -298,6 +301,9 @@ export const RECIPES: Record<RecipeId, Recipe> = {
   draft_rfp_rfq: { id: "draft_rfp_rfq", title: "A fresh draft event with a technical (RFP) round and a pricing (RFQ) round attached, not published.", eventType: "rfp_rfq", steps: [...BUILD, "add_stage_rfp", "add_stage_pricing"], clock: "long", vendors: 0, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING, ...RFP], minutes: 1 },
   draft_auction: { id: "draft_auction", title: "A fresh draft event with one line item and an auction round attached, not published.", eventType: "auction_only", steps: [...BUILD, "add_stage_pricing"], clock: "long", vendors: 0, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING], minutes: 1 },
   draft_rfp_auction: { id: "draft_rfp_auction", title: "A fresh draft event with a technical (RFP) round and an auction round attached, not published.", eventType: "rfp_auction", steps: [...BUILD, "add_stage_rfp", "add_stage_pricing"], clock: "long", vendors: 0, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING, ...RFP], minutes: 1 },
+  // a LIVE reverse auction ranked by rank (auction_config "rank", inline ranks) — the state real-time auction tickets
+  // describe; an RFQ never shows ranks (TradeRequest#should_show_rank? is false for rfq). Added 18 Nov 2026 (HS-320401698541-1).
+  published_auction: { id: "published_auction", title: "A fresh reverse auction (rank strategy), published and live, with one QA vendor invited; bidding open for about 20 minutes.", eventType: "auction_only", steps: PUB_RFQ, clock: "long", vendors: 1, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING], minutes: 1, auction: "rank" },
   published_rfq: { id: "published_rfq", title: "A fresh RFQ event, published, with one QA vendor invited; bidding open for about 20 minutes.", eventType: "rfq_only", steps: PUB_RFQ, clock: "long", vendors: 1, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING], minutes: 1 },
   published_rfq_short: { id: "published_rfq_short", title: "A fresh RFQ event, published, with one QA vendor invited; bidding open for only about two minutes.", eventType: "rfq_only", steps: PUB_RFQ, clock: "short", vendors: 1, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING], minutes: 1 },
   published_rfp_rfq: { id: "published_rfp_rfq", title: "A fresh RFP + RFQ event, published, with one QA vendor invited to both rounds; both open for about 20 minutes.", eventType: "rfp_rfq", steps: PUB_RFP_RFQ, clock: "long", vendors: 1, bids: 0, closed: false, provides: [...BASE_PROVIDES, ...EVENT, ...PRICING, ...RFP], minutes: 1 },
@@ -350,8 +356,11 @@ export const OPS: Record<OpId, OpDef> = {
   read_bid2: { id: "read_bid2", kind: "read", method: "GET", path: "/bids/{{bid2Uuid}}", actor: "buyer", actors: ["buyer", "vendor", "vendor2"], template: "—", needs: ["bid2Uuid"], produces: [], does: "reads the second QA vendor's bid" },
   // proposal#show — the award proposal (buyer only)
   read_proposal: { id: "read_proposal", kind: "read", method: "GET", path: "/proposal/{{proposalUuid}}", actor: "buyer", actors: ["buyer"], template: "—", needs: ["proposalUuid"], produces: [], does: "reads the award proposal" },
-  // event_groups#history — the event's change history (both apps may call it)
-  read_history: { id: "read_history", kind: "read", method: "GET", path: "/event_groups/{{eventGroupUuid}}/history", actor: "buyer", actors: ["buyer", "vendor"], template: "—", needs: ["eventGroupUuid"], produces: [], does: "reads the event's history" },
+  // The round's activity log, read the way the event page's Order Activity drawer reads it (orderDetails.jsx →
+  // components/activityLogs: GET /activity_logs?item_uuid=<round>&item_type=auction). It was
+  // /event_groups/{{eventGroupUuid}}/history until 18 Nov 2026 — a route Procol does not have (event_groups#history is
+  // the History TAB's list at /event_groups/history), so every plan reading it got 404 (HS-318541871855-1).
+  read_history: { id: "read_history", kind: "read", method: "GET", path: "/activity_logs?item_uuid={{tradeId}}&item_type=auction", actor: "buyer", actors: ["buyer"], template: "—", needs: ["tradeId"], produces: [], does: "reads the round's activity log (the Order Activity lines)" },
   /**
    * THE CASE'S OWN REQUEST (10 Nov). Hundreds of written cases name their request outright — "`PATCH
    * /bids/{{bidUuid}}/reject` with `{"rejection_remarks": …, "allow_rebidding": true}`" — on routes no
@@ -389,7 +398,7 @@ export const OPS: Record<OpId, OpDef> = {
   open_bid: { id: "open_bid", kind: "write", method: "POST", path: "/v1/bids", actor: "vendor", actors: ["vendor", "vendor2", "buyer"], template: "bodies.buildCreateBid (journey step: open a bid)", needs: ["tradeId"], produces: ["bidUuid"], does: "opens a bid on the pricing round" },
   price_bid: { id: "price_bid", kind: "write", method: "POST", path: "/v1/bids/{{bidUuid}}/create_bid_products", actor: "vendor", actors: ["vendor", "vendor2"], template: "bodies.buildBidProductsBody (journey step: price the line)", needs: ["tradeId", "bidUuid", "lineItemUuid"], produces: [], does: "prices the line on the bid" },
   submit_bid: { id: "submit_bid", kind: "write", method: "PATCH", path: "/v1/bids/{{bidUuid}}", actor: "vendor", actors: ["vendor", "vendor2"], template: "bodies.buildSubmitBidBody (journey step: submit the bid)", needs: ["tradeId", "bidUuid"], produces: [], does: "submits the bid" },
-  place_bid: { id: "place_bid", kind: "write", method: "POST", path: "/v1/bids", actor: "vendor", actors: ["vendor", "vendor2"], template: "the journey's three bid steps (open → price → submit), stopping at the first refusal", needs: ["tradeId", "lineItemUuid"], produces: ["bidUuid"], does: "places a complete bid (open, price, submit)" },
+  place_bid: { id: "place_bid", kind: "write", method: "POST", path: "/v1/bids", actor: "vendor", actors: ["vendor", "vendor2"], template: "the journey's three bid steps (open → price → submit), stopping at the first refusal", needs: ["tradeId", "lineItemUuid"], produces: ["bidUuid", "tradeProductUuid"], does: "places a complete bid (open, price, submit); QA vendor 2's bid is {{bid2Uuid}}" },
   start_tech_response: { id: "start_tech_response", kind: "write", method: "POST", path: "/template_responses", actor: "vendor", actors: ["vendor", "vendor2"], template: "bodies.buildStartTechnicalResponse (journey step: start the technical response)", needs: ["rfpTradeId"], produces: ["templateResponseUuid"], does: "starts a technical response on the RFP round" },
 
   library: { id: "library", kind: "write", method: "", path: "", actor: "buyer", actors: ["buyer", "vendor", "vendor2"], template: "the named library case's own request", needs: [], produces: [], does: "sends a library case's request" },
@@ -670,6 +679,8 @@ export const READ_SHAPES: Partial<Record<OpId, string[]>> = {
   read_event: ["uuid", "company", "config", "status", "title", "created_at", "updated_at", "stages", "current_stage_uuid", "is_project_on_hold", "terms_and_conditions_structured", "user_details", "proposals", "ref_uuid", "hide_master_qcs", "all_lots_withdrawn", "withdraw_details", "item_versions", "amendment_remarks", "is_latest_version", "quotation_templates", "contracts_uuids", "owner_trail", "is_scheduled_template", "additional_tabs"],
   read_round: ["uuid", "ref_uuid", "event_flow_version", "layers", "sheets", "title", "description", "status", "order_type", "starting_from", "ending_at", "extra_closing_time", "terms_and_conditions", "misc", "trade_config", "customised_audience", "bid_count", "rfx_mode", "current_status", "created_at", "updated_at", "increase_auction_slot", "auction_config", "order_details", "creator", "participants", "template_uuid", "template_name", "event_group_uuid", "stage_no", "attachments", "event_group", "proposals", "ranking_widgets", "remarks", "alternatives", "pending_unregistered_bids_count"],
 };
+READ_SHAPES.read_indicators = ["auction_identifiers", "auction_identifiers_data"];
+READ_SHAPES.read_history = ["items"];
 READ_SHAPES.read_rfp_round = READ_SHAPES.read_round;
 READ_SHAPES.read_round_schema = READ_SHAPES.read_round;
 /** sub-fields worth naming to the model */
@@ -678,12 +689,12 @@ const READ_HINTS: Partial<Record<OpId, string>> = {
   read_round: "title (round title), status, current_status, starting_from, ending_at (bid end, epoch s), extra_closing_time, bid_count, rfx_mode, event_group.title (the event's title as this reader sees it), event_group_uuid, participants, customised_audience",
   read_audience: "(shape not sampled yet — use status_2xx / non_empty on the root)",
   read_line_items: "(shape not sampled yet — use status_2xx / non_empty on the root)",
-  read_indicators: "auction_identifiers_data.<vendor company uuid>.inline.<line item uuid>.rank.best_bidder",
+  read_indicators: "auction_identifiers_data.{{vendorUuid}}.inline.{{tradeProductUuid}}.rank.best_bidder (true for the line's best bidder) and .best_price.value; the line key is the ROUND's trade product ({{tradeProductUuid}}, known after a place_bid or a setup with bids), never {{lineItemUuid}}. On an RFQ round rank.value is always \"\" and global.rank.value null — Procol hides ranks on RFQs by design (TradeRequest#should_show_rank? returns false for rfq); assert rank values only on an auction setup",
   list_events: "(a list — use status_2xx)",
   read_bid: "(shape not sampled yet — use status_2xx / exists on the fields the case names); the acting vendor's OWN bid",
   read_bid2: "the SECOND QA vendor's bid — 'a vendor cannot read another vendor's bid' = read_bid2 as vendor on rfq_with_2_bids, expected reject",
   read_proposal: "(shape not sampled yet — use status_2xx / exists on the fields the case names)",
-  read_history: "(shape not sampled yet — use status_2xx / non_empty on the root)",
+  read_history: "items[*] — the round's Order Activity lines (use status_2xx, non_empty on items, contains on the words the case names)",
   request: "a GET the case names: {\"op\":\"request\",\"request\":{\"method\":\"GET\",\"path\":\"/…\"},\"assert\":[…]} (shape unknown — assert the fields the case names)",
 };
 
@@ -795,7 +806,24 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
   const warnings: string[] = [];
   const soft: string[] = [];
   const p = (raw && typeof raw === "object" ? raw : {}) as Partial<ApiPlan>;
-  const recipeId = (p.setup as any)?.recipe as RecipeId;
+  let recipeId = (p.setup as any)?.recipe as RecipeId;
+  const rawActs: any[] = Array.isArray(p.act) ? (p.act as any[]) : [];
+  const rawVerify: any[] = Array.isArray(p.verify) ? (p.verify as any[]) : [];
+  // A round-less draft cannot be read: EventGroupPolicy#show? (and get_line_items?) needs a round the reader may see,
+  // so GET /event_groups/:id answers 422 code 455 BY DESIGN (HS-318440667838-1, 18 Nov 2026). A draft read back is
+  // built with its pricing round (still a draft, still unpublished).
+  if (recipeId === "draft_event" && rawVerify.some((v) => ["read_event", "read_line_items"].includes(v?.op) && !(v?.assert ?? []).some((x: any) => x?.op === "status" && Number(x.value) >= 400))) {
+    recipeId = "draft_rfq";
+    warnings.push("a draft with no rounds cannot be read back (Procol shows an event only through a round the reader may see — code 455), so the draft is built with its pricing round (draft_rfq)");
+  }
+  // "convert the RFQ to an auction, then bid" bids on the closed RFQ round ("Order not active", code 33): a live
+  // auction is its own setup (HS-320401698541-1, 18 Nov 2026)
+  const conv = rawActs.findIndex((a) => a?.op === "convert_to_auction");
+  if (recipeId === "published_rfq" && conv >= 0 && rawActs.slice(conv + 1).some((a) => a?.op === "place_bid")) {
+    recipeId = "published_auction";
+    p.act = rawActs.filter((_, i) => i !== conv) as ActStep[];
+    warnings.push("bidding after convert_to_auction bids on the old RFQ round — the plan starts from a live reverse auction (published_auction) instead");
+  }
   const recipe = RECIPES[recipeId];
   if (!recipe) errors.push(`unknown setup recipe "${String(recipeId)}" (known: ${Object.keys(RECIPES).join(", ")})`);
   const acts: ActStep[] = Array.isArray(p.act) ? (p.act as ActStep[]) : [];
@@ -1036,7 +1064,8 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
       }
     if (a.expect !== undefined && !["accept", "reject", "no-5xx"].includes(a.expect)) errors.push(`act ${n}: expect must be accept, reject or no-5xx`);
     if (a.ifRefused !== undefined && !["pass", "inconclusive", "continue"].includes(a.ifRefused)) errors.push(`act ${n}: ifRefused must be pass, inconclusive or continue`);
-    for (const pr of op.produces) have.add(pr);
+    for (const pr of op.produces) have.add(a.op === "place_bid" && pr === "bidUuid" && a.as === "vendor2" ? "bid2Uuid" : pr);
+    if (a.op === "place_bid") have.add("tradeProductUuid");
     if (a.op === "add_vendor") have.add("vendor2Uuid");
     // a request that opens a bid / proposal gives the plan that record
     if (a.op === "request" && a.request) {
@@ -1078,6 +1107,11 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
       continue;
     }
     v.as = (v.as ?? op.actor) as ActorId;
+    // QA vendor 2 reading "its bid" reads bid2Uuid (bidUuid is QA vendor 1's)
+    if (v.op === "read_bid" && v.as === "vendor2" && have.has("bid2Uuid")) {
+      v.op = "read_bid2";
+      warnings.push(`verify ${n}: QA vendor 2's own bid is read (read_bid2)`);
+    }
     if (!op.actors.includes(v.as)) errors.push(`verify ${n}: ${v.op} cannot be read as ${v.as}`);
     let needs = [...op.needs];
     let path = op.path;
@@ -1109,9 +1143,16 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
       }
       if (as.op === "status" && !(typeof as.value === "number" && as.value >= 100 && as.value < 600)) errors.push(`verify ${n}: status needs an HTTP status number`);
       if (as.op === "status" || as.op === "status_2xx") continue;
+      // "the reply is not empty" / "the reply is a list" with no path is about the whole reply
+      if (as.path === undefined && ["non_empty", "type_is"].includes(as.op)) as.path = "$";
       if (typeof as.path !== "string" || !(as.path === "" || as.path === "$" || PATH_RE.test(as.path))) {
         errors.push(`verify ${n}: "${String(as.path)}" is not a field path`);
         continue;
+      }
+      // the comparison keys a line by the round's trade product, not the event line item (HS-320401698541-1)
+      if (v.op === "read_indicators" && as.path.includes("{{lineItemUuid}}")) {
+        as.path = as.path.replace(/\{\{lineItemUuid\}\}/g, "{{tradeProductUuid}}");
+        warnings.push(`verify ${n}: the comparison keys the line by the round's trade product — {{lineItemUuid}} read as {{tradeProductUuid}}`);
       }
       for (const t of [...as.path.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]))
         if (!have.has(t)) errors.push(`verify ${n}: the path uses {{${t}}}, which nothing provides`);
@@ -1551,7 +1592,8 @@ function recipeEventStatus(r: Recipe): "draft" | "active" | undefined {
 function providedAfter(plan: ApiPlan, upto: number): Set<string> {
   const have = new Set<string>(RECIPES[plan.setup.recipe]?.provides ?? []);
   for (const a of plan.act.slice(0, upto + 1)) {
-    for (const pr of OPS[a.op]?.produces ?? []) have.add(pr);
+    for (const pr of OPS[a.op]?.produces ?? []) have.add(a.op === "place_bid" && pr === "bidUuid" && a.as === "vendor2" ? "bid2Uuid" : pr);
+    if (a.op === "place_bid") have.add("tradeProductUuid");
     if (a.op === "add_vendor") have.add("vendor2Uuid");
     if (a.op === "request" && a.request) {
       const k = endpointKey(a.request.method, a.request.path);

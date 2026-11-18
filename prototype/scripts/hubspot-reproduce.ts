@@ -201,10 +201,16 @@ for (const [caseId, tickets] of todo) {
     res.verdict === "failed" && res.confirmed && !onDecisive && f1
       ? { step: f1.title, status: f1.status ?? null, code: f1.code ?? null, actual: f1.actual, phase: f1.phase, note: "failed the same way on both fresh events, but NOT at the step the ticket is about — a separate finding to verify against the backend code, not this ticket's defect" }
       : null;
+  // A plan that says its decisive step tests something else than the ticket's point cannot clear the ticket: a pass
+  // there is not "the defect did not show" (18 Nov 2026 — HS-318541871855-1 passed opening a proposal while the ticket
+  // is about approving an NFA with a technically-not-acceptable vendor).
+  const offPoint = p.gaps.find((g) => /decisive step tests something else/i.test(g));
   let status: ReproStatus;
   if (res.verdict === "failed" && res.confirmed) status = onDecisive && p.coverage === "full" && cite ? "reproduced" : "needs_confirmation";
   else if (res.verdict === "not run") status = "not_tried";
+  else if (offPoint) status = "not_automatable";
   else status = "not_reproduced";
+  if (status === "not_automatable") (evidence as Record<string, unknown>).because = `the plan ran (${res.verdict}) but cannot test the ticket's point: ${offPoint}`;
   await store(status, { ...evidence, failedOnDecisiveStep: onDecisive, otherFinding, inconclusive: res.verdict === "couldn't tell" });
   log(`  → ${status}: ${res.verdict} — ${res.reason.slice(0, 300)}`);
 }

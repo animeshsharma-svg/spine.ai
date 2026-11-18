@@ -87,7 +87,18 @@ All five flows ran with nobody answering a question: every "check it in the othe
 
 **One intermittent finding:** on 2 of 3 fresh events (99080 / RFX-21265, 99214 / RFX-21389) the extension happened — the database holds the dynamic_extra_time schedule and the extension count 1 — but Order Activity did not log it; on the third it did. A hand check, not a confirmed bug (docs/bugs/platform-fixes-needed.md).
 
-**The real HubSpot export through the platform's own pipeline.** The RCA retrieval export (1,033 real tickets, Jul–Sep 2026) went through `hubspot:ingest` on the platform's fast model: personal data removed (502 names, 147 phone numbers, 112 company names …), 872 sorted as defects. Against the team's own "Is Defect" column: 700 agree, 172 extra, 40 missed — precision 80.3 %, recall 94.6 %. The platform wrote 527 regression cases (test-cases/hubspot-regressions.md, ids HS-<ticket>-N). The 153 tickets the team marks as defects and not yet closed have 79 platform cases; 14 of them were replayed on fresh PROCOL DEMO events through the API: 8 no longer reproduce, 3 failed the same way on a second fresh event and are flagged for confirmation (HS-318440667838-1, HS-318541871855-1, HS-320401698541-1), 2 couldn't tell (a company setting the run does not switch), 1 no verdict.
+**The real HubSpot export through the platform's own pipeline.** The RCA retrieval export (1,033 real tickets, Jul–Sep 2026) went through `hubspot:ingest` on the platform's fast model: personal data removed (502 names, 147 phone numbers, 112 company names …), 872 sorted as defects. Against the team's own "Is Defect" column: 700 agree, 172 extra, 40 missed — precision 80.3 %, recall 94.6 %. The platform wrote 527 regression cases (test-cases/hubspot-regressions.md, ids HS-<ticket>-N). The 153 tickets the team marks as defects and not yet closed have 79 platform cases; 14 of them were replayed on fresh PROCOL DEMO events through the API: 8 no longer reproduce, 3 failed the same way on a second fresh event (HS-318440667838-1, HS-318541871855-1, HS-320401698541-1), 2 couldn't tell (a company setting the run does not switch), 1 no verdict.
+
+**Re-check of the 3 flagged tickets (18 Nov 2026): none is a Procol bug; all three were the platform's own mistakes, now fixed.**
+
+| Ticket | What it reports | Why the platform's run failed | After the fix |
+|---|---|---|---|
+| HS-318440667838-1 | Vendors not visible in an event despite category mapping | It read a draft that had no round. Procol shows an event only through a round the reader may see (EventGroupPolicy#show?), so code 455 is by design. | Draft built with its round (draft UWtaY1Fk, AAC Block 600x250x150MM): both reads pass. The ticket's point (suggested vendors by category) is not in the platform's vocabulary yet. |
+| HS-318541871855-1 | NFA approval on RFX-16250 | It read `/event_groups/<id>/history`, an address Procol does not have (404). | Now reads the Order Activity log the way the event page does. Proposal opened on spine-API-automation-47485961, activity log answered. The ticket's point (approving with a technically-not-acceptable vendor) is not in the vocabulary yet. |
+| HS-320401698541-1 | Real-time reverse auction bidding | It built an RFQ, where Procol hides ranks by design, looked up the line under the wrong key, and read QA vendor 2's bid as QA vendor 1 ("Bid not found"). | New live rank-auction start state. On spine-API-automation-46320516 the buyer's comparison shows QA vendor 2 (90) rank 1 and best bidder, QA vendor 1 (100) rank 2. The ticket's Gold/Silver/Bronze labels and the vendor's mobile view are not covered yet. |
+
+A pass on a plan that admits it tests something other than the ticket is now recorded as "cannot test the ticket's point" (not_automatable), never as "no longer reproduces".
+
 
 ## 5. The one-paragraph version
 
