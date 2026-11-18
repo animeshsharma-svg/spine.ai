@@ -1849,7 +1849,9 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     const priced = steps.some((st) => ["add_line_items", "fill_sheet", "place_bid", "place_surrogate_bid"].includes(st.step));
     const hasType = steps.some((st) => st.step === "configure_single_stage");
     if (oc >= 0 && priced && !hasType) {
-      const eventType = /auction|knock|dutch|rank|traffic/i.test(testCase) ? "auction" : "rfq";
+      // "rank" alone is not an auction: every RFQ's Master QCS shows ranks (19 Nov, SSR-010 "Master QCS shows rank 1"
+      // opened as an auction); only a ranking STRATEGY is
+      const eventType = /auction|knock-?out|dutch|traffic|\brank(?:ing)?[- ](?:based|auction|strategy|only)\b/i.test(testCase) ? "auction" : "rfq";
       const tpl = steps.findIndex((st) => st.step === "select_template");
       const at = tpl > oc ? tpl : oc + 1;
       steps.splice(at, 0, { step: "configure_single_stage", args: { eventType }, note: "a priced single-stage event needs its type set before a template (the screen opens as RFP)" });

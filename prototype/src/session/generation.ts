@@ -263,7 +263,10 @@ export async function runGeneration(s: Session, kinds: Kind[], depth: Depth, emi
         // the computed line wins over the model's for the same key: the model echoes the company's current value
         // ("default_event_type = rfi") where the case needs the type its steps name
         let have = (r.configs && r.configs !== "None" ? r.configs.split(/\n/) : []).map((x) => x.trim()).filter(Boolean);
-        for (const line of need.split(/\n/)) { const key = line.split("=")[0].trim(); have = have.filter((h) => h.split("=")[0].trim() !== key); have.push(line); }
+        // …except a case ABOUT the company's default type: its own value is the point (19 Nov, SSR-010 "default event type
+        // set to rfi and keep RFQ" got default_event_type = rfq and could never see the rfi it checks)
+        const aboutDefaultType = /\bdefault (event )?type\b|default_event_type/i.test(`${r.title} ${r.expected}`);
+        for (const line of need.split(/\n/)) { const key = line.split("=")[0].trim(); if (key === "default_event_type" && aboutDefaultType) continue; have = have.filter((h) => h.split("=")[0].trim() !== key); have.push(line); }
         r.configs = have.join("\n");
       }
       ids.push(r.id);

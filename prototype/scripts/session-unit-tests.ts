@@ -60,7 +60,7 @@ test("a flow that starts from the unpublished event an earlier flow builds runs 
   const cases = flowsAsCases(session, card);
   assert.equal(cases.length, 3);
   assert.deepEqual(cases[1].steps, [...card.flows[0].steps, ...card.flows[1].steps]);
-  assert.equal(cases[1].preconditions, "The buyer is on Events.");
+  assert.equal(cases[1].preconditions, `This flow is part of "T". The buyer is on Events.`); // the PRD's title travels with every flow case (17 Nov)
   assert.deepEqual(cases[2].steps, card.flows[2].steps);
   assert.equal(cases[2].portal, "Supplier portal");
 });
@@ -112,4 +112,11 @@ test("askAndWait resolves with the answer, and with the suggestion when the dead
   assert.equal(d.answer, "out");
   assert.equal(questionsOf(s).find((x) => x.text === "Stop?")?.closed, "deadline");
   deleteSession(s.id);
+});
+
+test("generation swaps product / template / vendor names the PRD never gives (19 Nov)", async () => {
+  const { scrubInventedNames } = await import("../src/session/generation.js");
+  assert.equal(scrubInventedNames("Line item: QA test line item; template: QA RFQ Template; vendor: QA_Platform Vendor A", "a prd"), "Line item: the test product; template: the first pricing template; vendor: Vendor A");
+  assert.equal(scrubInventedNames("Vendor: QA_Platform Vendor 1 1790820862139", ""), "Vendor: QA_Platform Vendor 1 1790820862139");
+  assert.equal(scrubInventedNames("product QA Test Bolt", "the prd names qa test bolt"), "product QA Test Bolt");
 });
