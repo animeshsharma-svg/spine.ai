@@ -3,20 +3,16 @@
  *
  * The frozen sheet runs through the sheet runner — start states by API, settings switched and restored,
  * one browser, a screenshot per action, verdicts with the fairness rules, bugs in the tester's format.
- * Scope: everything, P0–P1 now (the rest queued for the night runner), or named sections. A failure can
+ * Scope: everything, P0–P1 now (the rest queued for the night runner — session/nightQueue.ts drains it), or named sections. A failure can
  * be run again alone on a fresh event before anyone calls it a bug. The report gathers every run of the
  * session: tally, bugs, the report and workbook links the Test sheets page already serves.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { sheetCases, type SheetCase } from "../checks/sheetCases.js";
 import { loadSheetRun, runSheetCases, type SheetEvent, type SheetRun } from "../checks/sheetRunner.js";
 import { updateSession, type Session } from "./store.js";
 import { askAndWait, plural } from "./questions.js";
+import { enqueue, waitingFor } from "./nightQueue.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const QUEUE = join(here, "..", "..", "data", "night", "queue.json");
 
 export type Scope = "all" | "p0p1" | "sections";
 export type ExecEvent = SheetEvent | { type: "queued"; sheet: string; ids: string[]; note: string } | { type: "error"; why: string };
@@ -31,14 +27,6 @@ function pick(cases: SheetCase[], scope: Scope, sections?: string[]): { now: She
   return { now: cases, later: [] };
 }
 
-/** Queue cases for the night runner (data/night/queue.json; the night runner reads it before its own picks). */
-function queueForNight(sheet: string, ids: string[]): void {
-  mkdirSync(dirname(QUEUE), { recursive: true });
-  const q: Array<{ sheet: string; ids: string[]; at: string }> = existsSync(QUEUE) ? JSON.parse(readFileSync(QUEUE, "utf8")) : [];
-  q.push({ sheet, ids, at: new Date().toISOString() });
-  writeFileSync(QUEUE, JSON.stringify(q, null, 1));
-}
-
 export async function runExecution(s: Session, scope: Scope, sections: string[] | undefined, overnightRest: boolean, emit: (e: ExecEvent) => void): Promise<Session> {
   const sheet = frozenSheet(s);
   if (!sheet) { emit({ type: "error", why: "Approve the cases first: the run takes the approved, frozen sheet." }); return s; }
@@ -46,7 +34,7 @@ export async function runExecution(s: Session, scope: Scope, sections: string[] 
   const all = sheetCases(sheet);
   let { now, later } = pick(all, scope, sections);
   if (!now.length) { emit({ type: "error", why: `Nothing to run for scope "${scope}"${sections?.length ? ` (${sections.join(", ")})` : ""}: the sheet has ${all.length} case(s).` }); return s; }
-  if (later.length && overnightRest) { queueForNight(sheet, later.map((c) => c.id)); emit({ type: "queued", sheet, ids: later.map((c) => c.id), note: `${later.length} case(s) queued for the night runner.` }); }
+  if (later.length && overnightRest) { enqueue({ sheet, ids: later.map((c) => c.id), companyId: s.env.companyId, sessionId: s.id }); emit({ type: "queued", sheet, ids: later.map((c) => c.id), note: `${later.length} case(s) queued for the night runner.` }); }
   // cases this company cannot carry: ask before the browser is held (run anyway / leave out / stop)
   const kept = await askAboutUnrunnable(s, now, emit);
   if (!kept) return s;
@@ -134,7 +122,6 @@ export function report(s: Session): Report {
   for (const v of Object.values(latest)) tally[v.status] = (tally[v.status] ?? 0) + 1;
   // the latest verdict of a case decides whether its bug still stands
   const standing = bugs.filter((b) => latest[b.caseId]?.runId === b.runId && latest[b.caseId]?.status === "Fail");
-  let queued = 0;
-  try { if (existsSync(QUEUE) && sheet) queued = (JSON.parse(readFileSync(QUEUE, "utf8")) as Array<{ sheet: string; ids: string[] }>).filter((q) => q.sheet === sheet).reduce((n, q) => n + q.ids.length, 0); } catch { /* none */ }
+  const queued = sheet ? waitingFor(sheet) : 0;
   return { sheet, runs, tally, latest, bugs: standing, queued };
 }

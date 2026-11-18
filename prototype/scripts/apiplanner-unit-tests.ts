@@ -162,5 +162,19 @@ function check(name: string, ok: boolean, detail?: unknown) {
   check("polarity: the expected column outvotes the title", casePolarity({ heads: ["Reopen with the extension written as a word: the round check answers first", "HTTP 422, code 4 'Request not found'."], text: "" }) === "reject");
 }
 
+// ── 9 · a refusal needs a reason the plan sends or builds (four false derived Fails, 19 Nov 2026) ──
+{
+  const { validatePlan } = await import("../src/agents/apiPlanner.js");
+  const refused = async (plan: any, re: RegExp, ctx?: any) => (await validatePlan(plan, ctx)).errors.some((e) => re.test(e));
+  check("refusal: an ordinary bid on a published auction cannot be expected refused", await refused({ version: 2, title: "t", setup: { recipe: "published_auction" }, act: [{ op: "place_bid", as: "vendor", params: { price: 21000 }, decisive: true }], verify: [], expected: { outcome: "reject" } }, /ordinary request/));
+  check("refusal: a zero-price bid is a reason", !(await refused({ version: 2, title: "t", setup: { recipe: "published_auction" }, act: [{ op: "place_bid", as: "vendor", params: { price: 0 }, decisive: true }], verify: [], expected: { outcome: "reject" } }, /ordinary request/)));
+  check("refusal: a conversion before the bid builds the reason", !(await refused({ version: 2, title: "t", setup: { recipe: "published_rfq" }, act: [{ op: "convert_to_auction", as: "buyer", expect: "accept" }, { op: "place_bid", as: "vendor", expect: "reject", decisive: true }], verify: [], expected: { outcome: "reject" } }, /ordinary request/)));
+  check("refusal: line_items [] on publish is dropped by the app", await refused({ version: 2, title: "t", setup: { recipe: "draft_rfq" }, act: [{ op: "publish_event", as: "buyer", change: [{ path: "line_items", set: [] }], decisive: true }], verify: [], expected: { outcome: "reject" } }, /empty list/));
+  const v = await validatePlan({ version: 2, title: "t", setup: { recipe: "rfq_with_bid" }, act: [], verify: [{ op: "read_bid", as: "vendor2", assert: [{ op: "status", value: 403 }] }], expected: { outcome: "accept" } }, { text: "Vendor B cannot read Vendor A's bid; record the refusal and its message.", heads: [] } as any);
+  check("refusal: a 403 the case never names becomes any 4xx", (v.plan.verify[0].assert[0] as any).value === "4xx");
+  const w = await validatePlan({ version: 2, title: "t", setup: { recipe: "rfq_with_bid" }, act: [], verify: [{ op: "read_bid", as: "vendor2", assert: [{ op: "status", value: 403 }] }], expected: { outcome: "accept" } }, { text: "The read is refused with HTTP 403 Forbidden.", heads: [] } as any);
+  check("refusal: a 403 the case names stays 403", (w.plan.verify[0].assert[0] as any).value === 403);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

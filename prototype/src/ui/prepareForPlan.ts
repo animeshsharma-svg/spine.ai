@@ -28,8 +28,13 @@ export function stateForPlan(text: string, plan: PlanLike): { state: UiState; sc
   if (!first) return null;
   const screen = String(first.args?.screen ?? "summary");
   const p = prepFor({ id: "typed", group: "", title: text, setup: "", steps: "", expected: "" });
-  if (p.ok && p.prepared && p.state !== "none") return { state: p.state, screen, technical: p.technical, auction: p.auction };
   const t = text.toLowerCase();
+  // A case that places the bid itself (a surrogate bid, Add Bid) starts from a live event with the vendor invited and
+  // no bid yet: its "Responses" / "Master QCS" / "the vendor's bid" are what it checks AFTER bidding, not the start
+  // state (19 Nov, guided-session sanity FL3 ran on a state whose vendor had already bid, so Add Bid was gone).
+  const placesOwnBid = /\bsurrogate (bid|response)|on behalf of the vendor|\badd bid\b|\b(place|enter|submit)s? an? (surrogate )?bid\b/.test(t) && !/\b(has|have) (already )?bid|already (placed|submitted|bid)|second (bid|vendor)|another vendor|two (bids|vendors)|other vendor/.test(t);
+  if (placesOwnBid) return { state: "live", screen, technical: /technical|rfp|questionnaire|evaluat/.test(t), ...(p.ok && p.auction ? { auction: p.auction } : {}) };
+  if (p.ok && p.prepared && p.state !== "none") return { state: p.state, screen, technical: p.technical, auction: p.auction };
   const state: UiState = /proposal|nfa/.test(t) || screen === "proposal" ? "proposal" : /award|bids? in|has (already )?bid|vendor('s)? bid|master qcs|compare|responses|analytics|counter offer|l1/.test(t) || /master_qcs|responses|analytics/.test(screen) ? "bid" : /closed|history|expired/.test(t) ? "closed" : /draft/.test(t) ? "draft" : "live";
   return { state, screen, technical: /technical|rfp|questionnaire|evaluat/.test(t) };
 }

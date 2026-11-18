@@ -193,3 +193,29 @@ Must have on day 6, in this order: Step 0 → Step 1 understanding card with que
 - **Browser time**: 150 cases is 6–10 hours of browser; the session offers "P0–P1 now, the rest overnight".
 - **Two people, one UAT company**: both create events on PROCOL DEMO; keep the sandbox prefix; never reuse another run's event; browser runs never overlap on one machine.
 - **The contract drifting**: any change to section 4 is a line in the standup file first, code second.
+
+## 10. Resumed 19 Nov 2026 — where the plan stands, and the days left
+
+The plan paused after day 2 (14 Nov). From 14 to 18 Nov the time went to the auction-strategy runs, the In-Principle Approval cases, the platform bug hunt, the HubSpot replays and the one-branch merge. The merge matters here: the session engines and Aanya's screens now live on one trunk (`demo`), so the flip from the mock to the real routes is no longer blocked.
+
+**Status by item (measured from the code on `demo`, 19 Nov):**
+
+| Item | State |
+|---|---|
+| A1 store, A2 environment, A4 intake, A6 understanding, A7 sanity, A13 model queue | Built 12 Nov, verified live on PROCOL DEMO then |
+| Questions on screen (§4.1) | Built and verified 13 Nov |
+| A8 generation | Built; quick depth verified (8 cases, basis per section). Deep run (100+ cases, 6+ kinds, under 10 min) never measured |
+| A9 error-guessing | Reads the RCA tickets (`defectsFor`); does not yet read the 112 open-defect HubSpot cases |
+| A10 review | Edit, drop, merge with duplicates, approve into a versioned sheet: built and verified. v2 diff not built |
+| A11 run | P0–P1 through the sheet runner, re-run, report: built. The overnight queue is written but the night runner does not read it |
+| A5 Figma | Waits for a `FIGMA_TOKEN` |
+| A12 generation eval | Not built |
+| Aanya B1.1–B1.3 + question card | Built on the mock (14 Nov). Not yet on the real routes |
+| Aanya B1.4–B1.7, B2.4, B3.1 | Not started or not shown |
+
+**The days left (demo proposed for Tue 24 Nov):**
+
+- **Thu 19 Nov.** Animesh: walk one session end to end on the real routes after the merge and fix what breaks; the night runner reads the overnight queue; final HubSpot funnel. Aanya: the day-4 brief items 1–3 (branch from `demo`, Environment / Requirement / Sanity / Cases on the real routes on :4320, PRD page Run hands to the sheet runner). Done when Animesh's stand-up names a session id, an approved sheet and a run tally, and Aanya's shows `#/s` working on the real routes.
+- **Fri 20 Nov.** Animesh: a deep generation measured (count, kinds, minutes); the generation eval (A12) against a real hand-written sheet (PR assignee, 66 cases); error-guessing also cites the open-defect HubSpot cases; Figma if a token is given. Aanya: Review and Run screens on the real routes (B1.6, B1.7); the known-defect corpus (B2.4).
+- **Mon 23 Nov.** Both: re-run on a fresh event and the Bugs page from the session; two clean dry runs of the demo script on a new session; anything that fails is cut by §7, not patched on the day.
+- **Tue 24 Nov.** Demo, in the §7 order.

@@ -14,6 +14,7 @@
  *   --combo-timeout-min 45     one journey that runs longer than this is stopped
  *   --total-timeout-min 360    the whole night stops after this, whatever is left
  *   --port 4316                port for its own platform server (never 4300)
+ *   --no-queue                 skip the guided session's overnight queue (run first otherwise)
  *
  * What it does, in order:
  *   1. takes a lock (data/nightly/.lock) — a second copy started meanwhile exits at once
@@ -116,6 +117,16 @@ if (existsSync(SERVER_PID)) {
     }
   }
   rmSync(SERVER_PID, { force: true });
+}
+
+// ── 0. the guided session's overnight queue (cases a tester left for the night), before any journey ──
+if (!args.has("--no-queue")) {
+  try {
+    const { drainNightQueue } = await import("../src/session/nightQueue.js");
+    await drainNightQueue({ log: (l) => console.log(`queue: ${l}`) });
+  } catch (e) {
+    console.error(`✗ the overnight queue could not run: ${(e as Error).message}`);
+  }
 }
 
 const startedAt = new Date();

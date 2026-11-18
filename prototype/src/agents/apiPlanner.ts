@@ -1104,6 +1104,25 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
       const vendorState = caseText.match(/\b(archived|inactive|blocked|blacklisted|deactivated|suspended|unapproved|unregistered)\s+(?:\w+\s+){0,2}vendor\b/i);
       if (vendorState) errors.push(`act ${n}: the case needs an ${vendorState[1].toLowerCase()} vendor, which no recipe creates — the refusal cannot be tested on the QA vendors`);
       if (OPS[dec.op as OpId]?.kind === "read") errors.push(`act ${n}: the case expects a change to be refused, but the decisive step is a read (${dec.op}) — a read never shows whether the change would have been refused`);
+      // A refusal needs a reason the plan sends or builds (19 Nov 2026, four false Fails on derived HubSpot rows: an
+      // ordinary second pricing round, an ordinary 21000 bid with no floor price set, the buyer inviting a vendor to a live
+      // round, and `line_items: []` — an empty list the backend drops (`params[:line_items].present?`), so the draft kept
+      // its line item). The app rightly accepted each, and the run called it a product failure.
+      // only where the backend is read to drop it: event_groups#update reads line_items through `.present?` (an empty
+      // list elsewhere — a round's `data`, a surrogate's `page_uuids` — is a real, refusable input)
+      const empties = ["publish_event", "update_event"].includes(dec.op) ? (dec.change ?? []).filter((ch) => ch.path === "line_items" && Array.isArray(ch.set) && ch.set.length === 0) : [];
+      for (const ch of empties) errors.push(`act ${n}: "${ch.path}" is set to an empty list, which the app drops as "nothing sent" (event_groups#update reads it with .present?) — it cannot remove the line item the start state already has, so the refusal cannot be tested this way`);
+      const ORDINARY: Partial<Record<string, RegExp>> = { place_bid: /^published_(auction|rfq)/, add_vendor: /^published_/, add_rfq_round: /^draft_/, add_rfp_round: /^draft_/, publish_event: /^draft_/ };
+      const ord = ORDINARY[dec.op];
+      const opDef = OPS[dec.op as OpId];
+      const altered = (dec.change ?? []).length > empties.length;
+      const p = dec.params ?? {};
+      const oddPrice = "price" in p && (p.price === null || !(Number(p.price) > 0));
+      const otherActor = !!opDef && dec.as !== opDef.actor && !(dec.op === "place_bid" && dec.as === "vendor2" && (recipe?.vendors ?? 0) >= 2);
+      // a write or a wait the case wrote before the decisive step builds the condition (it may have been folded into the setup)
+      const builtBefore = normActs.slice(0, n - 1).some((a) => OPS[a.op as OpId]?.kind !== "read") || rawActs.filter((a) => a && !a.decisive && OPS[a.op as OpId]?.kind !== "read").length > (dec.decisive && rawActs.some((a) => a?.decisive) ? 0 : 1);
+      if (ord && recipe && ord.test(recipe.id) && !altered && !empties.length && !oddPrice && !otherActor && !builtBefore)
+        errors.push(`act ${n}: the case expects ${dec.op} to be refused, but the plan sends the ordinary request (nothing changed, the usual actor) on setup "${recipe.id}", where the app accepts it — build the condition the case names (a changed field, another actor, or a start state that has it), or the run will report the app's correct acceptance as a failure`);
     }
   }
   // A wait is capped at 6 minutes: an extension before it must stay inside that.
@@ -1163,7 +1182,16 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
         as.path = "$";
         delete (as as { value?: unknown }).value;
       }
-      if (as.op === "status" && !(typeof as.value === "number" && as.value >= 100 && as.value < 600)) errors.push(`verify ${n}: status needs an HTTP status number`);
+      // a read-back the case wants refused, with a code the case never names: any refusal holds (DRV-RFQ-094, 19 Nov — the
+      // vendor's read of another vendor's bid was refused 422 "Bid not found"; the compiler had demanded 403)
+      if (as.op === "status" && typeof as.value === "number" && as.value >= 400 && as.value < 500 && ctx) {
+        const named: Record<number, RegExp> = { 401: /unauthori[sz]ed|sign(?:ed)? ?in/i, 403: /forbidden/i, 404: /not found/i, 409: /conflict/i, 422: /unprocessable/i };
+        if (!new RegExp(`\\b${as.value}\\b`).test(caseText) && !(named[as.value]?.test(caseText) ?? false)) {
+          warnings.push(`verify ${n}: the case never names HTTP ${as.value} — any refusal (4xx) holds`);
+          (as as { value?: unknown }).value = "4xx";
+        }
+      }
+      if (as.op === "status" && !(as.value === "4xx" || (typeof as.value === "number" && as.value >= 100 && as.value < 600))) errors.push(`verify ${n}: status needs an HTTP status number`);
       if (as.op === "status" || as.op === "status_2xx") continue;
       // "the reply is not empty" / "the reply is a list" with no path is about the whole reply
       if (as.path === undefined && ["non_empty", "type_is"].includes(as.op)) as.path = "$";
@@ -1339,7 +1367,7 @@ function assertWordsBare(a: Assertion): string {
   const f = a.path ? `“${a.path.replace(/\[\*\]/g, "").replace(/\{\{vendor2Uuid\}\}/g, "QA vendor 2").replace(/\{\{vendorUuid\}\}/g, "QA vendor 1").replace(/\{\{lineItemUuid\}\}/g, "the line").replace(/\{\{\w+\}\}/g, "…").replace(/_/g, " ").replace(/\./g, " › ")}”` : "the reply";
   const v = typeof a.value === "string" ? a.value.replace(/\{\{act(\d)\.body\.([\w.]+)\}\}/, (_m, n, k) => `the ${k.replace(/_/g, " ")} sent in step ${n}`) : JSON.stringify(a.value);
   switch (a.op) {
-    case "status": return `the reply's status code is ${statusInWords(Number(a.value))}`;
+    case "status": return a.value === "4xx" ? "the reply is a refusal (4xx — the app said no)" : `the reply's status code is ${statusInWords(Number(a.value))}`;
     case "status_2xx": return "the reply's status code is a success (2xx — the request worked)";
     case "exists": return `${f} is present`;
     case "absent": return `${f} is absent`;

@@ -710,7 +710,7 @@ function judgeAssertion(a: Assertion, reply: Reply, value: unknown): { pass: boo
   // be called status (seen 5 Nov: the round's own status "active" was compared with 200 and failed a sound case)
   if ((a.op === "equals" || a.op === "one_of") && /(^|\.)status$/.test(a.path.replace(/^\$\.?/, "")) && (Array.isArray(value) ? value.every((v) => HTTP_CODES.has(v as never)) : HTTP_CODES.has(value as never)))
     return { pass: reply.status >= 200 && reply.status < 300, actual: `HTTP ${reply.status}` };
-  if (a.op === "status") return { pass: reply.status === Number(value), actual: `HTTP ${reply.status}` };
+  if (a.op === "status") return { pass: value === "4xx" ? reply.status >= 400 && reply.status < 500 : reply.status === Number(value), actual: `HTTP ${reply.status}` };
   if (a.op === "status_2xx") return { pass: reply.status >= 200 && reply.status < 300, actual: `HTTP ${reply.status}` };
   if (!reply.ok) return { pass: null, actual: `the read was refused (${said(reply)}), so the field could not be checked` };
   const vals = resolveAll(reply.data, a.path);
@@ -1197,7 +1197,7 @@ function describeAssert(a: Assertion, value: unknown): string {
   const f = a.path ? a.path.replace(/\[\*\]/g, "").replace(/\{\{vendor2Uuid\}\}/g, "QA vendor 2").replace(/\{\{vendorUuid\}\}/g, "QA vendor 1").replace(/\{\{lineItemUuid\}\}/g, "the line").replace(/\{\{\w+\}\}/g, "…").replace(/_/g, " ").replace(/\./g, " › ") : "the reply";
   const v = typeof value === "string" ? `“${value}”` : JSON.stringify(value);
   switch (a.op) {
-    case "status": return `the read answers HTTP ${value}`;
+    case "status": return value === "4xx" ? "the read is refused" : `the read answers HTTP ${value}`;
     case "status_2xx": return "the read succeeds";
     case "exists": return `${f} is present`;
     case "absent": return `${f} is absent`;

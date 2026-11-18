@@ -71,6 +71,28 @@ All 112 open-defect cases now have a derived sheet (model spend of the second ba
 | DRV-LI-179 | HS-1060010159-1 | False: the row's expected line says the two requests "produce rate-only lines **rather than rejecting** zero or missing quantity"; the compiler read the word *rejecting* as "must refuse" and failed the accept. The polarity reader now takes "rather than / instead of / without … rejecting (refusal, error, failure)" as the refusal that does **not** happen. |
 | DRV-AUC-088 | HS-162417491700-1 | False: every data check held (QA vendor 1 rank 1, best bidder) and the one failing check was the compiler's own "rank value is a number", while the app sends the rank as the text "1". The row never says *number*. A type check the case does not ask for is now checked as "the field is there". |
 
+## The 50 outage-spoiled sheets, re-run (19 Nov, VPN back)
+
+The 50 sheets that ran during the 13:23 outage were run again on PROCOL DEMO (`hubspot:derive --run-pending --again --ids …`): 101 API rows — 59 Not run (the reason named), 32 Partly checked, 3 Couldn't tell, 7 Fail. No row read "unreachable" this time. Every one of the 7 Fails is false:
+
+| Row | Around ticket | Reading |
+|---|---|---|
+| DRV-LI-105 | HS-9958798517-1 (publish with no products) | False: the plan published with `line_items: []`, which the backend drops (`event_groups#update` reads it with `.present?`), so the draft kept the line item the start state gave it and publishing it is correct. |
+| DRV-LI-250 | HS-2000189583-1 (a row with no unit) | False: the plan added an ordinary pricing round; nothing in the request was blank, so the app rightly accepted it. |
+| DRV-AUC-049 | HS-329436196599-1 (below-floor bid) | False: the auction had no floor price, so a 21000 bid is an ordinary bid. |
+| DRV-AUC-032 | HS-327180075741-1 (vendor rejects another vendor's Knockout offer) | False: the plan had the buyer invite QA vendor 2 — a legitimate action — instead of the vendor acting for another vendor. |
+| DRV-RFQ-094 | HS-1788778411-1 (vendor reads another vendor's activity) | False: the read *was* refused (422 "Bid not found"); the compiler demanded 403, a code the row never names. |
+| DRV-RFQ-171 | HS-1788778411-1 | Not reproduced: the closed RFQ's activity log came back empty once; two fresh events today (live with a bid, closed with a bid) both returned 2 entries. Not counted. |
+| DRV-RFQ-106 | HS-1788758509-1 | Order Activity family: the log names actor + action ("… has placed the bid"); the row wants quotes, clarifications, taxes and delivery there. Waits for the one UI check that decides the family. |
+
+New compile-time rules from these (apiPlanner, unit tests 57/57):
+
+1. A must-refuse step that sends the ordinary request — nothing changed, the usual actor, a start state where the app accepts it, and no earlier step building the condition — is refused at compile time with the reason (DRV-LI-250, DRV-AUC-049, DRV-AUC-032). Checked against the 1,003 stored API plans: 8 more are refused, all partial and none run recently; each sends an ordinary request the case expects refused.
+2. `line_items: []` on publish/update is refused as a way to remove line items (DRV-LI-105).
+3. A refusal code the case never names is checked as "any refusal (4xx)" (DRV-RFQ-094).
+
+**Real-bug tally after all 112 tickets' derived rows: still one — HSD-01** (move_to_auction with no data block → HTTP 500).
+
 ## What this changes in the pipeline
 
 1. Four refusals the run cannot test are now refused at compile time (apiPlanner), so they read "Not run" with the reason instead of a false Fail: a refusal expected of one actor but sent as another; a refusal expected of a buyer without the permission (the only buyer is the super_admin); a refusal that needs an archived / inactive / blocked vendor; a refusal whose decisive step is a read. These came from the derived rows' Fails above, not from the 21, but it is the same family.

@@ -269,6 +269,11 @@ export async function withSettings<T>(companyId: number, needed: NeededSetting[]
         writePending(readPending().filter((p) => !(p.companyId === companyId && p.key === n.key)));
         log({ companyId, key: n.key, from: cur.value, to: n.value, caseId, confirmed: false, error: (e as Error).message.slice(0, 200) });
         const said = (e as Error).message.split("\n")[0].slice(0, 120);
+        // a 5xx, a timeout or a dropped network is the server having a bad moment, not the app refusing the setting:
+        // it is reported for this case only and never stored as a blocker (a 503 during the 18 Nov VPN outage was stored,
+        // and every later case needing the vendor lock read "Blocked" although the setting switches fine)
+        if (/\bHTTP 5\d\d\b|ECONN|ENETUNREACH|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|fetch failed|socket hang up|timed? ?out/i.test(said))
+          return { refused: `the app could not be reached to change ${n.key} just now (${said}) — try the case again` };
         addBlocker(n.key, `the app will not change it per company ("${said}")`);
         return { refused: `BLOCKED — the app would not change ${n.key} for the company (it answered: ${said})` };
       }

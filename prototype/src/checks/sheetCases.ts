@@ -13,7 +13,7 @@
  * The sourcing sheet (docs/test-cases/Procol-Sourcing-Test-Cases-PR-to-PO.xlsx) is imported on first use.
  */
 import { strategyIn, type AuctionStrategy } from "../ui/uiCasePrep.js";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as XLSX from "xlsx";
@@ -22,7 +22,7 @@ import type { StateShape, UiState } from "../ui/uiSetup.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..");
-const STORE = join(ROOT, "data", "sheet-cases.json");
+const STORE = process.env.SHEET_STORE || join(ROOT, "data", "sheet-cases.json");
 export const DEFAULT_SHEET = join(ROOT, "..", "docs", "test-cases", "Procol-Sourcing-Test-Cases-PR-to-PO.xlsx");
 
 export interface SheetCase {
@@ -78,12 +78,37 @@ const HEAD: Array<[RegExp, keyof SheetCase]> = [
   [/^(prd ?ref(erence)?|prd|requirement)$/i, "prdRef"],
 ];
 
+// The store is shared by several processes (the server, the derive / sheet CLIs, the night runner). Each used to keep
+// the copy it loaded first and write it back whole, so a long-running server's save wiped every sheet another process
+// had added since it started (19 Nov 2026: 68 of 112 HubSpot-derived sheets lost when the guided session approved its
+// cases). Now a read or a change first re-reads the file when another process has changed it, and a save is atomic.
 let cache: Store | null = null;
+let cacheStamp = "";
+const stampOf = (): string => {
+  try {
+    const st = statSync(STORE);
+    return `${st.mtimeMs}:${st.size}`;
+  } catch {
+    return "";
+  }
+};
 function load(): Store {
-  if (cache) return cache;
-  if (existsSync(STORE)) {
+  if (cache) {
+    const now = stampOf();
+    if (!now || now === cacheStamp) return cache;
     try {
       cache = JSON.parse(readFileSync(STORE, "utf8")) as Store;
+      cacheStamp = now;
+    } catch {
+      /* a half-read file: keep the copy we have */
+    }
+    return cache!;
+  }
+  if (existsSync(STORE)) {
+    try {
+      const stamp = stampOf();
+      cache = JSON.parse(readFileSync(STORE, "utf8")) as Store;
+      cacheStamp = stamp;
       return cache;
     } catch {
       /* rebuild below */
@@ -101,7 +126,10 @@ function load(): Store {
 }
 function save(): void {
   mkdirSync(dirname(STORE), { recursive: true });
-  writeFileSync(STORE, JSON.stringify(cache, null, 1));
+  const tmp = `${STORE}.${process.pid}.tmp`;
+  writeFileSync(tmp, JSON.stringify(cache, null, 1));
+  renameSync(tmp, STORE);
+  cacheStamp = stampOf();
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/\.(xlsx|xls|csv)$/i, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50) || "sheet";
@@ -159,7 +187,7 @@ export function parseSheet(name: string, buf: Buffer): { cases: Omit<SheetCase, 
 
 /** Import (or re-import) a sheet. Returns its info. */
 export function importSheetBuffer(name: string, buf: Buffer, id?: string): SheetInfo {
-  const store = cache ?? load();
+  const store = load();
   const parsed = parseSheet(name, buf);
   const sid = id || slug(name);
   store.cases = store.cases.filter((c) => c.sheet !== sid).concat(parsed.cases.map((c) => ({ ...c, sheet: sid })));
@@ -172,7 +200,7 @@ export function importSheetBuffer(name: string, buf: Buffer, id?: string): Sheet
 export const TYPED_SHEET = "typed-cases";
 /** Add (or replace by id) cases that were typed or suggested rather than uploaded. */
 export function addSheetCases(list: Array<Omit<SheetCase, "sheet" | "layer"> & { layer?: "ui" | "api" }>, sheet = TYPED_SHEET): SheetCase[] {
-  const store = cache ?? load();
+  const store = load();
   const added = list.map((c) => ({ ...c, sheet, layer: c.layer ?? layerOf(c) }));
   const ids = new Set(added.map((c) => c.id.toUpperCase()));
   store.cases = store.cases.filter((c) => !(c.sheet === sheet && ids.has(c.id.toUpperCase()))).concat(added);
@@ -185,7 +213,7 @@ export function addSheetCases(list: Array<Omit<SheetCase, "sheet" | "layer"> & {
 /** The next free id in a typed sheet: TYP-001, TYP-002 … */
 /** Drop cases from a sheet (the review step's "drop"); the sheet's count follows. */
 export function removeSheetCases(sheet: string, ids: string[]): number {
-  const store = cache ?? load();
+  const store = load();
   const want = new Set(ids.map((x) => x.toUpperCase()));
   const before = store.cases.length;
   store.cases = store.cases.filter((c) => !(c.sheet === sheet && want.has(c.id.toUpperCase())));
@@ -197,7 +225,7 @@ export function removeSheetCases(sheet: string, ids: string[]): number {
 
 /** Rename a sheet's display name (a frozen, approved set gets the feature's name and version). */
 export function renameSheet(sheet: string, name: string): void {
-  const store = cache ?? load();
+  const store = load();
   store.sheets = store.sheets.map((x) => (x.id === sheet ? { ...x, name } : x));
   save();
 }
