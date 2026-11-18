@@ -1,6 +1,6 @@
 # Screen: orders-quick-create (/orders/quick-create)
 
-Captured 2026-10-26 on company 198678. 8 controls, 0 with a known effect, 4 test cases written from it.
+Captured 2026-11-03 on company 198678. 8 controls, 0 with a known effect, 4 test cases written from it.
 
 ## How to reach the orders-quick-create screen
 

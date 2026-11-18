@@ -25,6 +25,8 @@ import { stepWords, expectedWords } from "../agents/journeyCases.js";
 import { addToBacklog, clearFromBacklog, screenFor, stuckSince, teachStuck, type ScreenGround } from "./selfRepair.js";
 import { settingsFor, withSettings } from "./companySettings.js";
 import { parseConfigs } from "../agents/caseStyle.js";
+import { oracleText, understandCase, type CaseUnderstanding } from "../agents/caseUnderstanding.js";
+import { prdForSheet } from "./prdDocs.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUNS = join(here, "..", "..", "data", "sheet-runs");
@@ -66,6 +68,8 @@ export interface SheetRunCase {
   failedStep?: string;
   /** company settings switched for this case (and switched back after) */
   settings?: Array<{ key: string; from: unknown; to: unknown }>;
+  /** how the case was read before it ran (prompts/test-case-runner.md, against the sheet's PRD) */
+  understanding?: CaseUnderstanding;
   case: SheetCase;
 }
 export interface SheetRun {
@@ -126,7 +130,7 @@ export function listSheetRuns(limit = 30): Array<Pick<SheetRun, "id" | "sheet" |
 const SEV: Record<string, SheetBug["severity"]> = { critical: "Critical", high: "High", medium: "Medium", low: "Low" };
 
 /** Run the cases one by one. Resolves with the finished run; events stream through `emit`. */
-export async function runSheetCases(cases: SheetCase[], opts: { companyId: number; sheet: string; headed?: boolean; repair?: boolean; emit: (e: SheetEvent) => void }): Promise<SheetRun> {
+export async function runSheetCases(cases: SheetCase[], opts: { companyId: number; sheet: string; headed?: boolean; repair?: boolean; understand?: boolean; emit: (e: SheetEvent) => void }): Promise<SheetRun> {
   if (active) throw new Error(`a sheet run is already going (${active.id}) — wait for it or stop it`);
   const run: SheetRun = { id: `sheet-${Date.now().toString(36)}`, sheet: opts.sheet, companyId: opts.companyId, startedAt: new Date().toISOString(), status: "running", total: cases.length, cases: [] };
   let stopped = false;
@@ -144,13 +148,24 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
       const line = (l: string) => opts.emit({ type: "line", id: c.id, line: mask(l) });
       const t0 = Date.now();
       let r: SheetRunCase;
+      let u: CaseUnderstanding | null = null;
       try {
-        const runOne = () => (c.layer === "api" ? runApiCase(c, opts.companyId, line) : runUiWithRepair(c, opts, line, (s) => (stopChild = s), (e) => opts.emit(e)));
+        // Read the case first (the runner prompt + the sheet's PRD): its checks, what the PRD says must be true,
+        // and anything it needs that this run cannot use. The PRD is the judge, never the code under test.
+        if (opts.understand !== false) {
+          const prd = prdForSheet(opts.sheet);
+          line(prd ? `Reading the case against the PRD "${prd.name}"…` : "Reading the case…");
+          u = await understandCase(c, prd).catch(() => null);
+          if (u?.difference) line(`The case and the PRD differ — judging by the PRD: ${u.difference}`);
+        }
+        const cc: SheetCase = u?.judgeBy ? { ...c, oracle: oracleText(u) } : c;
+        const runOne = () => (cc.layer === "api" ? runApiCase(cc, opts.companyId, line) : runUiWithRepair(cc, opts, line, (s) => (stopChild = s), (e) => opts.emit(e)));
         // A case that needs a company set up a certain way: its "Configs Needed" names the settings (else they are
         // looked up from the pre-condition's words); switch them for this case, switch them back.
         const listed = parseConfigs(c.configs);
         const setting = listed.length ? `the settings in its "Configs Needed"` : companySetting(c.preconditions);
-        if (setting) {
+        if (u?.blocked) r = base(c, "Not run", `Blocked: ${u.blocked}`, 0);
+        else if (setting) {
           const needed = listed.length ? listed.map((n) => ({ key: n.key, value: n.value, why: n.why ?? "named in the case" })) : await settingsFor(setting).catch(() => null);
           if (!needed) {
             r = base(c, "Not run", `It needs ${setting}, and no company setting in Procol's settings catalogue clearly means that, so the company could not be set up for it. Run it on a company set up as it says.`, 0);
@@ -171,6 +186,12 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
         } else r = await runOne();
       } catch (e) {
         r = base(c, "Couldn't tell", `The run broke before it could finish: ${mask((e as Error).message)}.`, 0);
+      }
+      r.case = c;
+      if (u) {
+        r.understanding = u;
+        if (u.difference && !/^Blocked/.test(r.why)) r.why += ` Note: the case differs from the PRD (${u.difference}); it was judged by the PRD — correct the case.`;
+        if (r.bug && u.difference) r.bug.expected = u.judgeBy;
       }
       r.ms = Date.now() - t0;
       run.cases.push(r);

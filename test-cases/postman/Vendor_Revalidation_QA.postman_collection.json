@@ -1,0 +1,376 @@
+{
+  "info": {
+    "name": "Vendor Revalidation QA (UAT)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "UAT only. Paste a Procol employee access-token into the 'token' variable before use."
+  },
+  "item": [
+    {
+      "name": "1. See config",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "access-token",
+            "value": "{{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "User-Agent",
+            "value": "qa-postman"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/config?client_company_id={{client_id}}",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "config"
+          ],
+          "query": [
+            {
+              "key": "client_company_id",
+              "value": "{{client_id}}"
+            }
+          ]
+        },
+        "description": "Check enabled is true and vendor_onboarding_v2 is true."
+      }
+    },
+    {
+      "name": "2. Change config (replaces the whole config)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "access-token",
+            "value": "{{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "User-Agent",
+            "value": "qa-postman"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/config",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "config"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"client_company_id\": {{client_id}},\n  \"config\": {\n    \"enabled\": true,\n    \"vendor_statuses\": [\n      \"active\",\n      \"invited\"\n    ],\n    \"validations\": {\n      \"gst\": {\n        \"paths\": [\n          \"form.gstin\",\n          \"company.gst_no\"\n        ],\n        \"frequency\": \"quarterly\",\n        \"start_date\": \"2026-10-15\"\n      },\n      \"pan\": {\n        \"paths\": [\n          \"form.pan_no\",\n          \"company.pan_no\"\n        ],\n        \"frequency\": \"yearly\",\n        \"start_date\": \"2026-10-15\"\n      },\n      \"msme\": {\n        \"paths\": [\n          \"form.msme_no\"\n        ],\n        \"frequency\": \"one_time\",\n        \"start_date\": \"2026-10-15\"\n      },\n      \"bank\": {\n        \"paths\": [\n          \"form.bank_account_no\"\n        ],\n        \"frequency\": \"quarterly\",\n        \"start_date\": \"2026-10-15\"\n      }\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "3a. Run now - first 3 vendors",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "access-token",
+            "value": "{{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "User-Agent",
+            "value": "qa-postman"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/trigger",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "trigger"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"client_company_id\": {{client_id}},\n  \"mode\": \"force\",\n  \"vendor_limit\": 3\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "if (j.run_id) pm.collectionVariables.set('run_id', j.run_id);",
+              "if (j.job_id) pm.collectionVariables.set('job_id', j.job_id);",
+              "pm.test('trigger accepted', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3b. Run now - specific vendors",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "access-token",
+            "value": "{{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "User-Agent",
+            "value": "qa-postman"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/trigger",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "trigger"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"client_company_id\": {{client_id}},\n  \"mode\": \"force\",\n  \"vendor_ids\": [\n    47471,\n    47166\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "if (j.run_id) pm.collectionVariables.set('run_id', j.run_id);",
+              "if (j.job_id) pm.collectionVariables.set('job_id', j.job_id);",
+              "pm.test('trigger accepted', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3c. Schedule a run later (real schedule rules)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "access-token",
+            "value": "{{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "User-Agent",
+            "value": "qa-postman"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/trigger",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "trigger"
+          ]
+        },
+        "description": "Change run_at to 5-10 minutes from now (IST).",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"client_company_id\": {{client_id}},\n  \"mode\": \"scheduler\",\n  \"run_at\": \"2026-10-15T15:00:00+05:30\",\n  \"vendor_limit\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "if (j.run_id) pm.collectionVariables.set('run_id', j.run_id);",
+              "if (j.job_id) pm.collectionVariables.set('job_id', j.job_id);",
+              "pm.test('trigger accepted', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4a. Check progress / results",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "access-token",
+            "value": "{{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "User-Agent",
+            "value": "qa-postman"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/runs/{{run_id}}",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "runs",
+            "{{run_id}}"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "pm.test('complete?', () => console.log('complete =', j.complete));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4b. Check progress - only this trigger's vendors",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "access-token",
+            "value": "{{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "User-Agent",
+            "value": "qa-postman"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/runs/{{run_id}}?job_id={{job_id}}",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "runs",
+            "{{run_id}}"
+          ],
+          "query": [
+            {
+              "key": "job_id",
+              "value": "{{job_id}}"
+            }
+          ]
+        },
+        "description": ""
+      }
+    },
+    {
+      "name": "5. Cancel a scheduled run",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "access-token",
+            "value": "{{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "User-Agent",
+            "value": "qa-postman"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/trigger/{{job_id}}",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "trigger",
+            "{{job_id}}"
+          ]
+        },
+        "description": "Works only before the run starts; after that it returns 404."
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base",
+      "value": "https://rfx-uat-api.ag-ri.in/api/vendor_revalidation_qa"
+    },
+    {
+      "key": "token",
+      "value": "PASTE_ACCESS_TOKEN_HERE"
+    },
+    {
+      "key": "client_id",
+      "value": "47053"
+    },
+    {
+      "key": "run_id",
+      "value": ""
+    },
+    {
+      "key": "job_id",
+      "value": ""
+    }
+  ]
+}
