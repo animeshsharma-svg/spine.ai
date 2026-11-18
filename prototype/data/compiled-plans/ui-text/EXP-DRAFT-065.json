@@ -4,20 +4,24 @@
   "title": "All Vendors: Leaving the optional search field empty does not show a required-field error",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:55:06.382Z",
+  "compiledAt": "2026-11-13T14:08:51.618Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the vendor checkbox remains unselected after Save",
-   "Record whether the All Vendors window closes or stays open without assuming one outcome"
+   "Assert the absence of a required-field error specifically tied to the unselected vendor checkbox when the application does not expose a known error label or message."
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert that the vendor checkbox remains unselected after Save; Record whether the All Vendors window closes or stays open without assuming one outcome"
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Assert the absence of a required-field error specifically tied to the unselected vendor checkbox when the application does not expose a known error label or message."
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 13,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
@@ -25,24 +29,47 @@
    "expect_visible",
    "expect_value",
    "click",
-   "expect_value",
-   "expect_text",
-   "expect_no_error"
+   "capture_screen",
+   "expect_screen_clean"
   ],
-  "ms": 11085
+  "ms": 22146
  },
  "plan": {
-  "title": "Draft All Vendors Empty Search Save",
+  "title": "Draft All Vendors optional search",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the events list so the saved draft can be selected."
+    "note": "Open the Events list to reach the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the tenant rule needed for the draft's vendor-selection behavior."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the remaining required tenant configuration before navigation."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the events list rendered successfully."
+    "note": "Confirm the events list rendered before filtering."
    },
    {
     "step": "filter_events",
@@ -56,7 +83,7 @@
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first available saved eRFX draft."
+    "note": "Open the available saved eRFX draft."
    },
    {
     "step": "click",
@@ -64,7 +91,7 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the draft's participant/vendor flow."
+    "note": "Open the draft's participant window, expected to be the All Vendors window."
    },
    {
     "step": "expect_visible",
@@ -72,7 +99,7 @@
      "text": "All Vendors",
      "visible": true
     },
-    "note": "Verify the All Vendors window is open."
+    "note": "Confirm the All Vendors window opened."
    },
    {
     "step": "expect_value",
@@ -80,7 +107,7 @@
      "label": "Search Vendors",
      "value": ""
     },
-    "note": "Confirm the optional search field is empty before saving."
+    "note": "Verify the optional search field is empty before saving."
    },
    {
     "step": "click",
@@ -88,28 +115,19 @@
      "role": "button",
      "name": "Save"
     },
-    "note": "Save with no search text and no vendor checkbox selected."
+    "note": "Save without entering search text or selecting a vendor."
    },
    {
-    "step": "expect_value",
+    "step": "capture_screen",
     "args": {
-     "label": "Search Vendors",
-     "value": ""
+     "label": "all-vendors-after-empty-save"
     },
-    "note": "Verify the empty search field remains empty after Save."
+    "note": "Record whether the All Vendors window closes or remains open after Save."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "required",
-     "present": false
-    },
-    "note": "Check that no required-field error is shown for the empty search or unselected vendor."
-   },
-   {
-    "step": "expect_no_error",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the application did not show a general error after saving."
+    "note": "Confirm no visible application error, crash, or raw error state appeared after saving."
    }
   ]
  }

@@ -3,23 +3,47 @@
   "caseId": "PRD-PR-024",
   "title": "SAP PR Sync Mode (integration.sap.pr.sync_mode): not available on the Growth plan",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:24:59.712Z",
+  "compiledAt": "2026-11-13T15:19:23.281Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Switch tenant plan tier from Growth to Enterprise",
-   "Modify SAP PR sync mode integration settings"
+   "Verify the setting is unavailable specifically on a Growth-plan tenant and available specifically on an Enterprise-plan tenant without identified tenant accounts or plan-aware tenant switching."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Switch tenant plan tier from Growth to Enterprise; Modify SAP PR sync mode integration settings"
+   "can only test part of this — no step for: Verify the setting is unavailable specifically on a Growth-plan tenant and available specifically on an Enterprise-plan tenant without identified tenant accounts or plan-aware tenant switching."
   ],
   "source": "llm",
-  "steps": 0,
-  "stepNames": [],
-  "ms": 51354
+  "steps": 3,
+  "stepNames": [
+   "require_setting",
+   "ask_tester",
+   "expect_screen_clean"
+  ],
+  "ms": 15230
  },
  "plan": {
-  "title": "SAP PR Sync Mode Availability by Plan Tier",
-  "steps": []
+  "title": "SAP PR Sync Mode Plan Availability",
+  "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "integration.sap.pr.sync_mode",
+     "value": "On"
+    },
+    "note": "Attempt to change the named SAP PR sync mode setting on the current tenant; the runner reports if the setting is unavailable or refused."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide access to confirmed Growth-plan and Enterprise-plan tenants, then check whether integration.sap.pr.sync_mode is available to change on each tenant"
+    },
+    "note": "The plan-specific tenant comparison cannot be performed with the available catalog and no tenant IDs were supplied."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the session remains free of crashes or server errors after the setting availability check."
+   }
+  ]
  }
 }

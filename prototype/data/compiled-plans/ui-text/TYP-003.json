@@ -4,91 +4,65 @@
   "title": "Total proposal value is 0 before selection and equals the awarded amount after",
   "group": "TYP",
   "sheet": "typed-cases",
-  "compiledAt": "2026-11-12T13:24:07.375Z",
+  "compiledAt": "2026-11-13T13:20:39.153Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"₹ 0\" (expect_text) — not among the labels known from the app nor in the case"
+   "Deselect the selected line item in the awarding screen and verify Tot. Proposal Value returns to ₹0."
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"₹ 0\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "can only test part of this — no step for: Deselect the selected line item in the awarding screen and verify Tot. Proposal Value returns to ₹0."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "start_awarding",
-   "expect_text",
-   "remember",
+   "expect_award_counters",
    "allocate_award",
-   "expect_remembered",
-   "do_on_screen",
-   "expect_text"
+   "expect_award_counters"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 14840
+  "ms": 16930
  },
  "plan": {
-  "title": "Proposal Value Selection Toggle",
+  "title": "Proposal Value Selection Updates",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ in Master QCS."
+    "note": "Open the prepared closed RFQ's Master QCS screen."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding screen where proposal value and line-item selection are shown."
+    "note": "Enter the awarding screen before any line item is selected."
    },
    {
-    "step": "expect_text",
+    "step": "expect_award_counters",
     "args": {
-     "text": "₹ 0",
-     "within": "Tot. Proposal Value"
+     "proposal": 0
     },
-    "note": "Verify the proposal value is zero before any line item is selected."
-   },
-   {
-    "step": "remember",
-    "args": {
-     "key": "vendor_sum_total",
-     "text": "Sum Total"
-    },
-    "note": "Capture the vendor’s displayed Sum Total for comparison after selection."
+    "note": "Verify Tot. Proposal Value is ₹0 before selection."
    },
    {
     "step": "allocate_award",
-    "args": {},
-    "note": "Select the line item for awarding to the available vendor."
+    "args": {
+     "vendor": 1,
+     "quantity": 10,
+     "line": 1
+    },
+    "note": "Select the first vendor for all 10 units of the line item."
    },
    {
-    "step": "expect_remembered",
+    "step": "expect_award_counters",
     "args": {
-     "key": "vendor_sum_total",
-     "text": "Tot. Proposal Value",
-     "as": "number"
+     "proposal": 1000
     },
-    "note": "Verify Tot. Proposal Value equals the vendor’s Sum Total after selection."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "untick the selected line item on the awarding screen so it is no longer allocated"
-    },
-    "note": "Deselect the awarded line item; no dedicated catalog step exists for unallocating it."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "₹ 0",
-     "within": "Tot. Proposal Value"
-    },
-    "note": "Verify deselection removes the proposal amount and restores Tot. Proposal Value to zero."
+    "note": "Verify Tot. Proposal Value equals the selected vendor's 10 × ₹100 awarded amount."
    }
   ]
  }

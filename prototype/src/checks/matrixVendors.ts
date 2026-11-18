@@ -217,8 +217,11 @@ export async function ensureQaVendors(
   count: number,
   opts: { buyerApi: any; baseURL?: string; onLine?: (l: string) => void },
 ): Promise<{ vendors: QaVendor[]; created: number; steps: QaVendorStep[] }> {
-  if (!approvedQaWorkspaces().includes(workspaceId)) {
-    throw new Error(`QA vendors are only created on ${approvedQaWorkspaces().join(", ")} (config/qa-workspaces.json), not ${workspaceId}`);
+  // A company outside config/qa-workspaces.json only when the tester approved it for a run (13 Nov: Gulbrandsen 50169
+  // for the multi-entity email feature): QA_VENDOR_APPROVED_WORKSPACES=50169 — set per run, never a standing default.
+  const approvedEnv = (process.env.QA_VENDOR_APPROVED_WORKSPACES ?? "").split(",").map((x) => Number(x.trim())).filter(Boolean);
+  if (!approvedQaWorkspaces().includes(workspaceId) && !approvedEnv.includes(workspaceId)) {
+    throw new Error(`QA vendors are only created on ${approvedQaWorkspaces().join(", ")} (config/qa-workspaces.json; a tester can approve one for a run with QA_VENDOR_APPROVED_WORKSPACES), not ${workspaceId}`);
   }
   const say = opts.onLine ?? (() => {});
   const steps: QaVendorStep[] = [];

@@ -4,7 +4,7 @@
   "title": "Award more than the line's quantity",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:20:55.002Z",
+  "compiledAt": "2026-11-13T11:41:48.950Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,24 +17,24 @@
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "open_prepared",
+   "open_master_qcs",
    "start_awarding",
    "allocate_award",
    "attempt"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 9517
+  "ms": 12339
  },
  "plan": {
-  "title": "Reject over-quantity award",
+  "title": "Reject Award Above Requested Quantity",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared closed RFQ's Responses screen."
+    "note": "Open the prepared closed RFQ with Vendor A and Vendor B bids."
    },
    {
     "step": "require_setting",
@@ -42,19 +42,22 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project setting for the case."
+    "note": "Ensure eRFX projects are enabled as required by the case."
    },
    {
-    "step": "open_prepared",
+    "step": "open_master_qcs",
     "args": {
-     "screen": "master_qcs"
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
     },
-    "note": "Open Master QCS to begin the award flow for the closed two-bid event."
+    "note": "Open the comparison grid containing both bids before awarding."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding screen."
+    "note": "Enter the award allocation screen for the closed event."
    },
    {
     "step": "allocate_award",
@@ -72,10 +75,10 @@
       "vendor": "Vendor A",
       "quantity": 5
      },
-     "expect": "refused",
-     "because": "more than requested quantity"
+     "because": "more than requested quantity",
+     "expect": "refused"
     },
-    "note": "Attempt to allocate 5 more units to Vendor A, making the total 11, and assert Procol refuses the over-award."
+    "note": "Attempt to allocate 11 total units and verify Procol refuses the over-award."
    }
   ]
  }

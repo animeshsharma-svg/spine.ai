@@ -4,15 +4,23 @@
   "title": "A live RFQ with a vendor's bid: the \"Participants\" tab opens",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:17:43.603Z",
+  "compiledAt": "2026-11-13T13:46:18.913Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "open_participants",
    "expect_visible",
    "expect_text",
@@ -20,43 +28,83 @@
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 6611
+  "ms": 13904
  },
  "plan": {
-  "title": "Participants Tab Opens on Bid RFQ",
+  "title": "Open RFQ Participants tab",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ on its Responses tab."
+    "note": "Open the prepared live RFQ's Responses tab, which already contains the vendor's bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Allow buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
    },
    {
     "step": "open_participants",
     "args": {},
-    "note": "Open the RFQ stage's Participants tab."
+    "note": "Open the RFQ stage's Participants tab; reaching this participant list is the requested navigation outcome."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Show only selected vendors",
+     "label": "Show only selected vendors",
      "visible": true
     },
-    "note": "Verify the Participants content includes its vendor-filter control."
+    "note": "Verify a participant-list control is rendered."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Participants",
+     "text": "Search Vendors",
      "present": true
     },
-    "note": "Verify the Participants view is visibly open."
+    "note": "Verify the participant list exposes its vendor search content."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the Participants view opened without an application error."
+    "note": "Confirm the Participants tab opened without an application error."
    }
   ]
  }

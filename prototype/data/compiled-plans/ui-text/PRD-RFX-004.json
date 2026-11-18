@@ -3,81 +3,81 @@
   "caseId": "PRD-RFX-004",
   "title": "Two Entry Routes: refused for a user without the Buyer role",
   "group": "PRD-RFX",
-  "compiledAt": "2026-11-10T01:32:07.105Z",
+  "compiledAt": "2026-11-13T14:53:17.998Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and verify refusal or absence for both standalone RFX creation and starting an event from PR lines, then repeat the same actions as a Buyer in the same tenant and compare the outcomes.",
-   "unconfirmed label \"Purchase Requisitions\" (expect_text) — not among the labels known from the app nor in the case"
+   "Sign in as a user without the Buyer role and sign in as a Buyer in the same tenant",
+   "Compare refusal or absence of both standalone RFX and PR-line entry routes across the two roles"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Purchase Requisitions\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify refusal or absence for both standalone RFX creation and starting an event from PR lines, then repeat the same actions as a Buyer in the same tenant and compare the outcomes."
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and sign in as a Buyer in the same tenant; Compare refusal or absence of both standalone RFX and PR-line entry routes across the two roles"
   ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
    "open_events_list",
+   "ask_tester",
    "expect_events_list",
    "expect_create_options",
    "open_purchase_requisitions",
-   "expect_text",
-   "ask_tester",
+   "pr_tab",
    "expect_text"
   ],
-  "ms": 13193
+  "ms": 23985
  },
  "plan": {
-  "title": "Two Entry Routes RBAC Access",
+  "title": "PRD-RFX-004 Buyer-role access to two entry routes",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the entry point for the standalone RFX creation route."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Verify the events list is available before checking its creation options."
-   },
-   {
-    "step": "expect_create_options",
-    "args": {
-     "options": [
-      "eRFX",
-      "Single Stage"
-     ],
-     "absent": [
-      "BOQ"
-     ]
-    },
-    "note": "Observe which standalone RFX creation paths the current session is offered; this does not establish role-based authorization."
-   },
-   {
-    "step": "open_purchase_requisitions",
-    "args": {},
-    "note": "Reach the entry point for creating an event from purchase-request lines."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Purchase Requisitions"
-    },
-    "note": "Confirm the PR entry screen rendered; the catalog cannot determine whether its availability is due to the user's Buyer role."
+    "note": "Navigate to the events list where the standalone Create Event route is exposed."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a non-Buyer and a Buyer in the same tenant, attempt both starting an event from PR lines and starting a standalone RFX, and record whether each role is refused or offered the route"
+     "need": "provide access to both the non-Buyer user and the Buyer user in the same tenant, then repeat the standalone RFX and PR-line event entry attempts as each role"
     },
-    "note": "Role-specific sign-in and comparison are not expressible by the catalog."
+    "note": "Role-specific console authentication and switching are not available in the catalog."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify the events list is available before inspecting its entry controls."
+   },
+   {
+    "step": "expect_create_options",
+    "args": {
+     "absent": [
+      "eRFX",
+      "Single Stage",
+      "BOQ"
+     ]
+    },
+    "note": "Closest available check for whether standalone RFX entry options are absent; this cannot be attributed to the non-Buyer role without role-specific login."
+   },
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Navigate to the PR-based event entry route for the closest available inspection of PR-line initiation."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Show open purchase requests that could provide PR lines for event creation."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Purchase Requisitions"
+     "text": "Open",
+     "present": true
     },
-    "note": "Leave a known route label as the final observable assertion after the tester's role comparison."
+    "note": "Assert the PR entry screen remains available, without claiming that role-based event creation permission was tested."
    }
   ]
  }

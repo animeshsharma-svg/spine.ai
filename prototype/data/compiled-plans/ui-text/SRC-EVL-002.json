@@ -4,16 +4,16 @@
   "title": "Find a live event (bidding on now) — it is on the Live tab",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:19:28.462Z",
+  "compiledAt": "2026-11-13T12:03:54.266Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "The event title to enter in Search Title is not provided, so the specific event cannot be searched for or matched.",
-   "Verify that the named event has a green Live status and shows time remaining.",
-   "Verify that the named event is absent from History, Drafts, and Recurring."
+   "Type and search for the specific event's title because the test case does not provide the title and no catalog step supports arbitrary existing-event search.",
+   "Verify that that same specific event is absent from History, Drafts, and Recurring.",
+   "Verify the event's displayed time-left value because no expected value is provided and no catalog step exposes a time-left assertion."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: The event title to enter in Search Title is not provided, so the specific event cannot be searched for or matched.; Verify that the named event has a green Live status and shows time remaining.; Verify that the named event is absent from History, Drafts, and Recurring."
+   "can only test part of this — no step for: Type and search for the specific event's title because the test case does not provide the title and no catalog step supports arbitrary existing-event search.; Verify that that same specific event is absent from History, Drafts, and Recurring.; Verify the event's displayed time-left value because no expected value is provided and no catalog step exposes a time-left assertion."
   ],
   "source": "llm",
   "steps": 4,
@@ -23,34 +23,38 @@
    "filter_events",
    "expect_table"
   ],
-  "ms": 8820
+  "ms": 12091
  },
  "plan": {
-  "title": "Find live event on Events list",
+  "title": "Find live event on Live tab",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the buyer's Events list."
+    "note": "Open the buyer's events list."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the Events list rendered without an error and exposes the Create Event control."
+    "note": "Verify the list rendered with the Create Event control and no error."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Live"
     },
-    "note": "Switch to the Live tab, the closest available check for currently bidding events."
+    "note": "Switch to the Live tab, which is the subject of the test."
    },
    {
     "step": "expect_table",
     "args": {
-     "min": 1
+     "within": "Live",
+     "min": 1,
+     "eachRow": {
+      "Status": "Live"
+     }
     },
-    "note": "Confirm that the Live tab contains at least one event row, without claiming it is the unspecified target event."
+    "note": "Assert that the Live tab contains at least one row whose status is Live."
    }
   ]
  }

@@ -4,25 +4,27 @@
   "title": "Event made directly (eRFX RFQ without a PR) → split award → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:15:24.944Z",
+  "compiledAt": "2026-11-13T11:59:50.780Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Allocate 6 units to Vendor B and 4 units to Vendor A at their respective bid prices.",
-   "Create and verify one PO per vendor resulting from that split allocation, including each vendor's awarded quantity.",
-   "Approve the split award and verify the event moves to History with Recreate Order still available."
+   "Log in as Vendor A and Vendor B in two independent vendor portal sessions",
+   "Assert that each individual PO belongs to one vendor and carries its specific split quantity of 4 or 6"
   ],
   "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
-   "can only test part of this — no step for: Allocate 6 units to Vendor B and 4 units to Vendor A at their respective bid prices.; Create and verify one PO per vendor resulting from that split allocation, including each vendor's awarded quantity.; Approve the split award and verify the event moves to History with Recreate Order still available."
+   "can only test part of this — no step for: Log in as Vendor A and Vendor B in two independent vendor portal sessions; Assert that each individual PO belongs to one vendor and carries its specific split quantity of 4 or 6"
   ],
   "source": "llm",
-  "steps": 25,
+  "steps": 36,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
@@ -30,42 +32,74 @@
    "add_line_items",
    "fill_sheet",
    "set_sheet_cell",
-   "expect_sheet_cell",
-   "set_schedule",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
    "place_bid",
    "expect_bid_submitted",
    "place_bid",
    "expect_bid_submitted",
-   "expect_responses",
    "close_event",
    "open_master_qcs",
-   "expect_qcs_vendors",
-   "expect_qcs_ranks",
-   "expect_qcs_amounts",
    "start_awarding",
-   "expect_text"
+   "allocate_award",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "click",
+   "expect_awarded",
+   "approve_award",
+   "create_po",
+   "expect_po_items",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "open_event",
+   "expect_menu_item"
   ],
-  "ms": 21107
+  "ms": 26189
  },
  "plan": {
-  "title": "Direct eRFX RFQ split award to PO",
+  "title": "Direct eRFX RFQ Split Award to POs",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the direct eRFX creation flow rather than starting from a purchase request."
+    "note": "Open the direct eRFX create screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable direct eRFX project creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable split awards."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
    },
    {
     "step": "set_title",
     "args": {
      "title": "QA_Platform eRFX"
     },
-    "note": "Set the requested project title."
+    "note": "Set the event title required for publishing and later list lookup."
    },
    {
     "step": "compose_stages",
@@ -74,19 +108,19 @@
       "rfq"
      ]
     },
-    "note": "Configure the project as RFQ-only, removing the default Auction stage."
+    "note": "Replace the default Auction with an RFQ-only project."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfq"
     },
-    "note": "Configure the RFQ stage before selecting its template and items."
+    "note": "Configure the RFQ stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the available RFQ pricing template."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
@@ -95,12 +129,12 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add one CYLINDER product matching the requested quantity of 10."
+    "note": "Add the requested CYLINDER line with quantity 10."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the RFQ pricing sheet after adding the line item."
+    "note": "Populate the RFQ pricing sheet."
    },
    {
     "step": "set_sheet_cell",
@@ -112,114 +146,167 @@
     "note": "Set the requested delivery location on the line item."
    },
    {
-    "step": "expect_sheet_cell",
+    "step": "invite_vendor",
     "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "equals": "Plant Name (LOC-0001)"
+     "count": 2
     },
-    "note": "Verify the delivery location was retained."
+    "note": "Invite two QA vendors for the competing bids."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit the required 30-minute event schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 2
-    },
-    "note": "Invite two QA vendors so two distinct vendor bids can be submitted."
+    "note": "Commit the immediate 30-minute event schedule."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the direct RFQ event."
+    "note": "Publish the complete RFQ event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a real published project page."
+    "note": "Verify the event reached a published project page."
    },
    {
     "step": "place_bid",
     "args": {
      "price": 100
     },
-    "note": "Submit the first vendor's quote of 100 through the vendor portal."
+    "note": "Submit the first vendor's quote at 100."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the first vendor's quote was accepted."
+    "note": "Verify the first vendor bid was accepted."
    },
    {
     "step": "place_bid",
     "args": {
      "price": 90
     },
-    "note": "Submit the second vendor's quote of 90 through a separate vendor identity."
+    "note": "Submit the second vendor's quote at 90."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the second vendor's quote was accepted."
-   },
-   {
-    "step": "expect_responses",
-    "args": {
-     "count": 2,
-     "direct": 2,
-     "stage": "rfq"
-    },
-    "note": "Verify the buyer sees both direct vendor responses."
+    "note": "Verify the second vendor bid was accepted."
    },
    {
     "step": "close_event",
-    "args": {},
-    "note": "Close the bidding window before opening awarding."
+    "args": {
+     "natural": true
+    },
+    "note": "Wait for the bidding window to close before awarding."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the comparison grid for the closed event with bids."
-   },
-   {
-    "step": "expect_qcs_vendors",
-    "args": {
-     "count": 2,
-     "realNames": true
-    },
-    "note": "Verify two real vendor columns appear in Master QCS."
-   },
-   {
-    "step": "expect_qcs_ranks",
-    "args": {
-     "by": "RFQ Amount",
-     "order": "lowest",
-     "atLeast": 2
-    },
-    "note": "Verify the two vendor responses are ranked by RFQ amount."
-   },
-   {
-    "step": "expect_qcs_amounts",
-    "args": {},
-    "note": "Verify the displayed bid amounts and totals are arithmetically consistent."
+    "note": "Open the comparison grid containing both bids."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Reach the awarding screen, which is the closest available observation before the unsupported split allocation."
+    "note": "Enter the awarding flow."
    },
    {
-    "step": "expect_text",
+    "step": "allocate_award",
     "args": {
-     "text": "Create Proposal"
+     "vendor": 2,
+     "quantity": 6,
+     "line": 1
     },
-    "note": "Assert that the awarding screen is open and ready to create a proposal."
+    "note": "Allocate 6 units to the second bidder, corresponding to the 90 quote."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": 1,
+     "quantity": 4,
+     "line": 1
+    },
+    "note": "Allocate the remaining 4 units to the first bidder, corresponding to the 100 quote."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "2/2",
+     "proposal": 940
+    },
+    "note": "Verify both vendors are selected and the split total is 6×90 plus 4×100 = 940."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the split-award proposal."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the proposal for approval."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify the award proposal was created and submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {},
+    "note": "Approve the submitted award as the pending buyer approver."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Complete approval and create the purchase orders."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Verify two PO lines were created, corresponding to the two awarded vendors."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Return to the events list to verify history placement."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {
+     "title": "QA_Platform eRFX"
+    },
+    "note": "Verify the awarded event appears in History."
+   },
+   {
+    "step": "open_event",
+    "args": {
+     "title": "QA_Platform eRFX"
+    },
+    "note": "Reopen the completed event from the history list."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Recreate Order"
+    },
+    "note": "Verify Recreate Order remains available for this direct event."
    }
   ]
  }

@@ -4,23 +4,30 @@
   "title": "A closed RFQ: the \"RFQ\" tab can be opened",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:26:12.234Z",
+  "compiledAt": "2026-11-13T13:53:01.923Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "click",
-   "expect_navigated",
    "expect_visible",
-   "expect_no_error"
+   "expect_no_error",
+   "expect_screen_clean"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 7771
+  "ms": 8854
  },
  "plan": {
   "title": "Closed RFQ RFQ Tab Opens",
@@ -30,7 +37,39 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared closed RFQ on the buyer's Responses screen."
+    "note": "Open the prepared closed RFQ on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Apply the required post-expiry surrogate-bid setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-editing setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen permission setting."
    },
    {
     "step": "click",
@@ -38,14 +77,7 @@
      "role": "tab",
      "name": "RFQ"
     },
-    "note": "Open or reselect the RFQ stage tab."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Confirm the RFQ Responses screen is ready after the tab action."
+    "note": "Open the RFQ stage tab as required by the case."
    },
    {
     "step": "expect_visible",
@@ -54,12 +86,17 @@
      "name": "RFQ",
      "visible": true
     },
-    "note": "Verify the RFQ tab is present after the action."
+    "note": "Verify the RFQ tab remains visible after the interaction."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Verify that opening or reselecting RFQ did not show an error."
+    "note": "Verify that opening the RFQ tab produces no application error."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the resulting screen has no crash, server error, NaN, undefined, null, or raw IDs."
    }
   ]
  }

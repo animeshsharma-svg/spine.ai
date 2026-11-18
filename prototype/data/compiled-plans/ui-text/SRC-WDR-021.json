@@ -4,40 +4,40 @@
   "title": "An user without permission cannot withdraw",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:23:22.956Z",
+  "compiledAt": "2026-11-13T13:17:15.078Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as the buyer user whose role lacks increase-time and withdraw-event permission."
+   "Sign in as the buyer user whose role lacks increase-time and withdraw-event permission"
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Sign in as the buyer user whose role lacks increase-time and withdraw-event permission."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Sign in as the buyer user whose role lacks increase-time and withdraw-event permission"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
    "ask_tester",
+   "go_to",
    "expect_settings_menu"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10978
+  "ms": 10268
  },
  "plan": {
-  "title": "Withdraw hidden for unauthorized buyer",
+  "title": "Withdraw option hidden without permission",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ event without creating or searching for another event."
    },
    {
     "step": "require_setting",
@@ -45,7 +45,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "Off"
     },
-    "note": "Ensure the tenant setting allows the Withdraw option to be shown when permitted."
+    "note": "Ensure withdraw controls are not hidden by the tenant setting."
    },
    {
     "step": "require_setting",
@@ -53,26 +53,31 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure eRFX projects are enabled for the live RFQ."
+    "note": "Ensure eRFX event pages are enabled for the test tenant."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the buyer user whose role lacks increase-time and withdraw-event permission"
+     "need": "sign in as the buyer user whose role lacks increase time and withdraw event permission"
     },
-    "note": "The catalog cannot authenticate as or select a buyer with this specific permission set."
+    "note": "The restricted buyer identity is required to test permission-based menu visibility."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage page where the Settings menu is available."
    },
    {
     "step": "expect_settings_menu",
     "args": {
      "absent": [
       "Withdraw"
-     ],
-     "enabled": [
-      "Order Activity"
      ]
     },
-    "note": "Assert that Withdraw is absent from the current RFQ stage Settings menu while another expected menu action remains enabled."
+    "note": "Assert that Withdraw is not offered to the restricted buyer."
    }
   ]
  }

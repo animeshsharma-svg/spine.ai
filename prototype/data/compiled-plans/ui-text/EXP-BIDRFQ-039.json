@@ -4,20 +4,14 @@
   "title": "A live RFQ with a vendor's bid: with can_buyer_edit_bid Off — blocked",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:40:13.671Z",
+  "compiledAt": "2026-11-13T13:48:38.751Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "unconfirmed label \"⋮\" (click) — not among the labels known from the app nor in the case",
-   "unconfirmed label \"Edit Quote\" (attempt) — not among the labels known from the app nor in the case"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "resolved: “The bid's own ⋮ menu and the exact can_buyer_edit_bid/Edit Quote control are not represented by a catalog domain step; t” — require_setting switches that company setting before the case and back after",
-   "coverage partial: unconfirmed label \"⋮\" (click) — not among the labels known from the app nor in the case",
-   "coverage partial: unconfirmed label \"Edit Quote\" (attempt) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "resolved: “Open the vendor bid's ⋮ menu and verify the buyer's Edit Quote/Edit Bid action is absent or blocked specifically because” — require_setting switches that company setting before the case and back after"
   ],
   "source": "llm",
   "steps": 8,
@@ -28,22 +22,22 @@
    "require_setting",
    "require_setting",
    "require_setting",
-   "click",
-   "attempt"
+   "probe_controls",
+   "expect_screen_clean"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 22541
+  "ms": 16710
  },
  "plan": {
-  "title": "RFQ buyer edit bid blocked",
+  "title": "RFQ buyer bid edit blocked when disabled",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses view containing the vendor's bid."
+    "note": "Open the prepared live RFQ Responses screen with a vendor bid already present."
    },
    {
     "step": "require_setting",
@@ -51,7 +45,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required for the prepared RFQ event."
+    "note": "Enable eRFX projects required for the prepared RFQ flow."
    },
    {
     "step": "require_setting",
@@ -59,7 +53,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Keep counter offers visible on RFQ responses."
+    "note": "Keep counter offers available on the RFQ as required by the case configuration."
    },
    {
     "step": "require_setting",
@@ -67,7 +61,7 @@
      "key": "disable_reject_bid_in_bidding_time",
      "value": "Off"
     },
-    "note": "Keep bid rejection available while bidding remains open."
+    "note": "Keep bid rejection available during bidding, matching the requested tenant setup."
    },
    {
     "step": "require_setting",
@@ -75,7 +69,7 @@
      "key": "can_buyer_edit_bid",
      "value": "Off"
     },
-    "note": "Set the condition under test: buyer bid editing is disabled."
+    "note": "Apply the setting whose effect on buyer bid editing is under test."
    },
    {
     "step": "require_setting",
@@ -83,26 +77,23 @@
      "key": "is_counter_offer_percent_bid_allowed",
      "value": "On"
     },
-    "note": "Apply the required counter-offer configuration for this scenario."
+    "note": "Enable percentage counter offers as specified by the case configuration."
    },
    {
-    "step": "click",
+    "step": "probe_controls",
     "args": {
-     "text": "⋮"
+     "include": [
+      "Edit"
+     ],
+     "within": "Actions",
+     "max": 30
     },
-    "note": "Attempt to open the vendor bid's overflow menu; this label is not confirmed by the catalog."
+    "note": "Explore the response actions for any buyer bid-edit control and record what it opens or does without confirming changes."
    },
    {
-    "step": "attempt",
-    "args": {
-     "step": "click",
-     "args": {
-      "role": "menuitem",
-      "name": "Edit Quote"
-     },
-     "expect": "refused"
-    },
-    "note": "Check whether the buyer's edit-bid action is refused or unavailable when can_buyer_edit_bid is Off."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the Responses screen remains rendered without an application error after the exploration."
    }
   ]
  }

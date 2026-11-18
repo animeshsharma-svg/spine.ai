@@ -3,39 +3,48 @@
   "caseId": "PRD-AE-010",
   "title": "Escalation Timeout (Hours) (approval.escalation.timeout_hours) = 48 (default)",
   "group": "PRD-AE",
-  "compiledAt": "2026-11-10T01:41:53.397Z",
+  "compiledAt": "2026-11-13T15:01:28.586Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set tenant setting approval.escalation.timeout_hours to 48 and verify it is accepted.",
-   "Configure condition-based approval triggering by value or category.",
-   "Observe an approval remaining pending and auto-escalating after exactly 48 hours, including the 1–720 hour boundary behavior."
+   "Trigger approvals through condition-based triggering such as value or category.",
+   "Observe a pending approval for 48 hours and verify it auto-escalates to the next level exactly at the configured timeout.",
+   "Verify the 1–720 hour boundary behavior and business impact in the approval workflow."
   ],
   "warnings": [
-   "can only test part of this — no step for: Set tenant setting approval.escalation.timeout_hours to 48 and verify it is accepted.; Configure condition-based approval triggering by value or category.; Observe an approval remaining pending and auto-escalating after exactly 48 hours, including the 1–720 hour boundary behavior."
+   "can only test part of this — no step for: Trigger approvals through condition-based triggering such as value or category.; Observe a pending approval for 48 hours and verify it auto-escalates to the next level exactly at the configured timeout.; Verify the 1–720 hour boundary behavior and business impact in the approval workflow."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
+   "require_setting",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 8500
+  "ms": 13415
  },
  "plan": {
-  "title": "Approval Escalation Timeout 48 Hours",
+  "title": "Escalation Timeout 48 Hours",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "approval.escalation.timeout_hours",
+     "value": 48
+    },
+    "note": "Set the tenant approval escalation timeout to 48 and verify the setting through the supported tenant-setting mechanism."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "set the tenant approval.escalation.timeout_hours setting to 48, configure a condition-based approval trigger, and observe that a pending approval auto-escalates to the next level after exactly 48 hours"
+     "need": "trigger a condition-based approval as a Tenant Admin, leave it pending, and verify that it auto-escalates to the next level after exactly 48 hours"
     },
-    "note": "These tenant administration and approval-workflow actions are not available in the catalog."
+    "note": "The catalog has no approval-triggering or timed escalation observation step, so the tester must perform and observe this workflow."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Provide a final assertion that the session remains usable after the tester-assisted setup or observation, although it cannot verify the escalation timeout subject."
+    "note": "Confirm the current screen remains free of application errors after the tester completes the unavailable workflow."
    }
   ]
  }

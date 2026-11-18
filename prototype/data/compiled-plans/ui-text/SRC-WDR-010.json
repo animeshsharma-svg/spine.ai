@@ -4,23 +4,22 @@
   "title": "Withdraw an event that is in evaluation time with a reason",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:23:14.184Z",
+  "compiledAt": "2026-11-13T13:16:24.578Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Selecting the specifically named RFQ by title because no event title is provided and open_event has no evaluation-purpose selector for an RFQ.",
-   "Verifying that this exact event moves to the History tab after withdrawal because the plan did not create or uniquely identify the event.",
-   "Verifying that a source purchase-request line returns to Open because the case does not establish that this event was created from a PR.",
-   "Directly asserting that all counter offers and awarding actions are unavailable after withdrawal beyond the available menu-state checks."
+   "If the event was made from a purchase request, verify that its PR line returns to Open."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Selecting the specifically named RFQ by title because no event title is provided and open_event has no evaluation-purpose selector for an RFQ.; Verifying that this exact event moves to the History tab after withdrawal because the plan did not create or uniquely identify the event.; Verifying that a source purchase-request line returns to Open because the case does not establish that this event was created from a PR.; Directly asserting that all counter offers and awarding actions are unavailable after withdrawal beyond the available menu-state checks."
+   "can only test part of this — no step for: If the event was made from a purchase request, verify that its PR line returns to Open."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 13,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -30,14 +29,18 @@
    "expect_withdrawn",
    "event_menu",
    "expect_text",
-   "expect_settings_menu"
+   "expect_settings_menu",
+   "go_to",
+   "expect_visible",
+   "filter_events",
+   "expect_event_status"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 21387
+  "ms": 14652
  },
  "plan": {
-  "title": "Withdraw RFQ in Evaluation",
+  "title": "Withdraw RFQ During Evaluation",
   "steps": [
    {
     "step": "open_prepared",
@@ -52,7 +55,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Enable the RFQ counter-offer controls required by the setup."
+    "note": "Ensure RFQ counter-offer controls are available before testing their removal after withdrawal."
    },
    {
     "step": "require_setting",
@@ -60,7 +63,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "Off"
     },
-    "note": "Ensure the Withdraw action is shown on the event."
+    "note": "Ensure the Withdraw Project action is offered on the event."
    },
    {
     "step": "require_setting",
@@ -68,7 +71,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure eRFX project events are enabled for the scenario."
+    "note": "Ensure the RFQ is available as an eRFX project event."
    },
    {
     "step": "withdraw_event",
@@ -76,36 +79,66 @@
      "scope": "project",
      "reason": "QA test withdraw"
     },
-    "note": "Withdraw the project with the required audit reason."
+    "note": "Withdraw the event from the project menu using the required reason."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Verify Procol records the event as withdrawn."
+    "note": "Assert that the event is marked Withdrawn and that the withdrawal succeeded."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Order Activity"
     },
-    "note": "Open the activity drawer to inspect the withdrawal audit entry."
+    "note": "Open Order Activity to verify the withdrawal audit record."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "QA test withdraw"
     },
-    "note": "Verify the withdrawal reason is recorded in Order Activity."
+    "note": "Assert that the withdrawal reason is recorded in Order Activity."
    },
    {
     "step": "expect_settings_menu",
     "args": {
      "absent": [
-      "Withdraw",
-      "Send Bulk Counter Offer"
+      "Send Bulk Counter Offer",
+      "Withdraw"
      ]
     },
-    "note": "Check that withdrawal-related and bulk counter-offer actions are no longer offered in the current withdrawn state."
+    "note": "Assert that counter-offer and withdrawal actions are no longer offered after withdrawal."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Navigate to the comparison and awarding area to check that awarding is no longer available."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Start Awarding",
+     "visible": false
+    },
+    "note": "Assert that the withdrawn event cannot start awarding."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open the History tab where withdrawn events should appear."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Withdrawn"
+    },
+    "note": "Assert that the withdrawn RFQ is present in History with Withdrawn status."
    }
   ]
  }

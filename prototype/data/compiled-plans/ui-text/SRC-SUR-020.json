@@ -4,52 +4,54 @@
   "title": "Surrogate bid with price -5",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:10:35.798Z",
+  "compiledAt": "2026-11-13T13:01:19.035Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Entering a separate reference value before saving the surrogate bid"
+   "Adding a reference to the surrogate bid before saving, because place_surrogate_bid has no reference argument."
   ],
   "warnings": [
-   "can only test part of this — no step for: Entering a separate reference value before saving the surrogate bid"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Adding a reference to the surrogate bid before saving, because place_surrogate_bid has no reference argument."
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_prepared",
-   "search_participants",
-   "expect_participant",
+   "require_setting",
+   "require_setting",
    "attempt"
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 9007
+  "ms": 10727
  },
  "plan": {
-  "title": "Surrogate bid rejects price -5",
+  "title": "Reject negative surrogate bid price",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ's Participants tab, as required for an existing event with no bids."
+    "note": "Open the existing live RFQ's Participants tab, where the buyer can add a surrogate bid."
    },
    {
-    "step": "search_participants",
+    "step": "require_setting",
     "args": {
-     "vendor": "Vendor A"
+     "key": "can_add_ceil_price",
+     "value": "On"
     },
-    "note": "Find Vendor A's participant row before attempting the surrogate bid."
+    "note": "Enable the case's price-validation configuration."
    },
    {
-    "step": "expect_participant",
+    "step": "require_setting",
     "args": {
-     "vendor": "Vendor A",
-     "present": true,
-     "addBid": true
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Verify Vendor A is present and eligible for a surrogate bid."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "attempt",
@@ -61,7 +63,7 @@
      },
      "expect": "refused"
     },
-    "note": "Attempt to submit the negative surrogate price and require Procol to refuse it."
+    "note": "Attempt the negative surrogate price and assert that Procol refuses it."
    }
   ]
  }

@@ -4,19 +4,26 @@
   "title": "Edit Evaluation Time: Cancel button closes Edit Evaluation Time without changes",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:23:39.910Z",
+  "compiledAt": "2026-11-13T13:50:56.382Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that no toast appears after clicking Cancel"
+   "The catalog has no assertion for the absence of a toast after cancellation."
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert that no toast appears after clicking Cancel"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The catalog has no assertion for the absence of a toast after cancellation."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "remember",
@@ -28,17 +35,57 @@
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 9246
+  "ms": 12370
  },
  "plan": {
-  "title": "Cancel Edit Evaluation Time Without Changes",
+  "title": "Cancel Edit Evaluation Time",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with one vendor bid."
+    "note": "Open the API-prepared live RFQ with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the RFQ flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Use the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Use the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable the buyer capabilities required by the scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required counter-offer percentage configuration."
    },
    {
     "step": "go_to",
@@ -46,22 +93,22 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage."
+    "note": "Open the RFQ stage whose evaluation time is being tested."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Reach the Responses view where the RFQ Settings menu is available."
+    "note": "Reach the buyer's Responses view as specified."
    },
    {
     "step": "remember",
     "args": {
-     "key": "evaluation-end",
+     "key": "evaluation_end",
      "text": "Evaluation will end at"
     },
-    "note": "Record the current evaluation end-time display before opening the dialog."
+    "note": "Record the currently displayed evaluation end time before opening the editor."
    },
    {
     "step": "event_menu",
@@ -69,7 +116,7 @@
      "item": "Edit Evaluation Time",
      "stage": "rfq"
     },
-    "note": "Open the Edit Evaluation Time dialog from the RFQ Settings menu."
+    "note": "Open the Edit Evaluation Time window from the RFQ Settings menu."
    },
    {
     "step": "expect_visible",
@@ -78,7 +125,7 @@
      "name": "Edit Evaluation Time",
      "visible": true
     },
-    "note": "Confirm the expected dialog opened."
+    "note": "Confirm the requested editor window opened."
    },
    {
     "step": "click",
@@ -86,7 +133,7 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the edit without saving changes."
+    "note": "Cancel the edit without saving any change."
    },
    {
     "step": "expect_visible",
@@ -95,16 +142,15 @@
      "name": "Edit Evaluation Time",
      "visible": false
     },
-    "note": "Confirm the dialog closed."
+    "note": "Verify Cancel closes the window."
    },
    {
     "step": "expect_remembered",
     "args": {
-     "key": "evaluation-end",
-     "same": true,
-     "text": "Evaluation will end at"
+     "key": "evaluation_end",
+     "same": true
     },
-    "note": "Confirm the evaluation end-time display is unchanged."
+    "note": "Verify the evaluation end time remains unchanged on the RFQ page."
    }
   ]
  }

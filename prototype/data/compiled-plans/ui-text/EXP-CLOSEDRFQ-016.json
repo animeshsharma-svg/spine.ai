@@ -4,23 +4,30 @@
   "title": "A closed RFQ: the \"Analytics\" tab opens",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:26:20.186Z",
+  "compiledAt": "2026-11-13T13:53:21.182Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
-   "click",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "open_prepared",
    "expect_navigated",
    "expect_text",
-   "expect_screen_clean"
+   "expect_no_error"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 5867
+  "ms": 13634
  },
  "plan": {
   "title": "Closed RFQ Analytics Tab",
@@ -30,34 +37,65 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared closed RFQ on its Responses tab."
+    "note": "Open the prepared closed RFQ directly on its Responses tab."
    },
    {
-    "step": "click",
+    "step": "require_setting",
     "args": {
-     "role": "tab",
-     "name": "Analytics"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the Analytics tab."
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Set post-expiry surrogate bidding to Off as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Restrict evaluation reopening as required."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "analytics"
+    },
+    "note": "Open the Analytics tab for the prepared event."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "analytics"
     },
-    "note": "Verify navigation reached the Analytics screen."
+    "note": "Assert that the Analytics screen opened and is ready."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "View by Product"
     },
-    "note": "Confirm Analytics content is rendered."
+    "note": "Assert that Analytics content is rendered."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Verify the Analytics screen shows no error, crash, or malformed content."
+    "note": "Verify that no application error is shown."
    }
   ]
  }

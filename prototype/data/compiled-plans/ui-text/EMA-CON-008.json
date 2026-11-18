@@ -4,106 +4,74 @@
   "title": "Consulting a colleague creates the consultation and emails them",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:36.471Z",
+  "compiledAt": "2026-11-13T14:19:53.230Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create and submit the event through a two-step approval workflow with Asha and Bikram",
-   "Log in to Asha's mailbox and open the Procol approval request email",
-   "Click Consult, compose and send the consultation to Chetan while preserving the subject",
-   "Wait for mailbox processing and verify the consultation emails in Asha's and Chetan's inboxes",
-   "Verify the consultation is recorded on the event and Asha's approval remains pending"
+   "Create the event as Ravi and submit it for approval",
+   "Open Asha's mailbox and the Procol approval request email",
+   "Click Consult and compose the consultation with the comment and Chetan's recipient address",
+   "Send the consultation email without changing its subject",
+   "Wait for Procol to process the connected approval mailbox",
+   "Verify Asha's consultation-recorded email and Chetan's Consultation Request email with the event, question, and Reply button",
+   "Verify the approval thread remains pending after the consultation"
   ],
   "warnings": [
-   "can only test part of this — no step for: Create and submit the event through a two-step approval workflow with Asha and Bikram; Log in to Asha's mailbox and open the Procol approval request email; Click Consult, compose and send the consultation to Chetan while preserving the subject; Wait for mailbox processing and verify the consultation emails in Asha's and Chetan's inboxes; Verify the consultation is recorded on the event and Asha's approval remains pending"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Create the event as Ravi and submit it for approval; Open Asha's mailbox and the Procol approval request email; Click Consult and compose the consultation with the comment and Chetan's recipient address; Send the consultation email without changing its subject; Wait for Procol to process the connected approval mailbox; Verify Asha's consultation-recorded email and Chetan's Consultation Request email with the event, question, and Reply button; Verify the approval thread remains pending after the consultation"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 5,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
+   "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_text"
   ],
-  "ms": 15145
+  "ms": 18358
  },
  "plan": {
-  "title": "Consultation from Approval Email",
+  "title": "Email consultation creates colleague request",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Closest available setup for creating the event, although approval submission is not supported."
-   },
-   {
-    "step": "set_title",
+    "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Creates the named test event."
+    "note": "Returns to the named event after the consultation processing period."
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Completes the available event setup prerequisite."
-   },
-   {
-    "step": "add_line_items",
+    "step": "require_setting",
     "args": {
-     "count": 1
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
     },
-    "note": "Adds the minimum available event content."
+    "note": "Enables the email approval behavior required by the case."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Completes the pricing sheet before scheduling."
-   },
-   {
-    "step": "set_schedule",
+    "step": "require_setting",
     "args": {
-     "minutes": 30
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
     },
-    "note": "Commits the event schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {},
-    "note": "Adds the product-provided participant required for publishing."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publishes the closest available event state; this is not equivalent to submitting it for approval."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirms the event was created, but does not assert approval workflow state."
+    "note": "Configures the approval workflow prerequisite described by the case."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "create or submit the two-step approval workflow, access Asha's mailbox, send the Consult email to Chetan, and verify the consultation emails, event consultation record, and Asha's pending approval"
+     "need": "Open Asha's mailbox, consult Chetan from the Procol approval email with the comment \"Is this vendor approved?\", send it without changing the subject, and verify the resulting mailbox messages"
     },
-    "note": "The email approval and consultation workflow requires mailbox access and product capabilities absent from the catalog."
+    "note": "Mailbox access, email composition, sending, and mailbox processing are not available in the step catalog."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Consultation Request",
+     "text": "Is this vendor approved?",
      "present": true
     },
-    "note": "Closest available postcondition for the expected consultation email, if the tester leaves the browser on the relevant mailbox."
+    "note": "Checks the closest observable event-side evidence that Asha's consultation comment was recorded."
    }
   ]
  }

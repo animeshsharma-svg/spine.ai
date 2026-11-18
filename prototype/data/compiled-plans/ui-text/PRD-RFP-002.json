@@ -3,18 +3,17 @@
   "caseId": "PRD-RFP-002",
   "title": "Technical Evaluation Modes: refused for a user without the Buyer role",
   "group": "PRD-RFP",
-  "compiledAt": "2026-11-10T01:39:02.058Z",
+  "compiledAt": "2026-11-13T14:59:31.092Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and as a Buyer in the same tenant, then attempt Technical Evaluation Modes and compare refusal or availability.",
-   "Observe and record the tenant's RBAC configuration if the action is intentionally granted to additional roles."
+   "Sign in as a user without the Buyer role and as a Buyer in the same tenant, use Technical Evaluation Modes for per-line-item or per-vendor evaluation against a template, and compare refusal or absence versus availability, including recording deliberate RBAC configuration."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer in the same tenant, then attempt Technical Evaluation Modes and compare refusal or availability.; Observe and record the tenant's RBAC configuration if the action is intentionally granted to additional roles."
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer in the same tenant, use Technical Evaluation Modes for per-line-item or per-vendor evaluation against a template, and compare refusal or absence versus availability, including recording deliberate RBAC configuration."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 8,
   "stepNames": [
    "open_create",
    "set_title",
@@ -22,11 +21,10 @@
    "switch_stage",
    "select_template",
    "fill_questionnaires",
-   "assign_evaluator",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 12466
+  "ms": 13170
  },
  "plan": {
   "title": "Technical Evaluation Modes RBAC",
@@ -36,14 +34,12 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Prepare a technical-stage event context for the role comparison."
+    "note": "Open a multi-stage create flow suitable for configuring a technical evaluation stage."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "Technical Evaluation Modes RBAC Test"
-    },
-    "note": "Provide the required event title."
+    "args": {},
+    "note": "Provide the required event title so the technical-stage setup can proceed."
    },
    {
     "step": "compose_stages",
@@ -52,41 +48,39 @@
       "rfp"
      ]
     },
-    "note": "Create a technical stage, which is the context for evaluator evaluation modes."
+    "note": "Create a technical-only event, which is the context for Technical Evaluation Modes."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Configure the technical stage before testing evaluator behavior."
+    "note": "Move to the technical stage before configuring its template and questionnaire."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a technical template so evaluator configuration is available."
+    "note": "Apply a technical template, matching the case's evaluation-against-a-template setup."
    },
    {
     "step": "fill_questionnaires",
     "args": {},
-    "note": "Populate the technical evaluation content."
-   },
-   {
-    "step": "assign_evaluator",
-    "args": {},
-    "note": "Complete the available evaluator setup before the role-specific attempt."
+    "note": "Populate the technical evaluation questionnaire so the tester can exercise the evaluation-mode action."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Buyer user and the Buyer user in the same tenant, attempt Technical Evaluation Modes to configure evaluators per line item or per vendor against a template, and record whether the action is refused or available for each role"
+     "need": "sign in as a user without the Buyer role and as a Buyer in the same tenant, use Technical Evaluation Modes for per-line-item or per-vendor evaluation against the template, and compare whether the action is refused or absent versus available"
     },
-    "note": "The catalog has no step for alternate-role sign-in or for operating and observing Technical Evaluation Modes."
+    "note": "A second role-specific login and the RBAC comparison are not expressible by the catalog."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the session remains usable after the tester's role-specific check."
+    "step": "expect_text",
+    "args": {
+     "text": "Technical Stage",
+     "present": true
+    },
+    "note": "Confirm the prepared technical-stage context remains visible after the tester completes the role comparison."
    }
   ]
  }

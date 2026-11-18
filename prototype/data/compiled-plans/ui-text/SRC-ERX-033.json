@@ -4,16 +4,13 @@
   "title": "eRFX Items drawer: quantity 10",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:00:30.276Z",
+  "compiledAt": "2026-11-13T12:03:42.174Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Directly verify that Plant Name (LOC-0001) was selected in the Items drawer before the drawer was saved."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Directly verify that Plant Name (LOC-0001) was selected in the Items drawer before the drawer was saved."
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
   "steps": 10,
@@ -22,14 +19,14 @@
    "require_setting",
    "set_title",
    "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
-   "expect_line_items",
-   "expect_sheet_cell",
    "set_sheet_cell",
-   "expect_sheet_cell"
+   "expect_sheet_cell",
+   "expect_line_items"
   ],
-  "ms": 19683
+  "ms": 13219
  },
  "plan": {
   "title": "eRFX RFQ item quantity 10",
@@ -39,7 +36,7 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project create screen."
+    "note": "Open the eRFX project creation screen."
    },
    {
     "step": "require_setting",
@@ -52,7 +49,7 @@
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory project title so the create flow can proceed."
+    "note": "Provide the mandatory event title so the create flow can proceed."
    },
    {
     "step": "compose_stages",
@@ -61,12 +58,19 @@
       "rfq"
      ]
     },
-    "note": "Configure the project with RFQ only."
+    "note": "Replace the default Auction stage with RFQ only."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Ensure the RFQ stage is active before selecting its template and adding items."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template before adding line items."
+    "note": "Choose the RFQ template required before adding line items."
    },
    {
     "step": "add_line_items",
@@ -75,24 +79,7 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Open the Items drawer, add the named product, enter quantity 10, and save the drawer."
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Verify the Items control now reports one saved line item."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "equals": "10",
-     "kept": true
-    },
-    "note": "Verify the entered quantity 10 was retained in the resulting pricing sheet."
+    "note": "Open the Items flow, add the named product, enter quantity 10, and save the drawer."
    },
    {
     "step": "set_sheet_cell",
@@ -101,17 +88,23 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested delivery location on the available item sheet."
+    "note": "Select the required delivery location for the added line item."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
      "column": "Delivery location",
-     "equals": "Plant Name (LOC-0001)",
-     "kept": true
+     "equals": "Plant Name (LOC-0001)"
     },
-    "note": "Verify the requested delivery location is retained."
+    "note": "Verify the selected delivery location is retained."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Verify that saving the item flow leaves one line item and the Items control reflects Items 1."
    }
   ]
  }

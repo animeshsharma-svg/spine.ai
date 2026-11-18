@@ -4,41 +4,77 @@
   "title": "Approve button opens a correct email in Outlook desktop app",
   "group": "EMA-LINK",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:56.154Z",
+  "compiledAt": "2026-11-13T14:20:22.292Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open Asha's approval request email in Outlook desktop and click Approve",
-   "Verify the new email is addressed to the company's approval mailbox with the required unencoded subject and body text"
+   "Open the approval request email in the Outlook desktop app",
+   "Click the Approve action in the email",
+   "Verify the new email is addressed to the company's approval mailbox",
+   "Verify the subject is formatted as Action:Approve|Proposal:[...] with literal brackets and pipe characters",
+   "Verify the body contains (Required) Comment: followed by This is a system-generated message, content after this will be ignored"
   ],
   "warnings": [
-   "can only test part of this — no step for: Open Asha's approval request email in Outlook desktop and click Approve; Verify the new email is addressed to the company's approval mailbox with the required unencoded subject and body text"
+   "can only test part of this — no step for: Open the approval request email in the Outlook desktop app; Click the Approve action in the email; Verify the new email is addressed to the company's approval mailbox; Verify the subject is formatted as Action:Approve|Proposal:[...] with literal brackets and pipe characters; Verify the body contains (Required) Comment: followed by This is a system-generated message, content after this will be ignored"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
+   "require_setting",
    "ask_tester",
+   "expect_text",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 13658
+  "ms": 9800
  },
  "plan": {
   "title": "EMA-LINK-002 Outlook Approve Email",
   "steps": [
    {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Configure the company prerequisite for email approvals."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Configure the approval workflow prerequisite."
+   },
+   {
     "step": "ask_tester",
     "args": {
-     "need": "open Asha's approval request email in Outlook desktop, click Approve, and verify the new email is addressed to the company's approval mailbox with subject Action:Approve|Proposal:[...] and body (Required) Comment: followed by This is a system-generated message, content after this will be ignored"
+     "need": "open the approval request email in the Outlook desktop app, click Approve, and leave the newly opened generated email visible for verification"
     },
-    "note": "The catalog cannot access user mailboxes, Outlook desktop, or observe the resulting email composition."
+    "note": "Outlook mailbox access and the email Approve action are not available through the catalog."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "This is a system-generated message, content after this will be ignored",
-     "present": true
+     "text": "Action:Approve|Proposal:"
     },
-    "note": "Closest available assertion for the required generated body text after the tester completes the Outlook action."
+    "note": "Closest available check for the generated email subject, if the tester leaves the email content observable to the runner."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "(Required) Comment:"
+    },
+    "note": "Closest available check for the required comment marker in the generated email body."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "This is a system-generated message, content after this will be ignored"
+    },
+    "note": "Closest available check for the generated email body text."
    }
   ]
  }

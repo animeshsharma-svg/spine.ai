@@ -4,7 +4,7 @@
   "title": "Extend Submission Time is offered on a live RFQ where Vendor An and Vendor B have bid",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:13:13.415Z",
+  "compiledAt": "2026-11-13T12:46:42.906Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -13,30 +13,32 @@
    "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "go_to",
-   "expect_settings_menu",
+   "open_event_settings",
+   "expect_menu_item",
+   "hover",
    "event_menu",
-   "expect_visible",
+   "expect_text",
    "click",
-   "expect_visible"
+   "expect_text"
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 10147
+  "ms": 8038
  },
  "plan": {
-  "title": "Extend Submission Time offered on live RFQ",
+  "title": "Live RFQ submission time extension",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with two bids, as required for prepared-state cases."
+    "note": "Open the prepared live RFQ with Vendor A and Vendor B bids."
    },
    {
     "step": "require_setting",
@@ -44,7 +46,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case configuration."
+    "note": "Ensure eRFX projects are enabled for the test tenant."
    },
    {
     "step": "go_to",
@@ -52,16 +54,29 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage page where its Settings menu is available."
+    "note": "Navigate to the live RFQ stage where its Settings menu is available."
    },
    {
-    "step": "expect_settings_menu",
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the RFQ stage Settings menu."
+   },
+   {
+    "step": "expect_menu_item",
     "args": {
-     "enabled": [
-      "Extend Submission Time"
-     ]
+     "item": "Extend Submission Time",
+     "stage": "rfq",
+     "enabled": true
     },
-    "note": "Assert that Extend Submission Time is offered and clickable while bidding is live."
+    "note": "Assert the action is offered and clickable while bidding is live."
+   },
+   {
+    "step": "hover",
+    "args": {
+     "role": "menuitem",
+     "name": "Extend Submission Time"
+    },
+    "note": "Perform the requested hover over the menu action."
    },
    {
     "step": "event_menu",
@@ -69,16 +84,15 @@
      "item": "Extend Submission Time",
      "stage": "rfq"
     },
-    "note": "Select the enabled menu action to open its time-extension dialog."
+    "note": "Select the enabled action to open its time-extension window."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "dialog",
-     "name": "Increase Event Time",
-     "visible": true
+     "text": "Increase Event Time",
+     "present": true
     },
-    "note": "Assert that clicking the action opens the Increase Event Time window."
+    "note": "Assert that the extension window opened."
    },
    {
     "step": "click",
@@ -86,16 +100,15 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the dialog so no submission-time change is confirmed."
+    "note": "Cancel without confirming any time change."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "dialog",
-     "name": "Increase Event Time",
-     "visible": false
+     "text": "Increase Event Time",
+     "present": false
     },
-    "note": "Assert that the extension dialog closed without committing a change."
+    "note": "Verify the extension window closed without applying a change."
    }
   ]
  }

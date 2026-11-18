@@ -4,23 +4,30 @@
   "title": "A closed RFQ: the \"Participant Remarks\" tab opens",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:26:27.813Z",
+  "compiledAt": "2026-11-13T13:53:31.700Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
-   "click",
-   "expect_navigated",
-   "expect_visible",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "expect_text",
+   "expect_no_error",
    "expect_screen_clean"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 7626
+  "ms": 15731
  },
  "plan": {
   "title": "Closed RFQ Participant Remarks Tab",
@@ -30,37 +37,65 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Opens the buyer's Responses tab for the prepared closed RFQ with a vendor bid."
+    "note": "Open the existing closed RFQ on its Responses tab as the buyer."
    },
    {
-    "step": "click",
+    "step": "require_setting",
     "args": {
-     "role": "tab",
-     "name": "Participant Remarks"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Clicks the Participant Remarks tab as specified."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "expect_navigated",
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Apply the required post-expiry surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-editing configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen configuration."
+   },
+   {
+    "step": "go_to",
     "args": {
      "screen": "tab",
      "name": "Participant Remarks"
     },
-    "note": "Verifies that the Participant Remarks tab opened."
+    "note": "Open the Participant Remarks tab named in the case."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "tab",
-     "name": "Participant Remarks",
-     "visible": true
+     "text": "Participant Remarks",
+     "present": true
     },
-    "note": "Confirms the selected Participant Remarks tab remains visible on the destination screen."
+    "note": "Verify that the Participant Remarks tab is open and its label is visible."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Verify that opening the tab did not produce an application error."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Checks that the Participant Remarks content rendered without an error, crash, raw identifiers, or server error."
+    "note": "Verify the tab content renders without a crash, server error, or malformed values."
    }
   ]
  }

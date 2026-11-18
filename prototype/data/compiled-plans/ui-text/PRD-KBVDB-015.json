@@ -3,22 +3,22 @@
   "caseId": "PRD-KBVDB-015",
   "title": "Regretting one item leaves the vendor participating in the rest of the event",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:54:01.102Z",
+  "compiledAt": "2026-11-13T15:44:56.423Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Directly verify that the non-regretted line items retain their responses while only the regretted line shows Regret"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "resolved: “Use the supplier portal's Quick Fill → Regret Item action for exactly one line item, fill the other line items, and subm” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "can only test part of this — no step for: Directly verify that the non-regretted line items retain their responses while only the regretted line shows Regret"
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "resolved: “Use the vendor portal's Quick Fill → Regret Item for exactly one line, complete responses for the other line items, subm” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -30,26 +30,28 @@
    "vendor_open_event",
    "ask_tester",
    "expect_text",
-   "expect_text"
+   "expect_text",
+   "switch_portal",
+   "expect_responses"
   ],
-  "ms": 11629
+  "ms": 26101
  },
  "plan": {
-  "title": "Regret One Item While Participating in Others",
+  "title": "Vendor Regrets One Line Item",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create the multi-stage event screen needed for an RFQ with multiple line items."
+    "note": "Create the RFQ event needed for the vendor-side line-item participation test."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "PRD-KBVDB-015 Regret Test"
+     "title": "PRD-KBVDB-015 Regret One Line"
     },
-    "note": "Every publishable create test requires a title."
+    "note": "Provide the required event title so the event can be published and reopened."
    },
    {
     "step": "compose_stages",
@@ -58,77 +60,76 @@
       "rfq"
      ]
     },
-    "note": "Replace the default Auction stage with the required RFQ stage."
+    "note": "Use an RFQ pricing stage, which supports vendor line-item responses."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage before selecting its template and filling its sheet."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template before adding line items."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Create the two or more line items required to test per-item regret."
+    "note": "Create the two or more line items required to regret one while responding to another."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the RFQ pricing sheet before publishing."
+    "note": "Complete the buyer-side pricing sheet for both line items."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule."
+    "note": "Commit a bidding schedule so the event can be published."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor that will perform the supplier-side action."
+    "note": "Invite one vendor to participate in the event."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so the vendor can access its bid sheet."
+    "note": "Publish the event for vendor-side interaction."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a real published project page."
+    "note": "Confirm that the event reached a published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier portal."
+    "note": "Move to the invited vendor's supplier portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's RFQ bid sheet in the vendor portal."
+    "note": "Open the event's RFQ pricing sheet where the vendor should regret one item and answer the other."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "in the supplier portal, use Quick Fill to regret exactly one line item, fill responses for the remaining line items, and submit the quote"
+     "need": "Use Quick Fill to regret exactly one line item, fill responses for the other line items, and submit the vendor response"
     },
-    "note": "The catalog has no step for Quick Fill, Regret Item, or per-line vendor responses."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Submitted",
-     "present": true
-    },
-    "note": "Verify the vendor portal shows that the quote was submitted."
+    "note": "The catalog has no vendor-side regret-item action, so the tester must perform this missing workflow."
    },
    {
     "step": "expect_text",
@@ -136,7 +137,31 @@
      "text": "Regret",
      "present": true
     },
-    "note": "Verify the submitted vendor view exposes the regretted-item state."
+    "note": "Check that the vendor view exposes the regretted-line state after the tester action."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Check that the vendor response was submitted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console to observe the resulting vendor participation."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1,
+     "stage": "rfq"
+    },
+    "note": "Confirm that the vendor still has a submitted response on the RFQ despite regretting one line."
    }
   ]
  }

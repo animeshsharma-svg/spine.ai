@@ -3,60 +3,111 @@
   "caseId": "PRD-KBSRC-008",
   "title": "Add vendors manually from Participants",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:07:53.835Z",
+  "compiledAt": "2026-11-13T14:30:29.500Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
-  "source": "llm",
-  "steps": 5,
-  "stepNames": [
-   "open_prepared",
-   "expect_visible",
-   "expect_visible",
-   "select_participant",
-   "expect_participant"
+  "coverage": "partial",
+  "gaps": [
+   "Opening Participants from the event setup screen and using its setup-screen search or filter to add the vendor"
   ],
-  "ms": 67844
+  "warnings": [
+   "can only test part of this — no step for: Opening Participants from the event setup screen and using its setup-screen search or filter to add the vendor"
+  ],
+  "source": "llm",
+  "steps": 13,
+  "stepNames": [
+   "open_create",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "open_participants",
+   "select_participant",
+   "expect_participant",
+   "expect_participant_count"
+  ],
+  "ms": 13449
  },
  "plan": {
   "title": "Add Vendor from Participants",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "open_create",
     "args": {
-     "screen": "participants"
+     "path": "erfx"
     },
-    "note": "Open the published event's Participants screen where vendors can be managed."
+    "note": "Open the event setup screen."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "label": "Search Vendors",
-     "visible": true
-    },
-    "note": "Verify the Participants screen exposes vendor search."
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title."
    },
    {
-    "step": "expect_visible",
+    "step": "select_template",
+    "args": {},
+    "note": "Configure the default auction stage with a template."
+   },
+   {
+    "step": "add_line_items",
     "args": {
-     "label": "Show only selected vendors",
-     "visible": true
+     "count": 1
     },
-    "note": "Verify the participant filter is available."
+    "note": "Add the required event line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the event schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the initial participant required for a publishable event, leaving another vendor to be added manually afterward."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so its Participants audience can be modified."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached its published project page."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the published event's Participants screen, where manual vendor addition is supported."
    },
    {
     "step": "select_participant",
     "args": {},
-    "note": "Search the product's vendor list and add one vendor to the event."
+    "note": "Search the product's vendor list and add one vendor not already on the round."
    },
    {
     "step": "expect_participant",
+    "args": {},
+    "note": "Assert that the manually added vendor is listed as a participant."
+   },
+   {
+    "step": "expect_participant_count",
     "args": {
-     "present": true,
-     "selected": true
+     "grewBy": 1
     },
-    "note": "Assert the manually added vendor is listed and selected as a participant."
+    "note": "Confirm the participant audience increased by exactly one."
    }
   ]
  }

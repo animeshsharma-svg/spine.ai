@@ -3,50 +3,39 @@
   "caseId": "PRD-MDM-012",
   "title": "ERP-Driven Master Creation: refused for a user without the Tenant Admin role",
   "group": "PRD-MDM",
-  "compiledAt": "2026-11-10T06:55:44.507Z",
+  "compiledAt": "2026-11-13T15:46:48.480Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "ERP-Driven Master Creation from inbound ERP PRs and whether it creates material and service records",
-   "Signing in as and comparing a non-Tenant Admin user with a Tenant Admin user in the same tenant",
-   "Observing the role-based refusal or availability of the ERP-driven master-creation control",
-   "unconfirmed label \"Purchase Requisitions\" (expect_visible) — not among the labels known from the app nor in the case"
+   "Accessing or attempting ERP-Driven Master Creation from inbound ERP purchase requests",
+   "Signing in as a user without Tenant Admin and repeating as a Tenant Admin",
+   "Confirming the tenant is on the Enterprise plan"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Purchase Requisitions\" (expect_visible) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: ERP-Driven Master Creation from inbound ERP PRs and whether it creates material and service records; Signing in as and comparing a non-Tenant Admin user with a Tenant Admin user in the same tenant; Observing the role-based refusal or availability of the ERP-driven master-creation control"
+   "can only test part of this — no step for: Accessing or attempting ERP-Driven Master Creation from inbound ERP purchase requests; Signing in as a user without Tenant Admin and repeating as a Tenant Admin; Confirming the tenant is on the Enterprise plan"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 2,
   "stepNames": [
-   "open_purchase_requisitions",
    "ask_tester",
-   "expect_visible"
+   "expect_screen_clean"
   ],
-  "ms": 8846
+  "ms": 16422
  },
  "plan": {
   "title": "ERP-Driven Master Creation RBAC",
   "steps": [
    {
-    "step": "open_purchase_requisitions",
-    "args": {},
-    "note": "Reaches the closest catalog-supported screen for inbound purchase requisitions before the missing ERP-driven master-creation action."
-   },
-   {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Tenant Admin and Tenant Admin users on the same Enterprise tenant, attempt ERP-Driven Master Creation from inbound ERP PRs for each, and record whether the action is refused or available and whether records are created"
+     "need": "sign in on the Enterprise tenant as a user without the Tenant Admin role, attempt ERP-Driven Master Creation from inbound ERP purchase requests, then repeat as a Tenant Admin and report whether the action is refused, absent, or available"
     },
-    "note": "The catalog has no step for the ERP-driven master-creation flow or for switching between these user roles."
+    "note": "The catalog has no ERP-Driven Master Creation flow or role-switching capability for this comparison."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "Purchase Requisitions",
-     "visible": true
-    },
-    "note": "Confirms the closest reachable requisitions screen remains visible after tester intervention; this does not assert the requested ERP-driven master-creation behavior."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the resulting screen remains usable after the tester's role-based exploration."
    }
   ]
  }

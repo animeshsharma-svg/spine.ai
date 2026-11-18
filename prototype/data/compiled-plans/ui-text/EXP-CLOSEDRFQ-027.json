@@ -4,37 +4,42 @@
   "title": "A closed RFQ: \"Are you sure you want to create a new version?\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:41:12.106Z",
+  "compiledAt": "2026-11-13T13:54:16.747Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Exact before-and-after preservation of the event status and bidding times.",
-   "Exact equality of every vendor and bid field before and after cancellation."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Exact before-and-after preservation of the event status and bidding times.; Exact equality of every vendor and bid field before and after cancellation."
+   "resolved: “The catalog cannot compare the RFQ's exact bidding and evaluation times before and after cancelling.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 20,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
    "require_setting",
    "require_setting",
+   "expect_text",
+   "remember",
    "expect_responses",
+   "expect_api_value",
+   "expect_api_value",
    "click",
+   "expect_text",
    "expect_visible",
    "click",
+   "expect_text",
    "expect_visible",
-   "expect_navigated",
-   "expect_responses"
+   "expect_remembered",
+   "expect_responses",
+   "expect_api_value",
+   "expect_api_value"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 17315
+  "ms": 18414
  },
  "plan": {
   "title": "Cancel Create New Version on Closed RFQ",
@@ -60,7 +65,7 @@
      "key": "is_allowed_to_add_surrogate_bid_post_expiry",
      "value": "Off"
     },
-    "note": "Configure post-expiry surrogate bidding as required."
+    "note": "Apply the required post-expiry surrogate bidding configuration."
    },
    {
     "step": "require_setting",
@@ -68,7 +73,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Enable buyer bid editing as required."
+    "note": "Apply the required buyer bid-editing configuration."
    },
    {
     "step": "require_setting",
@@ -76,65 +81,124 @@
      "key": "allow_event_evaluation_reopen_for_everyone",
      "value": "Off"
     },
-    "note": "Restrict evaluation reopening as required."
+    "note": "Apply the required evaluation reopening configuration."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Closed"
+    },
+    "note": "Verify the RFQ is visibly closed before the action."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "closed_status",
+     "text": "Closed"
+    },
+    "note": "Record the visible closed status for comparison after cancelling."
    },
    {
     "step": "expect_responses",
     "args": {
-     "atLeast": 1,
-     "vendors": [
-      "Vendor A"
-     ]
+     "count": 1,
+     "direct": 1
     },
-    "note": "Record that Vendor A's response remains present before opening the version confirmation."
+    "note": "Verify the closed RFQ has the expected vendor response before opening the confirmation."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName"
+    },
+    "note": "Record and verify the responding vendor shown by the event data."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Record and verify the existing bid price before the action."
    },
    {
     "step": "click",
     "args": {
-     "text": "Create New Version"
+     "role": "button",
+     "name": "Create New Version"
     },
     "note": "Open the confirmation window for creating a new version."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "Are you sure you want to create a new version?",
+     "present": true
+    },
+    "note": "Verify the expected confirmation prompt is shown."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
      "visible": true
     },
-    "note": "Verify the expected confirmation window appears."
+    "note": "Verify the confirmation offers a Cancel action."
    },
    {
     "step": "click",
     "args": {
-     "text": "Cancel",
-     "within": "dialog"
+     "role": "button",
+     "name": "Cancel"
     },
-    "note": "Cancel version creation without confirming."
+    "note": "Cancel creation of the new version."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "Are you sure you want to create a new version?",
-     "visible": false
+     "present": false
     },
     "note": "Verify the confirmation window closes."
    },
    {
-    "step": "expect_navigated",
+    "step": "expect_visible",
     "args": {
-     "screen": "responses"
+     "role": "button",
+     "name": "Cancel",
+     "visible": false
     },
-    "note": "Verify cancellation leaves the buyer on the RFQ Responses screen."
+    "note": "Verify the confirmation controls are no longer visible."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "closed_status",
+     "same": true
+    },
+    "note": "Verify the visible closed status did not change."
    },
    {
     "step": "expect_responses",
     "args": {
-     "atLeast": 1,
-     "vendors": [
-      "Vendor A"
-     ]
+     "count": 1,
+     "direct": 1
     },
-    "note": "Verify the existing bid response is still present after cancellation."
+    "note": "Verify the same response remains after cancellation."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName"
+    },
+    "note": "Verify the vendor data remains present after cancellation."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Verify the existing bid data remains present after cancellation."
    }
   ]
  }

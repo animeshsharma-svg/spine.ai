@@ -4,32 +4,33 @@
   "title": "eRFX Items drawer: quantity blank",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:00:15.215Z",
+  "compiledAt": "2026-11-13T12:03:19.732Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Selecting Plant Name (LOC-0001) in the Manage Line Items drawer before clicking Save is not supported; set_sheet_cell can select Delivery location only after the item is on the pricing sheet."
+   "Select Plant Name (LOC-0001) in the Items drawer while leaving the quantity blank before clicking Save."
   ],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Selecting Plant Name (LOC-0001) in the Manage Line Items drawer before clicking Save is not supported; set_sheet_cell can select Delivery location only after the item is on the pricing sheet."
+   "can only test part of this — no step for: Select Plant Name (LOC-0001) in the Items drawer while leaving the quantity blank before clicking Save."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_create",
    "require_setting",
    "set_title",
    "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "expect_error"
   ],
-  "ms": 20915
+  "ms": 13719
  },
  "plan": {
-  "title": "eRFX Items drawer rejects blank quantity",
+  "title": "eRFX Items Drawer Blank Quantity",
   "steps": [
    {
     "step": "open_create",
@@ -44,14 +45,14 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation as required by the case."
+    "note": "Enable eRFX project creation and draft management as required by the case."
    },
    {
     "step": "set_title",
     "args": {
      "title": "SRC-ERX-029 Blank Quantity"
     },
-    "note": "Provide the required project title for a create test."
+    "note": "Provide the mandatory event title so the test reaches line-item validation."
    },
    {
     "step": "compose_stages",
@@ -60,12 +61,19 @@
       "rfq"
      ]
     },
-    "note": "Configure the project with an RFQ-only stage."
+    "note": "Change the default Auction stage to RFQ only."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Work on the RFQ stage before selecting its template and adding items."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template before adding items."
+    "note": "Apply the first available RFQ template, as required before adding line items."
    },
    {
     "step": "add_line_items",
@@ -74,14 +82,14 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": ""
     },
-    "note": "Add the specified product while leaving its quantity blank and attempt to save the line-item drawer."
+    "note": "Add the named product with a blank quantity and attempt to save the Items drawer; this is the invalid quantity action under test."
    },
    {
     "step": "expect_error",
     "args": {
      "contains": "Please fill valid quantity on every line item"
     },
-    "note": "Verify that saving the blank-quantity line item is refused with the expected validation message."
+    "note": "Verify that the Items drawer save is refused with the required quantity validation message."
    }
   ]
  }

@@ -4,32 +4,66 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"+ 201..\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:44:42.515Z",
+  "compiledAt": "2026-11-13T14:05:50.633Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"+ 201..\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
   "warnings": [
-   "moved open_events_list to the front — the steps before it had no list on screen",
-   "moved open_events_list to the front — the steps before it had no list on screen"
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "coverage partial: unconfirmed label \"+ 201..\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 15,
   "stepNames": [
-   "open_events_list",
+   "open_create",
+   "compose_stages",
    "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "save_draft",
+   "open_events_list",
    "filter_events",
+   "expect_event_in_list",
    "open_first_event",
    "expect_visible"
   ],
-  "ms": 23584
+  "ms": 16049
  },
  "plan": {
-  "title": "Saved eRFX draft: with lock_vendors_addition_in_event_creation Off, add vendors control is not offered",
+  "title": "EXP-DRAFT-035 – Vendor add control absent on saved eRFX draft",
   "steps": [
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open the events list"
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX create screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test tenant."
    },
    {
     "step": "require_setting",
@@ -37,30 +71,76 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Configure the company setting as required by the test case"
+    "note": "Set the condition under test so vendor addition is prevented during event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the case's required tenant configuration for saved eRFX drafts."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-035 Vendor Addition Lock"
+    },
+    "note": "Provide the mandatory draft title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a template so the draft has a configured stage."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the minimum line item needed for a usable saved draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the draft's pricing sheet before saving."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Create the saved eRFX draft used by the test."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the events list to reopen the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the Drafts tab"
+    "note": "Open the Drafts tab specified by the case."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Confirm the draft created by this plan appears in the Drafts list."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first draft event"
+    "note": "Open the saved draft from the Drafts list."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "Invite Vendor",
+     "text": "+ 201..",
      "visible": false
     },
-    "note": "Assert that the vendor addition control is not offered"
+    "note": "Assert that the vendor-addition control named by the case is not offered on the saved draft."
    }
   ]
  }

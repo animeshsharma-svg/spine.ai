@@ -4,25 +4,24 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"360 DEGREE IMAGE MAKE OVERS\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:44:34.994Z",
+  "compiledAt": "2026-11-13T14:05:51.691Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 20,
   "stepNames": [
    "open_create",
-   "compose_stages",
    "require_setting",
    "require_setting",
    "require_setting",
    "set_title",
+   "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -30,31 +29,24 @@
    "save_draft",
    "expect_no_error",
    "open_events_list",
+   "expect_events_list",
    "filter_events",
    "expect_event_in_list",
    "open_first_event",
    "click",
    "expect_options"
   ],
-  "ms": 17144
+  "ms": 20168
  },
  "plan": {
-  "title": "Draft vendor option hidden when vendor addition is unlocked",
+  "title": "Saved eRFX draft vendor availability",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX creation screen."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    }
+    "note": "Start an eRFX project draft."
    },
    {
     "step": "require_setting",
@@ -62,7 +54,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation for the test tenant."
+    "note": "Enable eRFX project creation for the test company."
    },
    {
     "step": "require_setting",
@@ -70,7 +62,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Apply the company setting under test."
+    "note": "Apply the tenant setting whose effect on vendor availability is being tested."
    },
    {
     "step": "require_setting",
@@ -78,73 +70,96 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the additional configuration required by the case."
+    "note": "Match the case's required company configuration."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "EXP-DRAFT-034 Vendor Option Check"
+     "title": "EXP-DRAFT-034 Vendor Availability"
     },
-    "note": "Provide the required draft title."
+    "note": "A draft needs a title so it can be saved and found in Drafts."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the draft with the RFQ stage required for this eRFX case."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage before adding its template and items."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose a pricing template so the draft can be configured."
+    "note": "Apply the first available RFQ template so the draft is structurally valid."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the minimum line item needed for a valid eRFX draft."
+    "note": "Add the minimum line item required for the draft."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet before saving."
+    "note": "Complete the RFQ pricing sheet before saving the draft."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a schedule for the draft."
+    "note": "Commit a schedule so the draft has the expected event configuration."
    },
    {
     "step": "save_draft",
     "args": {},
-    "note": "Create the saved, unpublished eRFX draft required by the case."
+    "note": "Create the saved eRFX draft state under test."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the draft was saved without an application error."
+    "note": "Confirm the draft save completed without an application error."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the events list to follow the specified Drafts flow."
+    "note": "Navigate to the Events list to reopen the saved draft."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered before selecting Drafts."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab."
+    "note": "Show saved drafts only."
    },
    {
     "step": "expect_event_in_list",
-    "args": {},
-    "note": "Verify the draft created by this plan is listed."
+    "args": {
+     "title": "EXP-DRAFT-034 Vendor Availability"
+    },
+    "note": "Verify the draft created by this plan appears in Drafts."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts",
-     "containing": "EXP-DRAFT-034 Vendor Option Check"
+     "containing": "EXP-DRAFT-034 Vendor Availability"
     },
-    "note": "Open the saved draft from the Drafts list."
+    "note": "Open the saved draft being tested."
    },
    {
     "step": "click",
@@ -152,17 +167,17 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the draft's participant controls."
+    "note": "Open the draft's participant/vendor picker."
    },
    {
     "step": "expect_options",
     "args": {
-     "label": "Invite Vendors you want to add",
+     "label": "Search vendors you want to add",
      "absent": [
       "360 DEGREE IMAGE MAKE OVERS"
      ]
     },
-    "note": "Assert that the named vendor is not offered in the draft vendor picker."
+    "note": "Assert that the named vendor is not offered when vendor addition is unlocked by the configured setting."
    }
   ]
  }

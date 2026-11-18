@@ -3,39 +3,43 @@
   "caseId": "PRD-INV-055",
   "title": "GST Recon (2-Way, Third-Party Integration): refused for a user without the Finance Controller role",
   "group": "PRD-INV",
-  "compiledAt": "2026-11-10T06:44:01.090Z",
+  "compiledAt": "2026-11-13T15:36:53.419Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open and execute GST Recon (2-Way, Third-Party Integration) against GSTR-2B through the third-party GST tool",
-   "Compare access for a user without the Finance Controller role and a Finance Controller in the same tenant",
-   "Verify the role-based refusal or availability behavior and record any deliberate tenant RBAC configuration"
+   "Sign in as a non-Finance Controller on the specified Enterprise tenant and verify whether GST Recon is refused or absent.",
+   "Repeat GST Recon using a Finance Controller and verify that the action is available and can reconcile invoice GST against GSTR-2B through the third-party GST tool.",
+   "Verify or record the tenant's Enterprise plan and any RBAC configuration affecting GST Recon."
   ],
   "warnings": [
-   "can only test part of this — no step for: Open and execute GST Recon (2-Way, Third-Party Integration) against GSTR-2B through the third-party GST tool; Compare access for a user without the Finance Controller role and a Finance Controller in the same tenant; Verify the role-based refusal or availability behavior and record any deliberate tenant RBAC configuration"
+   "can only test part of this — no step for: Sign in as a non-Finance Controller on the specified Enterprise tenant and verify whether GST Recon is refused or absent.; Repeat GST Recon using a Finance Controller and verify that the action is available and can reconcile invoice GST against GSTR-2B through the third-party GST tool.; Verify or record the tenant's Enterprise plan and any RBAC configuration affecting GST Recon."
   ],
   "source": "llm",
   "steps": 2,
   "stepNames": [
    "ask_tester",
-   "expect_screen_clean"
+   "expect_visible"
   ],
-  "ms": 10130
+  "ms": 9371
  },
  "plan": {
-  "title": "GST Recon RBAC Access",
+  "title": "GST Recon Role Access",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a user without the Finance Controller role and as a Finance Controller on the specified Enterprise tenant, run GST Recon (2-Way, Third-Party Integration) against GSTR-2B, and record whether the action is refused or available for each role"
+     "need": "sign in as the non-Finance Controller and Finance Controller users on the specified Enterprise tenant, check whether GST Recon (2-Way, Third-Party Integration) is absent or refused for the first user, then verify it is available and can reconcile invoice GST against GSTR-2B for the Finance Controller"
     },
-    "note": "The catalog cannot access GST Recon, switch user roles, or exercise the third-party integration."
+    "note": "No catalog step can access GST Recon, switch between the required role-specific users, or exercise the third-party GST reconciliation flow."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the session remains free of a visible crash or server error after the tester-assisted investigation."
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Continue with email",
+     "visible": true
+    },
+    "note": "Provides a known-screen assertion after the tester handoff, but does not validate GST Recon behavior."
    }
   ]
  }

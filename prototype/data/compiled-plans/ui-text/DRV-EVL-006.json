@@ -4,34 +4,21 @@
   "title": "QCS refuses to rank a bid whose landed price exceeds vendor max ceiling",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-09T23:04:57.199Z",
+  "compiledAt": "2026-11-13T13:36:03.102Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the message \"Price cannot be more than the allowed price\" is positioned next to the excluded bid."
+   "Asserting that the bid is specifically excluded from the ranking or that the message is positioned next to that bid; no catalog assertion checks rank absence for a rejected bid."
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify that the message \"Price cannot be more than the allowed price\" is positioned next to the excluded bid."
+   "resolved: “Setting or verifying freight as exactly 0 in the vendor bid; vendor_bid only accepts a price.” — vendor_bid types the price on the open portal and reports what the sheet and Submit did (attempt{vendor_bid} for a refusal)",
+   "can only test part of this — no step for: Asserting that the bid is specifically excluded from the ranking or that the message is positioned next to that bid; no catalog assertion checks rank absence for a rejected bid."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
+   "go_to",
    "add_price_cap",
    "expect_price_cap",
    "switch_portal",
@@ -39,64 +26,28 @@
    "vendor_bid",
    "switch_portal",
    "open_master_qcs",
-   "expect_qcs_vendors",
    "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 16621
+  "ms": 21741
  },
  "plan": {
-  "title": "QCS excludes bid above vendor price ceiling",
+  "title": "QCS Rejects Bid Above Price Ceiling",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the existing prepared live RFQ summary; this is the required starting point for a prepared event."
    },
    {
-    "step": "compose_stages",
+    "step": "go_to",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "screen": "participants"
     },
-    "note": "Configure the event as an RFQ rather than the default auction."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the first available RFQ pricing template."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the single product needed for the bid."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a valid bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Invite the vendor named in the test case."
+    "note": "Navigate to the published event's Participants list so the vendor price cap can be configured."
    },
    {
     "step": "add_price_cap",
@@ -104,7 +55,7 @@
      "vendor": "Vendor A",
      "price": 150
     },
-    "note": "Set Vendor A's maximum allowed net price to 150 before the bid is submitted."
+    "note": "Set Vendor A's maximum allowed price to 150 before revising the bid."
    },
    {
     "step": "expect_price_cap",
@@ -112,7 +63,7 @@
      "vendor": "Vendor A",
      "price": 150
     },
-    "note": "Verify that the 150 price ceiling was saved."
+    "note": "Verify that Vendor A's saved price ceiling is 150."
    },
    {
     "step": "switch_portal",
@@ -120,49 +71,44 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Move to the invited vendor's supplier portal to submit the test bid."
+    "note": "Use the invited vendor session to submit the bid value required by the scenario."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open this RFQ's pricing round in the vendor portal."
+    "note": "Open the prepared RFQ's pricing round in the vendor portal."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 200
     },
-    "note": "Submit the bid whose landed price is 200, above the saved ceiling."
+    "note": "Revise Vendor A's bid to 200, which exceeds the saved ceiling of 150."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer portal to inspect QCS."
+    "note": "Return to the buyer's event page to inspect Master QCS."
    },
    {
     "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's Master QCS for the submitted RFQ bid."
-   },
-   {
-    "step": "expect_qcs_vendors",
     "args": {
-     "count": 0,
-     "realNames": true
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Assert that the above-ceiling bid is excluded from the QCS bidder ranking columns."
+    "note": "Open Master QCS and assert that the comparison grid for Vendor A rendered."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Price cannot be more than the allowed price",
-     "present": true
+     "text": "Price cannot be more than the allowed price"
     },
-    "note": "Assert that Procol displays the specified ceiling refusal message on the QCS screen."
+    "note": "Assert the specified refusal message is visible in the QCS view."
    }
   ]
  }

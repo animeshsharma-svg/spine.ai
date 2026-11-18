@@ -3,31 +3,29 @@
   "caseId": "PRD-KBSRC-417",
   "title": "Technical rankings are hidden from the buyer until the TR is approved",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:22:11.452Z",
+  "compiledAt": "2026-11-13T14:45:36.170Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that technical rankings are absent for the buyer before the technical report is fully approved",
-   "Approve the submitted technical report with all approvers and reopen the event",
-   "Verify that technical rankings are present for the buyer after full approval"
+   "Open the specific event while its technical report is pending approval and verify rankings are absent before approval.",
+   "Have all technical-report approvers approve the report and reopen the event to compare the buyer's pre- and post-approval ranking visibility."
   ],
   "warnings": [
    "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
    "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
-   "can only test part of this — no step for: Verify that technical rankings are absent for the buyer before the technical report is fully approved; Approve the submitted technical report with all approvers and reopen the event; Verify that technical rankings are present for the buyer after full approval"
+   "can only test part of this — no step for: Open the specific event while its technical report is pending approval and verify rankings are absent before approval.; Have all technical-report approvers approve the report and reopen the event to compare the buyer's pre- and post-approval ranking visibility."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
-   "go_to",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 10067
+  "ms": 21525
  },
  "plan": {
-  "title": "Technical Rankings Visibility Around TR Approval",
+  "title": "Technical rankings after TR approval",
   "steps": [
    {
     "step": "open_prepared",
@@ -37,24 +35,19 @@
     "note": "the API builds the proposal event this case starts from"
    },
    {
-    "step": "go_to",
-    "args": {
-     "screen": "stage",
-     "stage": "rfp"
-    },
-    "note": "Navigate to the technical stage where technical evaluation information would be displayed."
-   },
-   {
     "step": "ask_tester",
     "args": {
-     "need": "verify the buyer cannot see technical rankings while the technical report is pending approval, have all approvers approve the technical report, reopen the event, and verify the buyer can then see the technical rankings"
+     "need": "open the specified event while its technical report is pending approval, confirm the buyer cannot see technical rankings, have all approvers approve the technical report, and reopen the event"
     },
-    "note": "The catalog has no step for technical-report approval or a dedicated assertion for technical-ranking visibility before and after approval."
+    "note": "Approval by all approvers and the exact pending-approval setup require another user's session or state that the catalog cannot provide."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the resulting screen has no crash or server error after the tester's workflow."
+    "step": "expect_text",
+    "args": {
+     "text": "Rank",
+     "present": true
+    },
+    "note": "After the tester completes approval, check the buyer's reopened event for a visible ranking label as the closest available observation of technical rankings."
    }
   ]
  }

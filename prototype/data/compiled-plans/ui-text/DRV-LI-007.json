@@ -4,19 +4,23 @@
   "title": "Deleted line item quantity is added back to open PR quantity total",
   "group": "DRV-LI",
   "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
-  "compiledAt": "2026-11-09T23:07:03.982Z",
+  "compiledAt": "2026-11-13T13:38:09.512Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "No dedicated catalog step can delete a line item from a published live RFQ; do_on_screen must perform this UI action."
+  ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: No dedicated catalog step can delete a line item from a published live RFQ; do_on_screen must perform this UI action."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "do_on_screen",
    "open_purchase_requisitions",
    "pr_tab",
@@ -24,7 +28,7 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 15736
+  "ms": 9749
  },
  "plan": {
   "title": "Deleted line item restores PR quantity",
@@ -37,23 +41,31 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "pr_deletion_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR deletion behavior before interacting with the event."
+   },
+   {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the live RFQ, delete the line item QA_Platform Item A with quantity 8 and stop after the deletion succeeds"
+     "goal": "On the live RFQ, delete the line item QA_Platform Item A, then stop after the deletion is confirmed on the buyer event screen."
     },
-    "note": "Perform the buyer-side line-item deletion, which has no dedicated catalog step."
+    "note": "No catalog domain step can delete a line item from a published live RFQ."
    },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Navigate to the Purchase Requisitions screen to inspect the returned quantity."
+    "note": "Navigate to the Purchase Requisitions area to inspect the Open PR quantity."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Show the open PR pool where the item's available quantity is reported."
+    "note": "Show the Open PR pool where the returned quantity should be available."
    },
    {
     "step": "expect_table",
@@ -63,7 +75,7 @@
       "Quantity": "10"
      }
     },
-    "note": "Verify the Open PR row shows 10 units available after adding the existing 2 units and the returned 8 units."
+    "note": "Assert that the item's available quantity is 10, combining the existing 2 units with the 8 returned by deletion."
    }
   ]
  }

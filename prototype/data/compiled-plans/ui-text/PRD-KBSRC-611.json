@@ -3,51 +3,62 @@
   "caseId": "PRD-KBSRC-611",
   "title": "Counter offer on a Global Field",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:25:33.796Z",
+  "compiledAt": "2026-11-13T14:47:14.454Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select a global field in the counter-offer dialog and enter its new value",
-   "Verify the global field shows the original and counter values highlighted",
-   "Verify the exact success tooltip for the global-field counter offer"
+   "Select a global field in the counter-offer dialog",
+   "Enter a new value for the global field and send that field-specific counter offer",
+   "Verify the global field shows the original value and counter value as highlighted"
   ],
   "warnings": [
-   "can only test part of this — no step for: Select a global field in the counter-offer dialog and enter its new value; Verify the global field shows the original and counter values highlighted; Verify the exact success tooltip for the global-field counter offer"
+   "can only test part of this — no step for: Select a global field in the counter-offer dialog; Enter a new value for the global field and send that field-specific counter offer; Verify the global field shows the original value and counter value as highlighted"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "open_master_qcs",
    "place_counter_offer",
-   "expect_counter_offer_sent"
+   "expect_counter_offer_sent",
+   "expect_text",
+   "expect_message"
   ],
-  "ms": 72092
+  "ms": 16083
  },
  "plan": {
-  "title": "Counter offer on a global field",
+  "title": "Counter offer on global field",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
-     "screen": "responses"
+     "screen": "master_qcs"
     },
-    "note": "Open the prepared RFQ with a vendor bid on the buyer side."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Reach the QCS where the vendor bid and Counter Offer action are available."
+    "note": "Open the prepared RFQ Master QCS containing a vendor bid."
    },
    {
     "step": "place_counter_offer",
     "args": {},
-    "note": "Send the available counter offer from the vendor's QCS column; the catalog's counter-offer flow handles the send action but not global-field selection."
+    "note": "Use the available counter-offer flow as the closest supported action for sending the offer."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Assert that the buyer's QCS marks the vendor's bid as having a counter offer initiated."
+    "note": "Assert that the buyer-side grid marks the vendor's bid as having a counter offer initiated."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer Requested",
+     "present": true
+    },
+    "note": "Verify the expected pending counter-offer tag is visible above the vendor's name."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "success"
+    },
+    "note": "Check for the success feedback associated with sending the counter offer."
    }
   ]
  }

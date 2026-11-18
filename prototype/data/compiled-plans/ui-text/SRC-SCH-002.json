@@ -4,72 +4,97 @@
   "title": "Start now, end after 30 Mins",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:01:14.528Z",
+  "compiledAt": "2026-11-13T12:50:55.894Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly compare the exact end time written from the schedule drawer with Project Details' Bidding Ends At value and the live countdown.",
-   "Assert the exact end time shown in the publish confirmation summary before confirming publication."
+   "Direct equality between the Schedule Event drawer's Event will end at time and the published Project Details Bidding Ends At time",
+   "That the published countdown numerically matches the 30-minute end time"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Directly compare the exact end time written from the schedule drawer with Project Details' Bidding Ends At value and the live countdown.; Assert the exact end time shown in the publish confirmation summary before confirming publication."
+   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
+   "can only test part of this — no step for: Direct equality between the Schedule Event drawer's Event will end at time and the published Project Details Bidding Ends At time; That the published countdown numerically matches the 30-minute end time"
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 18,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
+   "expect_template_selected",
    "add_line_items",
-   "expect_line_items",
    "fill_sheet",
+   "set_sheet_cell",
    "expect_sheet_cell",
-   "select",
    "invite_vendor",
    "set_schedule",
    "expect_text",
    "publish",
    "expect_published",
    "expect_text",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 21378
+  "ms": 23775
  },
  "plan": {
-  "title": "SRC-SCH-002 Start Now 30 Minutes",
+  "title": "SRC-SCH-002 — Start now, end after 30 minutes",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage creation flow specified by the case."
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX capability required for event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and keep Publish available."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Switch the initial event type to RFQ."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-SCH-002 Start Now 30 Minutes"
+     "title": "SRC-SCH-002 Start now 30 Mins"
     },
-    "note": "Provide the mandatory event title required for publishing."
+    "note": "Provide the mandatory event title for publishing."
    },
    {
     "step": "select_template",
     "args": {},
     "note": "Apply the first available RFQ template so the pricing sheet can be configured."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Verify that the RFQ template was applied."
    },
    {
     "step": "add_line_items",
@@ -78,62 +103,55 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add the requested CYLINDER product and set its requested quantity to 10."
+    "note": "Add the CYLINDER product and set the requested quantity to 10."
    },
    {
-    "step": "expect_line_items",
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_sheet_cell",
     "args": {
-     "count": 1
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
     },
-    "note": "Verify that the product sheet contains one line item."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Populate the remaining required pricing-sheet fields."
+    "note": "Choose the required delivery location for the line item."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
-     "column": "Product Variant",
-     "contains": "Default Variant"
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
     },
-    "note": "Verify that the product selection populated the default variant."
-   },
-   {
-    "step": "select",
-    "args": {
-     "label": "Delivery location",
-     "option": "Plant Name (LOC-0001)"
-    },
-    "note": "Set the requested delivery location."
+    "note": "Verify that the selected delivery location is shown in the sheet."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add one available QA vendor so the event can be published."
+    "note": "Add one QA test vendor to satisfy the participant requirement."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a Start now schedule with the required 30-minute duration; the step reads the resulting end-time summary."
+    "note": "Keep the start at now, choose the 30-minute duration, inspect the calculated end, and save the schedule."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "30 Mins"
+     "text": "30 Mins",
+     "present": true
     },
-    "note": "Verify that the schedule summary/footer reflects the configured 30-minute duration."
+    "note": "Verify that the saved schedule chip shows the configured 30-minute duration."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ and confirm the publish flow."
+    "note": "Publish the configured RFQ and confirm the publication dialog."
    },
    {
     "step": "expect_published",
@@ -143,14 +161,18 @@
    {
     "step": "expect_text",
     "args": {
-     "text": "Bidding Ends At"
+     "text": "Bidding Ends At",
+     "present": true
     },
-    "note": "Verify that Project Details exposes the bidding end-time field after publication."
+    "note": "Verify that the published Project Details screen exposes the bidding end time."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Ensure the published project page has no visible errors, crashes, or raw values."
+    "step": "expect_text",
+    "args": {
+     "text": "30 Mins",
+     "present": true
+    },
+    "note": "Verify that the published event still shows the 30-minute schedule."
    }
   ]
  }

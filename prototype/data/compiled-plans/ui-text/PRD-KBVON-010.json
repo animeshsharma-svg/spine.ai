@@ -3,49 +3,58 @@
   "caseId": "PRD-KBVON-010",
   "title": "With Vendor Onboarding the invited vendor becomes a prospect",
   "group": "PRD-KBVON",
-  "compiledAt": "2026-11-10T03:58:09.934Z",
+  "compiledAt": "2026-11-13T15:16:03.114Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enable Vendor Onboarding, invite a vendor through vendor management, and navigate to the Vendors page."
+   "No dedicated catalog step for inviting a vendor through Vendor Management and verifying its persisted vendor record or onboarding status."
   ],
   "warnings": [
-   "can only test part of this — no step for: Enable Vendor Onboarding, invite a vendor through vendor management, and navigate to the Vendors page."
+   "can only test part of this — no step for: No dedicated catalog step for inviting a vendor through Vendor Management and verifying its persisted vendor record or onboarding status."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
-   "ask_tester",
-   "expect_table",
-   "expect_table"
+   "require_setting",
+   "do_on_screen",
+   "expect_text",
+   "expect_text"
   ],
-  "ms": 13210
+  "ms": 14486
  },
  "plan": {
-  "title": "Vendor Onboarding Routes Invite to Prospect",
+  "title": "Vendor Onboarding Prospect Listing",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "enable Vendor Onboarding, invite a vendor through vendor management, and open the Vendors page showing the Prospects and Joined tabs"
+     "phrase": "Vendor Onboarding",
+     "value": "On"
     },
-    "note": "The catalog cannot perform the vendor-management invitation flow or reach the Vendors page."
+    "note": "Enable the required tenant setting before performing the onboarding flow."
    },
    {
-    "step": "expect_table",
+    "step": "do_on_screen",
     "args": {
-     "within": "Prospects",
-     "min": 1
+     "goal": "invite a vendor from the vendor-management screen and open the Vendors page, stopping with the invited vendor shown in the Prospects tab"
     },
-    "note": "Assert that the invited vendor is listed among prospects."
+    "note": "Perform the vendor-management invitation and navigation because no catalog domain step covers this flow."
    },
    {
-    "step": "expect_table",
+    "step": "expect_text",
     "args": {
-     "within": "Joined",
-     "rows": 0
+     "text": "Prospects",
+     "present": true
     },
-    "note": "Assert that the invited vendor is not listed as a joined vendor."
+    "note": "Confirm the Vendors page exposes the Prospects tab for the invited vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Joined",
+     "present": false
+    },
+    "note": "Check that the invited vendor is not listed as Joined before onboarding is complete."
    }
   ]
  }

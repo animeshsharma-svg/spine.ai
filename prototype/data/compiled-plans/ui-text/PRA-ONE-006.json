@@ -4,21 +4,22 @@
   "title": "Typing the full name of a user who cannot see the PR still shows nothing",
   "group": "PRA-ONE",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-12T13:48:25.300Z",
+  "compiledAt": "2026-11-13T14:28:38.373Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
+   "select_pr",
    "do_on_screen",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 14819
+  "ms": 15549
  },
  "plan": {
   "title": "PR assignee search respects team visibility",
@@ -29,34 +30,39 @@
      "key": "is_pr_teams_filtering_enabled",
      "value": "On"
     },
-    "note": "Enable the required PR team-filtering configuration for this case."
+    "note": "Enable team-based PR visibility filtering required by the case."
    },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions module."
+    "note": "Open the Purchase Requisitions area."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab where PR-2 is available."
+    "note": "Stay on the Open PR tab where PR-2 is available."
+   },
+   {
+    "step": "select_pr",
+    "args": {
+     "pr": "PR-2",
+     "items": 1
+    },
+    "note": "Select one line item from PR-2 as required before assigning it."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "Find PR-2 (ENGG STORE), select one of its line items, click the Assign person button next to Upload PRs, verify the Search a user box opens, search for the full name of User A (Food Buyer) and verify no result is shown, then search using part of User A's email and verify no result is shown; stop on the empty assignee search results."
+     "goal": "On the selected PR-2 line item, click the Assign button beside Upload PRs, wait for the Search a user box and user list, search the full name of User A, verify no result is shown, then replace the search with part of User A's email and verify no result is shown; stop on the empty search result state."
     },
-    "note": "Perform the assignee search and verify that team filtering cannot be bypassed by a full-name or partial-email query."
+    "note": "Perform the assignment-user search and verify that team filtering cannot be bypassed by full-name or email-fragment searches."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Search a user",
-     "present": true
-    },
-    "note": "Confirm the assignee search interface remains present after the no-result checks."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the final empty-result screen has no application error or rendering issue."
    }
   ]
  }

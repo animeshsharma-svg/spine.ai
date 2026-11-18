@@ -4,37 +4,41 @@
   "title": "Counter offer on a column that is not negotiable",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:03:33.836Z",
+  "compiledAt": "2026-11-13T12:18:26.020Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "none",
+  "gaps": [
+   "Select the GST column as the non-negotiable counter-offer target.",
+   "Verify the refusal specifically results from changing GST rather than another counter-offer field."
+  ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "added open_prepared(responses) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "cannot test this case yet — no step can observe: Select the GST column as the non-negotiable counter-offer target.; Verify the refusal specifically results from changing GST rather than another counter-offer field."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
-   "open_master_qcs",
-   "do_on_screen",
-   "expect_toast"
+   "go_to",
+   "attempt"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 12649
+  "ms": 11302
  },
  "plan": {
-  "title": "Reject Counter Offer on Non-Negotiable GST",
+  "title": "Reject counter offer on non-negotiable GST",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ with the relevant bids on the Responses tab."
+    "note": "the API built this case's state"
    },
    {
     "step": "require_setting",
@@ -42,7 +46,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Enable the counter-offer UI for RFQs."
+    "note": "Enable the counter-offer UI required by the case."
    },
    {
     "step": "require_setting",
@@ -50,27 +54,24 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure the RFQ project flow is enabled."
+    "note": "Enable eRFX projects as required by the case configuration."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the bid comparison grid where the buyer can initiate a counter offer."
-   },
-   {
-    "step": "do_on_screen",
+    "step": "go_to",
     "args": {
-     "goal": "On the buyer's Master QCS, open the counter offer for Vendor A's normal bid, change only the non-negotiable GST column, submit the counter offer, and stop when the screen shows the refusal."
+     "screen": "responses"
     },
-    "note": "The catalog's place_counter_offer step cannot select GST specifically, so perform the required column-level action directly on the buyer screen."
+    "note": "Navigate to the RFQ Responses tab where counter offers are initiated."
    },
    {
-    "step": "expect_toast",
+    "step": "attempt",
     "args": {
-     "kind": "error",
-     "text": "You cannot give a counter offer on these columns."
+     "step": "place_counter_offer",
+     "args": {},
+     "expect": "refused",
+     "because": "You cannot give a counter offer on these columns."
     },
-    "note": "Assert Procol refused the counter offer on the non-negotiable column."
+    "note": "Closest available check for a refused counter offer, though the catalog cannot target GST specifically."
    }
   ]
  }

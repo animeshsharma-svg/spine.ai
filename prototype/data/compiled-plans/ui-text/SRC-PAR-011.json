@@ -4,7 +4,7 @@
   "title": "Search a vendor that does not exist",
   "group": "SRC-PAR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T01:45:21.663Z",
+  "compiledAt": "2026-11-13T12:22:25.536Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,28 +17,37 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 9,
   "stepNames": [
    "open_create",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "click",
+   "set_sheet_cell",
    "fill",
    "expect_text"
   ],
-  "ms": 78616
+  "ms": 12209
  },
  "plan": {
-  "title": "SRC-PAR-011 — Search nonexistent vendor",
+  "title": "Search for a nonexistent vendor",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the single-stage creation flow used by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendor management during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
@@ -50,31 +59,32 @@
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-PAR-011 — Search nonexistent vendor"
+     "title": "SRC-PAR-011 Search nonexistent vendor"
     },
-    "note": "Provide the mandatory event title so the create screen can proceed."
+    "note": "Provide the required event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select the offered RFQ template so the product sheet is available."
+    "note": "Apply the first available RFQ template so the sourcing sheet and participant controls are available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product and quantity to reach the participant controls."
+    "note": "Add the specified CYLINDER product with quantity 10."
    },
    {
-    "step": "click",
+    "step": "set_sheet_cell",
     "args": {
-     "role": "button",
-     "name": "Participants"
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
     },
-    "note": "Open the participant picker where vendor search is available."
+    "note": "Select the delivery location required by the case."
    },
    {
     "step": "fill",
@@ -82,7 +92,7 @@
      "label": "Search vendors you want to add",
      "value": "zzz-no-vendor"
     },
-    "note": "Search for the nonexistent vendor name from the case."
+    "note": "Search for the vendor name that should not exist."
    },
    {
     "step": "expect_text",
@@ -90,7 +100,7 @@
      "text": "No vendors to show",
      "present": true
     },
-    "note": "Assert that no vendor is offered after the nonexistent search, so nothing can be added."
+    "note": "Verify that the nonexistent vendor search returns no offered vendor."
    }
   ]
  }

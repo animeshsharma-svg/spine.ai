@@ -4,33 +4,83 @@
   "title": "Withdrawing Order...: Withdrawing live RFQ fails when the reason field is left empty",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:23:19.625Z",
+  "compiledAt": "2026-11-13T13:50:37.276Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
-   "withdraw_event",
+   "event_menu",
+   "attempt",
+   "expect_visible",
    "expect_message"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 7911
+  "ms": 12776
  },
  "plan": {
-  "title": "Live RFQ withdrawal requires a reason",
+  "title": "Withdraw live RFQ with empty reason",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with a vendor bid on the buyer side."
+    "note": "Open the prepared live RFQ with Vendor A's bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Use the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Use the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Use the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Use the required counter-offer percentage configuration."
    },
    {
     "step": "go_to",
@@ -38,23 +88,43 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage as required before accessing its Responses tab and Settings menu."
+    "note": "Open the RFQ stage before accessing its settings."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses view described by the case."
+    "note": "Reach the Responses view named in the case."
    },
    {
-    "step": "withdraw_event",
+    "step": "event_menu",
     "args": {
-     "scope": "stage",
-     "stage": "rfq",
-     "noReason": true
+     "item": "Withdraw",
+     "stage": "rfq"
     },
-    "note": "Open the RFQ Settings withdrawal dialog and confirm with the reason left empty; this checks that Procol refuses the withdrawal."
+    "note": "Open the RFQ Settings menu and choose Withdraw, leaving the withdrawal dialog open."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Yes, Withdraw Project"
+     },
+     "because": "Please enter reason for withdrawing this event",
+     "expect": "refused"
+    },
+    "note": "Confirm with the reason left empty; the application must refuse the withdrawal."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Withdrawing Order...",
+     "visible": true
+    },
+    "note": "Verify the withdrawal dialog remains open after the refused confirmation."
    },
    {
     "step": "expect_message",
@@ -62,7 +132,7 @@
      "kind": "inline",
      "text": "Please enter reason for withdrawing this event"
     },
-    "note": "Assert the required-reason validation appears while the withdrawal dialog remains open."
+    "note": "Verify the required inline validation message is shown."
    }
   ]
  }

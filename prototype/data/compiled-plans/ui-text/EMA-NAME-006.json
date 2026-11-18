@@ -4,33 +4,53 @@
   "title": "Approval email for an item that has no name still reads properly",
   "group": "EMA-NAME",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:56:45.956Z",
+  "compiledAt": "2026-11-13T14:21:38.528Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Send an approval request for an item with an empty name and open it in Asha's mailbox using the specified UAT users and mailboxes.",
-   "Verify the email's visual formatting has no blank bold space after the item type."
+   "Create or obtain an approval item with an empty name, such as an untitled PR or PO",
+   "Send the unnamed item for approval through the buyer portal",
+   "Open and inspect the approval request in Asha's mailbox",
+   "Verify the complete approval email formatting beyond the visible sentence assertion"
   ],
   "warnings": [
-   "can only test part of this — no step for: Send an approval request for an item with an empty name and open it in Asha's mailbox using the specified UAT users and mailboxes.; Verify the email's visual formatting has no blank bold space after the item type."
+   "can only test part of this — no step for: Create or obtain an approval item with an empty name, such as an untitled PR or PO; Send the unnamed item for approval through the buyer portal; Open and inspect the approval request in Asha's mailbox; Verify the complete approval email formatting beyond the visible sentence assertion"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_text"
   ],
-  "ms": 13495
+  "ms": 18018
  },
  "plan": {
-  "title": "Nameless Approval Email Wording",
+  "title": "Unnamed Item Approval Email",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required email-approval configuration before attempting the approval workflow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow prerequisite specified by the case."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "send an approval request for an item with an empty name, sign in as Asha in the approver mailbox, open the approval email, and leave its body visible"
+     "need": "Create or obtain an approval item with an empty name, send it for approval, and open the approval request email in Asha's mailbox"
     },
-    "note": "The catalog has no approval-request workflow or mailbox access for the specified users."
+    "note": "The catalog has no step for creating an unnamed PR or PO, sending it for approval, or accessing an approver's mailbox."
    },
    {
     "step": "expect_text",
@@ -38,7 +58,7 @@
      "text": "has requested for your approval in",
      "present": true
     },
-    "note": "Checks the stable portion of the approval sentence that should end with the item type."
+    "note": "Assert the email sentence contains the type-ending wording and does not require a missing item name after “for”."
    }
   ]
  }

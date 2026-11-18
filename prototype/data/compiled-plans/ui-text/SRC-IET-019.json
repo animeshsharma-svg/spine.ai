@@ -4,40 +4,49 @@
   "title": "Vendor sees the extended end time",
   "group": "SRC-IET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:28:35.353Z",
+  "compiledAt": "2026-11-13T12:10:55.912Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Assert that the vendor's displayed countdown and end time equal the buyer's extended end time E + 15 minutes."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Assert that the vendor's displayed countdown and end time equal the buyer's extended end time E + 15 minutes."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “The vendor countdown and exact end-time label cannot be reliably identified from the catalog's known vendor-portal label” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "extend_time",
+   "remember",
    "switch_portal",
    "vendor_open_event",
-   "expect_visible"
+   "expect_text",
+   "expect_screen_clean",
+   "expect_remembered"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 12599
+  "ms": 15078
  },
  "plan": {
-  "title": "Vendor sees extended end time",
+  "title": "Vendor sees extended RFQ end time",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ summary as required for this setup."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before accessing the event."
    },
    {
     "step": "extend_time",
@@ -46,32 +55,54 @@
      "option": "custom",
      "amount": 15,
      "unit": "minutes",
+     "direction": "increase",
      "expect": "saved"
     },
-    "note": "Extend the live RFQ's submission window by 15 minutes and assert that the buyer-side save succeeds with the expected time sum."
+    "note": "Extend the current submission deadline by 15 minutes and verify Procol saves the new end as the old end plus 15 minutes."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "buyerExtendedEnd",
+     "text": "Event will end at"
+    },
+    "note": "Capture the buyer-side extended end-time value for comparison with the vendor view."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Open the separate vendor portal while keeping the buyer session available."
+    "note": "Open the invited Vendor A supplier portal in a separate browser session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the extended RFQ in the vendor's live pricing view."
+    "note": "Open the prepared RFQ on the vendor’s Live pricing round."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "button",
-     "name": "Submit Quote",
-     "visible": true
+     "text": "Live",
+     "present": true
     },
-    "note": "Assert that the vendor reached the active RFQ bid sheet, although the dynamic end time itself cannot be compared."
+    "note": "Confirm the vendor is viewing the live RFQ round."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Verify the vendor screen has no rendering errors or malformed values after the extension."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "buyerExtendedEnd",
+     "text": "Valid till",
+     "same": true
+    },
+    "note": "Attempt to verify that the vendor’s displayed deadline matches the buyer’s extended end time."
    }
   ]
  }

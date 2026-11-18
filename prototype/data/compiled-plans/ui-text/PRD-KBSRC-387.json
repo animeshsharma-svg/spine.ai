@@ -3,18 +3,22 @@
   "caseId": "PRD-KBSRC-387",
   "title": "Create and publish a Dutch auction",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:19:48.879Z",
+  "compiledAt": "2026-11-13T14:43:08.449Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "The catalog has no dedicated step to select the Dutch auction strategy, offer entity, close condition, Starting Price, Ending Price, Tick Size, or Time Difference on the converted auction screen; this is delegated to do_on_screen.",
-   "The labels and exact values for upcoming offers and the bidder list in the Dutch auction Responses view are not confirmed catalog labels."
+   "Select the Dutch auction strategy on the converted auction screen",
+   "Choose the entity on which offers should be based",
+   "Choose the condition on which the event should close",
+   "Configure Starting Price, Ending Price, Tick Size, and Time Difference",
+   "Save and publish the converted event as a Dutch auction",
+   "Verify the Responses tab shows the Dutch auction current round, End Price, upcoming offers, and bidders"
   ],
   "warnings": [
-   "can only test part of this — no step for: The catalog has no dedicated step to select the Dutch auction strategy, offer entity, close condition, Starting Price, Ending Price, Tick Size, or Time Difference on the converted auction screen; this is delegated to do_on_screen.; The labels and exact values for upcoming offers and the bidder list in the Dutch auction Responses view are not confirmed catalog labels."
+   "cannot test this case yet — no step can observe: Select the Dutch auction strategy on the converted auction screen; Choose the entity on which offers should be based; Choose the condition on which the event should close; Configure Starting Price, Ending Price, Tick Size, and Time Difference; Save and publish the converted event as a Dutch auction; Verify the Responses tab shows the Dutch auction current round, End Price, upcoming offers, and bidders"
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "set_title",
@@ -27,30 +31,25 @@
    "publish",
    "expect_published",
    "convert_to_auction",
-   "do_on_screen",
-   "publish",
-   "expect_published",
-   "go_to",
-   "expect_text",
-   "expect_text",
-   "expect_text"
+   "capture_screen",
+   "expect_no_error"
   ],
-  "ms": 16214
+  "ms": 17791
  },
  "plan": {
-  "title": "Create and publish a Dutch auction",
+  "title": "Create and publish Dutch auction",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start the RFQ project required for the Dutch-auction conversion flow."
+    "note": "Start the supported RFQ creation flow required before conversion to an auction."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title before publishing."
+    "note": "Provide the mandatory event title for a publishable source event."
    },
    {
     "step": "compose_stages",
@@ -59,24 +58,24 @@
       "rfq"
      ]
     },
-    "note": "Create an RFQ-only project so it can be converted to an auction."
+    "note": "Create an RFQ-only event, because Dutch auctions are reachable through RFQ conversion."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template before adding line items."
+    "note": "Apply the first available RFQ template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required auction line item."
+    "note": "Add the required product line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet so the event can be published."
+    "note": "Complete the RFQ pricing sheet."
    },
    {
     "step": "set_schedule",
@@ -87,68 +86,37 @@
    },
    {
     "step": "invite_vendor",
-    "args": {},
-    "note": "Add the available QA vendor participants required for publication."
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required vendor participant."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ that will be converted into the Dutch auction."
+    "note": "Publish the source RFQ so it can be converted."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the RFQ reached a real published project page."
+    "note": "Verify the source RFQ became a published project."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Open the converted auction create screen, the supported path to Dutch auctions."
+    "note": "Reach the supported converted-auction creation screen, where the missing Dutch configuration would need to be performed."
    },
    {
-    "step": "do_on_screen",
+    "step": "capture_screen",
     "args": {
-     "goal": "On the converted auction create screen, select the Dutch Auction strategy, choose the entity on which offers are based and the event closing condition, configure the Starting Price, Ending Price, Tick Size and Time Difference using the values required by this test case, save the configuration, and stop on the configured auction screen."
+     "label": "converted-dutch-auction-configuration"
     },
-    "note": "Configure the Dutch-specific options that no dedicated catalog step exposes."
+    "note": "Capture the converted auction screen for manual inspection of the unavailable Dutch controls."
    },
    {
-    "step": "publish",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Publish the configured Dutch auction."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Assert that the Dutch auction was published successfully."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Open the Responses tab to inspect the Dutch auction oracle."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "End Price"
-    },
-    "note": "Verify the Responses view exposes the current round's End Price."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Upcoming offers"
-    },
-    "note": "Check for the upcoming-offers section described by the oracle."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Bidders"
-    },
-    "note": "Check for the bidder-list section described by the oracle."
+    "note": "Assert that conversion reached the screen without an application error."
    }
   ]
  }

@@ -4,7 +4,7 @@
   "title": "Extend during evaluation reopens bidding",
   "group": "SRC-EXT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:26:58.853Z",
+  "compiledAt": "2026-11-13T12:09:16.200Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -14,21 +14,22 @@
    "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "extend_time",
+   "require_setting",
+   "extend_submission_time",
    "switch_portal",
    "vendor_open_event",
    "vendor_bid",
-   "expect_text"
+   "expect_bid_submitted"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 14394
+  "ms": 18513
  },
  "plan": {
-  "title": "Extend Submission Time During Evaluation",
+  "title": "Extend Evaluation RFQ and Revise Bid",
   "steps": [
    {
     "step": "open_prepared",
@@ -38,40 +39,47 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "extend_time",
+    "step": "require_setting",
     "args": {
-     "which": "submission",
-     "option": "preset",
-     "preset": "15 minutes",
-     "expect": "saved"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Extend the submission window by 15 minutes during evaluation and verify Procol saves the new end time."
+    "note": "Enable eRFX projects as required by the case configuration."
+   },
+   {
+    "step": "extend_submission_time",
+    "args": {
+     "by": "15 minutes",
+     "stage": "rfq"
+    },
+    "note": "Extend the RFQ submission window; this step verifies the new end time and the product's response."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the invited vendor's separate supplier-portal session while keeping the buyer session available."
+    "note": "Switch to Vendor A's supplier-portal session while preserving the buyer session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing round so the vendor can revise its quote."
+    "note": "Open the extended RFQ's pricing round in the vendor portal."
    },
    {
     "step": "vendor_bid",
-    "args": {},
-    "note": "Submit a revised vendor quote now that the submission window has been reopened."
+    "args": {
+     "price": 100
+    },
+    "note": "Submit a revised bid for Vendor A, demonstrating that bidding reopened after the extension."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Submitted"
-    },
-    "note": "Verify the vendor portal shows the pricing round as submitted after the revision."
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the vendor portal accepted the revised submission."
    }
   ]
  }

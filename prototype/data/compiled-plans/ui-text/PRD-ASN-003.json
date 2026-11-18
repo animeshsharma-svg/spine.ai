@@ -3,37 +3,118 @@
   "caseId": "PRD-ASN-003",
   "title": "ASN Creation by Vendor (Portal/EDI): not available on the Growth plan",
   "group": "PRD-ASN",
-  "compiledAt": "2026-11-10T06:35:19.460Z",
+  "compiledAt": "2026-11-13T15:30:23.288Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "ASN Creation by Vendor (Portal/EDI), including its availability or refusal on a Growth tenant and successful creation on an Enterprise tenant using the same vendor role"
+   "ASN Creation by Vendor (Portal/EDI) is not represented by any catalog step, including its absence or refusal on Growth.",
+   "Switching to or comparing the unspecified Growth and Enterprise tenants cannot be performed because no tenant identifiers are provided.",
+   "Verifying that the same ASN workflow succeeds on Enterprise cannot be observed by a catalog step."
   ],
   "warnings": [
-   "can only test part of this — no step for: ASN Creation by Vendor (Portal/EDI), including its availability or refusal on a Growth tenant and successful creation on an Enterprise tenant using the same vendor role"
+   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
+   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
+   "can only test part of this — no step for: ASN Creation by Vendor (Portal/EDI) is not represented by any catalog step, including its absence or refusal on Growth.; Switching to or comparing the unspecified Growth and Enterprise tenants cannot be performed because no tenant identifiers are provided.; Verifying that the same ASN workflow succeeds on Enterprise cannot be observed by a catalog step."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 15,
   "stepNames": [
+   "open_create",
+   "compose_stages",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "expect_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_visible"
   ],
-  "ms": 10005
+  "ms": 11739
  },
  "plan": {
-  "title": "ASN Creation Plan Gating",
+  "title": "ASN Creation Plan-Gating by Vendor",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    }
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    }
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    }
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_schedule"
+   },
+   {
+    "step": "invite_vendor"
+   },
+   {
+    "step": "publish"
+   },
+   {
+    "step": "expect_published"
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Switch to the vendor portal, the closest available surface for a vendor-side ASN workflow."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the vendor event overview before the missing ASN capability is exercised."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the vendor on the Growth and Enterprise tenants, attempt ASN Creation by Vendor (Portal/EDI) before dispatch on both, and record whether the capability is absent or refused on Growth and works on Enterprise"
+     "need": "sign in as the vendor on the specified Growth tenant and Enterprise tenant, attempt ASN Creation by Vendor (Portal/EDI) before dispatch, and verify that it is absent or refused on Growth and succeeds on Enterprise"
     },
-    "note": "The catalog cannot navigate or assert the ASN workflow or compare tenant plan entitlements."
+    "note": "The catalog cannot perform ASN creation or switch between the unspecified plan tenants."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the resulting screen has no crash or server error after the tester's ASN checks; this does not assert ASN availability."
+    "step": "expect_visible",
+    "args": {
+     "text": "Event Overview",
+     "visible": true
+    },
+    "note": "Assert the vendor portal remains on a known event overview surface after the tester-assisted comparison."
    }
   ]
  }

@@ -4,35 +4,104 @@
   "title": "Recreate Order: The custom evaluation duration handles zero, negative, letters and very large values",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:22:34.293Z",
+  "compiledAt": "2026-11-13T13:49:30.627Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Record and compare the exact refusal or field-error wording for every value as an exploratory outcome.",
+   "Verify a successful Create Order is valid by inspecting the newly created order.",
+   "Select the Min(s) unit because the Recreate Order dialog's exact unit-field label is not available in the catalog.",
+   "unconfirmed label \"10\" (fill) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"10\" (fill) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Record and compare the exact refusal or field-error wording for every value as an exploratory outcome.; Verify a successful Create Order is valid by inspecting the newly created order.; Select the Min(s) unit because the Recreate Order dialog's exact unit-field label is not available in the catalog."
+  ],
   "source": "llm",
-  "steps": 7,
+  "steps": 26,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "event_menu",
    "expect_visible",
-   "do_on_screen",
-   "expect_screen_clean"
+   "select",
+   "fill",
+   "attempt",
+   "expect_visible",
+   "select",
+   "fill",
+   "attempt",
+   "expect_visible",
+   "select",
+   "fill",
+   "attempt",
+   "expect_visible",
+   "select",
+   "fill",
+   "attempt",
+   "expect_visible"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 83703
+  "ms": 32704
  },
  "plan": {
-  "title": "Recreate Order Evaluation Duration Validation",
+  "title": "Recreate Order evaluation duration validation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with the vendor bid."
+    "note": "Open the prepared live RFQ with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required counter-offer percentage configuration."
    },
    {
     "step": "go_to",
@@ -47,7 +116,7 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Reach the Responses view specified by the case."
+    "note": "Reach the buyer's Responses view named in the case."
    },
    {
     "step": "event_menu",
@@ -55,7 +124,7 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the Recreate Order window from the RFQ settings menu."
+    "note": "Open the Recreate Order dialog from the RFQ settings menu."
    },
    {
     "step": "expect_visible",
@@ -64,19 +133,159 @@
      "name": "Recreate Order",
      "visible": true
     },
-    "note": "Confirm the Recreate Order window is open before entering test values."
+    "note": "Confirm the Recreate Order window is open."
    },
    {
-    "step": "do_on_screen",
+    "step": "select",
     "args": {
-     "goal": "In the Recreate Order window, select Custom under Evaluation Duration and separately submit 0, -1, abc, and 999999999999999999999999 in the field with placeholder 10, using unit Min(s). After each Create Order attempt, record the exact field error or refusal message, whether the window remains open or closes, and whether a new order is created; reopen the window when it closes before testing the next value. Stop with the final observed result visible."
+     "label": "Evaluation Duration",
+     "option": "Custom"
     },
-    "note": "Execute the four conditional input cases and capture each outcome from the buyer-side screen."
+    "note": "Choose custom evaluation duration for the zero-value case."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert the final observed result has no crash, raw error, or server error."
+    "step": "fill",
+    "args": {
+     "label": "10",
+     "value": "0",
+     "within": "dialog"
+    },
+    "note": "Enter the specified zero duration in the field identified by placeholder 10."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Create Order"
+     },
+     "expect": "refused"
+    },
+    "note": "Check whether the application refuses creation with a zero custom duration."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify the dialog remains open after the zero-value attempt."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Evaluation Duration",
+     "option": "Custom"
+    },
+    "note": "Choose custom evaluation duration for the negative-value case."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "10",
+     "value": "-1",
+     "within": "dialog"
+    },
+    "note": "Enter the specified negative duration."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Create Order"
+     },
+     "expect": "refused"
+    },
+    "note": "Check whether the application refuses creation with a negative duration."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify the dialog remains open after the negative-value attempt."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Evaluation Duration",
+     "option": "Custom"
+    },
+    "note": "Choose custom evaluation duration for the nonnumeric case."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "10",
+     "value": "abc",
+     "within": "dialog"
+    },
+    "note": "Enter the specified alphabetic value."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Create Order"
+     },
+     "expect": "refused"
+    },
+    "note": "Check whether the application refuses creation with a nonnumeric duration."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify the dialog remains open after the alphabetic-value attempt."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Evaluation Duration",
+     "option": "Custom"
+    },
+    "note": "Choose custom evaluation duration for the very-large-value case."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "10",
+     "value": "999999999999999999999999",
+     "within": "dialog"
+    },
+    "note": "Enter the specified very large duration."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Create Order"
+     },
+     "expect": "refused"
+    },
+    "note": "Check whether the application refuses creation with the extremely large duration."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify the dialog remains open after the very-large-value attempt."
    }
   ]
  }

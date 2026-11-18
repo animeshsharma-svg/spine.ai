@@ -3,59 +3,53 @@
   "caseId": "PRD-PR-035",
   "title": "Line-Item Quantity Split: not available on plans below Growth",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:25:24.397Z",
+  "compiledAt": "2026-11-13T15:19:52.571Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Sign in as a buyer on a tenant below Growth and verify its plan",
-   "Observe or attempt the Line-Item Quantity Split capability before event creation",
-   "Verify the split quantity is capped at the purchase requisition amount",
-   "Repeat the same workflow on a Growth tenant and verify the capability is available",
-   "Compare capability availability across tenants with different plans while keeping the user role the same"
+   "Identify or switch between a tenant on a plan below Growth and a tenant on Growth.",
+   "Observe whether the Line-Item Quantity Split capability is present or absent for each plan.",
+   "Perform the quantity split and verify that the quantity is capped at the PR amount."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Sign in as a buyer on a tenant below Growth and verify its plan; Observe or attempt the Line-Item Quantity Split capability before event creation; Verify the split quantity is capped at the purchase requisition amount; Repeat the same workflow on a Growth tenant and verify the capability is available; Compare capability availability across tenants with different plans while keeping the user role the same"
+   "can only test part of this — no step for: Identify or switch between a tenant on a plan below Growth and a tenant on Growth.; Observe whether the Line-Item Quantity Split capability is present or absent for each plan.; Perform the quantity split and verify that the quantity is capped at the PR amount."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
-   "select_pr",
-   "purchase_items",
-   "expect_pr_items"
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 14357
+  "ms": 12285
  },
  "plan": {
-  "title": "Plan-Based Line-Item Quantity Split Availability",
+  "title": "PR Line-Item Quantity Split Plan Gating",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Closest available route to the purchase-request workflow where pre-event quantity handling would begin."
+    "note": "Reach the Purchase Requisitions workflow where the pre-event line-item quantity split is expected."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Use the only catalog-supported PR state that can proceed toward event creation."
+    "note": "Show open requisitions eligible for conversion into an event."
    },
    {
-    "step": "select_pr",
-    "args": {},
-    "note": "Select an available purchase request to reach the line-item workflow."
+    "step": "ask_tester",
+    "args": {
+     "need": "Provide or switch to the lower-plan and Growth test tenants, then use the Line-Item Quantity Split control before event creation to verify it is refused or absent below Growth and works with the quantity capped at the PR amount on Growth."
+    },
+    "note": "The catalog has no step for plan-tier setup, tenant comparison, or the Line-Item Quantity Split control."
    },
    {
-    "step": "purchase_items",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Open the selected PR's purchase items and start the event flow."
-   },
-   {
-    "step": "expect_pr_items",
-    "args": {},
-    "note": "Assert that the PR line items are present, though the catalog cannot inspect quantity splitting."
+    "note": "Assert that the current screen remains usable after the tester completes or skips the unsupported comparison."
    }
   ]
  }

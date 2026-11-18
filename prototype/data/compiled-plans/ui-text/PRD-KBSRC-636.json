@@ -3,37 +3,66 @@
   "caseId": "PRD-KBSRC-636",
   "title": "Approver finds the proposal via the Approvals tab and adds remarks",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:26:38.177Z",
+  "compiledAt": "2026-11-13T14:49:02.458Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Navigate to the Approvals tab in the left navigation and assert that the event is listed there",
+   "Navigate through the left navigation to the Approvals tab and verify that the event is listed there",
    "Verify that the Approvals/Proposals page shows both the NFA and Proposal",
-   "Choose reject conditionally or verify that the saved remark is recorded with the decision"
+   "Reject the proposal when rejection is the appropriate decision",
+   "unconfirmed label \"Reviewed and approved by the assigned approver.\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "can only test part of this — no step for: Navigate to the Approvals tab in the left navigation and assert that the event is listed there; Verify that the Approvals/Proposals page shows both the NFA and Proposal; Choose reject conditionally or verify that the saved remark is recorded with the decision"
+   "coverage partial: unconfirmed label \"Reviewed and approved by the assigned approver.\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Navigate through the left navigation to the Approvals tab and verify that the event is listed there; Verify that the Approvals/Proposals page shows both the NFA and Proposal; Reject the proposal when rejection is the appropriate decision"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "expect_visible",
+   "click",
    "expect_visible",
    "expect_visible",
    "approve_award",
    "expect_text"
   ],
-  "ms": 9543
+  "ms": 20729
  },
  "plan": {
-  "title": "Approver reviews and acts on submitted proposal",
+  "title": "Approver reviews and decides award proposal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "proposal"
     },
-    "note": "Open the submitted award proposal in the prepared approver state."
+    "note": "Open the prepared submitted award proposal as the approver."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Approvals",
+     "visible": true
+    },
+    "note": "Verify the proposal page exposes the Approvals area."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "tab",
+     "name": "Approvals"
+    },
+    "note": "Open the approval section for reviewing and acting on the proposal."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "label": "Enter remarks",
+     "visible": true
+    },
+    "note": "Verify the approver can enter remarks."
    },
    {
     "step": "expect_visible",
@@ -42,30 +71,22 @@
      "name": "Approve",
      "visible": true
     },
-    "note": "Verify that the pending approver can act on the proposal."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "label": "Enter remarks",
-     "visible": true
-    },
-    "note": "Verify that the approval remarks field is available."
+    "note": "Verify the pending approver is offered the approval action."
    },
    {
     "step": "approve_award",
     "args": {
-     "remark": "Reviewed the NFA and proposal; approving the award."
+     "remark": "Reviewed and approved by the assigned approver."
     },
-    "note": "Enter remarks and approve the submitted proposal as the pending approver."
+    "note": "Enter the required remark and approve the submitted award proposal."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Approval in Progress",
+     "text": "Reviewed and approved by the assigned approver.",
      "present": true
     },
-    "note": "Confirm the proposal page reflects the resulting approval state."
+    "note": "Verify the approval remark remains visible after the decision."
    }
   ]
  }

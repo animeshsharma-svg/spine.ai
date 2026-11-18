@@ -4,174 +4,74 @@
   "title": "RCA 333683980007 – Scrolling broken prevents vendor from reaching accept button",
   "group": "DRV-CO",
   "sheet": "derived-accepted-counter-offers-create-an-audita",
-  "compiledAt": "2026-11-09T23:04:34.812Z",
+  "compiledAt": "2026-11-13T13:35:28.445Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the system logs the specific UI error",
-   "Verify that no auditable bid revision is created after the failed acceptance"
+   "A bulk counter offer with many line items being created and sent through the bulk counter-offer flow",
+   "The system logging a UI error caused by the scrolling failure",
+   "That no auditable bid revision is created after the failed accept attempt"
   ],
   "warnings": [
-   "resolved: “Assert that scrolling is broken in the vendor portal and prevents reaching the Accept Counter Offer control” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "can only test part of this — no step for: Verify that the system logs the specific UI error; Verify that no auditable bid revision is created after the failed acceptance"
+   "resolved: “The vendor portal's scrolling failure that prevents reaching the Accept button” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: A bulk counter offer with many line items being created and sent through the bulk counter-offer flow; The system logging a UI error caused by the scrolling failure; That no auditable bid revision is created after the failed accept attempt"
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 6,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
-   "place_bid",
-   "expect_bid_submitted",
-   "event_menu",
-   "do_on_screen",
+   "open_prepared",
+   "place_counter_offer",
+   "expect_counter_offer_sent",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
-   "scroll_to",
-   "attempt"
+   "expect_visible"
   ],
-  "ms": 16624
+  "ms": 21031
  },
  "plan": {
-  "title": "DRV-CO-017 Bulk Counter Offer Accept Scroll",
+  "title": "DRV-CO-017 Vendor counter-offer accept scrolling",
   "steps": [
    {
-    "step": "open_create",
+    "step": "open_prepared",
     "args": {
-     "path": "erfx"
+     "screen": "responses"
     },
-    "note": "Create the RFQ event required for the counter-offer scenario."
+    "note": "Start from a prepared buyer-side event with a vendor bid so a counter offer can be issued."
    },
    {
-    "step": "set_title",
+    "step": "place_counter_offer",
     "args": {
-     "title": "DRV-CO-017 Bulk Counter Offer Scroll Test"
+     "price": 90
     },
-    "note": "Provide the mandatory event title."
+    "note": "Create a pending buyer counter offer for the responding vendor."
    },
    {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Use an RFQ pricing stage for vendor bidding and counter offers."
-   },
-   {
-    "step": "select_template",
+    "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 10
-    },
-    "note": "Create many line items so the vendor counter-offer view requires substantial scrolling."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Populate the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a valid bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite the QA vendor who will place and receive the counter offer."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the RFQ so the vendor can bid."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event reached a published project page."
-   },
-   {
-    "step": "place_bid",
-    "args": {},
-    "note": "Submit the invited vendor's bid, which is required before sending a counter offer."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the vendor bid was accepted."
-   },
-   {
-    "step": "event_menu",
-    "args": {
-     "item": "Send Bulk Counter Offer"
-    },
-    "note": "Open the buyer's bulk counter-offer flow for the submitted bid."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "on the buyer screen, complete and send the bulk counter offer for the submitted vendor bid across the many line items, then stop when the screen shows the offer was sent"
-    },
-    "note": "The catalog has no dedicated bulk-counter-offer submission step, so complete that buyer-side flow on screen."
+    "note": "Verify that the counter offer is pending before switching to the vendor portal."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Continue in the invited vendor's supplier portal."
+    "note": "Continue as the invited vendor in the supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "overview": true
     },
-    "note": "Open the event overview where the pending counter offer and acceptance action should be available."
+    "note": "Open the event overview where the vendor's pending counter offer and acceptance action are shown."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Counter Offer",
-     "present": true
-    },
-    "note": "Confirm the vendor portal shows the pending counter offer."
-   },
-   {
-    "step": "scroll_to",
+    "step": "expect_visible",
     "args": {
      "role": "button",
-     "name": "Accept Counter Offer"
+     "name": "Accept Counter Offer",
+     "visible": true
     },
-    "note": "Attempt to scroll to the acceptance control at the bottom of the large counter-offer view."
-   },
-   {
-    "step": "attempt",
-    "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Accept Counter Offer"
-     },
-     "expect": "nothing_opens"
-    },
-    "note": "Attempt the acceptance action and record refusal or inability to open the acceptance flow."
+    "note": "Verify whether the vendor portal exposes the accept control; this is the closest available observation of the affected interaction."
    }
   ]
  }

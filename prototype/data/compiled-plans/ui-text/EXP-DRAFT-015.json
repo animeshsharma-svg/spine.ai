@@ -4,98 +4,180 @@
   "title": "A saved eRFX draft: the \"RFQ\" tab can be opened",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:40:18.080Z",
+  "compiledAt": "2026-11-13T14:04:01.907Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 22,
   "stepNames": [
    "open_create",
-   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_title",
-   "open_events_list",
-   "expect_events_list",
-   "filter_events",
-   "open_first_event",
+   "compose_stages",
    "switch_stage",
-   "expect_visible",
+   "select_template",
+   "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "switch_stage",
+   "select_template",
+   "fill_sheet",
+   "save_draft",
+   "expect_no_error",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "open_event",
+   "switch_stage",
    "expect_no_error"
   ],
-  "ms": 6461
+  "ms": 20944
  },
  "plan": {
-  "title": "Open RFQ Tab in Saved eRFX Draft",
+  "title": "Saved eRFX Draft RFQ Tab",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    }
+    },
+    "note": "Open the eRFX project create screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test tenant."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration for vendor addition during event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the specified stage configuration before creating the draft."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-015 RFQ Tab"
+    },
+    "note": "Give the draft a known title so it can be reopened from Drafts."
    },
    {
     "step": "compose_stages",
     "args": {
      "stages": [
+      "rfp",
       "rfq"
      ]
-    }
-   },
-   {
-    "step": "set_title"
-   },
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Navigate to the Events list where saved drafts can be accessed."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Verify the events list rendered successfully."
-   },
-   {
-    "step": "filter_events",
-    "args": {
-     "tab": "Drafts"
     },
-    "note": "Open the Drafts tab to locate a saved eRFX draft."
+    "note": "Create an eRFX draft containing the RFQ tab under test and the required technical stage."
    },
    {
-    "step": "open_first_event",
+    "step": "switch_stage",
     "args": {
-     "tab": "Drafts"
+     "stage": "rfp"
     },
-    "note": "Open the first saved draft shown in the Drafts list."
+    "note": "configure the rfp stage on its own tab"
+   },
+   {
+    "step": "select_template",
+    "note": "rfp needs its own template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item so the RFQ stage has its pricing content."
+   },
+   {
+    "step": "fill_questionnaires"
+   },
+   {
+    "step": "assign_evaluator"
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage tab as required by the test case."
+    "note": "configure the rfq stage on its own tab"
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "role": "tab",
-     "name": "RFQ",
-     "visible": true
-    },
-    "note": "Confirm that the RFQ tab is visible after switching to it."
+    "step": "select_template",
+    "note": "rfq needs its own template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the configured eRFX project as an unpublished draft."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Verify that opening the RFQ tab did not produce an application error."
+    "note": "Confirm saving the draft did not produce an application error."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open the Events list to retrieve the saved draft."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Show unpublished saved drafts."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {
+     "title": "EXP-DRAFT-015 RFQ Tab"
+    },
+    "note": "Confirm the saved eRFX draft is listed in Drafts."
+   },
+   {
+    "step": "open_event",
+    "args": {
+     "title": "EXP-DRAFT-015 RFQ Tab"
+    },
+    "note": "Open the specific saved draft; drafts reopen on their create screen."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ tab whose behavior is being tested."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Verify that opening or remaining on the RFQ tab produces no error."
    }
   ]
  }

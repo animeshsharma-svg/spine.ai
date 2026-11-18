@@ -4,102 +4,73 @@
   "title": "One bid: award all 10 units to Vendor A; no approval flow",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:18:31.349Z",
+  "compiledAt": "2026-11-13T11:37:56.656Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared state is closed with two bids, so the case's prerequisite that only Vendor A has bid cannot be tested.",
-   "The catalog cannot assert that exactly one purchase order per awarded vendor was created or that this specific event moved to History after completion."
+   "Log in to Procol with specific buyer credentials",
+   "Search title in Events list and click row (handled by open_prepared state)"
   ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: The prepared state is closed with two bids, so the case's prerequisite that only Vendor A has bid cannot be tested.; The catalog cannot assert that exactly one purchase order per awarded vendor was created or that this specific event moved to History after completion."
+   "can only test part of this — no step for: Log in to Procol with specific buyer credentials; Search title in Events list and click row (handled by open_prepared state)"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "require_setting",
-   "expect_qcs_cell",
-   "expect_qcs_cell",
-   "expect_qcs_amounts",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
    "award_event",
-   "expect_awarded",
-   "create_po",
-   "expect_po_items"
+   "expect_awarded"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 16515
+  "ms": 23858
  },
  "plan": {
-  "title": "SRC-AWD-001 — Award all units to Vendor A",
+  "title": "One bid: award all 10 units to Vendor A; no approval flow",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly in Master QCS, as required for prepared-state cases."
+    "note": "Open the prepared closed event's Master QCS directly."
    },
    {
-    "step": "require_setting",
-    "args": {
-     "key": "rfx_project_enabled",
-     "value": "On"
-    },
-    "note": "Enable the required eRFX project configuration before testing the prepared RFQ."
+    "step": "start_awarding",
+    "args": {},
+    "note": "Click Start Awarding to enter the awarding screen."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "allocate_award",
     "args": {
-     "row": "RFQ Rate",
-     "vendor": "Vendor A",
-     "number": 100
+     "vendor": 1,
+     "quantity": 10,
+     "line": 1
     },
-    "note": "Verify Vendor A's bid rate is 100."
+    "note": "Allocate all 10 units to Vendor A."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "expect_award_counters",
     "args": {
-     "row": "Qty Offer",
-     "vendor": "Vendor A",
-     "key": "quantity"
+     "vendors": "1/1",
+     "proposal": 1000
     },
-    "note": "Verify Vendor A's offered quantity matches the prepared 10-unit line."
-   },
-   {
-    "step": "expect_qcs_amounts",
-    "args": {
-     "vendor": "Vendor A"
-    },
-    "note": "Verify Vendor A's line amount and total use rate multiplied by quantity."
+    "note": "Check Awarded Vendors reads (1/1) and total proposal value is 1000."
    },
    {
     "step": "award_event",
     "args": {
-     "vendor": "Vendor A"
+     "vendor": "lowest"
     },
-    "note": "Allocate the full line to Vendor A, create and submit the award proposal, and complete the award without invoking a separate approval step."
+    "note": "Create and submit the proposal for Vendor A."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Assert that the award proposal was created and submitted."
-   },
-   {
-    "step": "create_po",
-    "args": {},
-    "note": "Complete the post-award flow and read back the generated purchase order data."
-   },
-   {
-    "step": "expect_po_items",
-    "args": {
-     "count": 1,
-     "quantity": 10
-    },
-    "note": "Assert that the resulting purchase order carries the single awarded line with quantity 10."
+    "note": "Assert the award went through and the proposal was submitted."
    }
   ]
  }

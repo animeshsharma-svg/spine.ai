@@ -3,45 +3,48 @@
   "caseId": "PRD-RFX-039",
   "title": "Project Clone / Recreate: refused for a user without the Buyer role",
   "group": "PRD-RFX",
-  "compiledAt": "2026-11-10T01:34:14.122Z",
+  "compiledAt": "2026-11-13T14:54:46.756Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and verify Project Clone/Recreate is refused or absent.",
-   "Sign in as a Buyer in the same tenant and verify Project Clone/Recreate is available.",
-   "Compare the clone outcome across the two role personas and determine whether tenant RBAC deliberately grants the action to other roles."
+   "Sign in as both a non-Buyer and a Buyer, compare the same project's Clone Project/Recreate availability, and execute the clone or recreate action under each role"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify Project Clone/Recreate is refused or absent.; Sign in as a Buyer in the same tenant and verify Project Clone/Recreate is available.; Compare the clone outcome across the two role personas and determine whether tenant RBAC deliberately grants the action to other roles."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Sign in as both a non-Buyer and a Buyer, compare the same project's Clone Project/Recreate availability, and execute the clone or recreate action under each role"
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_event",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_menu_item"
   ],
-  "ms": 16050
+  "ms": 21230
  },
  "plan": {
-  "title": "Project Clone RBAC Role Comparison",
+  "title": "Clone or Recreate Role Access",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing project so the clone/recreate controls can be inspected in the relevant project context."
+    "note": "Open the existing project whose role-dependent action is being checked."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a non-Buyer and then as a Buyer on the same tenant, attempt Project Clone / Recreate for this existing project, and report whether it is absent, refused, or available for each role"
+     "need": "sign in as the non-Buyer and Buyer users on the same tenant, open the same existing project, and compare and attempt the Clone Project or Recreate action for both roles"
     },
-    "note": "Role-specific sign-in and the required comparison are not expressible by the catalog."
+    "note": "Role-specific credentials and switching between buyer personas are not available in the catalog."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the project screen remains usable after the tester's role comparison."
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Clone Project",
+     "enabled": true
+    },
+    "note": "Assert that the project menu offers Clone Project for the Buyer context after the role comparison."
    }
   ]
  }

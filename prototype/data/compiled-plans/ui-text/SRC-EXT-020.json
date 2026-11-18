@@ -4,20 +4,29 @@
   "title": "Extend with one minute left while a vendor is typing",
   "group": "SRC-EXT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:26:57.336Z",
+  "compiledAt": "2026-11-13T12:09:17.655Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared event is not guaranteed to have exactly one minute remaining before extension.",
-   "Concurrent vendor typing while the buyer extends the event and submission exactly two minutes later cannot be synchronized or asserted."
+   "Guarantee that the selected live RFQ is ending in exactly 1 minute",
+   "Keep Vendor A typing while the buyer extends the submission time",
+   "Wait exactly two minutes after the extension before submitting the bid"
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared event is not guaranteed to have exactly one minute remaining before extension.; Concurrent vendor typing while the buyer extends the event and submission exactly two minutes later cannot be synchronized or asserted."
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Guarantee that the selected live RFQ is ending in exactly 1 minute; Keep Vendor A typing while the buyer extends the submission time; Wait exactly two minutes after the extension before submitting the bid"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "expect_events_list",
+   "filter_events",
    "extend_submission_time",
    "switch_portal",
    "vendor_open_event",
@@ -26,50 +35,71 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 7970
+  "ms": 11830
  },
  "plan": {
-  "title": "Extend RFQ Near Deadline and Accept Vendor Bid",
+  "title": "Extend RFQ and Accept Vendor Bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing prepared live RFQ instead of creating or searching for another event."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before navigating."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify the Events list rendered with its expected controls and no error."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Live"
+    },
+    "note": "Limit the list to live events."
    },
    {
     "step": "extend_submission_time",
     "args": {
-     "by": "15 minutes"
+     "by": "15 minutes",
+     "stage": "rfq"
     },
-    "note": "Extend the live RFQ submission window by 15 minutes and verify Procol saves the new end time."
+    "note": "Extend the RFQ submission deadline by 15 minutes and verify Procol saves the extension."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the separate supplier portal session while keeping the buyer session available."
+    "note": "Open the invited vendor portal in a separate session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared event's RFQ bid sheet as the invited vendor."
+    "note": "Open the event's RFQ pricing round in the vendor portal."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 95
     },
-    "note": "Submit Vendor A's bid of 95 after the extension."
+    "note": "Submit the vendor's bid at 95."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the vendor portal accepted the bid and shows the stage as Submitted."
+    "note": "Verify the vendor portal reports the bid as submitted."
    }
   ]
  }

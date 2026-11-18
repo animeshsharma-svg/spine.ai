@@ -4,42 +4,62 @@
   "title": "Extend the live Technical stage to earlier than the current end",
   "group": "SRC-EXT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:26:49.365Z",
+  "compiledAt": "2026-11-13T12:08:42.747Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
    "extend_time"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 70590
+  "ms": 20281
  },
  "plan": {
-  "title": "Refuse Earlier Technical Stage Extension",
+  "title": "Reject Earlier Technical Stage Extension",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live Tech+RFQ project on the buyer-side summary page."
+    "note": "Open the prepared Tech+RFQ project's summary instead of searching the events list."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfp"
+    },
+    "note": "Open the live Technical stage whose submission time will be tested."
    },
    {
     "step": "extend_time",
     "args": {
      "which": "submission",
      "option": "fixed",
-     "at": "-10m",
-     "stage": "rfp",
+     "at": "E-10m",
      "expect": "refused",
      "message": "New time cannot be less than existing"
     },
-    "note": "Open the Technical stage's submission-time control, choose a time earlier than the current end, and verify Procol refuses it without changing the end time."
+    "note": "Attempt to move the Technical stage's submission end to ten minutes before its current end and assert Procol refuses it with the expected message."
    }
   ]
  }

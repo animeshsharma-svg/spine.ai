@@ -4,54 +4,66 @@
   "title": "Sealed bid auction: the result after it ends",
   "group": "SRC-STR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:07:30.403Z",
+  "compiledAt": "2026-11-13T12:57:50.373Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Compare the downloaded report's dynamic bid values and rankings against the Master QCS screen.",
-   "Prove that the selected existing event specifically uses the sealed-bid strategy when no event title or identifier is provided."
+   "Verify that the prepared event is specifically a finished sealed bid auction rather than another pricing strategy.",
+   "Verify final-bid ranking across multiple vendors for the sealed-bid strategy; the prepared state has one vendor and one line item.",
+   "Verify that the downloaded report exactly matches all Master QCS values."
   ],
   "warnings": [
-   "added open_prepared(master_qcs) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Compare the downloaded report's dynamic bid values and rankings against the Master QCS screen.; Prove that the selected existing event specifically uses the sealed-bid strategy when no event title or identifier is provided."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that the prepared event is specifically a finished sealed bid auction rather than another pricing strategy.; Verify final-bid ranking across multiple vendors for the sealed-bid strategy; the prepared state has one vendor and one line item.; Verify that the downloaded report exactly matches all Master QCS values."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "open_master_qcs",
+   "require_setting",
+   "expect_qcs_vendors",
    "expect_qcs_ranks",
    "click",
    "expect_download"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 9823
+  "ms": 18349
  },
  "plan": {
-  "title": "Finished sealed-bid auction results",
+  "title": "Sealed Bid Auction Result",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "the API built this case's state"
+    "note": "Open the existing prepared event directly on its Master QCS screen."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's Master QCS comparison grid."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX capability required by the case."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Assert that the comparison grid has a real vendor column."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "by": "lowest",
-     "order": "lowest"
+     "order": "lowest",
+     "atLeast": 1
     },
-    "note": "Assert that the reverse-auction ranking follows the lowest bid amounts, with the lowest amount ranked best."
+    "note": "Check the available ranking result using the prepared event's single bid; this is only a limited proxy for sealed-bid ranking."
    },
    {
     "step": "click",
@@ -59,12 +71,12 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Download the report from the Master QCS view."
+    "note": "Download the buyer's auction report."
    },
    {
     "step": "expect_download",
     "args": {},
-    "note": "Assert that the report download completed."
+    "note": "Assert that the report download occurred."
    }
   ]
  }

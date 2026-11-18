@@ -3,49 +3,49 @@
   "caseId": "PRD-KBVON-012",
   "title": "Prospects tab lists invited but not onboarded vendors",
   "group": "PRD-KBVON",
-  "compiledAt": "2026-11-10T03:58:12.267Z",
+  "compiledAt": "2026-11-13T15:16:13.581Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enable onboarding and create one invited but not onboarded vendor plus one Joined vendor; the catalog has no vendor-management setup step or tenant-setting step."
+   "The catalog cannot directly assert the identities and onboarding states of the two vendor records in the Prospects tab."
   ],
   "warnings": [
-   "can only test part of this — no step for: Enable onboarding and create one invited but not onboarded vendor plus one Joined vendor; the catalog has no vendor-management setup step or tenant-setting step."
+   "can only test part of this — no step for: The catalog cannot directly assert the identities and onboarding states of the two vendor records in the Prospects tab."
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
-   "ask_tester",
+   "require_setting",
    "do_on_screen",
-   "expect_visible"
+   "expect_table"
   ],
-  "ms": 13963
+  "ms": 14710
  },
  "plan": {
-  "title": "Prospects tab shows invited vendors not onboarded",
+  "title": "Prospects lists un onboarded vendors",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "set up an onboarding-enabled tenant with one invited but not onboarded vendor and one Joined vendor, then leave the buyer console ready to inspect Vendors"
+     "phrase": "Onboarding enabled",
+     "value": "On"
     },
-    "note": "The catalog cannot configure onboarding or create vendors in the required states."
+    "note": "Ensure vendor onboarding is enabled as required by the case setup."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "open the Vendors page, select the Prospects tab, and verify that the invited but not-yet-onboarded vendor is listed while the Joined vendor is not listed"
+     "goal": "open the Vendors page, select the Prospects tab, verify that the invited vendor who is not onboarded is listed, and verify that the Joined vendor is not listed; stop on the Prospects tab showing the result"
     },
-    "note": "This is the only available way to inspect the Vendors page and compare the Prospects tab contents in the current buyer session."
+    "note": "No catalog domain step reaches or inspects the Vendors Prospects tab, so perform the state-based contents check directly on screen."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_table",
     "args": {
-     "role": "tab",
-     "name": "Prospects",
-     "visible": true
+     "within": "Prospects",
+     "min": 1
     },
-    "note": "Confirms the browser ended on the requested Prospects tab."
+    "note": "Confirm the Prospects tab contains at least one vendor row after the on-screen state check."
    }
   ]
  }

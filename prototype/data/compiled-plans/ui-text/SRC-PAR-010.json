@@ -4,28 +4,33 @@
   "title": "eRFX RFQ project: publish with no participant",
   "group": "SRC-PAR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T01:44:18.145Z",
+  "compiledAt": "2026-11-13T12:22:19.479Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
   "source": "llm",
-  "steps": 9,
+  "steps": 11,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
    "compose_stages",
    "select_template",
    "add_line_items",
    "fill_sheet",
    "set_sheet_cell",
+   "expect_sheet_cell",
    "set_schedule",
    "expect_publish_blocked"
   ],
-  "ms": 15099
+  "ms": 9396
  },
  "plan": {
-  "title": "Publish eRFX RFQ with no participant",
+  "title": "SRC-PAR-010 — RFQ publish without participant",
   "steps": [
    {
     "step": "open_create",
@@ -33,6 +38,14 @@
      "path": "erfx"
     },
     "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the RFX project feature required by the case."
    },
    {
     "step": "set_title",
@@ -53,7 +66,7 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply the first available RFQ template."
    },
    {
     "step": "add_line_items",
@@ -62,12 +75,12 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add one CYLINDER line item with quantity 10."
+    "note": "Add the CYLINDER WITH KEY & KNOB line item with quantity 10."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet so the project is otherwise publishable."
+    "note": "Complete the RFQ pricing sheet fields required before publishing."
    },
    {
     "step": "set_sheet_cell",
@@ -76,21 +89,30 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested delivery location for the line item."
+    "note": "Set the line item's required delivery location."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
+    },
+    "note": "Verify the requested delivery location was retained."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the 30-minute event schedule."
+    "note": "Commit the 30-minute schedule while leaving all other publish prerequisites complete."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Please add participants to proceed!"
     },
-    "note": "Attempt publishing without inviting a vendor and assert the exact participant-required refusal."
+    "note": "Attempt publish without inviting a vendor and assert the exact participant-required refusal."
    }
   ]
  }

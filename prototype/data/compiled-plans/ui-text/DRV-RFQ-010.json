@@ -1,21 +1,21 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-010",
-  "title": "Lot total quantity equals sum of its line items after split",
+  "title": "Vendor cannot see other vendors' sealed commercial prices while RFQ is live",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-12T13:38:20.425Z",
+  "compiledAt": "2026-11-13T13:40:06.812Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog cannot assert an alternative masking representation if the UI uses something other than the literal '---'.",
+   "The catalog cannot conclusively associate the masked \"---\" marker with Vendor B's specific price field or verify every competitor price field is masked rather than merely checking that the marker appears on the vendor screen.",
    "unconfirmed label \"---\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
    "coverage partial: unconfirmed label \"---\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: The catalog cannot assert an alternative masking representation if the UI uses something other than the literal '---'."
+   "can only test part of this — no step for: The catalog cannot conclusively associate the masked \"---\" marker with Vendor B's specific price field or verify every competitor price field is masked rather than merely checking that the marker appears on the vendor screen."
   ],
   "source": "llm",
   "steps": 6,
@@ -29,7 +29,7 @@
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 10031
+  "ms": 21829
  },
  "plan": {
   "title": "Vendor sealed RFQ price visibility",
@@ -39,7 +39,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared RFQ state with two vendors that have already submitted bids."
+    "note": "Open the prebuilt live RFQ with two submitted vendor bids."
    },
    {
     "step": "require_setting",
@@ -52,31 +52,31 @@
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
+     "to": "vendor"
     },
-    "note": "Continue in Vendor A's supplier-portal session."
+    "note": "Move to the invited vendor's supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the assigned live RFQ's commercial bid view."
+    "note": "Open the assigned RFQ's commercial bidding view."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "bidPrice"
     },
-    "note": "Verify Vendor A can see its own submitted bid price."
+    "note": "Verify the vendor portal shows the current vendor's own submitted bid price."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "---"
+     "text": "---",
+     "present": true
     },
-    "note": "Verify the other vendor's commercial price is displayed as masked."
+    "note": "Verify the vendor view displays the sealed-price masking marker."
    }
   ]
  }

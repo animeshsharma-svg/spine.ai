@@ -4,21 +4,29 @@
   "title": "eRFX Technical + RFQ project (RFQ stage): extend its submission time by 10 minutes",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:30:06.690Z",
+  "compiledAt": "2026-11-13T12:12:42.433Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Directly verify that vendors can submit bids until the extended deadline.",
+   "Attempt extending the Technical stage beyond the RFQ end and record the resulting behavior."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Directly verify that vendors can submit bids until the extended deadline.; Attempt extending the Technical stage beyond the RFQ end and record the resulting behavior."
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
+   "require_setting",
    "extend_time"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 8802
+  "ms": 16181
  },
  "plan": {
   "title": "Extend RFQ Submission Time by 10 Minutes",
@@ -28,15 +36,23 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared Technical + RFQ project summary as the buyer."
+    "note": "Open the existing Tech+RFQ project prepared for this case."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Navigate to the RFQ stage where submission time is extended."
+    "note": "Ensure eRFX multi-stage projects are enabled for the tenant."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "erfx_rfp_stage_enabled",
+     "value": "On"
+    },
+    "note": "Ensure the Technical RFP stage is enabled for eRFX projects."
    },
    {
     "step": "extend_time",
@@ -45,10 +61,11 @@
      "option": "custom",
      "amount": 10,
      "unit": "minutes",
+     "direction": "increase",
      "stage": "rfq",
      "expect": "saved"
     },
-    "note": "Extend the RFQ submission deadline by 10 minutes and verify Procol saves the change and moves the stage end time accordingly."
+    "note": "Extend the RFQ submission deadline by 10 minutes and verify that the saved end time is exactly 10 minutes later."
    }
   ]
  }

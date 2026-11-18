@@ -1,45 +1,39 @@
 {
  "meta": {
   "caseId": "DRV-BID-006",
-  "title": "Rejecting a bid updates the ranking totals correctly",
+  "title": "Vendor submission with zero price on a line item during partial bidding",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-12T13:34:03.431Z",
+  "compiledAt": "2026-11-13T13:29:55.329Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The requested 5-unit fixture and Vendor A total of 500 cannot be established because the fixed prepared closed_two_bids state contains 10 units."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: The requested 5-unit fixture and Vendor A total of 500 cannot be established because the fixed prepared closed_two_bids state contains 10 units."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 10,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
    "click",
-   "expect_visible",
    "click",
    "expect_text",
    "expect_text",
-   "open_master_qcs",
-   "expect_qcs_ranks",
+   "go_to",
    "expect_qcs_cell",
-   "expect_qcs_amounts"
+   "expect_qcs_cell"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 16003
+  "ms": 21684
  },
  "plan": {
-  "title": "Rejecting a bid updates ranking totals",
+  "title": "Reject bid updates ranking",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the existing closed RFQ on the buyer's Responses tab."
+    "note": "Open the prepared closed RFQ on the buyer's Responses tab."
    },
    {
     "step": "click",
@@ -48,23 +42,16 @@
      "name": "Reject",
      "within": "Vendor B"
     },
-    "note": "Reject Vendor B's bid from its response row."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "visible": true
-    },
-    "note": "Confirm that the rejection confirmation dialog opened."
+    "note": "Reject Vendor B's submitted bid from its response row."
    },
    {
     "step": "click",
     "args": {
-     "text": "Reject",
+     "role": "button",
+     "name": "Reject",
      "within": "dialog"
     },
-    "note": "Confirm rejection of Vendor B's bid."
+    "note": "Confirm the rejection in the confirmation dialog."
    },
    {
     "step": "expect_text",
@@ -72,48 +59,40 @@
      "text": "Rejected",
      "within": "Vendor B"
     },
-    "note": "Verify Vendor B's row now shows the rejected status."
+    "note": "Verify Vendor B's response row shows the Rejected status."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Best Price"
+     "text": "Best Price",
+     "within": "Vendor A"
     },
-    "note": "Verify the best-offer indicator is present after the rejection."
+    "note": "Verify the best-offer indicator moved to Vendor A."
    },
    {
-    "step": "open_master_qcs",
+    "step": "go_to",
     "args": {
-     "vendors": [
-      "Vendor A"
-     ]
+     "screen": "master_qcs"
     },
-    "note": "Open the comparison grid after rejection to inspect the surviving ranked bid."
-   },
-   {
-    "step": "expect_qcs_ranks",
-    "args": {
-     "by": "RFQ Amount",
-     "order": "lowest",
-     "atLeast": 1
-    },
-    "note": "Verify the remaining active bid is ranked according to the recalculated RFQ amount."
+    "note": "Open the comparison grid to verify the recalculated active ranking and total."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "Rank",
      "vendor": "Vendor A",
-     "equals": "1"
+     "number": 1
     },
-    "note": "Verify Vendor A is now rank 1."
+    "note": "Verify Vendor A is now ranked first."
    },
    {
-    "step": "expect_qcs_amounts",
+    "step": "expect_qcs_cell",
     "args": {
-     "vendor": "Vendor A"
+     "row": "Sum Total",
+     "vendor": "Vendor A",
+     "equals": "500"
     },
-    "note": "Verify Vendor A's displayed amount and total are recalculated consistently from its rate and quantity."
+    "note": "Verify Vendor A's displayed total is 500 after Vendor B is rejected."
    }
   ]
  }

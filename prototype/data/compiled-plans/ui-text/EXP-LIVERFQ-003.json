@@ -4,20 +4,28 @@
   "title": "A live RFQ: \"Actions\" opens its menu",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:14:24.722Z",
+  "compiledAt": "2026-11-13T14:10:59.963Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "click",
    "expect_options"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 7850
+  "ms": 7328
  },
  "plan": {
   "title": "Live RFQ Actions Menu Options",
@@ -27,13 +35,51 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ directly on the buyer's Responses tab."
+    "note": "Open the prepared live RFQ directly on its Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects for the RFQ event flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the requested withdrawal visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow live-event withdrawal behavior as configured for this case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Enable the vendor-masking option for everyone."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Actions"
+    },
+    "note": "Open the Actions menu whose available controls are under test."
    },
    {
     "step": "expect_options",
     "args": {
-     "role": "button",
-     "name": "Actions",
      "options": [
       "Show Best Prices",
       "Enable English Auction",
@@ -42,7 +88,7 @@
      ],
      "only": true
     },
-    "note": "Open the Actions menu and assert that it lists exactly the four expected options."
+    "note": "Assert that the Actions menu contains exactly the four expected options."
    }
   ]
  }

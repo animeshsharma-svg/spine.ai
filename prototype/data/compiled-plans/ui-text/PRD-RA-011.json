@@ -3,41 +3,54 @@
   "caseId": "PRD-RA-011",
   "title": "Auction Scope (Line/Lot): not available on plans below Growth",
   "group": "PRD-RA",
-  "compiledAt": "2026-11-10T01:36:54.893Z",
+  "compiledAt": "2026-11-13T14:57:27.059Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "The lower-plan and Growth tenant identities or plan entitlements are not provided, and no catalog step can inspect or change a tenant's subscription plan.",
-   "The catalog cannot verify that Auction Scope is absent or refused on the lower-plan tenant and available on the Growth tenant."
+   "Switching between an unspecified tenant on a plan below Growth and a tenant on Growth.",
+   "Asserting that Auction Scope is absent or refused specifically because the tenant plan is below Growth.",
+   "Verifying that the same user and actions succeed on the Growth tenant with rankings at both line and lot scope."
   ],
   "warnings": [
-   "can only test part of this — no step for: The lower-plan and Growth tenant identities or plan entitlements are not provided, and no catalog step can inspect or change a tenant's subscription plan.; The catalog cannot verify that Auction Scope is absent or refused on the lower-plan tenant and available on the Growth tenant."
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "added set_title — publishing without a title is refused",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "added set_title — publishing without a title is refused",
+   "cannot test this case yet — no step can observe: Switching between an unspecified tenant on a plan below Growth and a tenant on Growth.; Asserting that Auction Scope is absent or refused specifically because the tenant plan is below Growth.; Verifying that the same user and actions succeed on the Growth tenant with rankings at both line and lot scope."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
-   "ask_tester",
-   "expect_visible"
+   "open_create",
+   "set_title",
+   "expect_options"
   ],
-  "ms": 9967
+  "ms": 11024
  },
  "plan": {
-  "title": "Auction Scope Plan Gating",
+  "title": "Auction scope plan-tier availability",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "open_create",
     "args": {
-     "need": "provide access to the specified lower-plan tenant and Growth tenant, then run the same Auction Scope line-level and lot-level ranking flow on both and record whether the capability is absent, refused, or available"
+     "path": "single-stage"
     },
-    "note": "The plan comparison and entitlement outcome require tenant access and plan information that the catalog cannot supply."
+    "note": "Open the single-stage auction configuration screen where auction scope is selected."
    },
    {
-    "step": "expect_visible",
+    "step": "set_title"
+   },
+   {
+    "step": "expect_options",
     "args": {
-     "text": "Configuration for Event",
-     "visible": true
+     "label": "How will you award the event?",
+     "options": [
+      "I'll award the entire lot to single Vendor",
+      "I may partially award the event to multiple"
+     ],
+     "only": true
     },
-    "note": "Confirms the tester's final screen is the auction configuration context, but does not assert plan availability."
+    "note": "Assert the available lot-level and line-item-level scope choices on the current tenant, without claiming this demonstrates plan-tier gating."
    }
   ]
  }

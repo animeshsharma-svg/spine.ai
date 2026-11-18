@@ -3,13 +3,13 @@
   "caseId": "PRD-RFP-016",
   "title": "Configurable Rating Scale: refused for a user without the Tenant Admin role",
   "group": "PRD-RFP",
-  "compiledAt": "2026-11-10T01:39:52.594Z",
+  "compiledAt": "2026-11-13T15:00:10.256Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Tenant Admin role and verify Configurable Rating Scale is refused or absent.",
-   "Sign in as a Tenant Admin in the same tenant and verify Configurable Rating Scale is available and configurable.",
-   "Compare the two roles' outcomes while accounting for tenant-specific RBAC grants."
+   "Sign in as a user without the Tenant Admin role and attempt to configure the rating scale.",
+   "Repeat the configuration as a Tenant Admin in the same tenant.",
+   "Compare whether the action is refused or unavailable for the first user and available for the Tenant Admin."
   ],
   "warnings": [
    "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -18,7 +18,7 @@
    "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "added open_create — every create test has to start somewhere",
    "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Sign in as a user without the Tenant Admin role and verify Configurable Rating Scale is refused or absent.; Sign in as a Tenant Admin in the same tenant and verify Configurable Rating Scale is available and configurable.; Compare the two roles' outcomes while accounting for tenant-specific RBAC grants."
+   "can only test part of this — no step for: Sign in as a user without the Tenant Admin role and attempt to configure the rating scale.; Repeat the configuration as a Tenant Admin in the same tenant.; Compare whether the action is refused or unavailable for the first user and available for the Tenant Admin."
   ],
   "source": "llm",
   "steps": 5,
@@ -29,7 +29,7 @@
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 12296
+  "ms": 19831
  },
  "plan": {
   "title": "Configurable Rating Scale RBAC",
@@ -54,14 +54,14 @@
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Tenant-Admin user and the Tenant Admin in the same tenant, attempt Configurable Rating Scale with each role, and compare whether the non-admin is refused or the control is absent while the Tenant Admin can configure T1/T2/T3, preferences, or numeric ratings"
+     "need": "sign in as a non-Tenant Admin and a Tenant Admin in the same tenant, attempt configurable rating scale setup with T1/T2/T3, preferences, or numeric options for each user, and compare whether the action is refused or available"
     },
-    "note": "The catalog cannot perform role-specific sign-in or observe the Configurable Rating Scale controls and permission outcome."
+    "note": "No catalog step can perform role-specific sign-in or observe configurable rating scale permissions."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the browser session remains free of application errors after the tester interaction."
+    "note": "Final assertion that the browser remains free of a crash or server error after the tester's role-based check."
    }
   ]
  }

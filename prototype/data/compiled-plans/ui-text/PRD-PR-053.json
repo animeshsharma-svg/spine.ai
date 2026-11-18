@@ -3,72 +3,47 @@
   "caseId": "PRD-PR-053",
   "title": "PR Grouping and Consolidation Engine: not available on plans below Growth",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:29:15.090Z",
+  "compiledAt": "2026-11-13T15:20:46.708Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Switching between tenants whose plans are below Growth and Growth without named supported company IDs",
-   "Observing whether the PR Grouping and Consolidation Engine is present or absent",
-   "Grouping PR line items by category, location, or vendor within guardrails",
-   "Floating an RFX from a grouped PR",
-   "Comparing the same capability's availability across two plan tiers",
-   "unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case",
-   "unconfirmed label \"Purchase Items\" (expect_text) — not among the labels known from the app nor in the case"
+   "Use specified lower-plan and Growth tenants when their plan identifiers are not provided",
+   "Observe whether the PR Grouping and Consolidation Engine is absent or refused on a below-Growth plan",
+   "Group PR line items by category, location, or vendor using that engine",
+   "Float an RFX from a grouped PR and verify it works on Growth",
+   "Compare the same buyer workflow across two tenant plans"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case",
-   "coverage partial: unconfirmed label \"Purchase Items\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Switching between tenants whose plans are below Growth and Growth without named supported company IDs; Observing whether the PR Grouping and Consolidation Engine is present or absent; Grouping PR line items by category, location, or vendor within guardrails; Floating an RFX from a grouped PR; Comparing the same capability's availability across two plan tiers"
+   "can only test part of this — no step for: Use specified lower-plan and Growth tenants when their plan identifiers are not provided; Observe whether the PR Grouping and Consolidation Engine is absent or refused on a below-Growth plan; Group PR line items by category, location, or vendor using that engine; Float an RFX from a grouped PR and verify it works on Growth; Compare the same buyer workflow across two tenant plans"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 3,
   "stepNames": [
    "open_purchase_requisitions",
-   "pr_tab",
-   "expect_visible",
    "ask_tester",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 9951
+  "ms": 16021
  },
  "plan": {
-  "title": "PR grouping availability by plan",
+  "title": "PR Grouping and Consolidation Plan Gating",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Navigate to the Purchase Requisitions screen, which is the closest available entry point for the requested PR capability."
-   },
-   {
-    "step": "pr_tab",
-    "args": {
-     "tab": "Open"
-    },
-    "note": "Open the tab where a PR can be selected for sourcing."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Purchase Items",
-     "visible": true
-    },
-    "note": "Assert the standard sourcing control is reachable, while noting that this does not observe the missing grouping capability."
+    "note": "Navigate to the Purchase Requisitions area, the closest catalog screen for the PR-based workflow."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as buyer on a below-Growth tenant and a Growth tenant, verify whether PR Grouping and Consolidation Engine is absent or available, group PR lines by category, location, or vendor, and float an RFX from the group"
+     "need": "provide access to the specified below-Growth and Growth tenants, then use the PR Grouping and Consolidation Engine to verify it is unavailable on the lower-plan tenant and group line items and float an RFX successfully on Growth"
     },
-    "note": "A tester is required because the catalog cannot change or identify plan tiers or perform and observe the requested grouping workflow."
+    "note": "The plan-tier comparison and grouping engine workflow are not expressible by catalog steps."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Purchase Items",
-     "present": true
-    },
-    "note": "End with an assertion on the current PR sourcing screen as required; this is not evidence of the grouping-engine outcome."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the resulting screen has no visible application errors or crash state."
    }
   ]
  }

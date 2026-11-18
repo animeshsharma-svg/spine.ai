@@ -3,40 +3,47 @@
   "caseId": "PRD-RFQ-046",
   "title": "Email Notifications: on failure — fallback to in-app notification",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:31:56.952Z",
+  "compiledAt": "2026-11-13T14:53:02.802Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure INT-005, make the external email provider fail or become unreachable, trigger a workflow event, and verify the fallback in-app notification plus evidence that the event was not silently dropped."
+   "Configure the outbound email integration and make the external email provider fail or become unreachable.",
+   "Verify that the failed email trigger falls back to an in-app notification with visible state, alert, log, or retry evidence and is not silently dropped."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Configure INT-005, make the external email provider fail or become unreachable, trigger a workflow event, and verify the fallback in-app notification plus evidence that the event was not silently dropped."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Configure the outbound email integration and make the external email provider fail or become unreachable.; Verify that the failed email trigger falls back to an in-app notification with visible state, alert, log, or retry evidence and is not silently dropped."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 12,
   "stepNames": [
    "open_create",
    "compose_stages",
    "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
    "ask_tester",
+   "publish",
+   "expect_published",
    "expect_screen_clean"
   ],
-  "ms": 9392
+  "ms": 16568
  },
  "plan": {
-  "title": "Email Failure Notification Fallback",
+  "title": "Email Failure Fallback Notification",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    }
+    },
+    "note": "Open the event creation flow that can generate an invitation email when published."
    },
    {
     "step": "compose_stages",
@@ -47,19 +54,64 @@
     }
    },
    {
-    "step": "set_title"
+    "step": "set_title",
+    "args": {
+     "title": "Email Failure Fallback Notification Test"
+    },
+    "note": "Provide the required event title so the event can be published."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template required before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the minimum line item needed for a publishable event."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule required for publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add an audience so publishing can trigger an invitation notification."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "configure INT-005, make the external email provider fail or become unreachable, trigger a workflow event, and verify the fallback in-app notification plus evidence that the event was not silently dropped"
+     "need": "configure the outbound email integration, make the external email provider fail or become unreachable, and verify the fallback in-app notification and its evidence after the event invitation is triggered"
     },
-    "note": "The catalog cannot configure tenant integrations, induce an outbound provider failure, trigger and observe the resulting notification fallback, or inspect retry/log evidence."
+    "note": "The catalog has no step to configure or break the email integration or observe the required fallback behavior."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event to trigger the invitation workflow under the configured failure condition."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event was created successfully after the trigger."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the session remains free of a crash or server error after the tester completes the missing workflow."
+    "note": "Assert that the resulting screen has no visible crash or server error."
    }
   ]
  }

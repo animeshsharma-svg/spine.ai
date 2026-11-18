@@ -4,19 +4,25 @@
   "title": "Withdrawing Order...: A valid reason can be entered before withdrawing the event",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:31:36.400Z",
+  "compiledAt": "2026-11-13T13:57:12.687Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 13,
+  "steps": 16,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "event_menu",
-   "expect_text",
    "expect_text",
    "expect_visible",
    "expect_visible",
@@ -26,9 +32,9 @@
    "click",
    "expect_withdrawn"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 14330
+  "ms": 19744
  },
  "plan": {
   "title": "Withdraw Closed RFQ with Reason",
@@ -38,7 +44,39 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ as the buyer."
+    "note": "Open the prepared closed RFQ event instead of creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Match the case configuration for post-expiry surrogate bidding."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Match the required buyer bid-editing configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Match the required evaluation-reopen configuration."
    },
    {
     "step": "go_to",
@@ -46,14 +84,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage."
+    "note": "Navigate to the RFQ stage named in the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab as required by the scenario."
+    "note": "Open the RFQ Responses tab before using its Settings menu."
    },
    {
     "step": "event_menu",
@@ -61,21 +99,14 @@
      "item": "Withdraw",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and choose Withdraw, leaving the confirmation window open."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Withdrawing Order..."
-    },
-    "note": "Verify the withdrawal confirmation window is shown."
+    "note": "Open the RFQ stage's withdrawal dialog and leave it open for inspection."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Are you sure you want to withdraw this event?"
     },
-    "note": "Verify the confirmation question."
+    "note": "Verify the withdrawal confirmation prompt is shown."
    },
    {
     "step": "expect_visible",
@@ -83,7 +114,7 @@
      "label": "Please enter reason for withdrawing this event",
      "visible": true
     },
-    "note": "Verify the reason field is present."
+    "note": "Verify the reason field is present before confirmation."
    },
    {
     "step": "expect_visible",
@@ -92,7 +123,7 @@
      "name": "Cancel",
      "visible": true
     },
-    "note": "Verify the Cancel button is available before confirmation."
+    "note": "Verify the dialog offers a Cancel action."
    },
    {
     "step": "expect_visible",
@@ -101,7 +132,7 @@
      "name": "Yes",
      "visible": true
     },
-    "note": "Verify the Yes confirmation button is available."
+    "note": "Verify the dialog offers the Yes confirmation action."
    },
    {
     "step": "fill",
@@ -109,7 +140,7 @@
      "label": "Please enter reason for withdrawing this event",
      "value": "The event is no longer required"
     },
-    "note": "Enter the valid withdrawal reason."
+    "note": "Enter the valid withdrawal reason from the test case."
    },
    {
     "step": "expect_value",
@@ -117,7 +148,7 @@
      "label": "Please enter reason for withdrawing this event",
      "value": "The event is no longer required"
     },
-    "note": "Verify the reason remains in the field before confirmation."
+    "note": "Confirm the reason remains in the field before clicking Yes."
    },
    {
     "step": "click",
@@ -125,12 +156,12 @@
      "role": "button",
      "name": "Yes"
     },
-    "note": "Confirm withdrawal."
+    "note": "Confirm withdrawal of the RFQ stage."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Assert that the RFQ is recorded as withdrawn."
+    "note": "Verify Procol records the RFQ as withdrawn after confirmation."
    }
   ]
  }

@@ -3,53 +3,61 @@
   "caseId": "PRD-RFX-055",
   "title": "Smart Awarding: not available on the Growth plan",
   "group": "PRD-RFX",
-  "compiledAt": "2026-11-10T01:35:26.081Z",
+  "compiledAt": "2026-11-13T14:55:38.987Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Switching to the unspecified Growth and Enterprise tenants and verifying their plan entitlements",
-   "Using Smart Awarding to obtain an optimized award recommendation",
-   "Asserting that Smart Awarding is refused or absent on Growth and available on Enterprise"
+   "Verify the Smart Awarding capability and optimized award recommendation flow on a Growth-plan tenant versus an Enterprise-plan tenant.",
+   "Switch between the Growth and Enterprise tenants because no tenant IDs are provided.",
+   "Execute Smart Awarding and verify that it is refused or absent on Growth and works on Enterprise.",
+   "unconfirmed label \"Smart Awarding\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "can only test part of this — no step for: Switching to the unspecified Growth and Enterprise tenants and verifying their plan entitlements; Using Smart Awarding to obtain an optimized award recommendation; Asserting that Smart Awarding is refused or absent on Growth and available on Enterprise"
+   "coverage partial: unconfirmed label \"Smart Awarding\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Verify the Smart Awarding capability and optimized award recommendation flow on a Growth-plan tenant versus an Enterprise-plan tenant.; Switch between the Growth and Enterprise tenants because no tenant IDs are provided.; Execute Smart Awarding and verify that it is refused or absent on Growth and works on Enterprise."
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_prepared",
-   "start_awarding",
+   "expect_visible",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_visible"
   ],
-  "ms": 9854
+  "ms": 23118
  },
  "plan": {
-  "title": "Smart Awarding plan availability",
+  "title": "Smart Awarding Plan Availability",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open a prepared event with bids at the nearest available awarding-related screen."
+    "note": "Open the closest available awarding screen for inspection."
    },
    {
-    "step": "start_awarding",
-    "args": {},
-    "note": "Reach the standard awarding flow as the closest catalog-supported approximation; this does not test Smart Awarding."
+    "step": "expect_visible",
+    "args": {
+     "text": "Smart Awarding",
+     "visible": false
+    },
+    "note": "Check whether a control explicitly labeled Smart Awarding is absent on the current prepared tenant; this is only a closest observation, not proof of plan gating."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in to the Growth and Enterprise tenants, try Smart Awarding on each, and verify that Growth refuses or omits it while Enterprise provides an optimized award recommendation"
+     "need": "sign in to the named Growth-plan tenant and Enterprise-plan tenant, verify Smart Awarding is refused or absent on Growth, then run Smart Awarding and verify an optimized award recommendation works on Enterprise"
     },
-    "note": "The catalog cannot switch to the unspecified plan tenants or operate and assert the Smart Awarding capability."
+    "note": "Tenant-specific plan comparison and the Smart Awarding workflow cannot be performed by catalog steps."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Provide a final assertion after the tester-led portion without claiming that Smart Awarding availability was verified."
+    "step": "expect_visible",
+    "args": {
+     "text": "Smart Awarding",
+     "visible": true
+    },
+    "note": "After the tester's Enterprise check, look for the capability label as the closest available assertion."
    }
   ]
  }

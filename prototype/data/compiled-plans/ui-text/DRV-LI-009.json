@@ -4,35 +4,54 @@
   "title": "Delete option hidden on a converted‑to‑auction event",
   "group": "DRV-LI",
   "sheet": "derived-buyer-can-delete-a-line-item-from-an-eve",
-  "compiledAt": "2026-11-09T23:07:10.382Z",
+  "compiledAt": "2026-11-13T13:38:18.107Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared converted-to-auction state contains one line item, not two active line items.",
-   "The catalog has no reliable assertion for an unlabeled three-dot menu per line item."
+   "The prepared converted state has two active line items; prepared states expose exactly one line item and no catalog step can add another.",
+   "The absence of an unlabeled three-dot line-item menu cannot be observed reliably without a confirmed control label."
   ],
   "warnings": [
-   "can only test part of this — no step for: The prepared converted-to-auction state contains one line item, not two active line items.; The catalog has no reliable assertion for an unlabeled three-dot menu per line item."
+   "can only test part of this — no step for: The prepared converted state has two active line items; prepared states expose exactly one line item and no catalog step can add another.; The absence of an unlabeled three-dot line-item menu cannot be observed reliably without a confirmed control label."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "go_to",
+   "go_to",
+   "expect_count",
    "expect_count"
   ],
   "state": "converted",
   "screen": "overview",
-  "ms": 10597
+  "ms": 9882
  },
  "plan": {
-  "title": "Converted Auction Hides Line-Item Delete",
+  "title": "Delete hidden on converted auction",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "overview"
     },
-    "note": "Open the prepared converted-to-auction event directly on the Auction Overview tab."
+    "note": "Open the prepared converted-to-auction event on its Overview screen."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "auction"
+    },
+    "note": "Navigate to the Auction stage requested by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "tab",
+     "name": "Overview"
+    },
+    "note": "Ensure the Auction stage's Overview tab is active."
    },
    {
     "step": "expect_count",
@@ -41,7 +60,16 @@
      "name": "Delete",
      "count": 0
     },
-    "note": "Assert that no visible Delete button is available for the auction line item."
+    "note": "Verify that no visible Delete button is available for the auction line item."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "role": "menuitem",
+     "name": "Delete",
+     "count": 0
+    },
+    "note": "Verify that no visible Delete menu item is offered on the auction Overview screen."
    }
   ]
  }

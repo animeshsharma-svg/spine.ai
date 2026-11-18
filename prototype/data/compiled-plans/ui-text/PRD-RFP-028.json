@@ -3,11 +3,14 @@
   "caseId": "PRD-RFP-028",
   "title": "Department/Location-Based Evaluator Mapping: refused for a user without the Tenant Admin role",
   "group": "PRD-RFP",
-  "compiledAt": "2026-11-10T01:40:13.515Z",
+  "compiledAt": "2026-11-13T15:00:37.168Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as both a non-Tenant Admin and a Tenant Admin in the same Enterprise tenant, access Department/Location-Based Evaluator Mapping, and compare whether the action is refused or offered."
+   "Access or verify the Enterprise tenant plan",
+   "Sign in as a user without the Tenant Admin role",
+   "Use Department/Location-Based Evaluator Mapping for department- or location-based routing",
+   "Repeat the action as a Tenant Admin and compare the RBAC outcomes"
   ],
   "warnings": [
    "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -16,7 +19,7 @@
    "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "added open_create — every create test has to start somewhere",
    "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Sign in as both a non-Tenant Admin and a Tenant Admin in the same Enterprise tenant, access Department/Location-Based Evaluator Mapping, and compare whether the action is refused or offered."
+   "can only test part of this — no step for: Access or verify the Enterprise tenant plan; Sign in as a user without the Tenant Admin role; Use Department/Location-Based Evaluator Mapping for department- or location-based routing; Repeat the action as a Tenant Admin and compare the RBAC outcomes"
   ],
   "source": "llm",
   "steps": 5,
@@ -25,12 +28,12 @@
    "compose_stages",
    "set_title",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_no_error"
   ],
-  "ms": 10145
+  "ms": 11250
  },
  "plan": {
-  "title": "Evaluator Mapping RBAC",
+  "title": "Department/Location Evaluator Mapping RBAC",
   "steps": [
    {
     "step": "open_create",
@@ -52,14 +55,14 @@
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a non-Tenant Admin and then a Tenant Admin in the same Enterprise tenant, open Department/Location-Based Evaluator Mapping, and verify that the non-admin is refused or the control is absent while the Tenant Admin can use it"
+     "need": "on the Enterprise tenant, sign in as a non-Tenant-Admin user, attempt Department/Location-Based Evaluator Mapping and record whether it is refused or absent, then repeat as a Tenant Admin and record whether it is available"
     },
-    "note": "The catalog cannot authenticate these roles or reach and assert this tenant-level RBAC mapping feature."
+    "note": "The catalog cannot switch to the required plan, sign in as either role, or operate and compare this mapping feature."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Assert the session remains free of crashes or server errors after the tester's role-specific check."
+    "note": "Confirm the session remains usable after the tester's role-comparison attempt."
    }
   ]
  }

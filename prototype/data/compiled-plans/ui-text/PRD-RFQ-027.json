@@ -3,55 +3,62 @@
   "caseId": "PRD-RFQ-027",
   "title": "Bulk / Line-wise Counter Offer: refused for a user without the Buyer role",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:30:44.621Z",
+  "compiledAt": "2026-11-13T14:51:52.365Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and repeat the action as a Buyer in the same tenant.",
-   "Verify role-specific refusal or absence of Bulk / Line-wise Counter Offer availability.",
-   "Execute bulk counters with line-wise accept/reject and automatic price propagation.",
-   "Verify tenant RBAC configuration when additional roles are deliberately granted this capability."
+   "Sign in as a user without the Buyer role and compare the refusal or absence with a separate Buyer session.",
+   "Execute and verify bulk or line-wise counter offers with accept/reject and automatic price propagation across both role sessions."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and repeat the action as a Buyer in the same tenant.; Verify role-specific refusal or absence of Bulk / Line-wise Counter Offer availability.; Execute bulk counters with line-wise accept/reject and automatic price propagation.; Verify tenant RBAC configuration when additional roles are deliberately granted this capability."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and compare the refusal or absence with a separate Buyer session.; Execute and verify bulk or line-wise counter offers with accept/reject and automatic price propagation across both role sessions."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "ask_tester",
    "open_event_settings",
    "expect_menu_item",
-   "ask_tester"
+   "expect_screen_clean"
   ],
-  "ms": 12446
+  "ms": 15381
  },
  "plan": {
-  "title": "Bulk Counter Offer RBAC Enforcement",
+  "title": "Bulk Counter Offer RBAC",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open a prepared event with vendor bids so counter-offer controls are available."
+    "note": "Open a prepared bid response state where counter-offer controls are available for the closest menu inspection."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide non-Buyer and Buyer sessions, attempt Bulk / Line-wise Counter Offer in each, and report whether the non-Buyer is refused or lacks the action while the Buyer can perform it"
+    },
+    "note": "Role-specific sign-in and the requested cross-user comparison are not available in the catalog."
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Inspect the current user's event actions, including whether bulk counter-offer is offered."
+    "note": "Open the event Settings menu that contains the Bulk Counter Offer action."
    },
    {
     "step": "expect_menu_item",
     "args": {
      "item": "Send Bulk Counter Offer"
     },
-    "note": "Check the current session's menu availability, though the catalog cannot establish which RBAC role this session has."
+    "note": "Inspect whether the current session offers the bulk counter-offer action, without treating menu availability as proof of RBAC behavior."
    },
    {
-    "step": "ask_tester",
-    "args": {
-     "need": "sign in as a user without the Buyer role and as a Buyer in the same tenant, then verify that Bulk / Line-wise Counter Offer is refused or absent for the non-Buyer and available and executable for the Buyer, including line-wise accept/reject and automatic price propagation"
-    }
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the inspected screen remains usable after the role-based test attempt."
    }
   ]
  }

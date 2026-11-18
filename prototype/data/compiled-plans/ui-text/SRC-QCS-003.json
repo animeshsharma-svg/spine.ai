@@ -4,19 +4,19 @@
   "title": "Master QCS with two bids",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:08:36.303Z",
+  "compiledAt": "2026-11-13T12:33:15.281Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Whether the lowest-price bid is visually highlighted"
+   "The lowest-price visual highlight in the Master QCS"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Whether the lowest-price bid is visually highlighted"
+   "can only test part of this — no step for: The lowest-price visual highlight in the Master QCS"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -27,11 +27,13 @@
    "expect_qcs_cell",
    "expect_qcs_cell",
    "expect_qcs_cell",
+   "expect_qcs_amounts",
+   "expect_qcs_amounts",
    "expect_qcs_ranks"
   ],
   "state": "two_bids",
   "screen": "master_qcs",
-  "ms": 8779
+  "ms": 10971
  },
  "plan": {
   "title": "SRC-QCS-003 — Master QCS with two bids",
@@ -41,7 +43,7 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared RFQ Master QCS state with Vendor A and Vendor B bids."
+    "note": "Open the prepared RFQ with two bids directly on its Master QCS screen."
    },
    {
     "step": "require_setting",
@@ -49,7 +51,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case configuration."
+    "note": "Ensure eRFX projects are enabled as required by the case configuration."
    },
    {
     "step": "expect_qcs_vendors",
@@ -61,7 +63,7 @@
      ],
      "realNames": true
     },
-    "note": "Verify that both real bidder columns are present."
+    "note": "Verify that both real bidding vendors appear as comparison columns."
    },
    {
     "step": "expect_qcs_cell",
@@ -70,7 +72,7 @@
      "vendor": "Vendor B",
      "number": 1
     },
-    "note": "Verify Vendor B, the lower bidder, is ranked first."
+    "note": "Verify Vendor B has the best rank."
    },
    {
     "step": "expect_qcs_cell",
@@ -79,43 +81,57 @@
      "vendor": "Vendor A",
      "number": 2
     },
-    "note": "Verify Vendor A is ranked second."
+    "note": "Verify Vendor A has the second rank."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
-     "row": "RFQ Amount",
+     "row": "RFQ Rate",
      "vendor": "Vendor B",
-     "number": 900
+     "equals": "90"
     },
-    "note": "Verify Vendor B's displayed amount is 900 for 10 units at 90."
+    "note": "Verify Vendor B's unit bid rate."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
-     "row": "RFQ Amount",
+     "row": "RFQ Rate",
      "vendor": "Vendor A",
-     "number": 1000
+     "equals": "100"
     },
-    "note": "Verify Vendor A's displayed amount is 1,000 for 10 units at 100."
+    "note": "Verify Vendor A's unit bid rate."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "Sum Total",
      "vendor": "Vendor B",
-     "number": 900
+     "equals": "900"
     },
-    "note": "Verify Vendor B's total is 900."
+    "note": "Verify Vendor B's total for 10 units."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "Sum Total",
      "vendor": "Vendor A",
-     "number": 1000
+     "equals": "1000"
     },
-    "note": "Verify Vendor A's total is 1,000."
+    "note": "Verify Vendor A's total for 10 units."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor B"
+    },
+    "note": "Verify Vendor B's line amount and total arithmetic."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify Vendor A's line amount and total arithmetic."
    },
    {
     "step": "expect_qcs_ranks",
@@ -124,7 +140,7 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Verify the ranking order follows the lowest bid amount."
+    "note": "Verify ranks follow the lowest total, with the lower bid ranked first."
    }
   ]
  }

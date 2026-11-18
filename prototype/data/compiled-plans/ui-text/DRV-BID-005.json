@@ -1,59 +1,45 @@
 {
  "meta": {
   "caseId": "DRV-BID-005",
-  "title": "Vendor submits discount percentage with trailing space",
+  "title": "Loading factor calculation handles zero trade product values correctly without disrupting rank",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-12T13:33:49.671Z",
+  "compiledAt": "2026-11-13T13:29:35.912Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Log in to the Procol API with a buyer token that can view the stage but lacks reject permission, send PATCH /bids/<bid_id>/reject, and verify HTTP 422 with error code 455 and message \"Not authorized to reject bid\"."
+   "PATCH request to /bids/<bid_id>/reject with a token lacking reject permission and verifying response HTTP 422 with body error code 455"
   ],
   "warnings": [
-   "can only test part of this — no step for: Log in to the Procol API with a buyer token that can view the stage but lacks reject permission, send PATCH /bids/<bid_id>/reject, and verify HTTP 422 with error code 455 and message \"Not authorized to reject bid\"."
+   "added open_prepared(responses) — the API built this case's state",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "cannot test this case yet — no step can observe: PATCH request to /bids/<bid_id>/reject with a token lacking reject permission and verifying response HTTP 422 with body error code 455"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 2,
   "stepNames": [
    "open_prepared",
-   "expect_responses",
-   "ask_tester",
-   "expect_screen_clean"
+   "expect_events_list"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 9349
+  "ms": 12577
  },
  "plan": {
-  "title": "API Reject Bid Permission",
+  "title": "api_reject_bid_lacks_permission",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses screen containing the active vendor bid."
+    "note": "the API built this case's state"
    },
    {
-    "step": "expect_responses",
-    "args": {
-     "count": 1,
-     "direct": 1
-    },
-    "note": "Verify the prepared event has the vendor's active direct bid before attempting the API rejection."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "log in to the Procol API with a buyer token lacking reject permission, send PATCH /bids/<bid_id>/reject, and verify HTTP 422 with error code 455 and message \"Not authorized to reject bid\""
-    },
-    "note": "The catalog has no step to issue an authenticated API PATCH or inspect its HTTP response body."
-   },
-   {
-    "step": "expect_screen_clean",
+    "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the buyer screen remains free of rendering errors after the API permission test."
+    "note": "Assert the events list rendered"
    }
   ]
  }

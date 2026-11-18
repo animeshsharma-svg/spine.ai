@@ -4,22 +4,38 @@
   "title": "Recreate Order: Schedule ticked with tomorrow 11:00 AM",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:42:24.483Z",
+  "compiledAt": "2026-11-13T12:36:26.039Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The exact date-picker field label for selecting tomorrow in the Recreate Order dialog is not confirmed by the catalog."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The exact date-picker field label for selecting tomorrow in the Recreate Order dialog is not confirmed by the catalog."
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "event_menu",
-   "do_on_screen",
+   "expect_visible",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "toggle",
+   "pick_date",
+   "fill",
+   "click",
+   "expect_text",
    "expect_settings_menu"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 9648
+  "ms": 20136
  },
  "plan": {
   "title": "Recreate Order with Scheduled Start",
@@ -29,21 +45,105 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary for the buyer."
+    "note": "Open the prepared closed RFQ with the two stated bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "scheduled_events_enabled",
+     "value": "On"
+    },
+    "note": "Enable automatic event scheduling required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required by the case."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Open the Recreate Order popup from the event's stage settings menu."
+    "note": "Open the Recreate Order dialog from the event's stage settings."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_visible",
     "args": {
-     "goal": "In the Recreate Order popup, verify Product Sheet, Auction Configurations, Delivery Date and Schedule this event? are present; tick Schedule this event?, select tomorrow at 11:00 AM, click Create Order, and stop on the newly created event showing it is Upcoming and starts tomorrow at 11:00 AM"
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
     },
-    "note": "Perform and verify the popup-specific scheduling and creation flow that has no dedicated catalog step."
+    "note": "Verify the recreate-order pop-up opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Product Sheet",
+     "present": true,
+     "within": "dialog"
+    },
+    "note": "Verify the dialog contains the expected recreate options."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Auction Configurations",
+     "present": true,
+     "within": "dialog"
+    },
+    "note": "Verify auction configuration is offered in the dialog."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery Date",
+     "present": true,
+     "within": "dialog"
+    },
+    "note": "Verify delivery-date configuration is present."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Schedule this event?",
+     "on": true
+    },
+    "note": "Enable scheduling for the recreated event."
+   },
+   {
+    "step": "pick_date",
+    "args": {
+     "date": "tomorrow"
+    },
+    "note": "Select tomorrow in the open scheduling date picker; the exact date-field label is not specified."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Start time",
+     "value": "11:00 AM"
+    },
+    "note": "Set the scheduled start time requested by the case."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Order"
+    },
+    "note": "Create the recreated event with the selected schedule."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "11:00 AM",
+     "present": true
+    },
+    "note": "Verify the resulting event displays the requested start time."
    },
    {
     "step": "expect_settings_menu",
@@ -52,7 +152,7 @@
       "Reschedule Event"
      ]
     },
-    "note": "Verify the newly created upcoming event offers Reschedule Event."
+    "note": "Verify the recreated event is upcoming and offers Reschedule Event."
    }
   ]
  }

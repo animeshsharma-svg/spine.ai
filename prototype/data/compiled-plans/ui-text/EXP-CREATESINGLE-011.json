@@ -4,42 +4,39 @@
   "title": "Configuration for Event: Save event with default award option (single vendor) and no additional settings",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:43:30.939Z",
+  "compiledAt": "2026-11-13T14:00:59.755Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Saving the single-stage event as a draft and verifying it appears in the events list with Draft status",
-   "Verifying the unspecified additional checkbox remains unchecked"
+   "Verify the unnamed checkbox remains unchecked.",
+   "Verify that saving the configuration window creates a Draft event visible in the events list."
   ],
   "warnings": [
    "added the create steps through publish before the list — the case looks for an event it publishes itself, and the list can only be checked for this plan's own event",
    "added expect_event_in_list — the case says the published event shows up in the list, and nothing looked for it",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "moved configure_single_stage before the body — the drawer decides the event type the rest is built on",
    "added the create steps through publish before the list — the case looks for an event it publishes itself, and the list can only be checked for this plan's own event",
    "added expect_event_in_list — the case says the published event shows up in the list, and nothing looked for it",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "moved configure_single_stage before the body — the drawer decides the event type the rest is built on",
-   "can only test part of this — no step for: Saving the single-stage event as a draft and verifying it appears in the events list with Draft status; Verifying the unspecified additional checkbox remains unchecked"
+   "can only test part of this — no step for: Verify the unnamed checkbox remains unchecked.; Verify that saving the configuration window creates a Draft event visible in the events list."
   ],
   "source": "llm",
-  "steps": 25,
+  "steps": 24,
   "stepNames": [
    "open_create",
    "require_setting",
    "require_setting",
    "require_setting",
    "configure_single_stage",
+   "expect_text",
    "set_title",
    "select_template",
    "add_line_items",
    "click",
    "expect_visible",
-   "expect_value",
-   "click",
-   "expect_visible",
+   "expect_text",
    "open_create",
    "set_title",
    "select_template",
@@ -53,7 +50,7 @@
    "open_events_list",
    "expect_event_in_list"
   ],
-  "ms": 18169
+  "ms": 22024
  },
  "plan": {
   "title": "Single-stage RFQ default award configuration",
@@ -63,7 +60,7 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage create screen."
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "require_setting",
@@ -71,7 +68,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Set the required tenant configuration before opening the create flow."
+    "note": "Enable the required tenant configuration that prevents adding vendors during event creation."
    },
    {
     "step": "require_setting",
@@ -79,7 +76,7 @@
      "key": "can_add_ceil_price",
      "value": "On"
     },
-    "note": "Set the required ceiling-price configuration."
+    "note": "Enable the required price-cap setting in read-only mode."
    },
    {
     "step": "require_setting",
@@ -87,7 +84,7 @@
      "key": "enable_tnc_mandatory_button",
      "value": "Off"
     },
-    "note": "Set the required terms-and-conditions configuration."
+    "note": "Disable the tenant setting so terms and conditions are not preselected as mandatory."
    },
    {
     "step": "configure_single_stage",
@@ -95,14 +92,21 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Configure the event as an RFQ with the single-vendor entire-lot award mode."
+    "note": "Configure the event as an RFQ while retaining the default single-vendor whole-lot award option."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "I'll award the entire lot to single Vendor"
+    },
+    "note": "Verify the requested default award option is selected or displayed in the configuration window."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "EXP-CREATESINGLE-011 Default Award RFQ"
+     "title": "EXP-CREATESINGLE-011"
     },
-    "note": "Provide the mandatory event title for the create flow."
+    "note": "Provide the required event title so the create flow remains valid."
    },
    {
     "step": "select_template",
@@ -122,43 +126,24 @@
     "step": "click",
     "args": {
      "role": "button",
-     "name": "RFQ"
-    },
-    "note": "Reopen the RFQ configuration window for direct observation."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Configuration for Event",
-     "visible": true
-    },
-    "note": "Confirm that the Configuration for Event window is open."
-   },
-   {
-    "step": "expect_value",
-    "args": {
-     "label": "How will you award the event?",
-     "value": "I'll award the entire lot to single Vendor"
-    },
-    "note": "Verify that the default award option is the entire lot to one vendor."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
      "name": "Save"
     },
-    "note": "Save the configuration without changing the default award option."
+    "note": "Save the configuration window."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
-     "name": "Configuration for Event",
      "visible": false
     },
-    "note": "Verify that saving closes the configuration window."
+    "note": "Verify that the configuration window closes after saving."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "I'll award the entire lot to single Vendor"
+    },
+    "note": "Confirm the selected whole-lot single-vendor award option remains visible after saving."
    },
    {
     "step": "open_create",

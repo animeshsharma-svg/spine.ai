@@ -4,21 +4,24 @@
   "title": "Withdraw an eRFX project with the RFQ stage live and bids in",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:25:21.050Z",
+  "compiledAt": "2026-11-13T13:17:59.762Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Verify that this specific prepared event moved to the History list, because the catalog cannot carry its prepared title or ID into an events-list row assertion.",
+   "Verify withdrawal visibility for every invited vendor; the catalog can inspect only the configured QA vendor's supplier-portal session."
+  ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that this specific prepared event moved to the History list, because the catalog cannot carry its prepared title or ID into an events-list row assertion.; Verify withdrawal visibility for every invited vendor; the catalog can inspect only the configured QA vendor's supplier-portal session."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 15,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "withdraw_event",
    "expect_toast",
    "expect_withdrawn",
@@ -26,9 +29,6 @@
    "expect_text",
    "go_to",
    "expect_text",
-   "filter_events",
-   "expect_event_in_list",
-   "expect_event_status",
    "switch_portal",
    "vendor_open_event",
    "expect_text",
@@ -37,25 +37,40 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 74452
+  "ms": 22652
  },
  "plan": {
-  "title": "Withdraw live eRFX project",
+  "title": "Withdraw prepared eRFX project with live RFQ bids",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the existing prepared Tech+RFQ project with its live RFQ bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX multi-stage projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure the Withdraw Project action is offered."
    },
    {
     "step": "withdraw_event",
     "args": {
-     "scope": "project",
-     "reason": "Withdrawal requested by buyer"
+     "scope": "project"
     },
-    "note": "Withdraw the entire project through the project-level menu with a required reason."
+    "note": "Withdraw the complete project through the project menu; the step enters the withdrawal remark and confirms."
    },
    {
     "step": "expect_toast",
@@ -63,27 +78,12 @@
      "kind": "success",
      "text": "Order withdrawn"
     },
-    "note": "Verify the withdrawal confirmation."
+    "note": "Verify the expected withdrawal confirmation."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Verify Procol records the project as withdrawn."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "stage",
-     "stage": "rfp"
-    },
-    "note": "Open the technical stage to verify its withdrawn state."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Withdrawn"
-    },
-    "note": "Confirm the technical stage shows withdrawn."
+    "note": "Assert that the project is recorded as withdrawn."
    },
    {
     "step": "go_to",
@@ -98,61 +98,57 @@
     "args": {
      "text": "Withdrawn"
     },
-    "note": "Confirm the RFQ stage shows withdrawn."
+    "note": "Assert that the RFQ stage shows Withdrawn."
    },
    {
-    "step": "filter_events",
+    "step": "go_to",
     "args": {
-     "tab": "History"
+     "screen": "stage",
+     "stage": "rfp"
     },
-    "note": "Open the History tab where withdrawn projects are listed."
+    "note": "Open the Technical/RFP stage to verify its withdrawn state."
    },
    {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Verify the withdrawn project appears in History."
-   },
-   {
-    "step": "expect_event_status",
+    "step": "expect_text",
     "args": {
-     "status": "Withdrawn"
+     "text": "Withdrawn"
     },
-    "note": "Verify its History row has the Withdrawn status."
+    "note": "Assert that the Technical stage shows Withdrawn."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Open the invited vendor's supplier portal to verify vendor-facing withdrawal."
+    "note": "Inspect the invited QA vendor's supplier-portal view after project withdrawal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the event's technical stage in the vendor portal."
+    "note": "Open the withdrawn event's Technical stage in the vendor portal."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Withdrawn"
     },
-    "note": "Confirm the vendor sees the technical stage as withdrawn."
+    "note": "Assert that the vendor sees the Technical stage as withdrawn."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's RFQ pricing stage in the vendor portal."
+    "note": "Open the withdrawn event's RFQ pricing stage in the vendor portal."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Withdrawn"
     },
-    "note": "Confirm the vendor sees the RFQ stage as withdrawn."
+    "note": "Assert that the vendor sees the RFQ stage as withdrawn."
    }
   ]
  }

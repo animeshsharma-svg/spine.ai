@@ -4,11 +4,11 @@
   "title": "Single stage create screen (RFQ with a product): \"Participants\" opens the \"All Vendors\" window",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:36:29.731Z",
+  "compiledAt": "2026-11-13T14:00:08.816Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Prove that no event data changes until a button in the Participants window is pressed."
+   "Directly prove that no event state changes in any respect before a button in the All Vendors window is pressed"
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -17,29 +17,30 @@
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Prove that no event data changes until a button in the Participants window is pressed."
+   "can only test part of this — no step for: Directly prove that no event state changes in any respect before a button in the All Vendors window is pressed"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "expect_line_items",
    "click",
    "expect_visible",
    "expect_visible",
    "expect_visible",
    "expect_visible",
-   "expect_visible",
-   "expect_line_items"
+   "expect_visible"
   ],
-  "ms": 10168
+  "ms": 19037
  },
  "plan": {
-  "title": "Single-stage RFQ Participants window",
+  "title": "Single-stage RFQ Participants vendor window",
   "steps": [
    {
     "step": "open_create",
@@ -49,22 +50,50 @@
     "note": "Open the single-stage event creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Enable the required vendor-lock configuration before creating the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Set the required ceiling-price read-only configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Set the required terms-and-conditions configuration."
+   },
+   {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set the event type to RFQ and retain the single-vendor lot awarding mode."
+    "note": "Set the event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title so the create flow is valid."
+    "args": {
+     "title": "EXP-CREATESINGLE-002 Participants"
+    },
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Choose the available RFQ pricing template."
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Choose the Buy pricing template requested by the case."
    },
    {
     "step": "add_line_items",
@@ -76,19 +105,12 @@
     "note": "Add the specified product with quantity 10."
    },
    {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Confirm the requested product produced one line item before opening Participants."
-   },
-   {
     "step": "click",
     "args": {
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the Participants control whose behavior is under test."
+    "note": "Open the participant selector control."
    },
    {
     "step": "expect_visible",
@@ -132,13 +154,6 @@
      "visible": true
     },
     "note": "Verify the Save button is present."
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Confirm the event still shows one line item after the window opens."
    }
   ]
  }

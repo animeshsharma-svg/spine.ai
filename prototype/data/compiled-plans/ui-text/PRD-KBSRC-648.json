@@ -3,35 +3,39 @@
   "caseId": "PRD-KBSRC-648",
   "title": "View by Vendor shows a quote card per vendor",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:28:06.905Z",
+  "compiledAt": "2026-11-13T14:49:31.093Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that one dedicated quote card is displayed for each vendor.",
-   "Assert that the comparative table is not shown after switching to Vendor view."
+   "Assert that exactly one dedicated quote card is displayed per vendor after selecting Vendor.",
+   "Assert that the comparative table is not shown after selecting Vendor."
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert that one dedicated quote card is displayed for each vendor.; Assert that the comparative table is not shown after switching to Vendor view."
+   "can only test part of this — no step for: Assert that exactly one dedicated quote card is displayed per vendor after selecting Vendor.; Assert that the comparative table is not shown after selecting Vendor."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
-   "open_prepared",
+   "open_event",
+   "open_master_qcs",
    "expect_options",
-   "select",
-   "expect_text"
+   "click",
+   "expect_no_error"
   ],
-  "ms": 7921
+  "ms": 8349
  },
  "plan": {
-  "title": "QCS View by Vendor quote cards",
+  "title": "QCS View by Vendor Quote Cards",
   "steps": [
    {
-    "step": "open_prepared",
-    "args": {
-     "screen": "master_qcs"
-    },
-    "note": "Open the prepared Master QCS containing quotes from several vendors."
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing event with multiple vendor bids, as required by the case setup."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the QCS and verify that the comparative grid with bidding vendors renders."
    },
    {
     "step": "expect_options",
@@ -41,25 +45,23 @@
      "options": [
       "Vendor",
       "Product"
-     ]
+     ],
+     "only": true
     },
-    "note": "Verify the QCS view selector offers Vendor and Product."
+    "note": "Verify that the view selector offers Vendor and Product options."
    },
    {
-    "step": "select",
+    "step": "click",
     "args": {
-     "label": "View by Product",
-     "option": "Vendor"
+     "role": "option",
+     "name": "Vendor"
     },
-    "note": "Switch the QCS to the Vendor view."
+    "note": "Switch the QCS from the product comparison view to the vendor view."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Vendor",
-     "present": true
-    },
-    "note": "Confirm the selected vendor-oriented view is reflected on screen."
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm that switching views did not produce an application error."
    }
   ]
  }

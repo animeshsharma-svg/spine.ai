@@ -4,62 +4,117 @@
   "title": "A live RFQ with a vendor's bid: \"Edit Evaluation Time\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:20:49.545Z",
+  "compiledAt": "2026-11-13T13:48:18.168Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "resolved: “Directly compare the RFQ's submission and evaluation time values before and after cancelling the dialog.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Directly verify the RFQ submission/bidding end time is unchanged after cancellation.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 21,
   "stepNames": [
    "open_prepared",
-   "expect_text",
-   "expect_api_value",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_event_status",
+   "expect_responses",
    "expect_api_value",
    "event_menu",
    "expect_visible",
+   "remember",
    "click",
    "expect_visible",
-   "expect_text",
+   "expect_event_status",
+   "expect_responses",
    "expect_api_value",
-   "expect_api_value"
+   "event_menu",
+   "expect_remembered",
+   "click",
+   "expect_visible"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 11127
+  "ms": 18545
  },
  "plan": {
-  "title": "Cancel Edit Evaluation Time on Live RFQ",
+  "title": "Cancel Edit Evaluation Time",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses screen with one vendor bid."
+    "note": "Open the prepared live RFQ Responses tab with one vendor bid, as required for prepared-state cases."
    },
    {
-    "step": "expect_text",
+    "step": "require_setting",
     "args": {
-     "text": "Live"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Record the event's live status before opening the evaluation-time dialog."
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bidding-time rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-editing configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required percentage counter-offer configuration."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Live"
+    },
+    "note": "Confirm the event remains live before opening the evaluation-time dialog."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1,
+     "stage": "rfq"
+    },
+    "note": "Record that the buyer sees the existing vendor response before cancellation."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "vendorName"
+     "key": "bidPrice",
+     "within": "Responses"
     },
-    "note": "Verify the responding vendor is present before the cancellation test."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "bidPrice"
-    },
-    "note": "Verify the existing bid is present before the cancellation test."
+    "note": "Confirm the existing bid value is visible before the dialog interaction."
    },
    {
     "step": "event_menu",
@@ -67,7 +122,7 @@
      "item": "Edit Evaluation Time",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings action that launches the Edit Evaluation Time window."
+    "note": "Open the Edit Evaluation Time window from the RFQ Settings menu."
    },
    {
     "step": "expect_visible",
@@ -76,7 +131,16 @@
      "name": "Edit Evaluation Time",
      "visible": true
     },
-    "note": "Confirm the Edit Evaluation Time window opened."
+    "note": "Confirm the expected evaluation-time dialog opened."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "evaluationTimeBefore",
+     "text": "Evaluation will end at",
+     "within": "dialog"
+    },
+    "note": "Capture the evaluation end time shown in the dialog for comparison after cancellation."
    },
    {
     "step": "click",
@@ -85,7 +149,7 @@
      "name": "Cancel",
      "within": "dialog"
     },
-    "note": "Cancel the evaluation-time edit without saving changes."
+    "note": "Cancel the edit operation."
    },
    {
     "step": "expect_visible",
@@ -94,28 +158,67 @@
      "name": "Edit Evaluation Time",
      "visible": false
     },
-    "note": "Assert that cancelling closes the Edit Evaluation Time window."
+    "note": "Assert that Cancel closes the evaluation-time window."
    },
    {
-    "step": "expect_text",
+    "step": "expect_event_status",
     "args": {
-     "text": "Live"
+     "status": "Live"
     },
-    "note": "Verify the event remains live after cancellation."
+    "note": "Confirm cancellation did not change the event status."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "direct": 1,
+     "stage": "rfq"
+    },
+    "note": "Confirm the existing vendor response and bid participation remain unchanged."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "vendorName"
+     "key": "bidPrice",
+     "within": "Responses"
     },
-    "note": "Verify the vendor remains unchanged after cancellation."
+    "note": "Confirm the existing bid value is still shown after cancellation."
    },
    {
-    "step": "expect_api_value",
+    "step": "event_menu",
     "args": {
-     "key": "bidPrice"
+     "item": "Edit Evaluation Time",
+     "stage": "rfq"
     },
-    "note": "Verify the existing bid remains unchanged after cancellation."
+    "note": "Reopen the dialog to verify its evaluation time was not changed by Cancel."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "evaluationTimeBefore",
+     "same": true,
+     "text": "Evaluation will end at",
+     "within": "dialog"
+    },
+    "note": "Assert that the evaluation end time is unchanged."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
+     "within": "dialog"
+    },
+    "note": "Close the verification dialog without saving."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Edit Evaluation Time",
+     "visible": false
+    },
+    "note": "Ensure the final Cancel leaves no evaluation-time dialog open."
    }
   ]
  }

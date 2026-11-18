@@ -3,27 +3,24 @@
   "caseId": "PRD-KBSRC-405",
   "title": "Evaluate line items and submit the score for approval",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:21:44.223Z",
+  "compiledAt": "2026-11-13T14:44:26.300Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Select an Approval Workflow, click Next, enter closing remarks, review the workflow, and click Submit to send the evaluation for approval"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
-   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
-   "can only test part of this — no step for: Select an Approval Workflow, click Next, enter closing remarks, review the workflow, and click Submit to send the evaluation for approval"
+   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it"
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
    "go_to",
+   "evaluate_technical",
    "do_on_screen",
-   "ask_tester",
    "expect_text"
   ],
-  "ms": 74220
+  "ms": 15156
  },
  "plan": {
   "title": "Submit Technical Evaluation for Approval",
@@ -44,18 +41,16 @@
     "note": "Navigate from Project Details to the Technical Stage."
    },
    {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "as the technical evaluator, open each submission's Add Evaluation control, select a rank, add a remark, submit the evaluation for every vendor and line item, and stop when the score submission is complete"
-    },
-    "note": "Perform the evaluator-only scoring actions that are not fully represented by a dedicated approval-flow step."
+    "step": "evaluate_technical",
+    "args": {},
+    "note": "As the assigned evaluator, score each vendor's technical response with remarks and submit every line-item evaluation."
    },
    {
-    "step": "ask_tester",
+    "step": "do_on_screen",
     "args": {
-     "need": "select an Approval Workflow, click Next, enter closing remarks, review the workflow, and click Submit to send the evaluation for approval"
+     "goal": "On the technical evaluation screen, select an Approval Workflow, click Next, enter closing remarks, review the workflow, click Submit, and stop on the Approval Page showing workflow progress."
     },
-    "note": "The catalog has no step for selecting and submitting a technical evaluation approval workflow."
+    "note": "Complete the approval-workflow submission steps that have no dedicated catalog action."
    },
    {
     "step": "expect_text",
@@ -63,7 +58,7 @@
      "text": "Approval Page",
      "present": true
     },
-    "note": "Verify that the evaluator is taken to the Approval Page after submission."
+    "note": "Verify that submission ends on the Approval Page."
    }
   ]
  }

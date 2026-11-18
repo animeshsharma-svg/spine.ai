@@ -4,20 +4,20 @@
   "title": "Vendor downloads every attachment",
   "group": "SRC-VEN",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:21:38.746Z",
+  "compiledAt": "2026-11-13T13:14:57.637Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that every quotation template and the T&C file was individually downloaded with none missing.",
-   "Assert that every downloaded file opens successfully."
+   "Verify that every Quotation Template is downloaded when the number of templates is dynamic or unknown.",
+   "Verify that each downloaded file opens successfully after download."
   ],
   "warnings": [
    "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
    "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
-   "can only test part of this — no step for: Assert that every quotation template and the T&C file was individually downloaded with none missing.; Assert that every downloaded file opens successfully."
+   "can only test part of this — no step for: Verify that every Quotation Template is downloaded when the number of templates is dynamic or unknown.; Verify that each downloaded file opens successfully after download."
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 17,
   "stepNames": [
    "open_create",
    "compose_stages",
@@ -32,13 +32,15 @@
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "probe_controls",
+   "click",
+   "expect_download",
+   "click",
    "expect_download"
   ],
-  "ms": 16282
+  "ms": 13630
  },
  "plan": {
-  "title": "Vendor attachment downloads",
+  "title": "Vendor downloads all event attachments",
   "steps": [
    {
     "step": "open_create",
@@ -90,32 +92,44 @@
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
+     "to": "vendor"
     },
-    "note": "Keep the buyer session separate and switch to Vendor A's supplier portal."
+    "note": "Open the invited vendor's separate supplier-portal session while preserving the buyer session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "overview": true
     },
-    "note": "Open the invited event's overview where the vendor's quotation templates and T&C attachment controls should be available."
+    "note": "Open the invited event's vendor overview, where the event attachments are available."
    },
    {
-    "step": "probe_controls",
+    "step": "click",
     "args": {
-     "include": [
-      "Download"
-     ],
-     "max": 30
+     "role": "button",
+     "name": "Download",
+     "within": "Quotation Templates"
     },
-    "note": "Click and record each visible Download control without confirming any unrelated dialogs."
+    "note": "Download the Quotation Template attachment exposed in the Quotation Templates section."
    },
    {
     "step": "expect_download",
     "args": {},
-    "note": "Assert that the download exploration saved a file."
+    "note": "Assert that the quotation-template download was saved."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Download",
+     "within": "Terms and Conditions"
+    },
+    "note": "Download the T&C attachment from the Terms and Conditions section."
+   },
+   {
+    "step": "expect_download",
+    "args": {},
+    "note": "Assert that the T&C download was saved."
    }
   ]
  }

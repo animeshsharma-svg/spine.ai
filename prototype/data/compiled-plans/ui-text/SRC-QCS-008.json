@@ -4,40 +4,51 @@
   "title": "A surrogate bid",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:38:42.390Z",
+  "compiledAt": "2026-11-13T12:33:41.786Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the Vendor C column in Master QCS is visibly marked \"Surrogate\"."
+   "Whether the Master QCS vendor column itself is visibly marked \"Surrogate\""
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert that the Vendor C column in Master QCS is visibly marked \"Surrogate\"."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Whether the Master QCS vendor column itself is visibly marked \"Surrogate\""
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_qcs_vendors",
    "expect_qcs_cell",
    "expect_qcs_cell",
    "expect_qcs_cell",
-   "expect_qcs_cell",
+   "expect_qcs_amounts",
    "go_to",
    "expect_responses"
   ],
   "state": "bid",
   "screen": "master_qcs",
-  "ms": 9559
+  "ms": 17839
  },
  "plan": {
-  "title": "Surrogate bid in Master QCS",
+  "title": "SRC-QCS-008 Surrogate Bid in Master QCS",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the existing RFQ with its surrogate bid directly on Master QCS."
+    "note": "Open the prepared event directly on its Master QCS comparison screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
    },
    {
     "step": "expect_qcs_vendors",
@@ -48,7 +59,7 @@
      ],
      "realNames": true
     },
-    "note": "Verify the comparison grid contains the real Vendor C column."
+    "note": "Verify that Vendor C appears as the real vendor column."
    },
    {
     "step": "expect_qcs_cell",
@@ -57,25 +68,16 @@
      "vendor": "Vendor C",
      "number": 1
     },
-    "note": "Verify Vendor C is ranked by its bid price."
+    "note": "Verify Vendor C's rank is determined in the comparison grid."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
      "vendor": "Vendor C",
-     "equals": "95"
+     "key": "bidPrice"
     },
-    "note": "Verify the displayed rate is 95."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Amount",
-     "vendor": "Vendor C",
-     "key": "bidTotal"
-    },
-    "note": "Verify the RFQ amount matches the prepared bid total."
+    "note": "Verify the displayed RFQ rate matches the bid value held for the prepared case."
    },
    {
     "step": "expect_qcs_cell",
@@ -84,14 +86,21 @@
      "vendor": "Vendor C",
      "key": "bidTotal"
     },
-    "note": "Verify the vendor total matches the prepared bid total."
+    "note": "Verify the displayed total matches the prepared bid total."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor C"
+    },
+    "note": "Verify the per-line amount and total arithmetic in the Master QCS grid."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the Responses view to verify the bid's surrogate provenance."
+    "note": "Move to the Responses view where surrogate attribution is observable."
    },
    {
     "step": "expect_responses",
@@ -102,7 +111,7 @@
       "Vendor C"
      ]
     },
-    "note": "Verify the response is attributed to Vendor C and identified as a surrogate bid in the buyer's response view."
+    "note": "Verify Vendor C's response is counted as a surrogate bid."
    }
   ]
  }

@@ -4,30 +4,66 @@
   "title": "Savings Calculation: Verify that Save button is enabled when required fields are empty",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:11:03.951Z",
+  "compiledAt": "2026-11-13T14:10:08.830Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 10,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_events_list",
    "filter_events",
    "open_first_event",
    "click",
    "expect_visible",
    "expect_enabled"
   ],
-  "ms": 11424
+  "ms": 14744
  },
  "plan": {
-  "title": "Savings Save Enabled on Empty Draft",
+  "title": "Draft Savings Save Enabled",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the events list to locate an existing saved draft."
+    "note": "Open the Events list to reach the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-lock configuration for draft creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage-addition configuration."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the Events list rendered successfully."
    },
    {
     "step": "filter_events",
@@ -41,7 +77,7 @@
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first available saved draft for the savings check."
+    "note": "Open an existing saved draft; the draft reopens on its create screen."
    },
    {
     "step": "click",
@@ -49,22 +85,23 @@
      "role": "button",
      "name": "Savings"
     },
-    "note": "Open the Savings Calculation window while leaving all fields at their defaults."
+    "note": "Open the Savings Calculation window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Savings Calculation",
+     "role": "dialog",
+     "name": "Savings Calculation",
      "visible": true
     },
-    "note": "Confirm the Savings Calculation window opened."
+    "note": "Confirm the Savings Calculation window is open."
    },
    {
     "step": "expect_enabled",
     "args": {
      "control": "Save"
     },
-    "note": "Verify Save is clickable even though no savings fields were selected."
+    "note": "Verify Save is clickable with all savings fields left at their defaults."
    }
   ]
  }

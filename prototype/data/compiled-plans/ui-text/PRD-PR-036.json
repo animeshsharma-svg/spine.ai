@@ -3,66 +3,72 @@
   "caseId": "PRD-PR-036",
   "title": "Line-Item Quantity Split: refused for a user without the Buyer role",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:25:21.406Z",
+  "compiledAt": "2026-11-13T15:19:57.730Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and as a Buyer in the same tenant",
-   "Observe or perform the Line-Item Quantity Split action on a PR line item",
-   "Compare whether the split action is refused or absent for the non-Buyer and available for the Buyer",
-   "Verify the tenant's Growth plan and RBAC configuration for this permission"
+   "Sign in as a user without the Buyer role and as a Buyer on the same Growth tenant.",
+   "Perform or inspect the Line-Item Quantity Split action before event creation.",
+   "Verify that the split is refused or absent for the non-Buyer and available to the Buyer, including recording tenant RBAC configuration if additional roles are intentionally allowed.",
+   "Ensure or verify the tenant is on the Growth plan."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer in the same tenant; Observe or perform the Line-Item Quantity Split action on a PR line item; Compare whether the split action is refused or absent for the non-Buyer and available for the Buyer; Verify the tenant's Growth plan and RBAC configuration for this permission"
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer on the same Growth tenant.; Perform or inspect the Line-Item Quantity Split action before event creation.; Verify that the split is refused or absent for the non-Buyer and available to the Buyer, including recording tenant RBAC configuration if additional roles are intentionally allowed.; Ensure or verify the tenant is on the Growth plan."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
    "purchase_items",
+   "expect_pr_items",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 10370
+  "ms": 13756
  },
  "plan": {
-  "title": "PR Line-Item Quantity Split RBAC",
+  "title": "PR line-item quantity split role restriction",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Reach the Purchase Requisitions flow where the pre-event line-item action would be tested."
+    "note": "Begin the required PR-created event flow."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Use open purchase requests, which can be selected for event preparation."
+    "note": "Use an open purchase request, which is eligible to start an event."
    },
    {
     "step": "select_pr",
     "args": {},
-    "note": "Select a purchase request so its line items become available."
+    "note": "Select a purchase request so its purchase actions become available."
    },
    {
     "step": "purchase_items",
     "args": {},
-    "note": "Open the selected PR's purchase items and start the event preparation flow."
+    "note": "Open the PR item flow before event creation, where the quantity split action would be exercised."
+   },
+   {
+    "step": "expect_pr_items",
+    "args": {},
+    "note": "Confirm that the PR line items are present before the role-specific split attempt."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Buyer user and then as the Buyer in the same tenant, attempt Line-Item Quantity Split on a PR line item capped at the PR quantity, and report whether the action is refused or absent for the non-Buyer and available for the Buyer"
+     "need": "sign in as a non-Buyer and as a Buyer on the same Growth tenant, attempt Line-Item Quantity Split capped at the PR amount before creating an event, and record whether the action is refused or absent for the non-Buyer and available to the Buyer"
     },
-    "note": "Role-specific sessions and the Line-Item Quantity Split control/action are not expressible by catalog steps."
+    "note": "The catalog has no role-specific login or Line-Item Quantity Split step, so the tester must perform and compare the two role-based outcomes."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the session remains usable after the tester completes or reports the manual role comparison."
+    "note": "Confirm the session remains usable and shows no unrelated application error after the tester's role comparison."
    }
   ]
  }

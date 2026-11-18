@@ -3,85 +3,92 @@
   "caseId": "PRD-KBSRC-391",
   "title": "First vendor to accept closes the auction and is awarded",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:20:02.149Z",
+  "compiledAt": "2026-11-13T14:43:28.688Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure or guarantee a live Dutch auction as the starting state; Dutch strategy is not available on a fresh create screen.",
-   "Open a second vendor's own session to verify that other vendors can no longer accept."
+   "Select or guarantee a live Dutch auction as the starting event.",
+   "Verify that the accepting vendor is specifically awarded the bid.",
+   "Sign in as another vendor and verify that other vendors can no longer accept."
   ],
   "warnings": [
-   "can only test part of this — no step for: Configure or guarantee a live Dutch auction as the starting state; Dutch strategy is not available on a fresh create screen.; Open a second vendor's own session to verify that other vendors can no longer accept."
+   "can only test part of this — no step for: Select or guarantee a live Dutch auction as the starting event.; Verify that the accepting vendor is specifically awarded the bid.; Sign in as another vendor and verify that other vendors can no longer accept."
   ],
   "source": "llm",
   "steps": 8,
   "stepNames": [
    "open_event",
-   "ask_tester",
    "switch_portal",
    "vendor_open_event",
+   "expect_visible",
    "click",
-   "switch_portal",
    "expect_text",
+   "switch_portal",
    "expect_text"
   ],
-  "ms": 17283
+  "ms": 20239
  },
  "plan": {
   "title": "Dutch Auction Acceptance Award",
   "steps": [
    {
     "step": "open_event",
-    "note": "Open the existing event page as the closest route to the live auction under test."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "confirm that the opened event is a live Dutch auction and provide a second vendor session for checking that other vendors can no longer accept"
-    },
-    "note": "The catalog cannot establish the required Dutch-auction state or provide a second vendor login."
+    "args": {},
+    "note": "Open the closest existing live event available; the catalog cannot constrain this selection to a Dutch auction."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier-portal session."
+    "note": "Act as the invited vendor who should accept the current offer."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the auction's vendor pricing round where the current offer and acceptance control should be shown."
+    "note": "Open the event's pricing round in the supplier portal."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Accept",
+     "visible": true
+    },
+    "note": "Assert that the vendor portal exposes the acceptance control."
    },
    {
     "step": "click",
     "args": {
-     "text": "Accept"
+     "role": "button",
+     "name": "Accept"
     },
-    "note": "Accept the current Dutch-auction offer as the vendor."
+    "note": "Accept the current offer as the vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Closed",
+     "present": true
+    },
+    "note": "Check the generic outcome text for the auction closing after acceptance."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer console to inspect the auction outcome."
+    "note": "Return to the buyer console to inspect the event outcome."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Closed"
+     "text": "Awarded",
+     "present": true
     },
-    "note": "Verify that the auction is shown as closed after acceptance."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Awarded"
-    },
-    "note": "Verify that the buyer view shows an award resulting from the acceptance."
+    "note": "Check for a generic awarded indicator, although the catalog has no domain assertion tying it to the accepting vendor."
    }
   ]
  }

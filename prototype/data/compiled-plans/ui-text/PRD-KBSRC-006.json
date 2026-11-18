@@ -3,11 +3,15 @@
   "caseId": "PRD-KBSRC-006",
   "title": "Buyer cannot fill shaded vendor-side fields in the template table",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:06:45.088Z",
+  "compiledAt": "2026-11-13T14:30:20.616Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Verify every shaded vendor-side field in the template table dynamically; the catalog requires named columns, so this plan checks representative known vendor fields only."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Verify every shaded vendor-side field in the template table dynamically; the catalog requires named columns, so this plan checks representative known vendor fields only."
+  ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
@@ -19,7 +23,7 @@
    "set_sheet_cell",
    "expect_sheet_cell"
   ],
-  "ms": 8501
+  "ms": 13465
  },
  "plan": {
   "title": "Buyer Cannot Edit Vendor Fields",
@@ -41,24 +45,25 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template so the table renders."
+    "note": "Apply a pricing template so the sheet and its cell permissions render."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required product row."
+    "note": "Add a product row to the template table."
    },
    {
     "step": "expect_sheet_cells",
     "args": {
      "row": 1,
      "readonly": [
-      "Price"
+      "Price",
+      "Quantity Available"
      ]
     },
-    "note": "Verify the shaded vendor-side Price cell is marked read-only for the buyer."
+    "note": "Verify representative shaded vendor-side cells are read-only for the buyer."
    },
    {
     "step": "set_sheet_cell",
@@ -67,7 +72,7 @@
      "column": "Price",
      "value": "123"
     },
-    "note": "Attempt to type into the vendor-side cell."
+    "note": "Attempt to type into a shaded vendor-side field."
    },
    {
     "step": "expect_sheet_cell",
@@ -76,7 +81,7 @@
      "column": "Price",
      "refused": true
     },
-    "note": "Confirm the buyer's input was not accepted."
+    "note": "Assert that the buyer's attempted value was not accepted."
    }
   ]
  }

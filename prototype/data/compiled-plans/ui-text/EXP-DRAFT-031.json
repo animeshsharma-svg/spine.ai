@@ -4,41 +4,59 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"12\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:44:18.930Z",
+  "compiledAt": "2026-11-13T14:05:31.523Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact control or menu opened by clicking “12” is not identified by any catalog step, so the plan cannot reliably verify the complete behavior after that click.",
-   "unconfirmed label \"12\" (click) — not among the labels known from the app nor in the case"
+   "unconfirmed label \"12\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "moved open_events_list to the front — the steps before it had no list on screen",
-   "moved open_events_list to the front — the steps before it had no list on screen",
-   "coverage partial: unconfirmed label \"12\" (click) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: The exact control or menu opened by clicking “12” is not identified by any catalog step, so the plan cannot reliably verify the complete behavior after that click."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "coverage partial: unconfirmed label \"12\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 16,
   "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
    "open_events_list",
-   "require_setting",
-   "require_setting",
-   "require_setting",
-   "expect_events_list",
    "filter_events",
+   "expect_event_in_list",
    "open_first_event",
-   "click",
-   "expect_options"
+   "expect_text"
   ],
-  "ms": 12425
+  "ms": 19005
  },
  "plan": {
-  "title": "EXP-DRAFT-031 — Saved eRFX draft vendor option",
+  "title": "EXP-DRAFT-031 – Draft vendor option unavailable",
   "steps": [
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open the Events list, which is the entry point for the saved draft."
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX create screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
    },
    {
     "step": "require_setting",
@@ -46,7 +64,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX project creation for the tenant."
    },
    {
     "step": "require_setting",
@@ -54,7 +72,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Set the company configuration under test so vendors are not locked during event creation."
+    "note": "Apply the setting whose effect on the draft vendor option is under test."
    },
    {
     "step": "require_setting",
@@ -62,42 +80,78 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the additional company configuration specified for this draft scenario."
+    "note": "Apply the additional configuration required by the case."
    },
    {
-    "step": "expect_events_list",
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-031"
+    },
+    "note": "Provide the required event title so the draft can be saved and found again."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Apply a pricing template required for a valid eRFX draft."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the minimum line item needed for the draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for the line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule so the draft has the normal event configuration."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Create the saved, unpublished eRFX draft under test."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to Events to reopen the saved draft through the buyer flow."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the Drafts tab as required by the case."
+    "note": "Show saved drafts as required by the scenario."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {
+     "title": "EXP-DRAFT-031"
+    },
+    "note": "Confirm the newly saved draft is present in the Drafts tab."
    },
    {
     "step": "open_first_event",
     "args": {
-     "tab": "Drafts"
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-031"
     },
-    "note": "Open the first saved draft and land on its draft create screen."
+    "note": "Open the specific draft created by this plan."
    },
    {
-    "step": "click",
+    "step": "expect_text",
     "args": {
-     "text": "12"
+     "text": "12",
+     "present": false
     },
-    "note": "Attempt the case's interaction with the visible “12” control or text."
-   },
-   {
-    "step": "expect_options",
-    "args": {
-     "absent": [
-      "12"
-     ]
-    },
-    "note": "Assert that the opened option list does not offer “12”."
+    "note": "Assert that the “12” option is not offered in the saved draft."
    }
   ]
  }

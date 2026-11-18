@@ -4,24 +4,29 @@
   "title": "Save with an empty quantity",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:17:03.556Z",
+  "compiledAt": "2026-11-13T12:01:56.293Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
+   "compose_stages",
    "select_template",
    "add_line_items",
    "expect_error"
   ],
-  "ms": 8449
+  "ms": 12317
  },
  "plan": {
-  "title": "Save with Empty Quantity",
+  "title": "SRC-ERX-012 Empty Quantity Refused",
   "steps": [
    {
     "step": "open_create",
@@ -31,16 +36,33 @@
     "note": "Open the eRFX project create screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
     "step": "set_title",
     "args": {
      "title": "SRC-ERX-012 Empty Quantity"
     },
-    "note": "Provide the required event title so the quantity validation is tested in an otherwise valid create flow."
+    "note": "Provide the required event title for the create flow."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    },
+    "note": "Keep the default single Auction stage explicit before stage-specific setup."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the first available template before adding the product."
+    "note": "Choose the pricing template required before adding line items."
    },
    {
     "step": "add_line_items",
@@ -48,14 +70,14 @@
      "count": 1,
      "quantity": ""
     },
-    "note": "Add one product while leaving its quantity empty and save the line-item drawer."
+    "note": "Add one product while leaving its quantity empty, then save the line-item drawer to trigger validation."
    },
    {
     "step": "expect_error",
     "args": {
      "contains": "Please fill valid quantity on every line item"
     },
-    "note": "Assert that Procol refuses the save with the expected quantity validation message."
+    "note": "Assert that Procol refuses the empty quantity with the required validation message."
    }
   ]
  }

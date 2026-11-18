@@ -4,42 +4,35 @@
   "title": "Send an RFP to evaluation without evaluation time",
   "group": "SRC-EVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:00:48.833Z",
+  "compiledAt": "2026-11-13T12:07:25.608Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Open the specifically named Tech+RFQ project when its title is not provided",
-   "Ensure the selected RFP stage has no evaluation time before attempting Send to Evaluation",
-   "Dedicated Send to Evaluation action step; the control label is not a catalog-known label"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Open the specifically named Tech+RFQ project when its title is not provided; Ensure the selected RFP stage has no evaluation time before attempting Send to Evaluation; Dedicated Send to Evaluation action step; the control label is not a catalog-known label"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "go_to",
-   "click",
-   "expect_message"
+   "attempt"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 13151
+  "ms": 8444
  },
  "plan": {
-  "title": "Send RFP to evaluation without evaluation time",
+  "title": "Send RFP to Evaluation Without Evaluation Time",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared Tech+RFQ project's summary as the existing event under test."
    },
    {
     "step": "require_setting",
@@ -47,7 +40,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case configuration."
+    "note": "Enable the required eRFX project configuration before accessing the technical event."
    },
    {
     "step": "go_to",
@@ -55,22 +48,20 @@
      "screen": "stage",
      "stage": "rfp"
     },
-    "note": "Navigate to the RFP stage where Send to Evaluation is expected."
+    "note": "Navigate to the RFP stage where Send to Evaluation is available."
    },
    {
-    "step": "click",
+    "step": "attempt",
     "args": {
-     "text": "Send to Evaluation"
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Send to Evaluation"
+     },
+     "expect": "refused",
+     "because": "No evaluation time present. Set evaluation time to send RFP to evaluation."
     },
-    "note": "Attempt the requested action using the generic control step because no domain step exposes this action."
-   },
-   {
-    "step": "expect_message",
-    "args": {
-     "kind": "error",
-     "text": "No evaluation time present. Set evaluation time to send RFP to evaluation."
-    },
-    "note": "Verify Procol refuses the action with the specified reason."
+    "note": "Attempt to send the RFP to evaluation and verify Procol refuses it with the required message."
    }
   ]
  }

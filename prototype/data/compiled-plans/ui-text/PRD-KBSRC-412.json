@@ -3,45 +3,57 @@
   "caseId": "PRD-KBSRC-412",
   "title": "Approval workflow is chosen by conditions when submitting scores",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:21:53.201Z",
+  "compiledAt": "2026-11-13T14:45:05.629Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select an approval workflow based on conditions such as the number of DNA vendors or line items and verify that the closing-remarks dialog shows the selected workflow for review."
+   "Independently verify that the selected approval workflow was chosen specifically from conditions such as the number of DNA vendors or line items.",
+   "Assert the exact dynamically selected approval workflow in the closing-remarks dialog with a dedicated workflow assertion."
   ],
   "warnings": [
-   "can only test part of this — no step for: Select an approval workflow based on conditions such as the number of DNA vendors or line items and verify that the closing-remarks dialog shows the selected workflow for review."
+   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
+   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
+   "can only test part of this — no step for: Independently verify that the selected approval workflow was chosen specifically from conditions such as the number of DNA vendors or line items.; Assert the exact dynamically selected approval workflow in the closing-remarks dialog with a dedicated workflow assertion."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "ask_tester",
+   "go_to",
+   "do_on_screen",
    "expect_screen_clean"
   ],
-  "ms": 11616
+  "ms": 16999
  },
  "plan": {
-  "title": "Approval workflow selection on score submission",
+  "title": "Approval Workflow Selection on Score Submission",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
-     "screen": "technical"
+     "screen": "master_qcs"
     },
-    "note": "Open the prepared technical evaluation screen where the completed evaluator can submit scores."
+    "note": "the API builds the proposal event this case starts from"
    },
    {
-    "step": "ask_tester",
+    "step": "go_to",
     "args": {
-     "need": "as the technical evaluator, click Submit Score, select the approval workflow determined by the conditions, click Next, and verify that the closing-remarks dialog shows the selected workflow for review"
+     "screen": "stage",
+     "stage": "rfp"
     },
-    "note": "The catalog has no step for choosing or asserting a condition-based approval workflow in the evaluator submission dialog."
+    "note": "Navigate to the technical stage where the evaluator submits the completed scores."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "as the technical evaluator, click Submit Score, select the approval workflow applicable to the configured conditions such as DNA vendor count or line-item count, click Next, and stop on the closing-remarks dialog showing the selected approval workflow for review"
+    },
+    "note": "Perform the workflow-selection interaction that no dedicated catalog step can express."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the screen remains free of crashes or server errors after the workflow-selection interaction."
+    "note": "Assert that the resulting closing-remarks screen has no crash, server error, raw identifiers, or malformed content."
    }
   ]
  }

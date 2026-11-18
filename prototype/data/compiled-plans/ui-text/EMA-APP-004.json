@@ -4,47 +4,65 @@
   "title": "Consult by email, answer in the app",
   "group": "EMA-APP",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:52:50.012Z",
+  "compiledAt": "2026-11-13T14:17:40.831Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the approver's mailbox and send a consultation to Chetan",
-   "Sign in as Chetan and answer the consultation inside Procol, verifying that the answer is saved",
-   "Reply to the email after the in-app answer and verify the already-been-recorded bounce"
+   "Sign in as Chetan, answer the consultation in Procol, then reply to the consultation email and verify the already been recorded bounce"
   ],
   "warnings": [
-   "can only test part of this — no step for: Open the approver's mailbox and send a consultation to Chetan; Sign in as Chetan and answer the consultation inside Procol, verifying that the answer is saved; Reply to the email after the in-app answer and verify the already-been-recorded bounce"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Sign in as Chetan, answer the consultation in Procol, then reply to the consultation email and verify the already been recorded bounce"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_no_error"
   ],
-  "ms": 10170
+  "ms": 10228
  },
  "plan": {
-  "title": "Email consultation and in-app answer",
+  "title": "EMA-APP-004 Email consultation and in-app answer",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named existing event as the closest available starting point."
+    "note": "Open the existing event sent for the two-step approval workflow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the company-level email approval prerequisite."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow required by the scenario."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open Chetan's mailbox, send the consultation, sign in as Chetan to answer it in Procol and verify the answer is saved, then reply to the email and verify the already been recorded bounce"
+     "need": "Sign in as Chetan, answer the consultation in Procol, then reply to the consultation email and verify the already been recorded bounce"
     },
-    "note": "The catalog cannot access mailboxes, switch to Chetan, answer an approval consultation, or verify the email bounce."
+    "note": "The catalog has no mailbox access, separate colleague login, consultation-answer action, or email-reply verification."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the session is not showing an application error after the tester completes the unavailable flow."
+    "note": "Final assertion that the event screen has no application error after the tester's interaction."
    }
   ]
  }

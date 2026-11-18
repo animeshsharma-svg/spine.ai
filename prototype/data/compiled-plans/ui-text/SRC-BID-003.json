@@ -4,7 +4,7 @@
   "title": "A closed event cannot be bid on",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:25:19.360Z",
+  "compiledAt": "2026-11-13T11:44:47.596Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -15,23 +15,23 @@
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
    "attempt",
-   "expect_visible"
+   "expect_visible",
+   "expect_text"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 7853
+  "ms": 15258
  },
  "plan": {
-  "title": "Closed RFQ is read-only in vendor portal",
+  "title": "Closed RFQ blocks vendor bidding",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ without creating or searching for another event."
+    "note": "Open the prepared closed RFQ summary; the event and its two bids already exist."
    },
    {
     "step": "switch_portal",
@@ -39,21 +39,14 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Move to Vendor A's separate supplier-portal session while leaving the buyer session available."
+    "note": "Move to Vendor A's separate supplier-portal session while preserving the buyer session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared closed RFQ in the vendor portal on its pricing sheet."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Closed"
-    },
-    "note": "Assert that the vendor view identifies the RFQ as closed."
+    "note": "Open the prepared closed RFQ from Vendor A's vendor event list on its pricing round."
    },
    {
     "step": "attempt",
@@ -65,7 +58,7 @@
      },
      "expect": "refused"
     },
-    "note": "Attempt to change the price without submitting; the read-only sheet must refuse the edit."
+    "note": "Try to change Vendor A's existing price without submitting; the attempt must be refused because the closed bid sheet is read-only."
    },
    {
     "step": "expect_visible",
@@ -74,7 +67,15 @@
      "name": "Submit Quote",
      "visible": false
     },
-    "note": "Assert that the closed vendor sheet does not offer Submit Quote."
+    "note": "Assert that the vendor cannot submit a quote on the closed event."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Closed",
+     "present": true
+    },
+    "note": "Assert that the vendor view displays the event's closed status."
    }
   ]
  }

@@ -4,60 +4,120 @@
   "title": "Approving after you already rejected bounces back",
   "group": "EMA-APR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:53:00.296Z",
+  "compiledAt": "2026-11-13T14:18:14.321Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create and submit the event into a two-step approval workflow.",
-   "Open Asha's mailbox and the Procol approval email.",
-   "Reject the request with the required comment and send the rejection email.",
-   "Wait for Procol to process the mailbox email.",
-   "Approve the already-rejected request from the original email and send it.",
-   "Verify the bounce-back message and that the event remains rejected."
+   "Connect or verify the company's Outlook approval mailbox and submit the event into the configured two-step email approval workflow",
+   "Open Asha's mailbox, reject the request with the comment \"Price too high\", then approve from the original email and send both replies without changing their subjects",
+   "Wait for Procol to ingest the mailbox replies and assert the exact bounce-back message: \"A response to request [...] has already been recorded, so this approval was not applied.\""
   ],
   "warnings": [
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Create and submit the event into a two-step approval workflow.; Open Asha's mailbox and the Procol approval email.; Reject the request with the required comment and send the rejection email.; Wait for Procol to process the mailbox email.; Approve the already-rejected request from the original email and send it.; Verify the bounce-back message and that the event remains rejected."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Connect or verify the company's Outlook approval mailbox and submit the event into the configured two-step email approval workflow; Open Asha's mailbox, reject the request with the comment \"Price too high\", then approve from the original email and send both replies without changing their subjects; Wait for Procol to ingest the mailbox replies and assert the exact bounce-back message: \"A response to request [...] has already been recorded, so this approval was not applied.\""
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 12,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
    "ask_tester",
-   "expect_text"
+   "expect_event_status"
   ],
-  "ms": 10283
+  "ms": 20635
  },
  "plan": {
-  "title": "Email approval bounce-back after rejection",
+  "title": "EMA-APR-002 Email Approval Rejection Bounce-Back",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    }
+    },
+    "note": "Start creating the event used by the approval scenario."
    },
    {
-    "step": "set_title"
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the company capability required for email approval processing."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Configure the event approval workflow prerequisite."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "QA Email Approval - Office Chairs Nov"
+    },
+    "note": "Create the named test event."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a template so the event can be configured."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required event item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the participant required for a usable event."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Submit the configured event through the available publish flow, which is the closest catalog action to initiating approval."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "create and submit the named event for the two-step approval workflow, then use Asha's mailbox to reject it with comment \"Price too high\", approve it afterward from the original email, and verify the bounce-back message and rejected event status"
+     "need": "connect the approval mailbox if needed, submit the event for approval, open Asha's mailbox, reject the request with comment \"Price too high\", then approve from the original email and send the reply without changing its subject"
     },
-    "note": "The catalog cannot access mailboxes, send email decisions, process approval workflows, or verify the resulting bounce-back."
+    "note": "Mailbox access, email actions, reply timing, and the second approver response are not available as catalog steps."
    },
    {
-    "step": "expect_text",
+    "step": "expect_event_status",
     "args": {
-     "text": "A response to request",
-     "present": true
+     "status": "Rejected",
+     "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Checks for the expected bounce-back wording after the tester performs the unavailable email workflow."
+    "note": "Verify the closest buyer-side outcome: the event remains rejected after the second approval attempt."
    }
   ]
  }

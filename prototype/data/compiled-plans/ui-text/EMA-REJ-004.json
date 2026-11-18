@@ -4,64 +4,81 @@
   "title": "After the bounce, rejecting again with a comment works",
   "group": "EMA-REJ",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:58:24.012Z",
+  "compiledAt": "2026-11-13T14:22:38.027Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open Asha's mailbox, repeat the original email rejection after the bounce, enter the required comment \"Too expensive\", send without changing the subject, wait for mailbox processing, and verify the same-thread confirmation reply to Ravi.",
-   "Verify that the event's rejection was caused specifically by the second email reply from Asha and that the subject was unchanged."
+   "Open Asha's mailbox and inspect the original rejection email and bounce",
+   "Click Reject again in the original email, enter the required comment \"Too expensive\", and send without changing the subject",
+   "Wait for Procol to process the mailbox reply and verify the response is recorded in the same email thread",
+   "Verify the reply text \"Your rejection for request [...] has been recorded.\" and that Ravi was notified",
+   "Verify that the approval mailbox is connected to Procol"
   ],
   "warnings": [
-   "can only test part of this — no step for: Open Asha's mailbox, repeat the original email rejection after the bounce, enter the required comment \"Too expensive\", send without changing the subject, wait for mailbox processing, and verify the same-thread confirmation reply to Ravi.; Verify that the event's rejection was caused specifically by the second email reply from Asha and that the subject was unchanged."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Open Asha's mailbox and inspect the original rejection email and bounce; Click Reject again in the original email, enter the required comment \"Too expensive\", and send without changing the subject; Wait for Procol to process the mailbox reply and verify the response is recorded in the same email thread; Verify the reply text \"Your rejection for request [...] has been recorded.\" and that Ravi was notified; Verify that the approval mailbox is connected to Procol"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "open_event",
-   "expect_text",
+   "expect_event_status",
    "expect_text"
   ],
-  "ms": 71552
+  "ms": 14550
  },
  "plan": {
-  "title": "EMA-REJ-004 Email rejection after bounce",
+  "title": "EMA-REJ-004 Email rejection retry after bounce",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named event so the resulting rejection state can be inspected after the tester performs the mailbox workflow."
+    "note": "Open the named existing event to inspect the result after the email retry."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required company configuration before testing email approval processing."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Ensure the event approval workflow required by the case is configured."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open Asha's mailbox, resend the original rejection email with the comment \"Too expensive\" without changing the subject, wait for Procol to process it, and verify the same-thread confirmation reply"
+     "need": "open Asha's mailbox, retry the original rejection with the comment \"Too expensive\" without changing the subject, send it, wait for Procol to process the mailbox, and verify the same-thread confirmation and Ravi notification"
     },
-    "note": "Mailbox access, email sending, and approval processing are not available in the catalog."
+    "note": "Mailbox access, email sending, and same-thread processing are not available in the catalog."
    },
    {
-    "step": "open_event",
+    "step": "expect_event_status",
     "args": {
+     "status": "Rejected",
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Return to the event after mailbox processing to inspect the resulting state."
+    "note": "Check that Procol records the event as rejected after the retry."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Too expensive"
+     "text": "Too expensive",
+     "present": true
     },
-    "note": "Check that the rejection comment is visible on the event."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Rejected"
-    },
-    "note": "Check that the event reflects a rejected state."
+    "note": "Check that the rejection comment is visible on the event page."
    }
   ]
  }

@@ -3,40 +3,50 @@
   "caseId": "PRD-KBSRC-073",
   "title": "\"Bid Adjustment Pending\" tag and View Item Distribution show the lot restructure",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:11:24.022Z",
+  "compiledAt": "2026-11-13T14:35:17.388Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open and inspect a lot-restructured RFQ's View Item Distribution as a vendor.",
-   "Assert that the original line items were reassigned into the expected lots or compare the distribution with the buyer's lot configuration."
+   "Select or identify the specific live RFQ that has been split into lots when no event title or ID is provided",
+   "Verify that the event card's lot reassignment matches the buyer's configured original line-item distribution",
+   "Read and assert the lot-specific View Item Distribution contents and ordering"
   ],
   "warnings": [
-   "can only test part of this — no step for: Open and inspect a lot-restructured RFQ's View Item Distribution as a vendor.; Assert that the original line items were reassigned into the expected lots or compare the distribution with the buyer's lot configuration."
+   "can only test part of this — no step for: Select or identify the specific live RFQ that has been split into lots when no event title or ID is provided; Verify that the event card's lot reassignment matches the buyer's configured original line-item distribution; Read and assert the lot-specific View Item Distribution contents and ordering"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 8,
   "stepNames": [
    "open_events_list",
    "expect_events_list",
+   "filter_events",
    "expect_text",
-   "expect_visible",
+   "open_first_event",
+   "expect_text",
    "click",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 13584
+  "ms": 17679
  },
  "plan": {
-  "title": "Bid Adjustment Pending lot distribution",
+  "title": "Verify lot bid adjustment pending distribution",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Live Events list where the lot RFQ card should appear."
+    "note": "Open the events list, which is the required starting screen for the Live Events tab."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the live events list rendered without an error."
+    "note": "Confirm the events list rendered successfully before filtering."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Live"
+    },
+    "note": "Switch to the Live Events tab specified by the case."
    },
    {
     "step": "expect_text",
@@ -44,27 +54,38 @@
      "text": "Bid Adjustment Pending",
      "present": true
     },
-    "note": "Assert that the event card carries the required Bid Adjustment Pending tag."
+    "note": "Assert that a visible live event card carries the required tag."
    },
    {
-    "step": "expect_visible",
+    "step": "open_first_event",
+    "args": {
+     "tab": "Live",
+     "containing": "RFQ"
+    },
+    "note": "Open the first visible live RFQ card as the closest available way to reach the lot RFQ without an event title or ID."
+   },
+   {
+    "step": "expect_text",
     "args": {
      "text": "View Item Distribution",
-     "visible": true
+     "present": true
     },
-    "note": "Check that the card exposes the requested distribution control."
+    "note": "Confirm that the event page exposes the requested distribution action."
    },
    {
     "step": "click",
     "args": {
      "text": "View Item Distribution"
     },
-    "note": "Attempt to open the item distribution view; no catalog step can interpret its lot contents."
+    "note": "Open the item distribution view requested by the case."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Verify that opening the distribution view did not produce a page error or crash."
+    "step": "expect_text",
+    "args": {
+     "text": "Lot",
+     "present": true
+    },
+    "note": "Assert that the resulting view contains lot-related content, while noting that the catalog cannot validate the exact reassignment mapping."
    }
   ]
  }

@@ -4,45 +4,66 @@
   "title": "Show bidding currencies",
   "group": "SRC-MNU",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:35:26.300Z",
+  "compiledAt": "2026-11-13T12:16:41.359Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Locate or guarantee an existing multi-currency event with bids",
-   "Click Show Bidding Currencies and verify prices switch to each vendor's currency",
-   "Click Show Default Currencies and verify prices revert to the base currency"
+   "Verify that prices switch to each vendor's own currency after selecting Show Bidding Currencies.",
+   "Verify that prices switch back to the base currency after selecting Show Default Currencies.",
+   "Guarantee that the prepared event is specifically a multi-currency event with bids."
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — no step can observe: Locate or guarantee an existing multi-currency event with bids; Click Show Bidding Currencies and verify prices switch to each vendor's currency; Click Show Default Currencies and verify prices revert to the base currency"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "cannot test this case yet — no step can observe: Verify that prices switch to each vendor's own currency after selecting Show Bidding Currencies.; Verify that prices switch back to the base currency after selecting Show Default Currencies.; Guarantee that the prepared event is specifically a multi-currency event with bids."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
    "open_event_settings",
-   "expect_options"
+   "expect_options",
+   "click",
+   "expect_screen_clean",
+   "click",
+   "expect_screen_clean"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 11396
+  "ms": 20079
  },
  "plan": {
-  "title": "Show bidding currencies",
+  "title": "Show bidding currencies toggles",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the existing prepared event's buyer summary page."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage page where the stage Settings menu is available."
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Open the stage Settings menu where the currency actions are expected to appear."
+    "note": "Open the stage Settings menu."
    },
    {
     "step": "expect_options",
@@ -52,7 +73,31 @@
       "Show Default Currencies"
      ]
     },
-    "note": "Check whether the Settings menu offers the two currency actions; this does not verify their effect on displayed prices."
+    "note": "Check that both currency display controls are offered."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Show Bidding Currencies"
+    },
+    "note": "Attempt to switch the display to vendor currencies."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check that the screen remains rendered without an error after the first toggle."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Show Default Currencies"
+    },
+    "note": "Attempt to switch the display back to the base currency."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check that the screen remains rendered without an error after the second toggle."
    }
   ]
  }

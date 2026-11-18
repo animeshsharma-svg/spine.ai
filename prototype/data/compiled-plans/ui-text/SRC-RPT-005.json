@@ -4,37 +4,57 @@
   "title": "Master QCS report after awarding only 6 of 10 units to B",
   "group": "SRC-RPT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:50:33.171Z",
+  "compiledAt": "2026-11-13T12:43:43.220Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Inspect structured report cells to verify awarded vendor quantities and amounts for every vendor",
-   "Verify that 4 units are marked as not awarded next to every vendor bid",
-   "Prove that the report totals exactly equal the award proposal"
+   "Verify the structured report cells map vendor B to an awarded quantity of 6 and amount 540.",
+   "Verify that 4 units are explicitly marked as not awarded next to every vendor bid.",
+   "Verify that the report totals mathematically equal the proposal total when the total is dynamic or stored in workbook cells."
   ],
   "warnings": [
-   "can only test part of this — no step for: Inspect structured report cells to verify awarded vendor quantities and amounts for every vendor; Verify that 4 units are marked as not awarded next to every vendor bid; Prove that the report totals exactly equal the award proposal"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify the structured report cells map vendor B to an awarded quantity of 6 and amount 540.; Verify that 4 units are explicitly marked as not awarded next to every vendor bid.; Verify that the report totals mathematically equal the proposal total when the total is dynamic or stored in workbook cells."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_download"
   ],
   "state": "awarded",
   "screen": "master_qcs",
-  "ms": 12999
+  "ms": 19346
  },
  "plan": {
-  "title": "Master QCS award report for partial quantity",
+  "title": "Master QCS Partial Award Report",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS for the existing awarded event."
+    "note": "Open the existing awarded event directly on Master QCS, as required for the prepared state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable partial awarding for the prepared event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project functionality is enabled for the tenant."
    },
    {
     "step": "click",
@@ -42,19 +62,19 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Download the Master QCS report from the awarded event."
+    "note": "Download the Master QCS report for the awarded event."
    },
    {
     "step": "expect_download",
     "args": {
      "contains": [
-      "B",
-      "6",
       "540",
+      "6",
+      "10",
       "4"
      ]
     },
-    "note": "Verify the downloaded report contains the named vendor and the key awarded and unawarded values that can be read from the file."
+    "note": "Check that the downloaded report contains the stated awarded amount and quantity values, total requested quantity, and unawarded quantity."
    }
   ]
  }

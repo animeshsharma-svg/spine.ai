@@ -3,39 +3,47 @@
   "caseId": "PRD-VM-143",
   "title": "Vendor Clone: not available on plans below Growth",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T03:16:32.089Z",
+  "compiledAt": "2026-11-13T15:12:43.804Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Switch between a tenant on a plan below Growth and a tenant on Growth because no tenant IDs are provided and plan settings cannot be changed or asserted.",
-   "Execute Vendor Clone to clone an active vendor because no catalog step performs the clone action.",
-   "Verify that the clone succeeds on the Growth tenant because no catalog step observes the resulting cloned event."
+   "Set up or switch between an unspecified below-Growth tenant and a Growth tenant; switch_company requires a named QA company ID.",
+   "Execute and verify the Vendor Clone operation itself, including that cloning succeeds on Growth."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Switch between a tenant on a plan below Growth and a tenant on Growth because no tenant IDs are provided and plan settings cannot be changed or asserted.; Execute Vendor Clone to clone an active vendor because no catalog step performs the clone action.; Verify that the clone succeeds on the Growth tenant because no catalog step observes the resulting cloned event."
+   "can only test part of this — no step for: Set up or switch between an unspecified below-Growth tenant and a Growth tenant; switch_company requires a named QA company ID.; Execute and verify the Vendor Clone operation itself, including that cloning succeeds on Growth."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_event",
+   "ask_tester",
    "expect_menu_item"
   ],
-  "ms": 70028
+  "ms": 12343
  },
  "plan": {
-  "title": "Vendor Clone Plan Availability",
+  "title": "Vendor Clone plan availability",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing active event to reach the project menu where Vendor Clone availability would be inspected."
+    "note": "Open an existing active event whose project menu can expose the clone capability."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "provide access to the specified lower-plan or Growth tenant, sign in as the Procurement Manager, and leave the active vendor event open so its project menu can be checked"
+    },
+    "note": "The catalog cannot establish the requested plan tier or switch to an unspecified tenant."
    },
    {
     "step": "expect_menu_item",
     "args": {
-     "item": "Clone Project"
+     "item": "Clone Project",
+     "present": false
     },
-    "note": "Inspect whether the current event menu offers Clone Project, which is the closest available observation of clone capability."
+    "note": "Check whether the project menu omits the catalog’s Clone Project capability for the lower-plan tenant."
    }
   ]
  }

@@ -4,30 +4,31 @@
   "title": "Reverse auction: first bid outside the limit",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:27:05.103Z",
+  "compiledAt": "2026-11-13T11:46:45.758Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Start from a live reverse auction with no prior bid when the available prepared states do not provide that state.",
-   "Set or read the auction's ceiling price and choose a bid value guaranteed to exceed it."
+   "Entering a bid value explicitly above that configured ceiling and verifying the refusal message \"Quoted price must be less than the ceil price\"."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "cannot test this case yet — no step can observe: Start from a live reverse auction with no prior bid when the available prepared states do not provide that state.; Set or read the auction's ceiling price and choose a bid value guaranteed to exceed it."
+   "resolved: “A live reverse auction with can_add_ceil_price enabled and a known ceiling price configured for a first-bid test.” — require_setting switches that company setting before the case and back after",
+   "can only test part of this — no step for: Entering a bid value explicitly above that configured ceiling and verifying the refusal message \"Quoted price must be less than the ceil price\"."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "switch_portal",
    "vendor_open_event",
-   "attempt"
+   "ask_tester",
+   "expect_visible"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 22337
+  "ms": 19899
  },
  "plan": {
   "title": "Reverse auction first bid above ceiling",
@@ -37,7 +38,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared event as required for an existing-event case."
+    "note": "Open the prepared event as required, although the available prepared state is not documented as a live reverse auction."
    },
    {
     "step": "require_setting",
@@ -45,31 +46,37 @@
      "key": "can_add_ceil_price",
      "value": "On"
     },
-    "note": "Enable the tenant capability required for ceiling-price behavior."
+    "note": "Enable the required tenant capability for ceiling prices."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
+     "to": "vendor"
     },
-    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session open."
+    "note": "Move to the separate vendor portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing round in the vendor portal."
+    "note": "Open the event's vendor pricing screen, the closest available screen to the requested bid submission."
    },
    {
-    "step": "attempt",
+    "step": "ask_tester",
     "args": {
-     "step": "vendor_bid",
-     "expect": "refused",
-     "because": "Quoted price must be less than the ceil price"
+     "need": "provide or configure a live reverse auction with a known ceiling price, then continue so the vendor can submit a first quote above that ceiling"
     },
-    "note": "Closest available check for refusal of an over-ceiling vendor quote; without a known ceiling or specified bid amount, this cannot establish that the attempted quote is above the limit."
+    "note": "The catalog cannot create or configure the required auction ceiling and therefore cannot reach the requested refusal test."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote",
+     "visible": true
+    },
+    "note": "Assert the vendor pricing screen remains available after the missing setup is supplied."
    }
   ]
  }

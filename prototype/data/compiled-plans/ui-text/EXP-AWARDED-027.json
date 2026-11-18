@@ -4,40 +4,52 @@
   "title": "Download Reports: Download Event Detailed Report with no optional checkboxes selected",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:15:47.037Z",
+  "compiledAt": "2026-11-13T13:44:50.564Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that all individual report checkboxes and Select all are unchecked"
+   "Independently verify that every individual optional checkbox in the Download Reports window is unchecked.",
+   "Record an unspecified result beyond observing whether the Excel file downloads."
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert that all individual report checkboxes and Select all are unchecked"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Independently verify that every individual optional checkbox in the Download Reports window is unchecked.; Record an unspecified result beyond observing whether the Excel file downloads."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
    "go_to",
    "click",
    "expect_visible",
-   "capture_screen",
-   "probe_controls",
-   "expect_screen_clean"
+   "toggle",
+   "click",
+   "expect_download"
   ],
   "state": "awarded",
   "screen": "master_qcs",
-  "ms": 74843
+  "ms": 21909
  },
  "plan": {
-  "title": "Awarded Event Report Download Without Selections",
+  "title": "Download event detailed report with no selections",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared awarded event without searching or recreating it."
+    "note": "Open the already-awarded event prepared for this case on its Master QCS screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure the required eRFX project configuration is enabled for the awarded event flow."
    },
    {
     "step": "go_to",
@@ -45,14 +57,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage named in the case."
+    "note": "Navigate to the RFQ stage requested by the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses view where Download Report is available."
+    "note": "Open the RFQ Responses tab before starting the report download flow."
    },
    {
     "step": "click",
@@ -65,34 +77,31 @@
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Download Reports",
+     "text": "Download Reports",
      "visible": true
     },
-    "note": "Assert that the Download Reports window opened."
+    "note": "Verify that the Download Reports window opened."
    },
    {
-    "step": "capture_screen",
+    "step": "toggle",
     "args": {
-     "label": "download-reports-no-selections"
+     "label": "Select all",
+     "on": false
     },
-    "note": "Record the report window state before activating the download."
+    "note": "Ensure the known Select all control is unchecked before downloading."
    },
    {
-    "step": "probe_controls",
+    "step": "click",
     "args": {
-     "within": "Download Reports",
-     "include": [
-      "Download Excel"
-     ],
-     "max": 1
+     "role": "button",
+     "name": "Download Excel"
     },
-    "note": "Activate Download Excel and record whether the application downloads a file, shows a validation message, or otherwise responds."
+    "note": "Attempt the requested Excel download with no optional selections enabled."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_download",
     "args": {},
-    "note": "Assert that the report-download interaction did not leave a crash or server error."
+    "note": "Verify that an Excel report was downloaded."
    }
   ]
  }

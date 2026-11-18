@@ -4,7 +4,7 @@
   "title": "Start later with no date",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:14:10.771Z",
+  "compiledAt": "2026-11-13T12:51:50.775Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,7 +17,7 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 10,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -27,22 +27,20 @@
    "add_line_items",
    "set_sheet_cell",
    "invite_vendor",
-   "click",
-   "click",
-   "click",
+   "do_on_screen",
    "expect_field_error"
   ],
-  "ms": 11251
+  "ms": 25049
  },
  "plan": {
-  "title": "RFQ start later without date",
+  "title": "Single-stage RFQ start-later date required",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow."
+    "note": "Opens the Single Stage create screen."
    },
    {
     "step": "require_setting",
@@ -50,26 +48,26 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation as required by the case."
+    "note": "Ensures vendors can be added during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the single-stage event type to RFQ."
+    "note": "Changes the default event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-SCH-010 Start Later No Date"
+     "title": "SRC-SCH-010 Start Later Date Required"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provides the mandatory event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template so the product sheet is available."
+    "note": "Applies the RFQ template so the pricing sheet can be populated."
    },
    {
     "step": "add_line_items",
@@ -78,7 +76,7 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product and quantity."
+    "note": "Adds the specified product and quantity."
    },
    {
     "step": "set_sheet_cell",
@@ -87,45 +85,28 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested delivery location in the pricing sheet."
+    "note": "Selects the specified delivery location in the sheet."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add one available QA vendor to satisfy the participant requirement."
+    "note": "Adds one available QA test vendor for the event."
    },
    {
-    "step": "click",
+    "step": "do_on_screen",
     "args": {
-     "role": "button",
-     "name": "Schedule"
+     "goal": "open the Schedule Event drawer, choose Start later, leave the date empty, click Save Schedule, and stop when the date field is marked required"
     },
-    "note": "Open the Schedule Event drawer from the footer schedule control."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "menuitem",
-     "name": "Schedule for later"
-    },
-    "note": "Select the later-start scheduling mode."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Save Schedule"
-    },
-    "note": "Attempt to save with the start date intentionally left empty."
+    "note": "Performs the schedule interaction that no dedicated catalog step can express."
    },
    {
     "step": "expect_field_error",
     "args": {
      "field": "Start time"
     },
-    "note": "Verify that the missing date/start-time field is marked required."
+    "note": "Asserts that the missing start-later date is rejected as required."
    }
   ]
  }

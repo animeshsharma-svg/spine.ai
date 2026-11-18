@@ -4,18 +4,20 @@
   "title": "Reminder emails still go out on schedule",
   "group": "EMA-REG",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-12T13:47:10.346Z",
+  "compiledAt": "2026-11-13T14:22:15.587Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Submit the event for approval as Ravi through the configured two-step approval workflow",
-   "Wait for the workflow reminder time and verify that Asha receives the reminder email naming the event with working buttons",
-   "Verify the company's approval mailbox connection and Outlook send-reply behavior"
+   "Switch to the specifically named DLF Hospitality UAT company because no company ID is provided",
+   "Connect and verify the company's Outlook approval mailbox",
+   "Submit the event into the two-step approval workflow",
+   "Wait for the workflow reminder time",
+   "Open Asha's mailbox and verify the reminder arrives, names the event, and its buttons behave like the first email"
   ],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Submit the event for approval as Ravi through the configured two-step approval workflow; Wait for the workflow reminder time and verify that Asha receives the reminder email naming the event with working buttons; Verify the company's approval mailbox connection and Outlook send-reply behavior"
+   "can only test part of this — no step for: Switch to the specifically named DLF Hospitality UAT company because no company ID is provided; Connect and verify the company's Outlook approval mailbox; Submit the event into the two-step approval workflow; Wait for the workflow reminder time; Open Asha's mailbox and verify the reminder arrives, names the event, and its buttons behave like the first email"
   ],
   "source": "llm",
   "steps": 13,
@@ -32,19 +34,19 @@
    "publish",
    "expect_published",
    "ask_tester",
-   "expect_no_error"
+   "expect_screen_clean"
   ],
-  "ms": 17101
+  "ms": 24693
  },
  "plan": {
-  "title": "Email approval reminder regression",
+  "title": "EMA-REG-003 — Reminder emails still go out on schedule",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start creating the event."
+    "note": "Create the representative event in the buyer portal."
    },
    {
     "step": "require_setting",
@@ -52,7 +54,7 @@
      "phrase": "Email approvals switched on for the company",
      "value": "On"
     },
-    "note": "Enable the required company configuration before creating the event."
+    "note": "Enable the email-approval capability required by the case."
    },
    {
     "step": "require_setting",
@@ -60,63 +62,65 @@
      "phrase": "Approval workflow for events with email approval turned on",
      "value": "On"
     },
-    "note": "Enable the approval-workflow configuration required by the case."
+    "note": "Request the approval-workflow configuration required for the scenario."
    },
    {
     "step": "set_title",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Use the event title required for the reminder email check."
+    "note": "Use the exact event title so it can be identified in the approval email."
    },
    {
     "step": "select_template",
-    "note": "Configure the event's pricing template."
+    "args": {},
+    "note": "Apply the first available pricing template required for a publishable event."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 1,
-     "search": "Office Chairs"
+     "count": 1
     },
-    "note": "Add a representative office-chair line item."
+    "note": "Add a line item so the event has event content."
    },
    {
     "step": "fill_sheet",
-    "note": "Complete the pricing sheet so the event can be published."
+    "args": {},
+    "note": "Complete the pricing sheet before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a bidding schedule for the event."
+    "note": "Commit a valid event schedule."
    },
    {
     "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the required participant before publishing."
+    "args": {},
+    "note": "Add the product-provided participant audience required to publish."
    },
    {
     "step": "publish",
-    "note": "Create the event so it can be submitted into the approval workflow."
+    "args": {},
+    "note": "Create the representative event and reach its published project page."
    },
    {
     "step": "expect_published",
-    "note": "Confirm the event was created successfully before the approval-dependent portion."
+    "args": {},
+    "note": "Assert that the event was created successfully before the missing approval/mailbox actions."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Ravi, submit this event for approval in the configured two-step workflow, wait for the reminder time, and verify in Asha's mailbox that the reminder names the event and its buttons work like the first approval email"
+     "need": "submit the event for approval, wait for the workflow reminder, and verify in Asha's mailbox that the reminder names the event and its buttons work like the first email"
     },
-    "note": "Approval submission, waiting for the scheduled reminder, and external mailbox verification are not available in the catalog."
+    "note": "The approval submission, scheduled wait, external mailbox access, and email-button verification require another user/mailbox and have no catalog step."
    },
    {
-    "step": "expect_no_error",
-    "note": "Confirm the buyer session remains free of an application error after the tester completes the external verification."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Provide a final assertion after the tester's external verification task."
    }
   ]
  }

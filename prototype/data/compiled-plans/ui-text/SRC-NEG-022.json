@@ -4,39 +4,63 @@
   "title": "Counter offer on an auction bid",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:38:02.035Z",
+  "compiledAt": "2026-11-13T12:18:51.504Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "none",
+  "gaps": [
+   "A live auction event with an auction bid and its buyer-side Responses tab; the prepared state exposes only a live RFQ round, so auction-specific Counter Offer visibility cannot be observed."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "cannot test this case yet — no step can observe: A live auction event with an auction bid and its buyer-side Responses tab; the prepared state exposes only a live RFQ round, so auction-specific Counter Offer visibility cannot be observed."
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "expect_visible"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 9160
+  "ms": 17359
  },
  "plan": {
-  "title": "Counter Offer Unavailable on Auction Bid",
+  "title": "Counter Offer visibility on auction bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live reverse auction on its Responses tab with the bid already present."
+    "note": "Open the available prepared live RFQ Responses screen; this is the closest screen for observing Counter Offer visibility, but it is not an auction."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure counter offers are not hidden for RFQ rounds while preparing the closest available comparison."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case setup."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Counter Offer",
-     "visible": false
+     "visible": true
     },
-    "note": "Assert that Counter Offer is not offered for the auction bid."
+    "note": "Check the closest available normal RFQ bid response for the Counter Offer control; this does not prove the auction-bid behavior."
    }
   ]
  }

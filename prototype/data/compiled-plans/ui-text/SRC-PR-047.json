@@ -4,21 +4,23 @@
   "title": "Create an eRFX project, Auction only from an open asset PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:08:08.199Z",
+  "compiledAt": "2026-11-13T12:28:41.097Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that Account Assignment A is carried from the PR line to the eventual purchase order.",
-   "Verify that the specific PR line moves to In Progress with this event's number linked to it.",
-   "Verify that the published event explicitly displays that it came from a PR."
+   "Verify the asset line's Account Assignment A is carried to the purchase order.",
+   "Verify the delivery location is locked to the PR value.",
+   "Verify the published event explicitly shows that it came from a PR.",
+   "Verify that this exact PR line moved to In Progress with this event's number.",
+   "Verify the PR-derived unit and delivery location values as displayed on the create sheet."
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
-   "can only test part of this — no step for: Verify that Account Assignment A is carried from the PR line to the eventual purchase order.; Verify that the specific PR line moves to In Progress with this event's number linked to it.; Verify that the published event explicitly displays that it came from a PR."
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Verify the asset line's Account Assignment A is carried to the purchase order.; Verify the delivery location is locked to the PR value.; Verify the published event explicitly shows that it came from a PR.; Verify that this exact PR line moved to In Progress with this event's number.; Verify the PR-derived unit and delivery location values as displayed on the create sheet."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 17,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -30,17 +32,18 @@
    "fill_sheet",
    "require_setting",
    "require_setting",
-   "set_schedule",
+   "expect_sheet_cells",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
-   "open_event",
-   "expect_menu_item"
+   "expect_menu_item",
+   "expect_table"
   ],
-  "ms": 16759
+  "ms": 23609
  },
  "plan": {
-  "title": "Create Auction from Open Asset PR",
+  "title": "Create Auction eRFX from Asset PR",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -80,7 +83,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable multi-stage eRFX project creation as required by the case."
+    "note": "Enable multi-stage eRFX project creation for the tenant."
    },
    {
     "step": "require_setting",
@@ -88,14 +91,19 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation and keep Publish available."
+    "note": "Allow vendors to be added during event creation so publishing is possible."
    },
    {
-    "step": "set_schedule",
+    "step": "expect_sheet_cells",
     "args": {
-     "minutes": 30
+     "row": 1,
+     "readonly": [
+      "Product",
+      "Product Variant",
+      "Quantity Requested"
+     ]
     },
-    "note": "Commit the required 30-minute schedule while keeping the default start-now behavior."
+    "note": "Verify that the PR-populated product, variant, and requested quantity cells are locked."
    },
    {
     "step": "invite_vendor",
@@ -105,22 +113,24 @@
       "Vendor B"
      ]
     },
-    "note": "Add the two vendors named in the case."
+    "note": "Add the two vendors named in the case to the event."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the requested Start now schedule with a 30-minute duration."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed PR-derived Auction project and confirm the publish flow."
+    "note": "Publish the completed PR-based Auction eRFX project."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publishing reached a real project page."
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Return to the event created by this plan to inspect its available actions."
+    "note": "Verify that publishing reached a real project page."
    },
    {
     "step": "expect_menu_item",
@@ -128,7 +138,14 @@
      "item": "Recreate Order",
      "enabled": false
     },
-    "note": "Assert the PR-derived event cannot use Recreate Order."
+    "note": "Verify that Recreate Order is greyed out for an event created from a PR."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "min": 1
+    },
+    "note": "Verify that the In Progress PR table contains at least one entry after publishing."
    }
   ]
  }

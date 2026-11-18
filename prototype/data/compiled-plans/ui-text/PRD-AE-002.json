@@ -3,39 +3,45 @@
   "caseId": "PRD-AE-002",
   "title": "DoA Threshold Currency (approval.doa.currency) = INR (default)",
   "group": "PRD-AE",
-  "compiledAt": "2026-11-10T01:41:32.408Z",
+  "compiledAt": "2026-11-13T15:00:54.461Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Set the tenant-level approval.doa.currency setting to INR.",
-   "Use Modular Approval Setup to make approvals attachable to the listed entities.",
-   "Observe and verify that the Delegation of Authority matrix uses INR as the currency unit for all spend threshold definitions."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Set the tenant-level approval.doa.currency setting to INR.; Use Modular Approval Setup to make approvals attachable to the listed entities.; Observe and verify that the Delegation of Authority matrix uses INR as the currency unit for all spend threshold definitions."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
-   "ask_tester",
-   "expect_screen_clean"
+   "require_setting",
+   "do_on_screen",
+   "expect_text"
   ],
-  "ms": 69098
+  "ms": 10444
  },
  "plan": {
-  "title": "DoA Threshold Currency Defaults to INR",
+  "title": "DoA Threshold Currency INR",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "As the Tenant Admin, set approval.doa.currency to INR, use Modular Approval Setup to make approvals attachable to entities, and verify that the Delegation of Authority matrix uses INR for all spend thresholds"
+     "key": "approval.doa.currency",
+     "value": "INR"
     },
-    "note": "These tenant-admin configuration and DoA matrix behaviors are not expressible by any catalog step."
+    "note": "Configure the tenant’s DoA threshold currency to INR and verify the setting through the product."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the tester's resulting screen has no visible crash or server error, although this does not verify the requested currency behavior."
+    "step": "do_on_screen",
+    "args": {
+     "goal": "as the Tenant Admin, open Modular Approval Setup, make approvals attachable to entities including events, onboarding, purchase orders, payments and letters of credit, then open the Delegation of Authority matrix and stop on the spend-threshold definitions showing INR as their currency unit"
+    },
+    "note": "Perform the approval setup and observe the behavior controlled by the currency setting."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "INR",
+     "present": true
+    },
+    "note": "Assert that the DoA threshold matrix visibly shows INR."
    }
   ]
  }

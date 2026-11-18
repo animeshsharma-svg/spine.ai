@@ -4,44 +4,38 @@
   "title": "Counter offer price letters \"abc\"",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:05:20.716Z",
+  "compiledAt": "2026-11-13T12:20:32.118Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"abc\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "Directly assert that the counter-offer price cell does not retain the letters \"abc\" before submission."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "coverage partial: unconfirmed label \"abc\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "can only test part of this — no step for: Directly assert that the counter-offer price cell does not retain the letters \"abc\" before submission."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
-   "click",
-   "click",
-   "fill",
-   "expect_text",
-   "attempt",
-   "expect_message"
+   "attempt"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 17447
+  "ms": 10649
  },
  "plan": {
-  "title": "Counter offer rejects alphabetic price",
+  "title": "Counter Offer Rejects Alphabetic Price",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Opens the prepared RFQ in evaluation on the buyer's Responses tab."
+    "note": "Open the prepared RFQ Responses screen containing Vendor A's normal bid."
    },
    {
     "step": "require_setting",
@@ -49,7 +43,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Ensures the RFQ counter-offer control is available."
+    "note": "Ensure the RFQ counter-offer control is available."
    },
    {
     "step": "require_setting",
@@ -57,64 +51,20 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensures eRFX/RFQ project functionality is enabled for the case."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Counter Offer",
-     "within": "Vendor A"
-    },
-    "note": "Opens the counter-offer editor for Vendor A's normal bid."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "checkbox",
-     "within": "Vendor A"
-    },
-    "note": "Ticks Vendor A's line item so the counter-offer price can be edited."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Price",
-     "value": "abc",
-     "within": "Vendor A"
-    },
-    "note": "Attempts to enter alphabetic characters in the counter-offer price cell."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "abc",
-     "present": false,
-     "within": "Vendor A"
-    },
-    "note": "Verifies the price cell does not retain the invalid letters."
+    "note": "Ensure eRFX/RFQ functionality is enabled for the tenant."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
+     "step": "place_counter_offer",
      "args": {
-      "role": "button",
-      "name": "Send",
-      "within": "Vendor A"
+      "vendor": "Vendor A",
+      "price": "abc"
      },
      "expect": "refused",
      "because": "You must change atleast one column"
     },
-    "note": "Attempts to send the counter offer and requires Procol to refuse it."
-   },
-   {
-    "step": "expect_message",
-    "args": {
-     "kind": "any",
-     "text": "You must change atleast one column"
-    },
-    "note": "Confirms the expected refusal message is shown."
+    "note": "Attempt to send a counter offer with alphabetic price input and require Procol to refuse it with the expected message."
    }
   ]
  }

@@ -4,20 +4,20 @@
   "title": "A live RFQ: \"Increase Event Time\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:45:56.743Z",
+  "compiledAt": "2026-11-13T14:12:52.178Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Independently verify that all event status and submission-time values are unchanged before and after cancellation",
-   "Independently verify that the complete vendor set is unchanged before and after cancellation"
+   "Directly compare the event's submission times before and after cancellation.",
+   "Directly verify that the invited vendor set and event status are unchanged after cancellation."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Independently verify that all event status and submission-time values are unchanged before and after cancellation; Independently verify that the complete vendor set is unchanged before and after cancellation"
+   "can only test part of this — no step for: Directly compare the event's submission times before and after cancellation.; Directly verify that the invited vendor set and event status are unchanged after cancellation."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -25,17 +25,18 @@
    "require_setting",
    "require_setting",
    "go_to",
-   "expect_text",
+   "go_to",
+   "expect_responses",
    "event_menu",
    "expect_visible",
    "click",
    "expect_visible",
-   "expect_text",
+   "expect_responses",
    "expect_screen_clean"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 14084
+  "ms": 20525
  },
  "plan": {
   "title": "Cancel Increase Event Time",
@@ -45,7 +46,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary, as required for this fixed starting state."
+    "note": "Open the prepared live RFQ; prepared-state plans must begin here."
    },
    {
     "step": "require_setting",
@@ -61,7 +62,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "On"
     },
-    "note": "Apply the requested withdrawal visibility configuration."
+    "note": "Apply the required tenant configuration."
    },
    {
     "step": "require_setting",
@@ -69,7 +70,7 @@
      "key": "disable_withdraw_during_submission_time",
      "value": "Off"
     },
-    "note": "Ensure withdrawing during submission is not disabled by configuration."
+    "note": "Apply the required live-event withdrawal configuration."
    },
    {
     "step": "require_setting",
@@ -77,21 +78,30 @@
      "key": "is_vendor_masking_allowed_for_everyone",
      "value": "On"
     },
-    "note": "Apply the requested vendor-masking configuration."
+    "note": "Apply the required vendor-masking configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage specified by the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses tab where the live event controls are available."
+    "note": "Navigate to the RFQ Responses tab."
    },
    {
-    "step": "expect_text",
+    "step": "expect_responses",
     "args": {
-     "text": "No bids received yet."
+     "count": 0,
+     "stage": "rfq"
     },
-    "note": "Confirm the prepared event starts with no vendor bids."
+    "note": "Record that the live RFQ currently has no vendor bids."
    },
    {
     "step": "event_menu",
@@ -99,43 +109,47 @@
      "item": "Extend Submission Time",
      "stage": "rfq"
     },
-    "note": "Open the Increase Event Time window from the RFQ Settings menu."
+    "note": "Open the Increase Event Time window without committing a change."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Increase Event Time",
+     "role": "dialog",
+     "name": "Increase Event Time",
      "visible": true
     },
-    "note": "Confirm the submission-time dialog opened."
+    "note": "Confirm the expected time-extension dialog is open."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Cancel"
+     "name": "Cancel",
+     "within": "dialog"
     },
-    "note": "Cancel the time-extension dialog without saving any change."
+    "note": "Cancel the time extension as required by the case."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Increase Event Time",
+     "role": "dialog",
+     "name": "Increase Event Time",
      "visible": false
     },
-    "note": "Verify cancellation closed the dialog."
+    "note": "Verify that cancelling closes the Increase Event Time window."
    },
    {
-    "step": "expect_text",
+    "step": "expect_responses",
     "args": {
-     "text": "No bids received yet."
+     "count": 0,
+     "stage": "rfq"
     },
-    "note": "Verify the response state still shows no bids after cancellation."
+    "note": "Verify that no bid appeared as a result of cancelling."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the event screen remains rendered without errors after cancelling."
+    "note": "Confirm the event screen remains rendered without an error or crash."
    }
   ]
  }

@@ -4,60 +4,66 @@
   "title": "Planner with assign permission can assign using the same filtered list",
   "group": "PRA-ASN",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:00:49.020Z",
+  "compiledAt": "2026-11-13T14:25:38.545Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Sign in as a planner with assign permission",
-   "Open the PR assignment picker, inspect every user in the filtered list, verify that only allowed users are listed, and assign an allowed user"
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Sign in as a planner with assign permission; Open the PR assignment picker, inspect every user in the filtered list, verify that only allowed users are listed, and assign an allowed user"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
-   "ask_tester",
-   "expect_no_error"
+   "do_on_screen",
+   "expect_toast"
   ],
-  "ms": 9910
+  "ms": 12230
  },
  "plan": {
-  "title": "Planner PR assignment user filtering",
+  "title": "Planner PR Assignment User Filtering",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Planner role-based permissions with PR assign allowed",
+     "value": "On"
+    },
+    "note": "Ensure the planner has the permission required by the scenario."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Navigate to Purchase Requisitions, the required starting screen for a PR-based flow."
+    "note": "Open the Purchase Requisitions area required for the assignment flow."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open purchase requisitions tab as required by the case."
+    "note": "Stay on the Open PR tab."
    },
    {
     "step": "select_pr",
     "args": {
      "pr": "PR-1"
     },
-    "note": "Select the specified PR so its assignment action can be used."
+    "note": "Select the specified PR item so assignment becomes available."
    },
    {
-    "step": "ask_tester",
+    "step": "do_on_screen",
     "args": {
-     "need": "sign in as the planner with assign permission, open the Assign picker for PR-1, inspect the entire filtered user list, choose an allowed user, and complete the assignment"
+     "goal": "Open the Assign control next to Upload PRs, inspect the complete Search a user list by scrolling to the end, verify that only users allowed for this planner are listed, select an allowed user, and complete the assignment; stop when the screen shows the assignment succeeded"
     },
-    "note": "The catalog has no domain step for the planner assignment picker, its filtered user list, or assigning a selected user."
+    "note": "Perform and observe the user filtering and assignment interaction that has no dedicated catalog step."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Check that the tester-completed assignment did not leave an application error visible."
+    "step": "expect_toast",
+    "args": {
+     "kind": "success"
+    },
+    "note": "Confirm the assignment produced a success response."
    }
   ]
  }

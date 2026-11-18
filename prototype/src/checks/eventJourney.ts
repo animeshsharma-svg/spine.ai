@@ -153,6 +153,11 @@ export interface JourneyRunOptions {
   /** The line item's quantity (the dashboard's input); the sibling's test data otherwise. */
   quantity?: number;
   /**
+   * The quantity the award gives the vendor on each line (default: the whole line). Less than `quantity` is a
+   * partial award (17 Nov: PB-01, the PO took the full bid quantity instead of the awarded one).
+   */
+  awardQuantity?: number;
+  /**
    * Each bidder's price per unit, in bidding order (the first vendor, then extraBidders): a case's "Vendor A
    * quoted 100 and Vendor B quoted 90" (12 Nov). A bidder without one bids the sibling's test-data price.
    */
@@ -173,7 +178,7 @@ export interface JourneyRunOptions {
    * when a round is added (557 not open, 558 over the open quantity, 559 another unit), so the unit
    * and quantity are never swapped for others on a refusal.
    */
-  fromPr?: { prUuid: string; prNo?: string; lines: Array<{ uuid: string; productUuid: string; qualityUuid: string; unit: string; qty: number; hubUuid?: string; name?: string; productCode?: string; itemNo?: string }> };
+  fromPr?: { prUuid: string; prNo?: string; lines: Array<{ uuid: string; productUuid: string; qualityUuid: string; unit: string; qty: number; hubUuid?: string; name?: string; productCode?: string; itemNo?: string; prUuid?: string; manual?: boolean }> };
   /**
    * More vendors to invite besides the one that signs in and bids (company
    * uuids, QA vendors only). They are only invited: every vendor step still
@@ -433,6 +438,8 @@ interface Journey {
     bidTotal?: number;
   };
   qty: number;
+  /** the quantity awarded per line (awardQuantity), else the whole line */
+  awardQty?: number;
   unit: string;
   price: number;
   stageSeconds: number;
@@ -969,12 +976,13 @@ const createDraft: StepSpec = {
       : [{ uuid: j.catalog.productUuid, qualityUuid: j.catalog.productQualityUuid }, ...(n > 1 ? await moreProducts(j, n - 1) : [])];
     if (pr) {
       // The PR's lines, linked as the console's Create Project links them.
-      body.line_items = pr.lines.map((l) => ({
+      // Each line names its own PR (an event may take lines from several PRs, 16 Nov); a line marked `manual`
+      // is added by hand — no PR link at all — as when a buyer adds a product beside the PR's lines.
+      body.line_items = pr.lines.map((l: any) => ({
         product_uuid: l.productUuid,
         quantity: { unitSymbol: l.unit, value: l.qty },
         product_quality_uuid: l.qualityUuid,
-        pr_line_item_uuid: l.uuid,
-        pr_id: pr.prUuid,
+        ...(l.manual ? {} : { pr_line_item_uuid: l.uuid, pr_id: l.prUuid ?? pr.prUuid }),
       }));
     } else if (Array.isArray(body.line_items) && body.line_items.length === 1 && products.length > 1) {
       body.line_items = products.map((p) => ({ ...body.line_items[0], product_uuid: p.uuid, product_quality_uuid: p.qualityUuid }));
@@ -1951,19 +1959,20 @@ const awardLines: StepSpec = {
       needDraft(j, ev, done),
       need(j, done, "no bid was placed on the line item to award", j.bidPlaced, bidProducer(j)),
     ),
-  expected: (j) => `${j.qty} ${j.unit} of the line item is awarded to ${j.vendorName} on the proposal and the app accepts it.`,
+  expected: (j) => `${j.awardQty ?? j.qty} ${j.unit} of the line item is awarded to ${j.vendorName} on the proposal and the app accepts it.`,
   run: async (j, ev) => {
-    const body = j.s.bodies.buildAwardResponseBody({ vendorCompanyUuid: j.vendorCompanyUuid, lineItemUuid: ev.lineItemUuid, quantityValue: j.qty });
+    const qty = j.awardQty ?? j.qty;
+    const body = j.s.bodies.buildAwardResponseBody({ vendorCompanyUuid: j.vendorCompanyUuid, lineItemUuid: ev.lineItemUuid, quantityValue: qty });
     // Every line item on the proposal, not only the first.
     const lines = ev.lineItems?.length ? ev.lineItems : [];
     const egli = body?.responses?.[j.vendorCompanyUuid]?.egli_data;
-    if (egli && lines.length > 1) for (const li of lines) egli[li.uuid] = { awarded_quantity: j.qty };
+    if (egli && lines.length > 1) for (const li of lines) egli[li.uuid] = { awarded_quantity: qty };
     const { call, reply } = await fire(j.client.ctx.buyerApi, "POST", j.s.Endpoints.proposalAddResponse(j.made.proposalUuid), body);
     if (!reply.ok) return { call, reply };
     return {
       call,
       reply,
-      actual: lines.length > 1 ? `Awarded ${j.qty} ${j.unit} of each of the ${lines.length} line items to ${j.vendorName}.` : `Awarded ${j.qty} ${j.unit} of the line item to ${j.vendorName}.`,
+      actual: lines.length > 1 ? `Awarded ${qty} ${j.unit} of each of the ${lines.length} line items to ${j.vendorName}.` : `Awarded ${qty} ${j.unit} of the line item to ${j.vendorName}.`,
     };
   },
 };
@@ -2926,6 +2935,7 @@ export async function runEventJourney(client: JourneyClient, plan: JourneyPlan, 
     j.vendorName = ch.vendor.name ?? ch.vendor.email;
   }
   if (opts.quantity && opts.quantity > 0) j.qty = opts.quantity;
+  if (opts.awardQuantity && opts.awardQuantity > 0) j.awardQty = opts.awardQuantity;
   if (opts.bidPrices?.[0] && opts.bidPrices[0] > 0) j.price = opts.bidPrices[0];
   // From a PR: its first line is the product, unit, quantity and place every single-row body uses.
   if (opts.fromPr?.lines.length) {

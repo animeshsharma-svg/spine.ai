@@ -4,50 +4,68 @@
   "title": "The assigned user can find and open the PR",
   "group": "PRA-ASN",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:00:47.527Z",
+  "compiledAt": "2026-11-13T14:25:35.274Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Open PR-1 from the Purchase Requisitions list and verify that all of its line items are visible"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Open PR-1 from the Purchase Requisitions list and verify that all of its line items are visible"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "do_on_screen",
-   "expect_text"
+   "select_pr",
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 12248
+  "ms": 13455
  },
  "plan": {
-  "title": "Assigned user opens PR-1",
+  "title": "Assigned User Opens PR",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required team-filtering configuration for the case."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions area as User A."
+    "note": "Open the Purchase Requisitions area as the starting screen."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab, where available requisitions can be found."
+    "note": "Stay on the Open tab, where assigned PRs should be listed."
    },
    {
-    "step": "do_on_screen",
+    "step": "select_pr",
     "args": {
-     "goal": "search for PR-1 in User A's Open Purchase Requisitions list, open PR-1, and stop on the requisition details screen showing all of its line items"
+     "pr": "PR-1"
     },
-    "note": "Perform the search and open action and verify the resulting screen displays the requisition and its line items."
+    "note": "Locate and select the named PR to establish that it is present in User A's Open list."
    },
    {
-    "step": "expect_text",
+    "step": "ask_tester",
     "args": {
-     "text": "PR-1",
-     "present": true
+     "need": "open PR-1 from the list and verify that all of its line items are visible"
     },
-    "note": "Assert that the opened requisition screen still identifies PR-1."
+    "note": "The catalog has no step for opening a PR detail view or checking its requisition line items."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the resulting screen is rendered without an application error after the tester action."
    }
   ]
  }

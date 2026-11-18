@@ -3,49 +3,48 @@
   "caseId": "PRD-PR-098",
   "title": "PR Approval: step 4 \"PR-to-PO Conversion\" does not happen until all approvals complete",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:48:45.575Z",
+  "compiledAt": "2026-11-13T15:23:26.289Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Trigger an employee-submitted Purchase Requisition",
-   "Leave an earlier PR approval step pending",
-   "Inspect whether approval step 4, PR-to-PO Conversion, has run",
-   "Verify that no PR-to-PO conversion record exists while an earlier approval is pending",
-   "Verify that no automatic PO was created or that manual PO creation has not occurred"
+   "Trigger an employee-submitted purchase requisition in the required approval workflow",
+   "Leave an earlier approval step pending",
+   "Check that approval step 4, PR-to-PO Conversion, has no record and that no automatic or manual PO conversion has occurred"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Trigger an employee-submitted Purchase Requisition; Leave an earlier PR approval step pending; Inspect whether approval step 4, PR-to-PO Conversion, has run; Verify that no PR-to-PO conversion record exists while an earlier approval is pending; Verify that no automatic PO was created or that manual PO creation has not occurred"
+   "can only test part of this — no step for: Trigger an employee-submitted purchase requisition in the required approval workflow; Leave an earlier approval step pending; Check that approval step 4, PR-to-PO Conversion, has no record and that no automatic or manual PO conversion has occurred"
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_purchase_requisitions",
-   "pr_tab",
-   "expect_table"
+   "ask_tester",
+   "expect_text"
   ],
-  "ms": 268947
+  "ms": 8621
  },
  "plan": {
-  "title": "PR Approval Blocks PR-to-PO Conversion",
+  "title": "PR Approval Blocks PO Conversion",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Closest available navigation to the Purchase Requisitions area, but it does not create the trigger or expose approval workflow state."
+    "note": "Closest available navigation to the purchase requisition area; it does not create the employee submission or expose approval-step execution records."
    },
    {
-    "step": "pr_tab",
+    "step": "ask_tester",
     "args": {
-     "tab": "Open"
+     "need": "submit a purchase requisition as the employee, leave an earlier approval step pending, and verify that step 4 PR-to-PO Conversion has no record and no PO conversion has occurred"
     },
-    "note": "Shows open requisitions that could potentially become events, but does not assert approval status or PR-to-PO conversion."
+    "note": "A separate employee or approver session and workflow-record inspection are required, which no catalog step can perform."
    },
    {
-    "step": "expect_table",
+    "step": "expect_text",
     "args": {
-     "min": 1
+     "text": "Purchase Requisitions",
+     "present": true
     },
-    "note": "Confirms that the requisitions table rendered; this is only a screen-level check and does not observe the requested approval or conversion subject."
+    "note": "Final screen assertion required by the plan format; this confirms only the requisition area remains open and does not establish the PR approval outcome."
    }
   ]
  }

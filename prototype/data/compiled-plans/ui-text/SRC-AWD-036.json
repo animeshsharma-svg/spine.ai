@@ -4,40 +4,40 @@
   "title": "Award a vendor who did not bid",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:22:35.400Z",
+  "compiledAt": "2026-11-13T11:41:58.308Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Selecting the exact closed RFQ by its unstated title and verifying that Vendor C was invited but did not bid before opening the awarding screen"
+   "Set up or verify a closed RFQ where Vendor C was invited but did not bid while Vendors A and B bid; the prepared state exposes only the two bidding vendors.",
+   "Verify the specific Vendor C outcome that it has no lines to allocate or shows \"Bid not present on this line item\" when forced."
   ],
   "warnings": [
-   "added open_prepared(master_qcs) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Selecting the exact closed RFQ by its unstated title and verifying that Vendor C was invited but did not bid before opening the awarding screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Set up or verify a closed RFQ where Vendor C was invited but did not bid while Vendors A and B bid; the prepared state exposes only the two bidding vendors.; Verify the specific Vendor C outcome that it has no lines to allocate or shows \"Bid not present on this line item\" when forced."
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
    "require_setting",
+   "expect_qcs_vendors",
    "start_awarding",
-   "expect_visible",
-   "attempt"
+   "expect_visible"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 105040
+  "ms": 9357
  },
  "plan": {
-  "title": "Awarding excludes non-bidding vendor",
+  "title": "Award vendor who did not bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared closed RFQ's Master QCS without searching the events list."
    },
    {
     "step": "require_setting",
@@ -45,32 +45,28 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case configuration."
+    "note": "Enable the required eRFX project configuration before accessing the prepared event."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "realNames": true
+    },
+    "note": "Confirm the prepared comparison grid contains the two real bidding vendor columns."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding screen where vendor allocation eligibility is shown."
+    "note": "Enter the awarding screen where vendor allocation availability can be inspected."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Vendor C",
+     "text": "Create Proposal",
      "visible": true
     },
-    "note": "Confirm the non-bidding vendor is present on the awarding screen."
-   },
-   {
-    "step": "attempt",
-    "args": {
-     "step": "allocate_award",
-     "args": {
-      "vendor": "Vendor C"
-     },
-     "expect": "refused",
-     "because": "Bid not present on this line item"
-    },
-    "note": "Attempt to allocate the line to Vendor C and require Procol to refuse because the vendor has no bid."
+    "note": "Assert that the awarding screen rendered successfully; the catalog has no assertion for Vendor C's unavailable allocation."
    }
   ]
  }

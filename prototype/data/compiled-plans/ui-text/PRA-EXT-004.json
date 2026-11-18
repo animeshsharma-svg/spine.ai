@@ -4,39 +4,60 @@
   "title": "Right after an assignment, a new selection assigns exactly the ticked rows",
   "group": "PRA-EXT",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:01:59.590Z",
+  "compiledAt": "2026-11-13T14:25:55.003Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The catalog has no dedicated step to assign PR line items to an assignee or assert that exactly the newly ticked rows received the assignee without reloading."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The catalog has no dedicated step to assign PR line items to an assignee or assert that exactly the newly ticked rows received the assignee without reloading."
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
+   "pr_tab",
    "do_on_screen",
    "expect_screen_clean"
   ],
-  "ms": 69724
+  "ms": 10022
  },
  "plan": {
-  "title": "Assign Exactly Selected PR Items",
+  "title": "PR assignment preserves exact row selection",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team-filtering configuration before opening the PR workflow."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen in the buyer portal."
+    "note": "Open the Purchase Requisitions screen where the assignment scenario begins."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Show the open PRs available for assignment."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "without reloading after an existing assignment, tick exactly 2 items from PR 1005 and exactly 1 item from PR 1004, assign the selected items together, and stop when the screen proves that only those three ticked rows received the new assignee"
+     "goal": "Assign some items first, then without reloading tick exactly 2 items from PR 1005 and exactly 1 item from PR 1004, assign those selected rows together, and stop when the screen proves that only those newly ticked rows have the new assignee."
     },
-    "note": "Perform and verify the row selection and assignment behavior that no catalog domain step exposes."
+    "note": "Perform the unsupported PR assignment and verify the exact selected-row outcome directly on the buyer screen without reloading."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the final assignment screen has no visible errors, crashes, or malformed data."
+    "note": "Assert that the final assignment screen has no visible application errors or broken state."
    }
   ]
  }

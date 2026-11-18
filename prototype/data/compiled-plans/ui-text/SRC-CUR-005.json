@@ -4,47 +4,67 @@
   "title": "Savings against budget",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T12:58:23.423Z",
+  "compiledAt": "2026-11-13T11:54:40.415Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Simulating multiple vendor bids (A at 100, B at 90) via the test runner after publishing",
-   "Waiting for or forcing the event closure to access Master QCS for savings verification"
+   "unconfirmed label \"25 %\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Simulating multiple vendor bids (A at 100, B at 90) via the test runner after publishing; Waiting for or forcing the event closure to access Master QCS for savings verification"
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "coverage partial: unconfirmed label \"25 %\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 28,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
    "fill_sheet",
+   "click",
+   "select",
+   "select",
+   "fill",
+   "click",
+   "expect_text",
    "set_schedule",
    "invite_vendor",
    "publish",
-   "expect_published"
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_bid",
+   "expect_bid_submitted",
+   "close_event",
+   "open_master_qcs",
+   "expect_text",
+   "expect_text"
   ],
-  "ms": 28250
+  "ms": 17279
  },
  "plan": {
-  "title": "Savings against budget calculation on Master QCS",
+  "title": "Savings Against Budget",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open single-stage create screen as requested by the test case"
+    "note": "Open the single-stage event creation flow."
    },
    {
     "step": "configure_single_stage",
@@ -52,46 +72,188 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set event type to RFQ on the single-stage screen"
+    "note": "Set the event type to RFQ and award the entire lot to one vendor."
    },
    {
     "step": "set_title",
-    "note": "Provide a title for the event"
+    "args": {
+     "title": "Savings Against Budget"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
-    "note": "Select the RFQ template"
+    "args": {},
+    "note": "Apply the first available RFQ template so the pricing sheet is created."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER"
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
     },
-    "note": "Add the line item CYLINDER"
+    "note": "Add the specified product with quantity 10."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "value": "Variant 1"
+    },
+    "note": "Select the mapped product variant."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "equals": "Variant 1"
+    },
+    "note": "Verify the product variant is set correctly."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Select the required delivery location."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
+    },
+    "note": "Verify the delivery location."
    },
    {
     "step": "fill_sheet",
-    "note": "Fill out the pricing sheet details"
+    "args": {},
+    "note": "Complete the remaining mandatory pricing-sheet fields."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Savings"
+    },
+    "note": "Open the savings configuration drawer."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "How do you want to measure savings?",
+     "option": "Line Item"
+    },
+    "note": "Configure savings at line-item level."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Choose column to calculate savings on",
+     "option": "Budget"
+    },
+    "note": "Use Budget as the savings reference."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Budget",
+     "value": "120"
+    },
+    "note": "Enter the budget reference value of 120 for the product."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Add Savings"
+    },
+    "note": "Save the budget savings configuration."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "120"
+    },
+    "note": "Verify the configured budget value is shown."
    },
    {
     "step": "set_schedule",
-    "note": "Set the schedule duration for the event"
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit a valid event schedule before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite the required test vendors for bidding"
+    "note": "Invite two QA vendors so both specified bids can be submitted."
    },
    {
     "step": "publish",
-    "note": "Publish the event"
+    "args": {},
+    "note": "Publish the configured RFQ."
    },
    {
     "step": "expect_published",
-    "note": "Assert that the event successfully published"
+    "args": {},
+    "note": "Verify the event reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the first vendor bid at 100."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the first vendor bid was accepted."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Submit the second vendor bid at 90."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify the second vendor bid was accepted."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the bidding window so the bids can be evaluated."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's Master QCS comparison view after closure."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "300"
+    },
+    "note": "Verify the savings amount is 300, calculated as (120 - 90) × 10."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "25 %"
+    },
+    "note": "Verify the savings percentage is 25 percent."
    }
   ]
  }

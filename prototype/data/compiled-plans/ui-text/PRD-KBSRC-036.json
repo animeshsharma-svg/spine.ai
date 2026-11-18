@@ -3,11 +3,11 @@
   "caseId": "PRD-KBSRC-036",
   "title": "Evaluation Time duration (preset or custom)",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:09:37.930Z",
+  "compiledAt": "2026-11-13T14:32:47.477Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that evaluation remains available for the entire chosen duration after the event ends and then becomes unavailable at the exact duration boundary."
+   "Directly assert that evaluation remains available for exactly the selected duration after the event end time."
   ],
   "warnings": [
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
@@ -20,10 +20,10 @@
    "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
    "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
    "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "can only test part of this — no step for: Verify that evaluation remains available for the entire chosen duration after the event ends and then becomes unavailable at the exact duration boundary."
+   "can only test part of this — no step for: Directly assert that evaluation remains available for exactly the selected duration after the event end time."
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "set_title",
@@ -34,6 +34,7 @@
    "assign_evaluator",
    "set_schedule",
    "do_on_screen",
+   "expect_text",
    "invite_vendor",
    "publish",
    "expect_published",
@@ -43,7 +44,7 @@
    "evaluate_technical",
    "expect_no_error"
   ],
-  "ms": 23341
+  "ms": 25109
  },
  "plan": {
   "title": "Evaluation Time Duration",
@@ -53,7 +54,7 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open a single-stage create flow suitable for a technical evaluation event."
+    "note": "Open a create flow suitable for an event with an evaluation period."
    },
    {
     "step": "set_title",
@@ -72,7 +73,7 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the technical-stage template required before publishing."
+    "note": "Apply the technical-stage template before completing the stage."
    },
    {
     "step": "add_line_items",
@@ -82,33 +83,41 @@
    {
     "step": "fill_questionnaires",
     "args": {},
-    "note": "Complete the technical questionnaire so the stage has an evaluable response form."
+    "note": "Complete the technical questionnaire so the stage can be published."
    },
    {
     "step": "assign_evaluator",
     "args": {},
-    "note": "Assign the evaluator required for technical-stage evaluation."
+    "note": "Assign the evaluator required for technical evaluation."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit the event schedule before configuring and publishing it."
+    "note": "Commit the event schedule before publication."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the buyer's schedule screen, open Evaluation Time, choose the Duration preset for 30 minutes, save it, and stop on the schedule summary showing the saved evaluation duration"
+     "goal": "In the Schedule side panel, under Evaluation Time, open the Duration dropdown, choose the 30 Mins preset, save the schedule, and stop with the saved Evaluation Time showing 30 Mins"
     },
-    "note": "Configure and visually verify the requested evaluation duration, which no catalog domain step can set during event creation."
+    "note": "Set the requested evaluation duration because no catalog domain step can configure Evaluation Time during initial scheduling."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "30 Mins",
+     "present": true
+    },
+    "note": "Verify that the selected evaluation duration is shown after saving."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add the participant needed to submit a technical response."
+    "note": "Add the participant required to publish and submit a technical response."
    },
    {
     "step": "publish",
@@ -118,32 +127,32 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a real published project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "place_bid",
     "args": {},
-    "note": "Have the invited vendor submit the technical response that will later be evaluated."
+    "note": "Submit a vendor technical response so evaluation can be exercised after the stage closes."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the vendor's technical response was accepted."
+    "note": "Verify that the technical response was accepted."
    },
    {
     "step": "close_event",
     "args": {},
-    "note": "Close the technical event so its evaluation window becomes available."
+    "note": "Close the technical round so its evaluation period becomes available."
    },
    {
     "step": "evaluate_technical",
     "args": {},
-    "note": "Verify that the evaluator can access and submit evaluation after the event closes."
+    "note": "Exercise the evaluator flow after the round ends, demonstrating that evaluation is available."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm no application error occurred during evaluation access and submission."
+    "note": "Confirm that the post-close evaluation flow completed without an application error."
    }
   ]
  }

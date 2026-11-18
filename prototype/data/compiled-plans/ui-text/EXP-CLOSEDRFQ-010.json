@@ -4,23 +4,30 @@
   "title": "A closed RFQ: \"Project Details\" opens the Project Details page",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:26:05.029Z",
+  "compiledAt": "2026-11-13T13:52:58.884Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "click",
-   "expect_navigated"
+   "expect_url_contains"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 8136
+  "ms": 22757
  },
  "plan": {
   "title": "Closed RFQ Project Details Navigation",
@@ -30,7 +37,39 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ on its summary page."
+    "note": "Open the prepared closed RFQ for the buyer."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Apply the required post-expiry surrogate-bid setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-editing setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen setting."
    },
    {
     "step": "go_to",
@@ -38,14 +77,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage before viewing its responses."
+    "note": "Open the RFQ stage tab."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses tab specified by the case."
+    "note": "Open the RFQ Responses tab."
    },
    {
     "step": "click",
@@ -53,15 +92,14 @@
      "role": "tab",
      "name": "Project Details"
     },
-    "note": "Activate Project Details from the RFQ page."
+    "note": "Activate Project Details from the Responses view."
    },
    {
-    "step": "expect_navigated",
+    "step": "expect_url_contains",
     "args": {
-     "screen": "path",
-     "path": "/details"
+     "text": "/details"
     },
-    "note": "Verify that the browser navigated to the Project Details route."
+    "note": "Verify that navigation reached the Project Details page route."
    }
   ]
  }

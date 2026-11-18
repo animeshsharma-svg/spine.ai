@@ -4,41 +4,52 @@
   "title": "Withdraw an event that is a draft project (option is labelled \"Cancel Event\") without a reason",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:23:12.368Z",
+  "compiledAt": "2026-11-13T13:16:48.874Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
-   "expect_visible",
+   "require_setting",
+   "require_setting",
    "withdraw_event",
-   "expect_text",
-   "expect_visible"
+   "expect_message"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 9430
+  "ms": 20390
  },
  "plan": {
-  "title": "Withdraw Draft Event Without Reason",
+  "title": "Withdraw draft event without reason",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "draft"
     },
-    "note": "Open the prebuilt draft project without creating or searching for another event."
+    "note": "Open the prepared draft project directly on its draft create screen."
    },
    {
-    "step": "expect_visible",
+    "step": "require_setting",
     "args": {
-     "text": "Cancel Event",
-     "visible": true
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
     },
-    "note": "Confirm the draft exposes the Cancel Event option required by the case."
+    "note": "Ensure the draft event exposes the withdrawal/cancellation action."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX draft projects are enabled for the prepared case."
    },
    {
     "step": "withdraw_event",
@@ -46,23 +57,15 @@
      "scope": "project",
      "noReason": true
     },
-    "note": "Attempt to withdraw the draft with no reason so Procol must enforce the reason requirement."
+    "note": "Choose the draft project's Cancel Event/withdraw action and confirm without entering a reason."
    },
    {
-    "step": "expect_text",
+    "step": "expect_message",
     "args": {
-     "text": "Please enter reason for withdrawing this event",
-     "present": true
+     "kind": "error",
+     "text": "Please enter reason for withdrawing this event"
     },
-    "note": "Assert the expected refusal message is shown."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Cancel Event",
-     "visible": true
-    },
-    "note": "Confirm the cancellation option remains available, showing that the draft was not withdrawn."
+    "note": "Verify the cancellation is refused with the required withdrawal-reason message."
    }
   ]
  }

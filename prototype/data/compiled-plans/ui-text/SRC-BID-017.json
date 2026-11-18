@@ -4,13 +4,18 @@
   "title": "RFQ bid: Save the bid as a draft and submit later",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:26:19.142Z",
+  "compiledAt": "2026-11-13T11:46:00.218Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "A live RFQ with no bids as the starting state; the prepared event already has one bid.",
+   "Verifying that the buyer sees no response while Vendor A's draft is saved, because the prepared event already exposes one response."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: A live RFQ with no bids as the starting state; the prepared event already has one bid.; Verifying that the buyer sees no response while Vendor A's draft is saved, because the prepared event already exposes one response."
+  ],
   "source": "llm",
-  "steps": 12,
+  "steps": 13,
   "stepNames": [
    "open_prepared",
    "switch_portal",
@@ -20,6 +25,7 @@
    "switch_portal",
    "expect_responses",
    "switch_portal",
+   "vendor_open_event",
    "vendor_bid",
    "expect_bid_submitted",
    "switch_portal",
@@ -27,31 +33,31 @@
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 9140
+  "ms": 13801
  },
  "plan": {
-  "title": "RFQ Bid Draft Then Submit",
+  "title": "RFQ vendor bid draft then submit",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's Responses tab for the prepared live RFQ."
+    "note": "Open the prepared event's buyer Responses screen as required for this state."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to Vendor A's supplier portal while keeping the buyer session available."
+    "note": "Move to the invited vendor's supplier portal while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ's pricing round from the vendor event list."
+    "note": "Open the prepared live RFQ's pricing round in the vendor portal."
    },
    {
     "step": "vendor_bid",
@@ -59,63 +65,69 @@
      "price": 100,
      "submit": false
     },
-    "note": "Enter the quote and save it as a vendor draft without submitting."
+    "note": "Enter the quote and save it as a vendor-side draft without submitting."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Your changes have been saved as draft."
+     "text": "Your changes have been saved as draft.",
+     "present": true
     },
-    "note": "Confirm the vendor portal reports that the bid was saved as a draft."
+    "note": "Confirm the vendor portal reports that the quote was saved as a draft."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's Responses view to check draft visibility."
+    "note": "Return to the buyer's Responses screen to inspect the response state."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 0,
-     "direct": 0
+     "count": 1
     },
-    "note": "Confirm the buyer sees no submitted response while the vendor bid remains a draft."
+    "note": "Record the existing response visible in the prepared state; this demonstrates why the requested no-response assertion cannot be made."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Return to Vendor A's draft bid."
+    "note": "Return to the vendor portal to submit the saved quote."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Reopen the RFQ pricing round before submitting the draft."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Submit the saved quote from the vendor portal."
+    "note": "Submit the previously drafted quote at the requested price."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the vendor portal marks the RFQ bid as submitted."
+    "note": "Confirm the vendor portal reports the bid as submitted."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's Responses view after submission."
+    "note": "Return to the buyer's Responses screen after submission."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 1,
-     "direct": 1
+     "count": 1
     },
-    "note": "Confirm the submitted bid now appears as one direct vendor response for the buyer."
+    "note": "Confirm the buyer has one visible response after submission, though the prepared baseline prevents proving that it newly appeared."
    }
   ]
  }

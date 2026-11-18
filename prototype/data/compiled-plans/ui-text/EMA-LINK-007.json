@@ -4,42 +4,67 @@
   "title": "Review button opens the review email with the recipient instruction",
   "group": "EMA-LINK",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:55:09.227Z",
+  "compiledAt": "2026-11-13T14:20:47.643Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Asha's mailbox and open the Procol approval request email.",
-   "Click Review and verify the subject starts with \"Action:Review|Proposal:[\".",
-   "Compare the Review email body with the Consult email to prove the instruction, Comment, and Recipient content is identical."
+   "Access Asha's mailbox and open the Procol approval request email",
+   "Click Review and verify the resulting email subject starts with \"Action:Review|Proposal:[\"",
+   "Verify the email body matches the Consult email and contains the instruction, Comment, and Recipient content"
   ],
   "warnings": [
-   "can only test part of this — no step for: Access Asha's mailbox and open the Procol approval request email.; Click Review and verify the subject starts with \"Action:Review|Proposal:[\".; Compare the Review email body with the Consult email to prove the instruction, Comment, and Recipient content is identical."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Access Asha's mailbox and open the Procol approval request email; Click Review and verify the resulting email subject starts with \"Action:Review|Proposal:[\"; Verify the email body matches the Consult email and contains the instruction, Comment, and Recipient content"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
+   "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 9409
+  "ms": 13057
  },
  "plan": {
-  "title": "EMA-LINK-007 Review Email Recipient Instruction",
+  "title": "EMA-LINK-007 Review email recipient instruction",
   "steps": [
+   {
+    "step": "open_event",
+    "args": {
+     "title": "QA Email Approval - Office Chairs Nov"
+    },
+    "note": "Open the existing event associated with the approval request."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the company configuration required for email approval actions."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Configure the approval workflow prerequisite from the test case."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Asha, open the Procol approval request email, click Review, verify the subject starts with \"Action:Review|Proposal:[\", and compare the body with the Consult email to confirm the instruction, Comment, and Recipient content is the same"
+     "need": "log in to Asha's mailbox, open the Procol approval request email, click Review, and verify the resulting email subject and body contain the stated instruction, Comment, and Recipient content"
     },
-    "note": "Mailbox access, the Review action, and cross-email comparison are not available through catalog steps."
+    "note": "Mailbox access, email actions, and email-content verification are not available in the catalog."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Recipient",
-     "present": true
-    },
-    "note": "Assert that the resulting email view visibly contains the required Recipient instruction label."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the resulting browser session remains free of application errors after the tester completes the email interaction."
    }
   ]
  }

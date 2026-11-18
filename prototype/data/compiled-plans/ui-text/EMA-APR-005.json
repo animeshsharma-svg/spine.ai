@@ -4,50 +4,74 @@
   "title": "Approving after the request is already fully approved bounces back",
   "group": "EMA-APR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:53:10.887Z",
+  "compiledAt": "2026-11-13T14:18:25.780Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Ravi, Asha, and Bikram's mailboxes and perform the two-step email approval workflow",
-   "Resend Asha's original approval email without changing the subject after the request is fully approved",
-   "Verify the bounce-back in the same email thread with the exact no-longer-waiting-for-approval message"
+   "Create and submit the named event into the two-step email approval workflow",
+   "Sign in as Ravi, Asha, and Bikram and operate their separate mailboxes",
+   "Approve from Asha's and Bikram's emails and verify their recorded replies",
+   "Have Asha approve again from her original email without changing the subject, send it, and wait for Procol to process the mailbox",
+   "Observe and verify the exact bounce-back message in the same email thread"
   ],
   "warnings": [
-   "can only test part of this — no step for: Access Ravi, Asha, and Bikram's mailboxes and perform the two-step email approval workflow; Resend Asha's original approval email without changing the subject after the request is fully approved; Verify the bounce-back in the same email thread with the exact no-longer-waiting-for-approval message"
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Create and submit the named event into the two-step email approval workflow; Sign in as Ravi, Asha, and Bikram and operate their separate mailboxes; Approve from Asha's and Bikram's emails and verify their recorded replies; Have Asha approve again from her original email without changing the subject, send it, and wait for Procol to process the mailbox; Observe and verify the exact bounce-back message in the same email thread"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "set_title",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 10591
+  "ms": 12862
  },
  "plan": {
-  "title": "EMA-APR-005 Duplicate Email Approval Bounce-Back",
+  "title": "Duplicate Email Approval Bounce-Back",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
     "args": {
-     "title": "QA Email Approval - Office Chairs Nov"
+     "path": "erfx"
+    }
+   },
+   {
+    "step": "set_title"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company, with the company's approval mailbox connected to Procol",
+     "value": "On"
     },
-    "note": "Open the named existing event as the closest available buyer-side context."
+    "note": "Configure the email approval capability required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Configure the approval workflow prerequisite before the unavailable mailbox-driven scenario."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "access the approvers' mailboxes, complete Asha and Bikram's email approvals, resend Asha's original approval email unchanged after full approval, and verify the bounce-back in the same thread"
+     "need": "Use the Ravi, Asha, and Bikram accounts and their mailboxes to create and submit the named event for two-step email approval, approve it from both approval emails, resend Asha's original approval unchanged after full approval, wait for processing, and verify the exact bounce-back in the same thread"
     },
-    "note": "Mailbox access and email approval processing are not supported by catalog steps."
+    "note": "The catalog has no steps for approval workflow submission, mailbox access, email replies, waiting for mailbox ingestion, or reading the resulting bounce-back."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "is no longer waiting for approval, so your approval was not applied. No further action is needed.",
-     "present": true
-    },
-    "note": "Check for the expected duplicate-approval refusal message if it is brought into the active screen."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "End with an assertion as required, while confirming the test session has not crashed after the tester performs the unavailable mailbox actions."
    }
   ]
  }

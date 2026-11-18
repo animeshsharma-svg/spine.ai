@@ -4,39 +4,58 @@
   "title": "Send Bulk Counter Offer when the event moves from live to live2",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:01:20.796Z",
+  "compiledAt": "2026-11-13T12:50:32.118Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Starting from a live RFQ with no bids",
-   "Waiting for or verifying the RFQ's actual live2 state caused by bidding ending or award submission"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Starting from a live RFQ with no bids; Waiting for or verifying the RFQ's actual live2 state caused by bidding ending or award submission"
+   "added open_prepared(responses) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "expect_menu_item",
-   "open_participants",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "expect_menu_item",
    "place_surrogate_bid",
    "expect_bid_submitted",
    "expect_menu_item"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 70075
+  "ms": 30619
  },
  "plan": {
-  "title": "Bulk Counter Offer state transition",
+  "title": "Bulk Counter Offer availability across RFQ bids",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ on the buyer's Responses tab."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure RFQ counter-offer actions are shown."
    },
    {
     "step": "expect_menu_item",
@@ -45,24 +64,40 @@
      "stage": "rfq",
      "enabled": false
     },
-    "note": "Verify the bulk counter-offer action is greyed out with only one existing bid and that its explanatory tooltip is present."
-   },
-   {
-    "step": "open_participants",
-    "args": {},
-    "note": "Open the RFQ Participants list so a second vendor can be given a surrogate bid."
+    "note": "Verify the bulk counter-offer action is greyed out before enough bids exist."
    },
    {
     "step": "place_surrogate_bid",
     "args": {
      "stage": "rfq"
     },
-    "note": "Submit a bid for another invited vendor to create the second response."
+    "note": "Submit the first buyer-entered bid for an invited vendor."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the second vendor's surrogate bid was accepted."
+    "note": "Confirm the first bid was accepted."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Send Bulk Counter Offer",
+     "stage": "rfq",
+     "enabled": false
+    },
+    "note": "Verify the action remains disabled with only one bid."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Submit a second bid for another invited vendor, causing the state change described by the case."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second bid was accepted."
    },
    {
     "step": "expect_menu_item",
@@ -71,7 +106,7 @@
      "stage": "rfq",
      "enabled": true
     },
-    "note": "Verify the bulk counter-offer action is now clickable after the second bid."
+    "note": "Verify Send Bulk Counter Offer becomes clickable after two bids."
    }
   ]
  }

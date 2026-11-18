@@ -4,13 +4,16 @@
   "title": "Settings > Rejected Bids with no rejected bid",
   "group": "SRC-RJB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:12:39.724Z",
+  "compiledAt": "2026-11-13T12:42:56.639Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "The exact RFQ-in-evaluation state with bids from A at 100 and B at 90 and nothing rejected; the prepared state is closed with two bids."
+  ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The exact RFQ-in-evaluation state with bids from A at 100 and B at 90 and nothing rejected; the prepared state is closed with two bids."
   ],
   "source": "llm",
   "steps": 5,
@@ -23,17 +26,17 @@
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 10081
+  "ms": 8276
  },
  "plan": {
-  "title": "Rejected Bids Empty List",
+  "title": "Rejected Bids list with no rejected bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared buyer-side event summary as required for this case."
+    "note": "Open the prepared event's buyer summary page without searching the events list."
    },
    {
     "step": "require_setting",
@@ -41,21 +44,23 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project configuration for the prepared event."
+    "note": "Enable the required eRFX project configuration before accessing the prepared event."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Rejected Bids"
+     "item": "Rejected Bids",
+     "stage": "rfq"
     },
-    "note": "Open the stage Settings menu and select Rejected Bids."
+    "note": "Open the RFQ Settings menu and choose Rejected Bids."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "No bids rejected for this event"
+     "text": "No bids rejected for this event",
+     "present": true
     },
-    "note": "Verify the empty rejected-bids state is shown."
+    "note": "Verify the dialog reports that no bids have been rejected."
    },
    {
     "step": "expect_visible",
@@ -64,7 +69,7 @@
      "name": "Close",
      "visible": true
     },
-    "note": "Verify the popup provides a Close button."
+    "note": "Verify the empty Rejected Bids dialog provides a Close button."
    }
   ]
  }

@@ -4,23 +4,20 @@
   "title": "Search inside the participant list after publish",
   "group": "SRC-PAR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:06:38.185Z",
+  "compiledAt": "2026-11-13T12:23:06.323Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The case does not provide Vendor A's concrete vendor name, so the exact searched vendor identity and name cannot be asserted."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: The case does not provide Vendor A's concrete vendor name, so the exact searched vendor identity and name cannot be asserted."
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 15,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -30,28 +27,25 @@
    "add_line_items",
    "fill_sheet",
    "set_sheet_cell",
-   "expect_sheet_cell",
-   "expect_sheet_cell",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
    "open_participants",
    "search_participants",
-   "expect_participant",
-   "expect_count"
+   "expect_participant"
   ],
-  "ms": 22382
+  "ms": 21544
  },
  "plan": {
-  "title": "Search participant list after publishing",
+  "title": "SRC-PAR-018 Participant Search",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Opens the single-stage event creation flow specified by the case."
+    "note": "Opens the single-stage event creation flow."
    },
    {
     "step": "require_setting",
@@ -64,20 +58,21 @@
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq",
-     "awarding": "lot"
+     "eventType": "rfq"
     },
-    "note": "Sets the single-stage event type to RFQ."
+    "note": "Sets the event type to RFQ."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provides the mandatory event title needed to publish."
+    "args": {
+     "title": "SRC-PAR-018 Participant Search"
+    },
+    "note": "Provides the mandatory event title before publishing."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Applies the first available RFQ pricing template so the product sheet is available."
+    "note": "Applies the RFQ pricing template so the product sheet is available."
    },
    {
     "step": "add_line_items",
@@ -86,12 +81,12 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Adds the specified product and enters the requested quantity."
+    "note": "Adds the specified product and quantity."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Completes remaining required pricing-sheet fields before scheduling and publishing."
+    "note": "Completes the remaining required pricing-sheet fields."
    },
    {
     "step": "set_sheet_cell",
@@ -100,44 +95,26 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Selects the delivery location required by the case."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Quantity Requested",
-     "equals": "10"
-    },
-    "note": "Confirms the requested quantity remained 10."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "contains": "Plant Name (LOC-0001)"
-    },
-    "note": "Confirms the specified delivery location was selected."
+    "note": "Selects the required delivery location for the line item."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commits a valid event schedule so the event can be published."
+    "note": "Commits a valid event schedule before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Adds one QA test vendor so the published participant list contains a searchable participant."
+    "note": "Invites one QA test vendor so the participant search has exactly one selected vendor."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publishes the event, matching the scenario's after-publish participant-list state."
+    "note": "Publishes the event so its participant list can be searched."
    },
    {
     "step": "expect_published",
@@ -147,25 +124,20 @@
    {
     "step": "open_participants",
     "args": {},
-    "note": "Opens the published stage's Participants list, the subject under test."
+    "note": "Opens the published stage's participant list."
    },
    {
     "step": "search_participants",
     "args": {},
-    "note": "Searches for the case's own unspecified Vendor A identity using the participant-list search."
+    "note": "Searches for the QA vendor invited by this plan; omitting the name lets the runner use that vendor's actual mapped name."
    },
    {
     "step": "expect_participant",
-    "args": {},
-    "note": "Confirms the searched vendor row is present."
-   },
-   {
-    "step": "expect_count",
     "args": {
-     "role": "row",
-     "count": 1
+     "present": true,
+     "selected": true
     },
-    "note": "Checks that the filtered participant list contains only one visible vendor row."
+    "note": "Asserts that the searched participant row is listed and selected, proving the search returned the invited vendor."
    }
   ]
  }

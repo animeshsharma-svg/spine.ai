@@ -4,63 +4,87 @@
   "title": "Choose an existing event to test Reschedule Event",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:21:17.596Z",
+  "compiledAt": "2026-11-13T12:05:13.791Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Record the selected event's RFX number in Test Data"
+   "Explicitly select an upcoming event from the list using Search Title or a dedicated Upcoming filter before opening it",
+   "Record the selected event's RFX number in Test Data",
+   "Inspect and record the event's bids without a specified expected bid state"
   ],
   "warnings": [
-   "can only test part of this — no step for: Record the selected event's RFX number in Test Data"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Explicitly select an upcoming event from the list using Search Title or a dedicated Upcoming filter before opening it; Record the selected event's RFX number in Test Data; Inspect and record the event's bids without a specified expected bid state"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 9,
   "stepNames": [
+   "open_event",
    "open_events_list",
    "expect_events_list",
-   "filter_events",
-   "open_first_event",
-   "expect_api_value",
+   "expect_visible",
+   "expect_visible",
+   "expect_visible",
+   "expect_visible",
    "expect_text",
-   "expect_responses",
    "expect_settings_menu"
   ],
-  "ms": 9667
+  "ms": 17141
  },
  "plan": {
-  "title": "Choose upcoming event for rescheduling",
+  "title": "Select Existing Upcoming Event for Rescheduling",
   "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing event that the runner selects as suitable for rescheduling."
+   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the buyer's Events list."
+    "note": "Open the Events list as the buyer."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the events list rendered without an error."
+    "note": "Verify the list rendered successfully with the Create Event control and no error."
    },
    {
-    "step": "filter_events",
+    "step": "expect_visible",
     "args": {
-     "tab": "Live"
+     "role": "tab",
+     "name": "Live",
+     "visible": true
     },
-    "note": "Limit selection to currently live/upcoming events."
+    "note": "Verify the Live tab is available."
    },
    {
-    "step": "open_first_event",
+    "step": "expect_visible",
     "args": {
-     "tab": "Live",
-     "containing": "Upcoming"
+     "role": "tab",
+     "name": "History",
+     "visible": true
     },
-    "note": "Open the first Live-list event whose card shows the required Upcoming state."
+    "note": "Verify the History tab is available."
    },
    {
-    "step": "expect_api_value",
+    "step": "expect_visible",
     "args": {
-     "key": "title"
+     "role": "tab",
+     "name": "Drafts",
+     "visible": true
     },
-    "note": "Capture and verify the selected event's title for Test Data."
+    "note": "Verify the Drafts tab is available."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Recurring",
+     "visible": true
+    },
+    "note": "Verify the Recurring tab is available."
    },
    {
     "step": "expect_text",
@@ -68,23 +92,19 @@
      "text": "Upcoming",
      "present": true
     },
-    "note": "Verify the event page shows the required Upcoming status."
-   },
-   {
-    "step": "expect_responses",
-    "args": {
-     "count": 0
-    },
-    "note": "Check that the upcoming event has no vendor responses or bids."
+    "note": "Assert the selected event displays the required Upcoming status."
    },
    {
     "step": "expect_settings_menu",
     "args": {
-     "offered": [
+     "enabled": [
       "Reschedule Event"
+     ],
+     "absent": [
+      "Withdraw"
      ]
     },
-    "note": "Verify Reschedule Event is offered for this pre-start event."
+    "note": "Verify the event's current state offers Reschedule Event, confirming it is eligible before starting."
    }
   ]
  }

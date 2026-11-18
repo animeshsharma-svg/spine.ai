@@ -4,24 +4,33 @@
   "title": "Try to purchase a BOQ-based PR with a service PR",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:30:33.704Z",
+  "compiledAt": "2026-11-13T12:25:27.396Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "do_on_screen",
    "expect_message"
   ],
-  "ms": 69797
+  "ms": 10531
  },
  "plan": {
-  "title": "Block BOQ and Service PR Purchase",
+  "title": "BOQ PR Cannot Be Purchased With Service PR",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "boq_in_erfx_allowed",
+     "value": "On"
+    },
+    "note": "Enable BOQ purchase requisitions as required by the test setup."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
@@ -32,14 +41,14 @@
     "args": {
      "tab": "Open"
     },
-    "note": "Use the Open tab where selectable PRs are available."
+    "note": "Show open purchase requisitions, where the BOQ and service PRs are expected."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "select one BOQ-based purchase requisition and one service purchase requisition together, hover the disabled Purchase Items control and verify it shows the message \"BOQ-based PR cannot pe purchased along with Service PR\", then attempt to click Purchase Items without proceeding"
+     "goal": "select the BOQ-based PR and the service PR together, verify that Purchase Items is disabled with the message \"BOQ-based PR cannot pe purchased along with Service PR\", and try clicking Purchase Items to confirm it cannot be activated"
     },
-    "note": "The catalog has no domain step for combining two distinct PRs or checking the resulting disabled-control tooltip."
+    "note": "Perform the multi-PR selection and inspect the disabled Purchase Items control, which no catalog domain step expresses directly."
    },
    {
     "step": "expect_message",
@@ -48,7 +57,7 @@
      "text": "BOQ-based PR cannot pe purchased along with Service PR",
      "on": "Purchase Items"
     },
-    "note": "Assert the required incompatibility message is shown for the disabled Purchase Items control."
+    "note": "Assert the exact refusal message shown for the disabled Purchase Items control."
    }
   ]
  }

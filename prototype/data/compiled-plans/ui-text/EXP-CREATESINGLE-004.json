@@ -4,7 +4,7 @@
   "title": "Single stage create screen (RFQ with a product): \"Publish Event\" is greyed out and says why",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:36:35.875Z",
+  "compiledAt": "2026-11-13T14:00:17.502Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,9 +17,12 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 12,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
@@ -29,7 +32,7 @@
    "expect_message",
    "attempt"
   ],
-  "ms": 10090
+  "ms": 11949
  },
  "plan": {
   "title": "Single-stage RFQ Publish Disabled Tooltip",
@@ -42,24 +45,47 @@
     "note": "Open the single-stage event creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Enable the required vendor-lock configuration before opening the create screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable the required read-only price-cap configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Apply the required terms-and-conditions configuration."
+   },
+   {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq",
-     "awarding": "lot"
+     "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ and the lot awarding mode."
+    "note": "Set the single-stage event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "EXP-CREATESINGLE-004"
+     "title": "EXP-CREATESINGLE-004 RFQ"
     },
-    "note": "Provide the required event title so the test isolates the Publish Event control behavior."
+    "note": "Provide the mandatory event title required on create screens."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the first available RFQ template."
+    "note": "Choose the available RFQ pricing template."
    },
    {
     "step": "add_line_items",
@@ -83,7 +109,7 @@
      "role": "button",
      "name": "Publish Event"
     },
-    "note": "Reveal the disabled control's explanatory tooltip."
+    "note": "Hover the disabled control to reveal its explanatory tooltip."
    },
    {
     "step": "expect_message",
@@ -104,7 +130,7 @@
      },
      "expect": "nothing_opens"
     },
-    "note": "Try the disabled Publish Event control and verify that it opens nothing or makes no change."
+    "note": "Confirm clicking the greyed-out Publish Event opens nothing and causes no change."
    }
   ]
  }

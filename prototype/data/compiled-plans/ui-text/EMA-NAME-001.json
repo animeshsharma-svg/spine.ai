@@ -4,47 +4,48 @@
   "title": "Approval request email names the event",
   "group": "EMA-NAME",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-12T13:46:56.347Z",
+  "compiledAt": "2026-11-13T14:21:04.966Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Submit the event into the configured two-step email approval workflow and generate the approval request email",
-   "Access Asha's mailbox and open the approval request email",
-   "Verify that the email's first line says the expected text and that the event name is bold and matches exactly"
+   "Access Asha's mailbox and open the Procol approval request email without another-user mailbox credentials",
+   "Verify that the event name is rendered in bold in the email",
+   "Verify the approval workflow has exactly Asha as step 1 and Bikram as step 2"
   ],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Submit the event into the configured two-step email approval workflow and generate the approval request email; Access Asha's mailbox and open the approval request email; Verify that the email's first line says the expected text and that the event name is bold and matches exactly"
+   "can only test part of this — no step for: Access Asha's mailbox and open the Procol approval request email without another-user mailbox credentials; Verify that the event name is rendered in bold in the email; Verify the approval workflow has exactly Asha as step 1 and Bikram as step 2"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "require_setting",
    "require_setting",
    "set_title",
+   "compose_stages",
    "select_template",
    "add_line_items",
    "fill_sheet",
    "set_schedule",
    "invite_vendor",
    "publish",
-   "expect_published",
+   "expect_text",
    "ask_tester",
-   "expect_no_error"
+   "expect_text"
   ],
-  "ms": 16820
+  "ms": 17323
  },
  "plan": {
-  "title": "Approval email names the event",
+  "title": "EMA-NAME-001 Approval email names event",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start creating the event in the buyer portal."
+    "note": "Open the event creation flow."
    },
    {
     "step": "require_setting",
@@ -52,26 +53,36 @@
      "phrase": "Email approvals switched on for the company",
      "value": "On"
     },
-    "note": "Enable email approvals as required by the case."
+    "note": "Enable email approvals required for the scenario."
    },
    {
     "step": "require_setting",
     "args": {
-     "phrase": "Approval workflow for events with email approval turned on",
+     "phrase": "approval workflow for events with email approval turned on",
      "value": "On"
     },
-    "note": "Enable the approval workflow prerequisite."
+    "note": "Enable the approval workflow needed to generate the approval request."
    },
    {
     "step": "set_title",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Use the exact event name that the email is expected to contain."
+    "note": "Use the exact event name the email must contain."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create a pricing event suitable for the approval workflow."
    },
    {
     "step": "select_template",
-    "note": "Configure the required event template."
+    "args": {},
+    "note": "Apply the first available RFQ template."
    },
    {
     "step": "add_line_items",
@@ -79,44 +90,54 @@
      "count": 1,
      "search": "Office Chairs"
     },
-    "note": "Add a line item so the event can be completed."
+    "note": "Add the event item needed for a valid submission."
    },
    {
     "step": "fill_sheet",
-    "note": "Complete the pricing sheet before scheduling and publishing."
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule."
+    "note": "Commit a valid event schedule before submission."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add the required participant before publishing."
+    "note": "Add the participant required to submit the event."
    },
    {
     "step": "publish",
-    "note": "Submit the completed event through the available buyer-side action."
+    "args": {},
+    "note": "Submit the event into the configured approval workflow."
    },
    {
-    "step": "expect_published",
-    "note": "Confirm that the event was created successfully."
+    "step": "expect_text",
+    "args": {
+     "text": "Approval in Progress",
+     "present": true
+    },
+    "note": "Confirm the event entered approval rather than proceeding without approval."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "submit the event for approval, sign in to Asha's mailbox, open the Procol approval request email, and verify its first line and bold event name exactly"
+     "need": "sign in as Asha, open the Procol approval request email for this event, and show the first line of the email"
     },
-    "note": "Mailbox access and email approval inspection are not available in the catalog."
+    "note": "The catalog cannot access Asha's separate mailbox or open the approval email."
    },
    {
-    "step": "expect_no_error",
-    "note": "Confirm no application error is visible after the available setup steps."
+    "step": "expect_text",
+    "args": {
+     "text": "Ravi has requested for your approval in QA Email Approval - Office Chairs Nov.",
+     "present": true
+    },
+    "note": "Check the exact requester and event name in the email's first line."
    }
   ]
  }

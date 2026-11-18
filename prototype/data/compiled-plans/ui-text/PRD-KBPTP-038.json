@@ -3,38 +3,36 @@
   "caseId": "PRD-KBPTP-038",
   "title": "Approver approves a budget (with optional remarks); workflow moves to the next approver",
   "group": "PRD-KBPTP",
-  "compiledAt": "2026-11-10T06:52:57.794Z",
+  "compiledAt": "2026-11-13T15:43:17.993Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Reliably verify that the workflow has advanced to the next specific approver and that this approver is pending."
+   "Verify the specific next approver in the sequence is shown as pending"
   ],
   "warnings": [
-   "can only test part of this — no step for: Reliably verify that the workflow has advanced to the next specific approver and that this approver is pending."
+   "can only test part of this — no step for: Verify the specific next approver in the sequence is shown as pending"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "click",
    "expect_visible",
-   "click",
    "expect_visible",
-   "expect_visible",
-   "click",
+   "approve_award",
    "expect_text"
   ],
-  "ms": 74488
+  "ms": 14623
  },
  "plan": {
-  "title": "Approver approves budget approval note",
+  "title": "Approver advances budget workflow",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "proposal"
     },
-    "note": "Open the prepared budget approval proposal for the first approver."
+    "note": "Open the prepared budget approval proposal."
    },
    {
     "step": "click",
@@ -42,7 +40,7 @@
      "role": "tab",
      "name": "Approvals"
     },
-    "note": "Open the approval workflow area."
+    "note": "Open the Approvals tab containing the budget's Approval Note."
    },
    {
     "step": "expect_visible",
@@ -50,23 +48,7 @@
      "text": "Approval Note",
      "visible": true
     },
-    "note": "Confirm the budget's approval note is available to open."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "Approval Note"
-    },
-    "note": "Open the budget information and approval details for review."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Approve",
-     "visible": true
-    },
-    "note": "Confirm the first approver has an Approve action."
+    "note": "Confirm the budget approval note is available for review."
    },
    {
     "step": "expect_visible",
@@ -74,15 +56,12 @@
      "label": "Enter remarks",
      "visible": true
     },
-    "note": "Confirm the optional remarks field is available before submission."
+    "note": "Confirm the optional remarks field is present before approval."
    },
    {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Approve"
-    },
-    "note": "Submit the approval without adding remarks, exercising the optional-remarks path."
+    "step": "approve_award",
+    "args": {},
+    "note": "Submit approval as the pending first approver; this performs the approval action and records the workflow result."
    },
    {
     "step": "expect_text",
@@ -90,7 +69,7 @@
      "text": "Approval in Progress",
      "present": true
     },
-    "note": "Confirm the approval was recorded and the workflow is no longer awaiting this approver."
+    "note": "Confirm the workflow remains in approval progress after this approval is submitted."
    }
   ]
  }

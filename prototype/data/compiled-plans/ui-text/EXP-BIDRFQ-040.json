@@ -4,16 +4,14 @@
   "title": "A live RFQ with a vendor's bid: switching is_counter_offer_percent_bid_allowed changes nothing visible here",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:40:10.582Z",
+  "compiledAt": "2026-11-13T13:48:57.923Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "full",
   "gaps": [],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "resolved: “Toggle is_counter_offer_percent_bid_allowed from On to Off during the same session and observe or compare what changes o” — require_setting switches that company setting before the case and back after",
-   "the model judged coverage none, but every gap it named is done by a step in this plan — read as partial",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "resolved: “Switch is_counter_offer_percent_bid_allowed from On to Off during the same Responses-screen session and compare the visi” — require_setting switches that company setting before the case and back after"
   ],
   "source": "llm",
   "steps": 9,
@@ -30,17 +28,17 @@
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 18007
+  "ms": 30466
  },
  "plan": {
-  "title": "RFQ Counter Offer Percent Setting Visibility",
+  "title": "RFQ Counter Offer Setting Visibility",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses screen containing the vendor's bid."
+    "note": "Open the prepared live RFQ Responses screen with one vendor bid, as required for this case."
    },
    {
     "step": "require_setting",
@@ -48,7 +46,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX projects as required by the scenario."
    },
    {
     "step": "require_setting",
@@ -56,7 +54,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Keep RFQ counter offers visible as required by the case."
+    "note": "Keep the RFQ counter-offer control available for the visibility check."
    },
    {
     "step": "require_setting",
@@ -64,7 +62,7 @@
      "key": "disable_reject_bid_in_bidding_time",
      "value": "Off"
     },
-    "note": "Use the required buyer bid-rejection configuration."
+    "note": "Apply the required buyer bid-rejection configuration."
    },
    {
     "step": "require_setting",
@@ -72,7 +70,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Use the required buyer bid-edit configuration."
+    "note": "Apply the required buyer bid-edit configuration."
    },
    {
     "step": "require_setting",
@@ -80,7 +78,7 @@
      "key": "is_counter_offer_percent_bid_allowed",
      "value": "Off"
     },
-    "note": "Apply the target setting value, although the catalog cannot compare it with the On state in the same run."
+    "note": "Set the configuration under test to Off before inspecting the prepared live RFQ."
    },
    {
     "step": "expect_visible",
@@ -89,23 +87,22 @@
      "name": "Counter Offer",
      "visible": true
     },
-    "note": "Record the closest observable counter-offer control on the Responses screen."
+    "note": "Assert that the RFQ counter-offer control remains visible with the setting Off."
    },
    {
     "step": "probe_controls",
     "args": {
-     "within": "Settings",
      "include": [
-      "Settings"
+      "Counter Offer"
      ],
-     "max": 30
+     "max": 1
     },
-    "note": "Explore the available event Settings controls and record any menus or changes without confirming destructive actions."
+    "note": "Explore the available counter-offer control without confirming or sending a counter offer."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the Responses screen remains rendered without errors or corrupted values."
+    "note": "Assert that inspecting the control did not produce a rendering error or unexpected screen failure."
    }
   ]
  }

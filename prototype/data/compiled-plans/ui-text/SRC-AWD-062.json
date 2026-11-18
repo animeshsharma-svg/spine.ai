@@ -4,32 +4,35 @@
   "title": "Approval chain: two approvers, both approve",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:24:41.572Z",
+  "compiledAt": "2026-11-13T11:44:09.394Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Have Approver 1 approve with a remark, verify the proposal waits for Approver 2, then have Approver 2 approve with a remark and verify the ordered two-approver approval chain."
+   "Sign in as Approver 1 and Approver 2, approve the proposal in order with separate remarks, and verify that the proposal waits for Approver 2 after Approver 1."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Have Approver 1 approve with a remark, verify the proposal waits for Approver 2, then have Approver 2 approve with a remark and verify the ordered two-approver approval chain."
+   "can only test part of this — no step for: Sign in as Approver 1 and Approver 2, approve the proposal in order with separate remarks, and verify that the proposal waits for Approver 2 after Approver 1."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
+   "start_awarding",
+   "allocate_award",
+   "expect_award_counters",
    "award_event",
-   "ask_tester",
    "expect_awarded",
+   "ask_tester",
    "create_po",
    "expect_po_items"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 13028
+  "ms": 19285
  },
  "plan": {
   "title": "Two-Approver Award Approval Chain",
@@ -39,7 +42,7 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ with the two bids."
+    "note": "Open the prepared closed RFQ with the two stated bids."
    },
    {
     "step": "require_setting",
@@ -55,31 +58,54 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects required by the case."
+    "note": "Enable eRFX projects required by the setup."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the awarding flow from Master QCS."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 10,
+     "line": 1
+    },
+    "note": "Allocate all 10 requested units to Vendor B."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/2",
+     "proposal": 900
+    },
+    "note": "Verify the full line is allocated to Vendor B at 90 per unit, totaling 900."
    },
    {
     "step": "award_event",
     "args": {
      "vendor": "Vendor B"
     },
-    "note": "Allocate all requested units to Vendor B and submit the award proposal."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "have Approver 1 and then Approver 2 approve the submitted proposal with remarks, verifying it waits after the first approval"
-    },
-    "note": "The catalog has no distinct approver-session or approval-chain step."
+    "note": "Create and submit the award proposal for Vendor B."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Verify the proposal is approved after the tester completes the approval chain."
+    "note": "Verify that the award proposal was created and submitted for approval."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as Approver 1 and Approver 2, approve the proposal in order with remarks, and verify it waits for Approver 2 after Approver 1"
+    },
+    "note": "The catalog cannot hold two separate approver sessions or verify the intermediate approval state."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Create the purchase order after the award approval is complete."
+    "note": "Complete PO creation after the approval chain has been completed by the approvers."
    },
    {
     "step": "expect_po_items",
@@ -87,7 +113,7 @@
      "count": 1,
      "quantity": 10
     },
-    "note": "Verify the PO contains the awarded line with the full quantity."
+    "note": "Verify the resulting PO contains the awarded line with quantity 10."
    }
   ]
  }

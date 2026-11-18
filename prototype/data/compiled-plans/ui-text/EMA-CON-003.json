@@ -4,32 +4,63 @@
   "title": "A Procol user of ANOTHER company is treated as outside",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:07.290Z",
+  "compiledAt": "2026-11-13T14:19:25.189Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in to Asha's mailbox, open the Procol approval request, use Consult, address a user from another Procol company, send without changing the subject, wait for processing, and verify the 'is not part of your organisation on Procol' bounce-back and that the external user receives nothing"
+   "Log in to Asha's mailbox and open the Procol approval request email",
+   "Click Consult and verify the new email subject starts with Action:Consult",
+   "Enter a comment and an email address belonging to a Procol user from another company",
+   "Send the unchanged-subject email and wait for Procol to process the mailbox",
+   "Verify that the other company's user receives nothing"
   ],
   "warnings": [
-   "can only test part of this — no step for: Log in to Asha's mailbox, open the Procol approval request, use Consult, address a user from another Procol company, send without changing the subject, wait for processing, and verify the 'is not part of your organisation on Procol' bounce-back and that the external user receives nothing"
+   "can only test part of this — no step for: Log in to Asha's mailbox and open the Procol approval request email; Click Consult and verify the new email subject starts with Action:Consult; Enter a comment and an email address belonging to a Procol user from another company; Send the unchanged-subject email and wait for Procol to process the mailbox; Verify that the other company's user receives nothing"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_text"
   ],
-  "ms": 7427
+  "ms": 16428
  },
  "plan": {
-  "title": "External company consult email rejection",
+  "title": "External company consult recipient is rejected",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the email approval capability required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "the company's approval mailbox connected to Procol",
+     "value": "On"
+    },
+    "note": "Configure the mailbox integration required for Procol to read and process replies."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow prerequisite."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "log in as Asha, open the Procol approval request email, use Consult to email the named user from another Procol company without changing the subject, send it, wait 1-2 minutes, and verify the organisation-membership bounce-back and that the external user receives nothing"
+     "need": "log in to Asha's mailbox, open the Procol approval request, use Consult to email a comment to a Procol user from another company without changing the subject, send it, wait for processing, and verify the bounce-back and non-delivery"
     },
-    "note": "The catalog cannot access mailboxes, send consult emails, wait for mailbox processing, or verify bounce-back delivery."
+    "note": "Mailbox access, cross-company recipient data, sending, processing delay, and delivery verification are not available through catalog steps."
    },
    {
     "step": "expect_text",
@@ -37,7 +68,7 @@
      "text": "is not part of your organisation on Procol",
      "present": true
     },
-    "note": "Closest available assertion for the expected bounce-back text if the tester leaves the resulting email view visible."
+    "note": "If the tester completes the mailbox action and leaves the resulting evidence available in the session, check for the expected organisation-boundary rejection text."
    }
   ]
  }

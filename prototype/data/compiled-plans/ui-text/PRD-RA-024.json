@@ -3,43 +3,45 @@
   "caseId": "PRD-RA-024",
   "title": "Post-Auction Negotiation: not available on plans below Growth",
   "group": "PRD-RA",
-  "compiledAt": "2026-11-10T01:37:47.614Z",
+  "compiledAt": "2026-11-13T14:58:10.943Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Verify that the current tenant is on a plan below Growth.",
-   "Verify that the current tenant is on Growth or Enterprise and repeat the same flow there.",
-   "Compare refusal or absence on a lower-plan tenant with availability on a Growth tenant."
+   "Verify that the capability is absent or refused on a tenant below Growth and available on a Growth tenant, including switching between tenants by plan tier"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Verify that the current tenant is on a plan below Growth.; Verify that the current tenant is on Growth or Enterprise and repeat the same flow there.; Compare refusal or absence on a lower-plan tenant with availability on a Growth tenant."
+   "cannot test this case yet — no step can observe: Verify that the capability is absent or refused on a tenant below Growth and available on a Growth tenant, including switching between tenants by plan tier"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
-   "expect_count"
+   "place_counter_offer",
+   "expect_counter_offer_sent"
   ],
-  "ms": 15375
+  "ms": 10891
  },
  "plan": {
-  "title": "Post-Auction Negotiation Plan Availability",
+  "title": "Post-Auction Negotiation Plan Gating",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared QCS screen closest to the requested post-auction negotiation context."
+    "note": "Open a prepared QCS with bids so the counter-offer control can be exercised."
    },
    {
-    "step": "expect_count",
+    "step": "place_counter_offer",
     "args": {
-     "role": "button",
-     "name": "Counter Offer",
-     "min": 1
+     "price": 90
     },
-    "note": "Check whether a Counter Offer control is visible in the QCS; this does not establish the tenant's subscription plan."
+    "note": "Attempt the closest available post-auction per-vendor counter-offer action in QCS."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Assert that the counter offer was sent, establishing generic availability but not plan-specific gating."
    }
   ]
  }

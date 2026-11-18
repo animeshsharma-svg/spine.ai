@@ -3,46 +3,66 @@
   "caseId": "PRD-RFQ-007",
   "title": "Bidding Scope Rule: refused for a user without the Buyer role",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:30:00.872Z",
+  "compiledAt": "2026-11-13T14:50:55.682Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and as a Buyer on the same tenant",
-   "Locate and use the Bidding Scope Rule to require all-line or allow partial bidding",
-   "Assert that the control is refused or absent for the non-Buyer and available to the Buyer",
-   "Record tenant RBAC configuration when other roles are deliberately granted access"
+   "Sign in as a user without the Buyer role and verify whether Bidding Scope Rule is refused or unavailable.",
+   "Configure Bidding Scope Rule for all-line or partial bidding and repeat the comparison as a Buyer on the same tenant.",
+   "Observe and record the tenant's RBAC configuration when the rule is granted to additional roles."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer on the same tenant; Locate and use the Bidding Scope Rule to require all-line or allow partial bidding; Assert that the control is refused or absent for the non-Buyer and available to the Buyer; Record tenant RBAC configuration when other roles are deliberately granted access"
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify whether Bidding Scope Rule is refused or unavailable.; Configure Bidding Scope Rule for all-line or partial bidding and repeat the comparison as a Buyer on the same tenant.; Observe and record the tenant's RBAC configuration when the rule is granted to additional roles."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "compose_stages",
+   "set_title",
    "ask_tester",
-   "expect_no_error"
+   "expect_screen_clean"
   ],
-  "ms": 13606
+  "ms": 18441
  },
  "plan": {
-  "title": "Bidding Scope Role Access",
+  "title": "Bidding Scope Role Authorization",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open an existing event page where the tester can inspect the bidding configuration."
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Provides the closest available event configuration screen before the role-specific rule check."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title"
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a user without the Buyer role and as a Buyer on the same tenant, locate Bidding Scope Rule, try requiring all-line or allowing partial bidding with each role, and compare whether the action is refused, absent, or available"
+     "need": "sign in as a non-Buyer and then as a Buyer on the same tenant, test the Bidding Scope Rule for all-line and partial bidding, and compare whether the action is refused or available"
     },
-    "note": "Role-specific sessions and the Bidding Scope Rule action are not expressible by catalog steps."
+    "note": "The catalog cannot switch to or validate these user roles or operate the Bidding Scope Rule."
    },
    {
-    "step": "expect_no_error",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that no generic application error was left on screen after the tester's comparison."
+    "note": "Final assertion required by the plan format; it does not claim to verify the missing role-based behavior."
    }
   ]
  }

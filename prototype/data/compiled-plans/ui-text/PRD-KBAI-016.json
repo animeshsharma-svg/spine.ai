@@ -3,24 +3,28 @@
   "caseId": "PRD-KBAI-016",
   "title": "\"Remove Grouping\" restores the original PR view",
   "group": "PRD-KBAI",
-  "compiledAt": "2026-11-10T06:46:23.869Z",
+  "compiledAt": "2026-11-13T15:38:18.090Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
+   "Apply Smart Grouping as setup and verify that the exact same PRs are present after removal",
    "unconfirmed label \"Smart Groups\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
    "coverage partial: unconfirmed label \"Smart Groups\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "can only test part of this — no step for: Apply Smart Grouping as setup and verify that the exact same PRs are present after removal"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_purchase_requisitions",
-   "do_on_screen",
-   "expect_text"
+   "expect_visible",
+   "click",
+   "expect_text",
+   "expect_visible",
+   "expect_table"
   ],
-  "ms": 8480
+  "ms": 13419
  },
  "plan": {
   "title": "Remove Grouping Restores PR View",
@@ -28,14 +32,22 @@
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions page where Smart Grouping is already applied."
+    "note": "Open the Purchase Requisitions page where the grouped view is expected to be available."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_visible",
     "args": {
-     "goal": "click the Remove Grouping text beside Smart Grouping and verify that grouping is removed, Smart Groups are no longer shown, and the original PR table view returns"
+     "text": "Remove Grouping",
+     "visible": true
     },
-    "note": "Perform the unsupported Remove Grouping interaction and verify the resulting ungrouped PR view on screen."
+    "note": "Confirm the control required by the case is present before removing the grouping."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Remove Grouping"
+    },
+    "note": "Remove the applied Smart Grouping."
    },
    {
     "step": "expect_text",
@@ -43,7 +55,22 @@
      "text": "Smart Groups",
      "present": false
     },
-    "note": "Assert that the grouped Smart Groups presentation is no longer visible."
+    "note": "Verify that the grouped presentation is no longer shown."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Remove Grouping",
+     "visible": false
+    },
+    "note": "Verify that the remove-grouping control disappears after the grouping is removed."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "min": 1
+    },
+    "note": "Confirm the original PR table is rendered with at least one row, although the exact pre-grouping row set cannot be compared."
    }
   ]
  }

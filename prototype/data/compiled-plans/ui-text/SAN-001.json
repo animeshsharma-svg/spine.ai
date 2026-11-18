@@ -1,0 +1,183 @@
+{
+ "meta": {
+  "caseId": "SAN-001",
+  "title": "Set Zone Visibility for Best Price and Rank",
+  "group": "SAN",
+  "sheet": "session-s-mwkg8fpuvlwg",
+  "compiledAt": "2026-11-17T13:08:15.180Z",
+  "tier": "fast",
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [
+   "\"In samplevendor@vendortestt.co and Sampletest.sas@sasco45.in supplier sessions, submit pri\" is checked by signing in as samplevendor@vendortestt.co and Sampletest.sas@sasco45.in (switch_portal), not asked of a person",
+   "\"In samplevendor@vendortestt.co and Sampletest.sas@sasco45.in supplier sessions, submit pri\" is checked by signing in as samplevendor@vendortestt.co and Sampletest.sas@sasco45.in (switch_portal), not asked of a person",
+   "resolved: “Verify best price and rank are hidden in Yellow and Red vendors' own supplier-portal sessions; additional vendor session” — expect_zone reads each bidder's zone on its own portal (switch_portal{vendor:N}) and on the buyer's Responses; set_zone_visibility allows zones to see the best price / rank and expect_zone{rank, bestPrice} checks what they then see"
+  ],
+  "source": "llm",
+  "steps": 20,
+  "stepNames": [
+   "open_prepared",
+   "set_zone_visibility",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "expect_zone",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "expect_zone",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "expect_zone",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_zone"
+  ],
+  "state": "live",
+  "screen": "summary",
+  "ms": 0
+ },
+ "plan": {
+  "title": "Traffic-light best-price and rank visibility",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared live traffic-light auction without recreating it."
+   },
+   {
+    "step": "set_zone_visibility",
+    "args": {
+     "bestPriceZones": [
+      "green"
+     ],
+     "bestPrices": 1,
+     "rankZones": [
+      "green"
+     ]
+    },
+    "note": "Use Actions to configure and confirm Green-only visibility for both indicators."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "test@dummy.com"
+    },
+    "note": "Open the supported vendor's own supplier session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {},
+    "note": "Reach this auction's pricing round."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 95
+    },
+    "note": "Establish a green bid: 95 × 10 = 950."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the quote was accepted before testing bidder visibility."
+   },
+   {
+    "step": "expect_zone",
+    "args": {
+     "zone": "green",
+     "side": "vendor",
+     "rank": true,
+     "bestPrice": true
+    },
+    "note": "Assert the green bidder sees both best price and rank."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "samplevendor@vendortestt.co"
+    }
+   },
+   {
+    "step": "vendor_open_event"
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    }
+   },
+   {
+    "step": "expect_bid_submitted"
+   },
+   {
+    "step": "expect_zone",
+    "args": {
+     "zone": "not green",
+     "side": "vendor",
+     "rank": false,
+     "bestPrice": false
+    }
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Sampletest.sas@sasco45.in"
+    }
+   },
+   {
+    "step": "vendor_open_event"
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 120
+    }
+   },
+   {
+    "step": "expect_bid_submitted"
+   },
+   {
+    "step": "expect_zone",
+    "args": {
+     "zone": "not green",
+     "side": "vendor",
+     "rank": false,
+     "bestPrice": false
+    }
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "test@dummy.com"
+    },
+    "note": "Return to the directly testable green bidder."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {},
+    "note": "Reload the bidder's round after the other-zone checks."
+   },
+   {
+    "step": "expect_zone",
+    "args": {
+     "zone": "green",
+     "side": "vendor",
+     "rank": true,
+     "bestPrice": true
+    },
+    "note": "Confirm Green-only permissions still expose both indicators to the green bidder."
+   }
+  ]
+ }
+}

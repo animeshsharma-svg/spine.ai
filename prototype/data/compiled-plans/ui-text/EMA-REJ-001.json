@@ -4,29 +4,28 @@
   "title": "Rejecting without a comment bounces back and is not recorded",
   "group": "EMA-REJ",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:57:12.459Z",
+  "compiledAt": "2026-11-13T14:22:23.476Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create the event and submit it into the two-step approval workflow as Ravi",
-   "Open Asha's mailbox and the Procol approval email",
-   "Click Reject, leave the required comment empty, and send the unchanged Action:Reject email",
-   "Wait for Procol to process the mailbox and verify the exact bounce-back message and absence of a separate comment-required email",
-   "Verify from the mailbox and approval history that the rejection was not recorded and the event remains pending specifically on Asha"
+   "Create and submit the event for approval, open Asha's external mailbox, reject from the Procol email with an empty comment, send the Action:Reject reply, wait for processing, and verify the exact bounce-back email and absence of a separate comment-required email."
   ],
   "warnings": [
    "moved open_event to the front — the steps after it act on that event's page",
    "moved open_event to the front — the steps after it act on that event's page",
-   "can only test part of this — no step for: Create the event and submit it into the two-step approval workflow as Ravi; Open Asha's mailbox and the Procol approval email; Click Reject, leave the required comment empty, and send the unchanged Action:Reject email; Wait for Procol to process the mailbox and verify the exact bounce-back message and absence of a separate comment-required email; Verify from the mailbox and approval history that the rejection was not recorded and the event remains pending specifically on Asha"
+   "can only test part of this — no step for: Create and submit the event for approval, open Asha's external mailbox, reject from the Procol email with an empty comment, send the Action:Reject reply, wait for processing, and verify the exact bounce-back email and absence of a separate comment-required email."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_text"
   ],
-  "ms": 14489
+  "ms": 21831
  },
  "plan": {
   "title": "Email rejection without comment",
@@ -36,21 +35,46 @@
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named event after the mailbox action to inspect its workflow state."
+    "note": "Open the event after the tester completes the external email actions."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required email approval configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "the company's approval mailbox connected to Procol",
+     "value": "On"
+    },
+    "note": "Ensure Procol can read and send approval mailbox replies."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the two-step email approval workflow needed by the case."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "create and submit QA Email Approval - Office Chairs Nov as Ravi, use Asha's mailbox to open the approval email, reject without entering a comment, send the unchanged Action:Reject email, wait for processing, and leave the event ready to inspect"
+     "need": "Create and submit the named event for approval, then use Asha's mailbox to reject from the Procol email with an empty comment, send the Action:Reject reply unchanged, wait for processing, and verify the exact bounce-back email and that no separate comment-required email is sent."
     },
-    "note": "The catalog has no mailbox or approval-workflow steps, so the tester must perform the email rejection scenario."
+    "note": "External mailbox access and email approval submission are not available in the catalog."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Approval in Progress"
+     "text": "Approval in Progress",
+     "present": true
     },
-    "note": "Check the closest available UI evidence that the event is still awaiting approval rather than having recorded the rejection."
+    "note": "Check the event remains in an approval-pending state rather than recording the rejection."
    }
   ]
  }

@@ -1,58 +1,55 @@
 {
  "meta": {
   "caseId": "DRV-BID-009",
-  "title": "Unverified vendor submission is refused when event blocks unverified vendors",
+  "title": "Non-regretted lines remain fully open for commercial quotation by qualified vendors",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-12T13:34:28.370Z",
+  "compiledAt": "2026-11-13T13:30:39.268Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Verify no new PO is generated upon rejecting a bid while multiple PO setting is off"
+  ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "can only test part of this — no step for: Verify no new PO is generated upon rejecting a bid while multiple PO setting is off"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
-   "require_setting",
-   "do_on_screen",
-   "expect_screen_clean"
+   "click",
+   "expect_text"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 16910
+  "ms": 20072
  },
  "plan": {
-  "title": "Reject Bid with Single-PO Setting",
+  "title": "DRV-BID-009 — Reject Bid respects allow_multiple_po_on_same_bid setting",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared closed RFQ on the buyer's Responses tab."
+    "note": "Open the closed RFQ Responses tab on the prepared event"
    },
    {
-    "step": "require_setting",
+    "step": "click",
     "args": {
-     "key": "allow_multiple_po_on_same_bid",
-     "value": "Off"
+     "role": "button",
+     "name": "Reject",
+     "within": "Vendor A"
     },
-    "note": "Ensure the tenant blocks multiple purchase orders from the same bid."
+    "note": "Click Reject Bid on Vendor A's bid"
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_text",
     "args": {
-     "goal": "On Vendor A's bid in the Responses tab, click Reject Bid and confirm the rejection; verify the bid is shown as rejected, the existing purchase order remains, and no new purchase order is generated."
+     "text": "Rejected",
+     "present": true
     },
-    "note": "Perform and verify the buyer-side rejection flow and its purchase-order behavior."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the resulting screen has no rendering or server errors."
+    "note": "Assert the bid is marked as rejected"
    }
   ]
  }

@@ -3,28 +3,29 @@
   "caseId": "PRD-KBSRC-657",
   "title": "Participating vendors see the exact best price per line item",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:29:48.927Z",
+  "compiledAt": "2026-11-13T14:50:29.125Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enable the tenant's Show Best Prices setting.",
-   "Directly verify the vendor's per-line Best Price value matches the buyer's best-price row.",
+   "Verify the vendor's best-price value separately against the buyer's best-price row for every individual line item.",
    "unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "coverage partial: unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Enable the tenant's Show Best Prices setting.; Directly verify the vendor's per-line Best Price value matches the buyer's best-price row."
+   "can only test part of this — no step for: Verify the vendor's best-price value separately against the buyer's best-price row for every individual line item."
   ],
   "source": "llm",
-  "steps": 19,
+  "steps": 20,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
    "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -32,34 +33,41 @@
    "invite_vendor",
    "publish",
    "expect_published",
+   "place_surrogate_bid",
    "expect_bid_submitted",
    "expect_bid_submitted",
    "open_master_qcs",
-   "expect_qcs_ranks",
    "expect_qcs_cell",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
    "expect_text"
   ],
-  "ms": 81243
+  "ms": 26919
  },
  "plan": {
-  "title": "Participating Vendor Best Price Visibility",
+  "title": "Participating Vendor Sees Best Price",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a multi-stage event so an RFQ pricing stage can be configured."
+    "note": "Open the eRFX creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Show Best Prices",
+     "value": "On"
+    },
+    "note": "Enable the tenant behavior required for vendors to see best prices."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "PRD-KBSRC-657 Best Price Visibility"
+     "title": "Best Price Per Line Test"
     },
-    "note": "A title is required for a publishable event."
+    "note": "Give the event a searchable title required for publishing."
    },
    {
     "step": "compose_stages",
@@ -68,23 +76,28 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ, which supports vendor bids and best-price comparison."
+    "note": "Create an RFQ pricing stage rather than the default auction stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage before selecting its template and line items."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply the RFQ pricing template before adding line items."
+    "note": "Apply the RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 1
+     "count": 2
     },
-    "note": "Create a line item whose competing prices can be compared."
+    "note": "Create two line items so the pricing view contains multiple lines."
    },
    {
     "step": "fill_sheet",
-    "args": {},
     "note": "Complete the RFQ pricing sheet."
    },
    {
@@ -92,57 +105,50 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a bidding schedule before publishing."
+    "note": "Commit a valid bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two participating vendors so one can provide the L1 price."
+    "note": "Invite two vendors so their bids can be compared."
    },
    {
     "step": "publish",
-    "args": {},
-    "note": "Publish the event so vendors can submit bids."
+    "note": "Publish the event so vendors can participate."
    },
    {
     "step": "expect_published",
-    "args": {},
     "note": "Confirm the event reached a real published project page."
    },
    {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the first vendor's bid was accepted."
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Enter the lowest bid on behalf of the first vendor, establishing the expected best price."
    },
    {
     "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the second vendor's bid was accepted."
+    "note": "Confirm the surrogate bid was accepted."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Confirm the participating vendor's bid was accepted."
    },
    {
     "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer comparison grid containing the competing bids."
-   },
-   {
-    "step": "expect_qcs_ranks",
-    "args": {
-     "by": "RFQ Rate",
-     "order": "lowest",
-     "atLeast": 2
-    },
-    "note": "Verify the buyer-side ranking follows the lowest bid."
+    "note": "Open the buyer's comparison grid to inspect the best-price result."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
-     "vendor": 2,
+     "vendor": 1,
      "number": 90
     },
-    "note": "Verify the buyer-side lower bid is 90 for the second vendor."
+    "note": "Verify the buyer's first vendor column contains the known lowest bid of 90."
    },
    {
     "step": "switch_portal",
@@ -156,21 +162,15 @@
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's RFQ pricing view as the vendor."
+    "note": "Open the event's RFQ pricing view as the participating vendor."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Best Price"
+     "text": "90",
+     "present": true
     },
-    "note": "Check whether the vendor view exposes a Best Price indicator."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "90"
-    },
-    "note": "Check for the known L1 value in the vendor's view, although the catalog cannot prove it is the per-line best-price field."
+    "note": "Verify the vendor view exposes the exact lowest bid value established in the buyer's QCS."
    }
   ]
  }

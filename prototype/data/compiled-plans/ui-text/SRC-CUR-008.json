@@ -4,7 +4,7 @@
   "title": "The same savings strategy twice",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:21:54.717Z",
+  "compiledAt": "2026-11-13T11:54:50.764Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,17 +17,19 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 9,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
+   "set_sheet_cell",
+   "set_sheet_cell",
    "do_on_screen",
    "expect_message"
   ],
-  "ms": 9724
+  "ms": 10336
  },
  "plan": {
   "title": "Reject duplicate Budget savings strategy",
@@ -37,40 +39,59 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow described by the case."
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfp"
+     "eventType": "rfq"
     },
-    "note": "Set the event type to RFP before configuring the template."
+    "note": "Set the event type to RFQ as required by the case."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title for a create flow."
+    "args": {
+     "title": "Duplicate Budget Savings Strategy Test"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the available RFP template so the product sheet is rendered."
+    "note": "Apply an RFQ template so the pricing sheet and savings controls are available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER",
-     "quantity": "10"
+     "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the CYLINDER line item and set its requested quantity to 10."
+    "note": "Add the specified CYLINDER product; its mapped Variant 1 should populate from the product selection."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Set the requested quantity from the test data."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Choose the required delivery location."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the single-stage RFP create screen, choose the CYLINDER WITH KEY & KNOB product so Product Variant shows Default Variant, set Delivery location to Plant Name (LOC-0001), open Savings, add the Budget strategy once, attempt to add Budget a second time, and stop with the refusal visible."
+     "goal": "On the buyer's single-stage RFQ create screen, open Savings, add the Budget savings strategy once, attempt to add the same Budget strategy a second time, and stop with the refusal message visible."
     },
-    "note": "Perform the product variant, delivery location, and duplicate Budget strategy interactions that have no dedicated catalog steps."
+    "note": "Perform the savings interaction that no dedicated catalog step can express."
    },
    {
     "step": "expect_message",
@@ -78,7 +99,7 @@
      "kind": "error",
      "text": "Savings Strategy Already Present!"
     },
-    "note": "Assert the duplicate strategy was refused with the required message."
+    "note": "Assert that Procol refused the duplicate savings strategy."
    }
   ]
  }

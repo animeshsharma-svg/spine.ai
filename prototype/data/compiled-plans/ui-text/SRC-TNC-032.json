@@ -4,11 +4,11 @@
   "title": "eRFX Technical stage only, one clause Required: the vendor accepts only the Required clause",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:19:42.080Z",
+  "compiledAt": "2026-11-13T13:05:58.723Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly assert that the vendor accepted only the Required clause while leaving the optional clause unaccepted; no catalog assertion exposes individual vendor T&C checkbox state.",
+   "Directly verify that Vendor A accepted only \"Payment within 45 days\" and left \"Delivery within 7 days\" unaccepted while submitting the technical response.",
    "unconfirmed label \"Payment within 45 days\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
    "unconfirmed label \"Delivery within 7 days\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
@@ -19,10 +19,10 @@
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
    "coverage partial: unconfirmed label \"Payment within 45 days\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
    "coverage partial: unconfirmed label \"Delivery within 7 days\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Directly assert that the vendor accepted only the Required clause while leaving the optional clause unaccepted; no catalog assertion exposes individual vendor T&C checkbox state."
+   "can only test part of this — no step for: Directly verify that Vendor A accepted only \"Payment within 45 days\" and left \"Delivery within 7 days\" unaccepted while submitting the technical response."
   ],
   "source": "llm",
-  "steps": 29,
+  "steps": 26,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -43,21 +43,18 @@
    "expect_published",
    "switch_portal",
    "vendor_open_event",
+   "ask_tester",
    "expect_text",
-   "expect_text",
-   "click",
-   "switch_portal",
-   "place_bid",
-   "expect_bid_submitted",
-   "switch_portal",
    "vendor_open_event",
    "expect_text",
-   "expect_text"
+   "expect_text",
+   "switch_portal",
+   "expect_responses"
   ],
-  "ms": 36197
+  "ms": 38143
  },
  "plan": {
-  "title": "SRC-TNC-032 Technical Stage Terms Acceptance",
+  "title": "SRC-TNC-032 Technical Required Clause",
   "steps": [
    {
     "step": "open_create",
@@ -72,7 +69,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation required by the scenario."
+    "note": "Enable eRFX projects for the test."
    },
    {
     "step": "require_setting",
@@ -80,12 +77,12 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow the buyer to add vendors during event creation."
+    "note": "Allow the vendor to be added during event creation."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-TNC-032 Technical T&C"
+     "title": "SRC-TNC-032 Technical Required Clause"
     },
     "note": "Provide the mandatory event title."
    },
@@ -97,7 +94,7 @@
       "rfq"
      ]
     },
-    "note": "Create the required Technical plus RFQ stage combination."
+    "note": "Create the required Technical and RFQ stages."
    },
    {
     "step": "switch_stage",
@@ -115,7 +112,7 @@
     "args": {
      "count": 1
     },
-    "note": "Add the event's required line item."
+    "note": "Add the required line item to the project."
    },
    {
     "step": "fill_questionnaires"
@@ -142,93 +139,60 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit the 30-minute event schedule."
+    "note": "Commit the required 30-minute event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor available for the case."
+    "note": "Invite one QA vendor for the submission."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured eRFX event."
+    "note": "Publish the configured eRFX project."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publication reached a real project page."
+    "note": "Confirm the project was published successfully."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Open the invited vendor's separate supplier session."
+    "note": "Open the invited QA vendor's supplier portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the Technical stage in the vendor portal."
+    "note": "Open the Technical stage where the terms must be handled."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "in the vendor portal, accept only the Required clause \"Payment within 45 days\", leave \"Delivery within 7 days\" unaccepted, answer the Technical questionnaire, and submit the technical response"
+    },
+    "note": "The catalog has no step that directly manipulates or verifies individual vendor clause acceptance states."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Payment within 45 days"
+     "text": "Submitted",
+     "present": true
     },
-    "note": "Verify the vendor is shown the Required clause on the Technical stage."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Delivery within 7 days"
-    },
-    "note": "Verify the vendor is shown the optional clause on the Technical stage."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "checkbox",
-     "name": "Payment within 45 days"
-    },
-    "note": "Accept the Required clause in the vendor session; the optional clause is deliberately not selected."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "buyer"
-    },
-    "note": "Return to the buyer session before submitting the vendor bid through the supported bidding flow."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "price": 100
-    },
-    "note": "Submit the vendor's Technical response and RFQ quote at 100 using the supported two-stage vendor bid flow."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify that the vendor submission was accepted."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "vendor"
-    },
-    "note": "Inspect the vendor's RFQ-stage view."
+    "note": "Confirm the vendor portal shows the technical submission as submitted."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the RFQ pricing stage in the vendor portal."
+    "note": "Open the RFQ stage to verify the Technical-only clauses are not presented there."
    },
    {
     "step": "expect_text",
@@ -236,7 +200,7 @@
      "text": "Payment within 45 days",
      "present": false
     },
-    "note": "Verify the Technical-stage Required clause is not requested on the RFQ stage."
+    "note": "The Required Technical-stage clause must not appear on the RFQ stage."
    },
    {
     "step": "expect_text",
@@ -244,7 +208,22 @@
      "text": "Delivery within 7 days",
      "present": false
     },
-    "note": "Verify the Technical-stage optional clause is not requested on the RFQ stage."
+    "note": "The optional Technical-stage clause must not appear on the RFQ stage."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "stage": "rfp"
+    },
+    "note": "Confirm the buyer sees the vendor's Technical-stage response."
    }
   ]
  }

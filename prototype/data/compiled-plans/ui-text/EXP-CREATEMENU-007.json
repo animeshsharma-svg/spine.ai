@@ -4,36 +4,65 @@
   "title": "Events list and the Create Event menu: \"Technical Offer RFP-23189 Withdrawn about 2h ago 1/38 SK\" opens the stage page",
   "group": "EXP-CREATEMENU",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:34:41.269Z",
+  "compiledAt": "2026-11-13T13:58:41.682Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_event",
-   "expect_navigated"
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_url_contains"
   ],
-  "ms": 66165
+  "ms": 6820
  },
  "plan": {
-  "title": "Open withdrawn technical offer stage page",
+  "title": "Open withdrawn RFP stage page",
   "steps": [
    {
     "step": "open_event",
     "args": {
-     "title": "Technical Offer RFP-23189"
+     "title": "Technical Offer RFP-23189 Withdrawn"
     },
-    "note": "Open the named withdrawn event from the existing events list."
+    "note": "Open the specifically named existing withdrawn event from the buyer's Events list."
    },
    {
-    "step": "expect_navigated",
+    "step": "require_setting",
     "args": {
-     "screen": "event",
-     "path": "/project/"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Verify that navigation reached the event's project/stage page."
+    "note": "Enable RFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "boq_in_erfx_allowed",
+     "value": "On"
+    },
+    "note": "Enable BOQ events as required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "scheduled_events_enabled",
+     "value": "On"
+    },
+    "note": "Enable scheduled events as required by the case configuration."
+   },
+   {
+    "step": "expect_url_contains",
+    "args": {
+     "text": "/project/"
+    },
+    "note": "Verify navigation reached the event's project stage page."
    }
   ]
  }

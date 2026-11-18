@@ -3,38 +3,38 @@
   "caseId": "PRD-VM-007",
   "title": "Vendor Approval Levels (vendor.approval.levels) = 6 (above the allowed range)",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T02:29:31.101Z",
+  "compiledAt": "2026-11-13T15:07:17.341Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set tenant setting vendor.approval.levels to 6 and observe the range-validation refusal (allowed range 1–5).",
-   "Read the stored vendor.approval.levels value and verify it is not 6."
+   "Directly inspect and assert that the persisted vendor.approval.levels value is not 6 after the rejected save."
   ],
   "warnings": [
-   "can only test part of this — no step for: Set tenant setting vendor.approval.levels to 6 and observe the range-validation refusal (allowed range 1–5).; Read the stored vendor.approval.levels value and verify it is not 6."
+   "can only test part of this — no step for: Directly inspect and assert that the persisted vendor.approval.levels value is not 6 after the rejected save."
   ],
   "source": "llm",
   "steps": 2,
   "stepNames": [
-   "ask_tester",
+   "require_setting",
    "expect_screen_clean"
   ],
-  "ms": 8630
+  "ms": 14428
  },
  "plan": {
-  "title": "Vendor Approval Levels Above Range",
+  "title": "Reject Vendor Approval Levels Above Range",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "sign in as the Tenant Admin, open the tenant settings, try to save vendor.approval.levels as 6, and inspect the stored value to verify it is not 6"
+     "key": "vendor.approval.levels",
+     "value": 6
     },
-    "note": "The catalog cannot access tenant-admin configuration or verify persisted setting values."
+    "note": "Attempt to set the tenant configuration to the out-of-range value 6; the runner reports whether Procol refuses the change and restores the setting."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Checks that the session remains free of an application error after the tester's configuration attempt, but does not verify the setting outcome."
+    "note": "Confirm the settings operation did not leave a visible application error or broken screen."
    }
   ]
  }

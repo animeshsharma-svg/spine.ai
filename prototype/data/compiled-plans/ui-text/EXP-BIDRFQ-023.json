@@ -4,47 +4,100 @@
   "title": "A live RFQ with a vendor's bid: \"Rejected Bids\" opens the \"Rejected Bids\" window",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:19:07.887Z",
+  "compiledAt": "2026-11-13T13:47:07.373Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "That no event data changes before a button in the Rejected Bids window is pressed"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: That no event data changes before a button in the Rejected Bids window is pressed"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "event_menu",
    "expect_visible",
    "expect_visible"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 6645
+  "ms": 13908
  },
  "plan": {
-  "title": "Rejected Bids window opens",
+  "title": "Rejected Bids window on live RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ with a vendor bid on its Responses tab."
+    "note": "Open the prepared live RFQ with one vendor bid on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Keep counter offers visible on RFQ rounds."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Allow rejection actions while bidding remains open."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-editing configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required counter-offer percentage configuration."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Rejected Bids"
+     "item": "Rejected Bids",
+     "stage": "rfq"
     },
-    "note": "Choose Rejected Bids from the RFQ stage Settings menu."
+    "note": "Open the RFQ Settings menu and choose Rejected Bids without pressing any control in the resulting window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Rejected Bids",
+     "role": "dialog",
+     "name": "Rejected Bids",
      "visible": true
     },
-    "note": "Verify that the Rejected Bids window opened."
+    "note": "Assert that the Rejected Bids window opened."
    },
    {
     "step": "expect_visible",
@@ -53,7 +106,7 @@
      "name": "Close",
      "visible": true
     },
-    "note": "Verify that the window provides a Close button and remains open without changing the event."
+    "note": "Assert that the window offers a Close button."
    }
   ]
  }

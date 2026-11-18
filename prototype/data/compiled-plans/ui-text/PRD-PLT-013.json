@@ -3,24 +3,24 @@
   "caseId": "PRD-PLT-013",
   "title": "Approval Delegation / Out-of-Office Auto-Reassignment: refused for a user without the Approver role",
   "group": "PRD-PLT",
-  "compiledAt": "2026-11-10T06:57:22.754Z",
+  "compiledAt": "2026-11-13T15:47:35.373Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The Approval Delegation / Out-of-Office Auto-Reassignment workflow and its refusal or availability result",
-   "Signing in as a non-Approver and then as an Approver in the same tenant",
-   "Verifying tenant RBAC configuration and determining whether access is deliberately granted to other roles"
+   "Access the specified Enterprise tenant and sign in as both the user without the Approver role and an Approver to use Approval Delegation / Out-of-Office Auto-Reassignment and compare whether the action is refused, absent, or available.",
+   "Observe and verify the Approval Delegation / Out-of-Office Auto-Reassignment control and its role-based outcome; the catalog has no step for this feature.",
+   "The exact rendered label for the approval-delegation control is unconfirmed."
   ],
   "warnings": [
-   "can only test part of this — no step for: The Approval Delegation / Out-of-Office Auto-Reassignment workflow and its refusal or availability result; Signing in as a non-Approver and then as an Approver in the same tenant; Verifying tenant RBAC configuration and determining whether access is deliberately granted to other roles"
+   "can only test part of this — no step for: Access the specified Enterprise tenant and sign in as both the user without the Approver role and an Approver to use Approval Delegation / Out-of-Office Auto-Reassignment and compare whether the action is refused, absent, or available.; Observe and verify the Approval Delegation / Out-of-Office Auto-Reassignment control and its role-based outcome; the catalog has no step for this feature.; The exact rendered label for the approval-delegation control is unconfirmed."
   ],
   "source": "llm",
   "steps": 2,
   "stepNames": [
    "ask_tester",
-   "expect_no_error"
+   "expect_text"
   ],
-  "ms": 9227
+  "ms": 10860
  },
  "plan": {
   "title": "Approval Delegation Role Restriction",
@@ -28,14 +28,17 @@
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Approver user and then as an Approver in the same Enterprise tenant, attempt Approval Delegation / Out-of-Office Auto-Reassignment for each, and record whether the action is absent, refused, or available"
+     "need": "Sign in to the specified Enterprise tenant as the user without the Approver role, verify whether Approval Delegation / Out-of-Office Auto-Reassignment is absent or refused, then repeat as an Approver and verify the action is available; report any RBAC configuration that grants it to additional roles."
     },
-    "note": "No catalog step can reach or observe this role-specific approval delegation workflow or switch between the required user personas."
+    "note": "A tester is required because the catalog cannot sign in as arbitrary personas or operate the approval-delegation feature."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Checks that the session did not show a generic application error after the tester's investigation, but does not assert the role-based outcome."
+    "step": "expect_text",
+    "args": {
+     "text": "Approval Delegation",
+     "present": true
+    },
+    "note": "Closest observable check after the tester's session, but the exact control label and role-specific behavior are not represented by the catalog."
    }
   ]
  }

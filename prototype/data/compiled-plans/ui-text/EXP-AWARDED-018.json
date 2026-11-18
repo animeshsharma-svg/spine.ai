@@ -4,75 +4,63 @@
   "title": "An awarded event: \"Withdraw\" is greyed out and says why",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:14:15.201Z",
+  "compiledAt": "2026-11-13T13:44:06.822Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 6,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "go_to",
-   "expect_settings_menu",
    "open_event_settings",
-   "attempt"
+   "expect_menu_item",
+   "hover",
+   "expect_message"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 7867
+  "ms": 19439
  },
  "plan": {
-  "title": "Awarded Event Withdraw Disabled",
+  "title": "Awarded event withdraw is greyed out with tooltip",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared awarded event on the buyer's summary page."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "stage",
-     "stage": "rfq"
-    },
-    "note": "Navigate to the RFQ stage named in the case."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Open the RFQ Responses sub-tab before accessing its Settings menu."
-   },
-   {
-    "step": "expect_settings_menu",
-    "args": {
-     "greyed": [
-      "Withdraw"
-     ]
-    },
-    "note": "Assert that Withdraw is present but disabled and that its explanatory tooltip is shown."
+    "note": "Open the prepared awarded event summary"
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Reopen the Settings menu so the disabled Withdraw item can be directly tested."
+    "note": "Open the event settings (gear) menu"
    },
    {
-    "step": "attempt",
+    "step": "expect_menu_item",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "menuitem",
-      "name": "Withdraw"
-     },
-     "expect": "nothing_opens"
+     "item": "Withdraw",
+     "enabled": false
     },
-    "note": "Try the greyed-out Withdraw control and verify that it does not open a dialog or cause a change."
+    "note": "Assert Withdraw is greyed out in the Settings menu"
+   },
+   {
+    "step": "hover",
+    "args": {
+     "role": "menuitem",
+     "name": "Withdraw"
+    },
+    "note": "Hover over Withdraw to reveal its tooltip"
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "tooltip",
+     "on": "Withdraw",
+     "text": "Auction cannot be withdrawn when the event is live"
+    },
+    "note": "Assert the tooltip explains why Withdraw is disabled"
    }
   ]
  }

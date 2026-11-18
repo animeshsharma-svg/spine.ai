@@ -3,47 +3,54 @@
   "caseId": "PRD-RFX-050",
   "title": "Over-Ordering Config: refused for a user without the Buyer role",
   "group": "PRD-RFX",
-  "compiledAt": "2026-11-10T01:35:11.943Z",
+  "compiledAt": "2026-11-13T14:55:15.332Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Configure or verify the tenant's Enterprise plan and Over-Ordering Config setting.",
-   "Sign in as a user without the Buyer role and verify that user's RBAC access.",
-   "Attempt awarding beyond the requested quantity within the configured tolerance.",
-   "Repeat the action as a Buyer and compare availability or refusal.",
-   "Switch between the non-Buyer and Buyer identities in the same tenant."
+   "Sign in as a user without the Buyer role and repeat as a Buyer on the same Enterprise tenant.",
+   "Locate and exercise Over-Ordering Config to award beyond the requested quantity within tolerance.",
+   "Compare whether the action is refused or absent for the non-Buyer and available to the Buyer.",
+   "Verify or set the tenant's Enterprise plan."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Configure or verify the tenant's Enterprise plan and Over-Ordering Config setting.; Sign in as a user without the Buyer role and verify that user's RBAC access.; Attempt awarding beyond the requested quantity within the configured tolerance.; Repeat the action as a Buyer and compare availability or refusal.; Switch between the non-Buyer and Buyer identities in the same tenant."
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and repeat as a Buyer on the same Enterprise tenant.; Locate and exercise Over-Ordering Config to award beyond the requested quantity within tolerance.; Compare whether the action is refused or absent for the non-Buyer and available to the Buyer.; Verify or set the tenant's Enterprise plan."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "start_awarding",
-   "expect_award_counters"
+   "ask_tester",
+   "expect_no_error"
   ],
-  "ms": 9010
+  "ms": 10756
  },
  "plan": {
-  "title": "Over-Ordering Role Access",
+  "title": "Over-Ordering RBAC Access",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Reach the closest available prepared state with bids for awarding."
+    "note": "Reach a prepared event with bids so the awarding flow is available."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding workflow, which is the nearest catalog screen to the requested award action."
+    "note": "Open the closest available awarding screen before the role-specific and Over-Ordering Config checks."
    },
    {
-    "step": "expect_award_counters",
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the non-Buyer user and the Buyer on the same Enterprise tenant, locate Over-Ordering Config, attempt awarding beyond the requested quantity within tolerance for each role, and record whether the action is refused, absent, or available"
+    },
+    "note": "The catalog has no step for alternate-role sessions, tenant-plan verification, or the Over-Ordering Config control."
+   },
+   {
+    "step": "expect_no_error",
     "args": {},
-    "note": "Assert that the awarding screen rendered its allocation counters, without claiming this observes Over-Ordering Config or role enforcement."
+    "note": "Assert that the prepared awarding screen remains usable after the tester's role-specific investigation."
    }
   ]
  }

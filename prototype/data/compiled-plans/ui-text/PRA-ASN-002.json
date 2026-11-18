@@ -4,31 +4,24 @@
   "title": "Assign is disabled if even one selected item is partly used",
   "group": "PRA-ASN",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:00:20.889Z",
+  "compiledAt": "2026-11-13T14:24:55.933Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "Select one item from PR-1 and one item from PR-5 in the same selection."
-  ],
-  "warnings": [
-   "resolved: “Verify the Assign control's disabled state and tooltip specifically for that mixed selection.” — expect_message{kind:\"tooltip\", on} hovers the control and reads its tooltip",
-   "cannot test this case yet — no step can observe: Select one item from PR-1 and one item from PR-5 in the same selection."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 7,
+  "steps": 5,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
-   "select_pr",
-   "select_pr",
+   "do_on_screen",
    "expect_disabled",
-   "hover",
    "expect_message"
   ],
-  "ms": 11484
+  "ms": 13194
  },
  "plan": {
-  "title": "Mixed PR assignment disabled",
+  "title": "Assign disabled for mixed PR item usage",
   "steps": [
    {
     "step": "open_purchase_requisitions",
@@ -40,37 +33,21 @@
     "args": {
      "tab": "Open"
     },
-    "note": "Use the Open tab required for selectable requisition items."
+    "note": "Stay on the Open tab where selectable PR items are available."
    },
    {
-    "step": "select_pr",
+    "step": "do_on_screen",
     "args": {
-     "pr": "PR-1",
-     "items": 1
+     "goal": "select one PR-1 item and the PR-5 partly used item, then leave the screen showing the Assign control disabled"
     },
-    "note": "Closest available representation of selecting one item from PR-1."
-   },
-   {
-    "step": "select_pr",
-    "args": {
-     "pr": "PR-5",
-     "items": 1
-    },
-    "note": "Closest available representation of adding one item from PR-5; the catalog does not guarantee that this preserves the first PR selection."
+    "note": "Select the mixed fully open and partly used items, which spans two PRs and is not expressible by select_pr."
    },
    {
     "step": "expect_disabled",
     "args": {
      "control": "Assign"
     },
-    "note": "Attempt to observe the expected disabled Assign control, although the required mixed selection cannot be guaranteed."
-   },
-   {
-    "step": "hover",
-    "args": {
-     "text": "Assign"
-    },
-    "note": "Hover the Assign control to expose its disabled-state tooltip."
+    "note": "Verify Assign is disabled for the mixed selection."
    },
    {
     "step": "expect_message",
@@ -79,7 +56,7 @@
      "on": "Assign",
      "text": "No open items selected"
     },
-    "note": "Check the expected explanatory tooltip text."
+    "note": "Verify the disabled Assign control shows the required explanation."
    }
   ]
  }

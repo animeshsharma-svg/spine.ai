@@ -4,58 +4,69 @@
   "title": "Vendor sees its rank in an RFQ only where the company shows ranks",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:11:54.870Z",
+  "compiledAt": "2026-11-13T12:41:38.133Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Company setting verification for whether RFQ ranks are globally enabled or hidden for vendors"
+   "The alternate company configuration where RFQ ranks are hidden, including verifying that no rank is shown there.",
+   "unconfirmed label \"90\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "can only test part of this — no step for: Company setting verification for whether RFQ ranks are globally enabled or hidden for vendors"
+   "coverage partial: unconfirmed label \"90\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: The alternate company configuration where RFQ ranks are hidden, including verifying that no rank is shown there."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
+   "expect_text",
    "expect_text"
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 12221
+  "ms": 15382
  },
  "plan": {
-  "title": "Vendor sees rank in RFQ based on company configuration",
+  "title": "Vendor RFQ rank visibility",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared event summary using the API state"
+    "note": "Open the prepared RFQ with two bids without creating or searching for another event."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Switch to the vendor portal session as Vendor A"
+    "note": "Move to Vendor A’s supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the pricing stage of the RFQ event on the vendor portal"
+    "note": "Open the prepared RFQ’s pricing round in Vendor A’s portal."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Rank",
+     "text": "Rank 2"
+    },
+    "note": "Verify that Vendor A sees the expected rank when RFQ ranks are displayed."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "90",
      "present": false
     },
-    "note": "Assert that rank is not shown or is conditional depending on company rules"
+    "note": "Verify that Vendor B’s bid price is not visible in Vendor A’s portal view."
    }
   ]
  }

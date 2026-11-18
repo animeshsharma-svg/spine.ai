@@ -4,14 +4,30 @@
   "title": "A saved eRFX draft: \"Publish\" opens the \"Publish Event\" window",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:41:32.821Z",
+  "compiledAt": "2026-11-13T14:04:22.289Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
   "source": "llm",
-  "steps": 8,
+  "steps": 19,
   "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
    "open_events_list",
    "expect_events_list",
    "filter_events",
@@ -21,34 +37,110 @@
    "expect_visible",
    "expect_visible"
   ],
-  "ms": 69178
+  "ms": 18001
  },
  "plan": {
-  "title": "Draft Publish Event Window",
+  "title": "Saved eRFX Draft Publish Window",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start an eRFX project creation flow."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration for vendor addition during creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage configuration."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-019 Publish Window"
+    },
+    "note": "Provide the mandatory draft title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Configure the draft with an offered template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item to make the draft valid enough to reopen."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for the draft."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule so the saved draft has its event schedule configured."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the eRFX event as an unpublished draft."
+   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list where draft events can be accessed."
+    "note": "Navigate to the events list to reopen the saved draft."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the events list rendered before navigating to drafts."
+    "note": "Confirm the events list rendered before selecting the Drafts tab."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show saved eRFX drafts."
+    "note": "Show saved drafts."
    },
    {
     "step": "open_first_event",
     "args": {
-     "tab": "Drafts"
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-019 Publish Window"
     },
-    "note": "Open the first saved draft, which reopens its create screen."
+    "note": "Open the draft created by this plan."
    },
    {
     "step": "click",
@@ -56,15 +148,16 @@
      "role": "button",
      "name": "Publish"
     },
-    "note": "Activate the draft's Publish control."
+    "note": "Open the draft's publish flow without confirming publication."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Publish Event",
+     "role": "dialog",
+     "name": "Publish Event",
      "visible": true
     },
-    "note": "Verify that the Publish Event window opened."
+    "note": "Assert that the Publish Event window opens."
    },
    {
     "step": "expect_visible",
@@ -73,7 +166,7 @@
      "name": "Edit Schedule",
      "visible": true
     },
-    "note": "Verify the modal offers Edit Schedule without taking the action."
+    "note": "Assert that the window offers Edit Schedule."
    },
    {
     "step": "expect_visible",
@@ -82,7 +175,7 @@
      "name": "Publish",
      "visible": true
     },
-    "note": "Verify the modal offers Publish without pressing it, so the draft remains unchanged."
+    "note": "Assert that the window offers Publish, while leaving it unpressed so the event remains unchanged."
    }
   ]
  }

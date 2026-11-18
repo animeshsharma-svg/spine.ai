@@ -4,37 +4,65 @@
   "title": "History view retains L1 highlight after event is closed",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-12T13:36:29.727Z",
+  "compiledAt": "2026-11-13T13:36:34.600Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Open the closed RFQ from the Events History view",
+   "Verify that the L1 row remains visually highlighted green"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Open the closed RFQ from the Events History view; Verify that the L1 row remains visually highlighted green"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
    "expect_qcs_ranks"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 11489
+  "ms": 13155
  },
  "plan": {
-  "title": "History view retains L1 highlight after event is closed",
+  "title": "History QCS Retains L1 Rank",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS on the closed event"
+    "note": "Open the prepared closed RFQ directly on its Master QCS screen."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ],
+     "realNames": true
+    },
+    "note": "Confirm the ranking table includes Vendor A as a real vendor column."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": "Vendor A",
+     "number": 1
+    },
+    "note": "Verify Vendor A remains ranked L1 after the event is closed."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "order": "lowest"
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 2
     },
-    "note": "Assert that ranks follow the amounts and L1 is correctly marked"
+    "note": "Confirm the closed QCS ranking order still follows the lowest bid amount."
    }
   ]
  }

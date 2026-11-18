@@ -3,27 +3,26 @@
   "caseId": "PRD-KBSRC-336",
   "title": "Savings percentage icon versus the vendor's previous bid",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:14:47.751Z",
+  "compiledAt": "2026-11-13T14:38:52.164Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Whether the 10% value is rendered specifically as an icon next to the bid rather than as ordinary text.",
-   "unconfirmed label \"10%\" (expect_text) — not among the labels known from the app nor in the case"
+   "Verify that the percentage icon is next to the revised bid and that its value exactly matches the difference between the vendor's previous and current bids.",
+   "unconfirmed label \"%\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "coverage partial: unconfirmed label \"10%\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Whether the 10% value is rendered specifically as an icon next to the bid rather than as ordinary text."
+   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
+   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
+   "coverage partial: unconfirmed label \"%\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Verify that the percentage icon is next to the revised bid and that its value exactly matches the difference between the vendor's previous and current bids."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 17,
   "stepNames": [
    "open_create",
    "set_title",
-   "configure_single_stage",
+   "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -38,43 +37,50 @@
    "go_to",
    "expect_text"
   ],
-  "ms": 13009
+  "ms": 14954
  },
  "plan": {
-  "title": "Auction bid revision savings percentage",
+  "title": "Auction revised-bid savings percentage",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "single-stage"
+     "path": "erfx"
     },
-    "note": "Open the single-stage event creation screen for an auction."
+    "note": "Create the auction event used for the revision scenario."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "Auction Savings Revision Test"
-    },
-    "note": "Provide the required event title."
+    "args": {},
+    "note": "Provide the mandatory event title."
    },
    {
-    "step": "configure_single_stage",
+    "step": "compose_stages",
     "args": {
-     "eventType": "auction"
+     "stages": [
+      "auction"
+     ]
     },
-    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+    "note": "Configure the event as an auction stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "auction"
+    },
+    "note": "Move to the auction stage before configuring its template and sheet."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the auction pricing template before adding line items."
+    "note": "Apply the auction pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one product so the auction has a bid row."
+    "note": "Add one line item for the vendor bids."
    },
    {
     "step": "fill_sheet",
@@ -91,9 +97,9 @@
    {
     "step": "invite_vendor",
     "args": {
-     "count": 1
+     "count": 2
     },
-    "note": "Invite the vendor who will submit and revise the bid."
+    "note": "Invite one vendor who will submit both bids."
    },
    {
     "step": "publish",
@@ -108,42 +114,41 @@
    {
     "step": "place_bid",
     "args": {
-     "vendor": 1,
      "price": 100
     },
-    "note": "Submit the vendor's initial bid of 100."
+    "note": "Submit the vendor's initial bid as the baseline for the revision."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the initial vendor bid was accepted."
+    "note": "Confirm the initial bid was accepted."
    },
    {
     "step": "place_bid",
     "args": {
-     "vendor": 1,
      "price": 90
     },
-    "note": "Submit the vendor's revised bid of 90, establishing a 10% reduction from the previous bid."
+    "note": "Submit a revised bid from the same vendor."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the revised vendor bid was accepted."
+    "note": "Confirm the revised bid was accepted."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's Auction Responses comparison."
+    "note": "Open the auction Responses comparison where the revised bid and savings indicator should appear."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "10%"
+     "text": "%",
+     "present": true
     },
-    "note": "Verify the displayed savings percentage matches the reduction from 100 to 90."
+    "note": "Check that a percentage value is visibly rendered in the Responses comparison."
    }
   ]
  }

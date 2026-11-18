@@ -4,19 +4,20 @@
   "title": "A live RFQ with a vendor's bid: with disable_reject_bid_in_bidding_time On — blocked",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:39:54.765Z",
+  "compiledAt": "2026-11-13T13:48:32.044Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Whether Reject is present or disabled specifically inside the submitted bid's ⋮ menu, including the menu's exact resulting contents."
+   "Target the submitted bid's ⋮ menu and verify that Reject Bid is blocked while bidding is open.",
+   "Assert the exact UI response or refusal message produced when attempting to reject the bid."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Whether Reject is present or disabled specifically inside the submitted bid's ⋮ menu, including the menu's exact resulting contents."
+   "cannot test this case yet — no step can observe: Target the submitted bid's ⋮ menu and verify that Reject Bid is blocked while bidding is open.; Assert the exact UI response or refusal message produced when attempting to reject the bid."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -24,21 +25,22 @@
    "require_setting",
    "require_setting",
    "require_setting",
-   "attempt"
+   "probe_controls",
+   "expect_screen_clean"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 12543
+  "ms": 13875
  },
  "plan": {
-  "title": "Block Rejecting a Live RFQ Bid",
+  "title": "Block bid rejection during live RFQ bidding",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses screen with a vendor bid already submitted."
+    "note": "Open the prepared live RFQ Responses screen containing the vendor's bid."
    },
    {
     "step": "require_setting",
@@ -46,7 +48,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required for the RFQ scenario."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "require_setting",
@@ -54,7 +56,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Keep counter offers visible on RFQ responses as required by the case."
+    "note": "Keep counter offers visible on RFQ responses as required."
    },
    {
     "step": "require_setting",
@@ -62,7 +64,7 @@
      "key": "disable_reject_bid_in_bidding_time",
      "value": "On"
     },
-    "note": "Enable the setting that should block bid rejection while bidding is open."
+    "note": "Configure the setting under test."
    },
    {
     "step": "require_setting",
@@ -70,7 +72,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Enable buyer bid editing as required by the scenario configuration."
+    "note": "Apply the required buyer bid-edit configuration."
    },
    {
     "step": "require_setting",
@@ -78,19 +80,20 @@
      "key": "is_counter_offer_percent_bid_allowed",
      "value": "On"
     },
-    "note": "Enable percentage counter offers as required by the scenario configuration."
+    "note": "Apply the required counter-offer configuration."
    },
    {
-    "step": "attempt",
+    "step": "probe_controls",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Reject"
-     },
-     "expect": "refused"
+     "max": 30,
+     "reload": true
     },
-    "note": "Attempt to reject the submitted bid and require positive evidence that Procol blocks the action during live bidding."
+    "note": "Explore the available Responses controls and record whether any bid actions or refusal behavior are exposed without confirming a potentially destructive action."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the Responses screen remains rendered without an error or crash after exploration."
    }
   ]
  }

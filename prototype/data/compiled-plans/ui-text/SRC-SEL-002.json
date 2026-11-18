@@ -4,32 +4,32 @@
   "title": "Select Bid on an auction",
   "group": "SRC-SEL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:03:21.914Z",
+  "compiledAt": "2026-11-13T12:53:26.225Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Locate a specifically named finished reverse auction in evaluation because the case provides no event title and open_event cannot target that state precisely",
-   "Click Select Bid for the L1 vendor and confirm the selection",
-   "Verify that the auction bid was selected and that the control reads Select Bid after selection"
+   "Guaranteeing that the automatically selected existing event is a finished reverse auction in evaluation before performing the selection."
   ],
   "warnings": [
    "added open_prepared(responses) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — no step can observe: Locate a specifically named finished reverse auction in evaluation because the case provides no event title and open_event cannot target that state precisely; Click Select Bid for the L1 vendor and confirm the selection; Verify that the auction bid was selected and that the control reads Select Bid after selection"
+   "can only test part of this — no step for: Guaranteeing that the automatically selected existing event is a finished reverse auction in evaluation before performing the selection."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "expect_visible"
+   "require_setting",
+   "do_on_screen",
+   "expect_text"
   ],
   "state": "closed",
   "screen": "responses",
-  "ms": 9066
+  "ms": 18937
  },
  "plan": {
-  "title": "Select Bid on finished reverse auction",
+  "title": "Select Bid on a finished reverse auction",
   "steps": [
    {
     "step": "open_prepared",
@@ -39,13 +39,27 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "expect_visible",
+    "step": "require_setting",
     "args": {
-     "role": "button",
-     "name": "Select Bid",
-     "visible": true
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Check whether the event exposes the auction-specific Select Bid control, without claiming that selection can be performed."
+    "note": "Enable the required eRFX project setting before accessing the event flow."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the buyer's event page, locate the L1 vendor in the finished reverse auction, click Select Bid, confirm the selection, and stop when the screen shows the bid as selected and the auction action remains labelled Select Bid."
+    },
+    "note": "Perform the buyer-only Select Bid interaction and verify the resulting screen state."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Select Bid",
+     "present": true
+    },
+    "note": "Assert that the auction-specific action label Select Bid is visible after selection."
    }
   ]
  }

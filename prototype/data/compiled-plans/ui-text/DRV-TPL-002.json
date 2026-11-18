@@ -1,43 +1,55 @@
 {
  "meta": {
   "caseId": "DRV-TPL-002",
-  "title": "Non-admin user cannot access or edit email notification templates",
+  "title": "Buyer successfully assigns a specific MRP template to an RFQ commercial stage",
   "group": "DRV-TPL",
   "sheet": "derived-provide-configurable-rfq-templates-line-",
-  "compiledAt": "2026-11-09T23:11:29.275Z",
+  "compiledAt": "2026-11-13T13:41:52.106Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused",
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
   "steps": 8,
   "stepNames": [
    "open_create",
-   "compose_stages",
+   "require_setting",
    "set_title",
-   "open_event",
+   "compose_stages",
    "switch_stage",
    "select_template",
    "expect_template_selected",
    "expect_no_error"
   ],
-  "ms": 11738
+  "ms": 17432
  },
  "plan": {
-  "title": "Assign MRP Template to Draft RFQ",
+  "title": "Assign MRP Template to RFQ Stage",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    }
+    },
+    "note": "Open the eRFX creation screen used for an RFQ commercial stage."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_rfp_template_edit_allowed_during_creation",
+     "value": "On"
+    },
+    "note": "Enable the required template-editing configuration before entering the creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "DRV-TPL-002 MRP Template RFQ"
+    },
+    "note": "Provide the mandatory event title for the draft creation flow."
    },
    {
     "step": "compose_stages",
@@ -45,41 +57,34 @@
      "stages": [
       "rfq"
      ]
-    }
-   },
-   {
-    "step": "set_title"
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Open the existing draft RFQ event; a draft reopens on its create screen."
+    },
+    "note": "Configure the event with an RFQ commercial stage."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfq"
     },
-    "note": "Navigate to the commercial RFQ stage where the template is configured."
+    "note": "Navigate to the RFQ commercial stage settings."
    },
    {
     "step": "select_template",
     "args": {
      "name": "MRP Template"
     },
-    "note": "Select and save the specified MRP Template for the RFQ stage."
+    "note": "Select the required MRP Template from the stage's Templates dropdown."
    },
    {
     "step": "expect_template_selected",
     "args": {
      "name": "MRP Template"
     },
-    "note": "Verify the MRP Template remains applied after selection."
+    "note": "Verify the MRP template remains applied to the RFQ stage."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the template assignment did not produce an application error."
+    "note": "Confirm that applying the template did not produce an application error."
    }
   ]
  }

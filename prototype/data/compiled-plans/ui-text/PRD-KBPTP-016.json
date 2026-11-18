@@ -3,61 +3,50 @@
   "caseId": "PRD-KBPTP-016",
   "title": "Raise a purchase intake request (article flow) and submit it for approval",
   "group": "PRD-KBPTP",
-  "compiledAt": "2026-11-10T06:49:55.498Z",
+  "compiledAt": "2026-11-13T15:42:04.881Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Navigate to the Intake page and click Create Request",
-   "Enter the request title and select Request Condition Material Creation",
-   "Choose Category and Subcategory",
-   "Navigate through Basic Details and Details Page",
-   "Select Currency and fill custom fields",
-   "Select Product Name, enter Quantity, choose Unit of Measure, and select Delivery Location",
-   "Review and confirm the auto-assigned approval chain",
-   "Submit the intake and verify that its approval workflow starts",
-   "Approve the intake and verify that a Purchase Request is automatically generated for it"
+   "Open the Intake page and create an article intake request with Request Title, Material Creation condition, Category, Subcategory, Currency, custom fields, Product Name, Quantity, Unit of Measure, and Delivery Location.",
+   "Review and confirm the auto-assigned approval chain and submit the intake through the Intake workflow.",
+   "Approve the intake and verify that the system automatically generates a Purchase Request."
   ],
   "warnings": [
-   "can only test part of this — no step for: Navigate to the Intake page and click Create Request; Enter the request title and select Request Condition Material Creation; Choose Category and Subcategory; Navigate through Basic Details and Details Page; Select Currency and fill custom fields; Select Product Name, enter Quantity, choose Unit of Measure, and select Delivery Location; Review and confirm the auto-assigned approval chain; Submit the intake and verify that its approval workflow starts; Approve the intake and verify that a Purchase Request is automatically generated for it"
+   "can only test part of this — no step for: Open the Intake page and create an article intake request with Request Title, Material Creation condition, Category, Subcategory, Currency, custom fields, Product Name, Quantity, Unit of Measure, and Delivery Location.; Review and confirm the auto-assigned approval chain and submit the intake through the Intake workflow.; Approve the intake and verify that the system automatically generates a Purchase Request."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 3,
   "stepNames": [
+   "do_on_screen",
    "ask_tester",
-   "open_purchase_requisitions",
-   "pr_tab",
-   "expect_table"
+   "expect_text"
   ],
-  "ms": 10623
+  "ms": 16798
  },
  "plan": {
-  "title": "Submit article intake request for approval",
+  "title": "Submit Article Intake Request for Approval",
   "steps": [
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "open the Intake page, click Create Request, fill the article intake fields including Request Title, Material Creation, Category, Subcategory, Currency, custom fields, Product Name, Quantity, Unit of Measure, and Delivery Location, advance through Basic Details and Details Page to the Approval Workflow, review the auto-assigned approval chain, submit the intake, and stop on the screen showing the intake was submitted for approval"
+    },
+    "note": "The catalog has no Intake-specific navigation or form steps, so this executes the requestor flow in the current buyer session."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the requestor, create the Material Creation intake with its category, subcategory, currency, custom fields, product details, and delivery location, submit it, review and confirm the approval chain, approve it, and verify that the resulting Purchase Request is generated"
+     "need": "approve the submitted intake as the required approver and verify that the resulting Purchase Request exists"
     },
-    "note": "No catalog step can access the Intake page, submit its workflow, approve it, or associate the generated Purchase Request with the intake."
+    "note": "Approval and the resulting Purchase Request are not actions or observations available in the catalog."
    },
    {
-    "step": "open_purchase_requisitions",
-    "args": {},
-    "note": "Closest available navigation to inspect whether Purchase Requests exist after the tester completes the intake flow; it does not establish that any request came from this intake."
-   },
-   {
-    "step": "pr_tab",
+    "step": "expect_text",
     "args": {
-     "tab": "Open"
+     "text": "Purchase Request",
+     "present": true
     },
-    "note": "Shows open Purchase Requests, which is the closest catalog state to the expected post-approval result."
-   },
-   {
-    "step": "expect_table",
-    "args": {
-     "min": 1
-    },
-    "note": "Asserts that at least one Purchase Request row is visible, but cannot attribute it to the submitted intake."
+    "note": "After the tester completes approval, check for a visible Purchase Request indication if the resulting screen exposes that label."
    }
   ]
  }

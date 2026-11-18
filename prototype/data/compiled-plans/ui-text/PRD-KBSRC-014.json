@@ -3,34 +3,40 @@
   "caseId": "PRD-KBSRC-014",
   "title": "Selecting a template prefills products and quantities; Technical Stage bulk template applies to all line items",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:07:45.691Z",
+  "compiledAt": "2026-11-13T14:31:08.197Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that selecting the RFQ template itself prefilled the specific cart products and quantities.",
-   "Verify individually that every Technical Stage line item shows the chosen RFP template."
+   "The exact cart products and quantities expected in the RFQ table are not specified and cannot be compared to a known value.",
+   "That the chosen RFP template is applied to every Technical Stage line-item section through the bulk action cannot be asserted per line item."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that selecting the RFQ template itself prefilled the specific cart products and quantities.; Verify individually that every Technical Stage line item shows the chosen RFP template."
+   "can only test part of this — no step for: The exact cart products and quantities expected in the RFQ table are not specified and cannot be compared to a known value.; That the chosen RFP template is applied to every Technical Stage line-item section through the bulk action cannot be asserted per line item."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 16,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
    "switch_stage",
    "select_template",
-   "add_line_items",
+   "expect_template_selected",
    "expect_sheet_columns",
+   "add_line_items",
+   "fill_sheet",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
    "switch_stage",
    "select_template",
    "expect_template_selected"
   ],
-  "ms": 14539
+  "ms": 26570
  },
  "plan": {
-  "title": "Template Prefill and Technical Bulk Template",
+  "title": "Template Prefills and Technical Bulk Application",
   "steps": [
    {
     "step": "open_create",
@@ -42,7 +48,7 @@
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory project title."
+    "note": "Provide the required event title using the runner's generated value."
    },
    {
     "step": "compose_stages",
@@ -64,14 +70,12 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the predefined RFQ template."
+    "note": "Choose the first predefined RFQ template offered."
    },
    {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add a line item so the RFQ pricing table can render."
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Assert that the RFQ template was applied."
    },
    {
     "step": "expect_sheet_columns",
@@ -81,7 +85,55 @@
       "Quantity Requested"
      ]
     },
-    "note": "Verify that the RFQ table renders product and requested-quantity columns."
+    "note": "Verify that the RFQ template rendered product and quantity columns."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Add multiple products so the Technical Stage bulk-template behavior has more than one line item to cover."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ sheet so its line-item cells are rendered and readable."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product",
+     "empty": false
+    },
+    "note": "Assert that the first RFQ product cell is populated."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "empty": false
+    },
+    "note": "Assert that the first RFQ quantity cell is populated."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Product",
+     "empty": false
+    },
+    "note": "Assert that the second RFQ product cell is populated."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Quantity Requested",
+     "empty": false
+    },
+    "note": "Assert that the second RFQ quantity cell is populated."
    },
    {
     "step": "switch_stage",
@@ -93,12 +145,12 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the predefined RFP template through the Technical Stage template action."
+    "note": "Use the Technical Stage template picker, which performs the RFP bulk-template action."
    },
    {
     "step": "expect_template_selected",
     "args": {},
-    "note": "Verify that the Technical Stage has a template applied."
+    "note": "Assert that an RFP template is applied to the Technical Stage."
    }
   ]
  }

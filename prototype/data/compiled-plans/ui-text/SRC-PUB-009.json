@@ -4,18 +4,19 @@
   "title": "Each invited vendor receives the invitation",
   "group": "SRC-PUB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:38:18.363Z",
+  "compiledAt": "2026-11-13T12:33:04.310Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open both QA vendor mailboxes and verify that each contains exactly one invitation with the event title and close time.",
-   "Verify that the invitation link in each email opens the event for both Vendor A and Vendor B, including a separate session for the second vendor."
+   "Open the QA mailboxes of Vendors A and B and verify that each has exactly one invitation containing the event title, close time, and a link that opens the event on the vendor portal."
   ],
   "warnings": [
-   "can only test part of this — no step for: Open both QA vendor mailboxes and verify that each contains exactly one invitation with the event title and close time.; Verify that the invitation link in each email opens the event for both Vendor A and Vendor B, including a separate session for the second vendor."
+   "added place_bid — the test is about bidding and no bid step was planned",
+   "added place_bid — the test is about bidding and no bid step was planned",
+   "can only test part of this — no step for: Open the QA mailboxes of Vendors A and B and verify that each has exactly one invitation containing the event title, close time, and a link that opens the event on the vendor portal."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "set_title",
@@ -27,31 +28,28 @@
    "invite_vendor",
    "publish",
    "expect_published",
-   "switch_portal",
-   "vendor_open_event",
-   "expect_visible",
-   "switch_portal",
+   "place_bid",
    "ask_tester",
-   "expect_published"
+   "expect_no_error"
   ],
-  "ms": 17571
+  "ms": 12177
  },
  "plan": {
-  "title": "RFQ invitation notification to invited vendors",
+  "title": "RFQ invitations reach both vendors",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start an RFQ event creation flow."
+    "note": "Start an eRFX create flow for the RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-PUB-009 Vendor Invitation Test"
+     "title": "SRC-PUB-009 Vendor Invitation RFQ"
     },
-    "note": "Provide the required event title that the invitation should contain."
+    "note": "Provide the required event title, which the invitations should contain."
    },
    {
     "step": "compose_stages",
@@ -60,12 +58,12 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ rather than the default auction stage."
+    "note": "Configure the event as an RFQ."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template before adding line items."
+    "note": "Apply the first available RFQ template."
    },
    {
     "step": "add_line_items",
@@ -84,7 +82,7 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a close time that should be reflected in invitations."
+    "note": "Set and commit a close time for the invitation content."
    },
    {
     "step": "invite_vendor",
@@ -96,54 +94,27 @@
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ and trigger the product's vendor invitation process."
+    "note": "Publish the RFQ and trigger vendor invitations."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that publishing succeeded and the event has a real project page."
+    "note": "Assert that the RFQ was successfully published before checking notifications."
    },
    {
-    "step": "switch_portal",
-    "args": {
-     "to": "vendor"
-    },
-    "note": "Check the supplier-side event access for one invited QA vendor."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "overview": true
-    },
-    "note": "Open the plan's event from the invited vendor's supplier portal without asserting the email itself."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "tab",
-     "name": "Details",
-     "visible": true
-    },
-    "note": "Assert that the invited vendor's event overview loaded in the supplier portal."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "buyer"
-    },
-    "note": "Return to the buyer session before requesting the mailbox-only verification."
+    "step": "place_bid"
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open both QA vendor mailboxes and verify that each has exactly one invitation for this event containing the title, close time, and a link that opens the event in that vendor's portal"
+     "need": "open the QA mailboxes of Vendors A and B, verify each has exactly one invitation containing the event title, close time, and a link, and open each link to confirm it reaches the event on the vendor portal"
     },
-    "note": "Mailbox contents, invitation counts, email fields, and opening both vendors' invitation links are not observable through the catalog."
+    "note": "Mailbox access and validation of email contents and links are not available in the catalog."
    },
    {
-    "step": "expect_published",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Assert the buyer's published event remains available after the mailbox verification."
+    "note": "Confirm the application remains error-free after the tester completes the external notification check."
    }
   ]
  }

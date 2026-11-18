@@ -4,45 +4,66 @@
   "title": "Requester is notified when an email approval or rejection happens",
   "group": "EMA-APP",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:52:39.841Z",
+  "compiledAt": "2026-11-13T14:17:40.868Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Have Asha reject the approval from email with a comment, wait for mailbox processing, then sign in as Ravi and verify the notification bell and email inbox show the rejection and Asha's comment."
+   "Connect to and read the company's Outlook approval mailbox, have Asha reject the event by email with a comment, and wait for Procol to process it.",
+   "Log in as Ravi and verify the notification bell and email inbox contain the rejection notification and Asha's comment."
   ],
   "warnings": [
-   "can only test part of this — no step for: Have Asha reject the approval from email with a comment, wait for mailbox processing, then sign in as Ravi and verify the notification bell and email inbox show the rejection and Asha's comment."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Connect to and read the company's Outlook approval mailbox, have Asha reject the event by email with a comment, and wait for Procol to process it.; Log in as Ravi and verify the notification bell and email inbox contain the rejection notification and Asha's comment."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 69476
+  "ms": 20045
  },
  "plan": {
-  "title": "Requester notification after email rejection",
+  "title": "Requester notification after email approval rejection",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the existing event named in the case before performing the approval workflow."
+    "note": "Open the existing event created by Ravi that is sent for the two-step approval workflow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required company configuration before testing email approval processing."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow required by the case."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "have Asha reject the approval from email with a comment, wait 1-2 minutes, then sign in as Ravi and verify the notification bell and email inbox show the rejection and Asha's comment"
+     "need": "Use the connected company approval mailbox to have Asha reject the event by email with a comment, wait 1-2 minutes for Procol to process it, then sign in as Ravi and verify the notification bell and email inbox show the rejection and Asha's comment."
     },
-    "note": "Separate user sessions, email access, and the requester notification inbox are not available through catalog steps."
+    "note": "Email mailbox access, other-user authentication, and notification inbox inspection are not available through catalog steps."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the current screen has no crash or server error after the tester's workflow."
+    "note": "Assert that the resulting screen is rendered without a crash or server error after the tester's observation."
    }
   ]
  }

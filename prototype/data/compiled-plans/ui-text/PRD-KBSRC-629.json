@@ -3,50 +3,57 @@
   "caseId": "PRD-KBSRC-629",
   "title": "Award dialog allows modifying the quantity to award",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:26:22.575Z",
+  "compiledAt": "2026-11-13T14:48:33.629Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the awarded quantity shown for the vendor exactly equals the quantity entered.",
+   "Assert that the Proposal value reflects the modified awarded quantity."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Assert that the awarded quantity shown for the vendor exactly equals the quantity entered.; Assert that the Proposal value reflects the modified awarded quantity."
+  ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_prepared",
    "start_awarding",
-   "do_on_screen",
-   "expect_visible"
+   "allocate_award",
+   "expect_award_counters"
   ],
-  "ms": 12386
+  "ms": 10508
  },
  "plan": {
-  "title": "Award Partial Quantity",
+  "title": "Modify Award Quantity",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared bid comparison for an event with at least two vendor bids."
+    "note": "Open the prepared Master QCS containing bids from multiple vendors."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding screen where vendor selections and award quantities can be changed."
+    "note": "Enter the awarding screen where vendor quantities can be modified."
    },
    {
-    "step": "do_on_screen",
+    "step": "allocate_award",
     "args": {
-     "goal": "On the awarding screen, select a vendor under a line item, modify the quantity to award to a partial quantity of the requested line quantity, click Award, and stop only when the vendor's awarded quantity and the Proposal value visibly reflect exactly the modified quantity."
+     "vendor": 1,
+     "quantity": 1,
+     "line": 1
     },
-    "note": "Perform and verify the quantity modification and its effect on the award and proposal value, which no dedicated catalog step can model."
+    "note": "Select the first vendor and award a partial quantity of 1 unit for the first line."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_award_counters",
     "args": {
-     "text": "Create Proposal",
-     "visible": true
+     "items": "1/1",
+     "vendors": "1/2"
     },
-    "note": "Confirm the awarding screen remains at the proposal-creation stage after the partial award."
+    "note": "Verify that the partial award is reflected in the awarding counters."
    }
   ]
  }

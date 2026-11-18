@@ -4,30 +4,36 @@
   "title": "Configuration for Event: Attempt to save with special characters in the unnamed checkbox label field (if editable)",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:38:34.808Z",
+  "compiledAt": "2026-11-13T14:01:41.631Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Locate the unnamed checkbox label field in the Configuration for Event dialog, determine whether it is editable, enter !@#$%^&*()_+{}|:, save, and verify whether the dialog closes or shows an invalid-characters validation message."
+  ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Locate the unnamed checkbox label field in the Configuration for Event dialog, determine whether it is editable, enter !@#$%^&*()_+{}|:, save, and verify whether the dialog closes or shows an invalid-characters validation message."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 10,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "do_on_screen",
-   "expect_screen_clean"
+   "ask_tester",
+   "expect_text"
   ],
-  "ms": 12593
+  "ms": 18550
  },
  "plan": {
   "title": "Single-stage RFQ special-character checkbox label",
@@ -37,24 +43,50 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the Single Stage event creation screen."
+    "note": "Open the single-stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration before creating the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Apply the required read-only ceiling-price configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Apply the required terms-and-conditions configuration."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ and open the Configuration for Event flow."
+    "note": "Set the single-stage event type to RFQ and open its configuration drawer."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title for a create flow."
+    "args": {
+     "title": "EXP-CREATESINGLE-018 Special Characters"
+    },
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the available RFQ pricing template before adding products."
+    "note": "Select the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
@@ -63,19 +95,22 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product with quantity 10."
+    "note": "Add the specified product with quantity 10 before testing the configuration field."
    },
    {
-    "step": "do_on_screen",
+    "step": "ask_tester",
     "args": {
-     "goal": "On the Single Stage RFQ create screen, open the Configuration for Event window, determine whether the unnamed checkbox label field is editable, and if it is editable type !@#$%^&*()_+{}|: into it and click Save; stop with the window closed if the value is accepted and saved, or with the inline invalid-character validation message visible if it is rejected."
+     "need": "Inspect the Configuration for Event dialog, determine whether the unnamed checkbox label is editable, enter !@#$%^&*()_+{}|:, click Save, and verify whether the dialog closes or shows invalid-character validation."
     },
-    "note": "The configuration field has no catalog step or confirmed label, so this screen-driven step performs the conditional edit and observes the resulting save or validation behavior."
+    "note": "The catalog cannot address the unnamed checkbox label field or its save validation behavior."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the resulting screen has no crash, server error, raw values, or malformed rendering after the Save attempt."
+    "step": "expect_text",
+    "args": {
+     "text": "Configuration for Event",
+     "present": true
+    },
+    "note": "Assert that the configuration dialog context is visible after the missing interaction is completed."
    }
   ]
  }

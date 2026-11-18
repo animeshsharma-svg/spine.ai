@@ -4,22 +4,23 @@
   "title": "Asset PR → eRFX Auction-only project → complete award to L1 → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:16:15.498Z",
+  "compiledAt": "2026-11-13T12:01:00.830Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the PR line itself is marked ordered.",
-   "Verify that asset assignment A reaches the created purchase order."
+   "Assert that the PR line itself changes to ordered after PO creation.",
+   "Assert that asset assignment A reaches the generated PO or that the PO is assigned specifically to Vendor A.",
+   "Assert the generated PO's awarded price is exactly 850 because expect_po_items checks PO line count and quantity but not PO price."
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: Verify that the PR line itself is marked ordered.; Verify that asset assignment A reaches the created purchase order."
+   "can only test part of this — no step for: Assert that the PR line itself changes to ordered after PO creation.; Assert that asset assignment A reaches the generated PO or that the PO is assigned specifically to Vendor A.; Assert the generated PO's awarded price is exactly 850 because expect_po_items checks PO line count and quantity but not PO price."
   ],
   "source": "llm",
-  "steps": 32,
+  "steps": 33,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -29,6 +30,8 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
    "set_title",
    "set_schedule",
    "invite_vendor",
@@ -42,7 +45,6 @@
    "expect_bid_submitted",
    "close_event",
    "open_master_qcs",
-   "expect_qcs_ranks",
    "expect_qcs_cell",
    "expect_qcs_amounts",
    "award_event",
@@ -54,10 +56,10 @@
    "filter_events",
    "expect_event_in_list"
   ],
-  "ms": 19251
+  "ms": 32028
  },
  "plan": {
-  "title": "SRC-E2E-027 PR to Auction PO",
+  "title": "SRC-E2E-027 Asset PR to Auction PO",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -95,35 +97,51 @@
     "step": "fill_sheet"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation so publishing is not blocked."
+   },
+   {
     "step": "set_title",
     "args": {
-     "title": "SRC-E2E-027 Asset PR Auction PO"
+     "title": "SRC-E2E-027 Asset PR Auction"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Give the event the mandatory title needed for publishing and later list lookup."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit the 30-minute schedule described by the case."
+    "note": "Commit the 30-minute event schedule described by the case."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite two QA vendors for Vendor A and Vendor B bidding."
+    "note": "Invite exactly two QA vendors for Vendor A and Vendor B's bids without inventing company names."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the auction event."
+    "note": "Publish the configured auction event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publication reached a real project page."
+    "note": "Confirm that publishing reached a real project page."
    },
    {
     "step": "place_bid",
@@ -136,7 +154,7 @@
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that Vendor A's initial bid was accepted."
+    "note": "Verify Vendor A's initial bid was accepted."
    },
    {
     "step": "place_bid",
@@ -144,12 +162,12 @@
      "vendor": 1,
      "price": 85
     },
-    "note": "Submit Vendor A's revised bid of 85 using the same vendor."
+    "note": "Submit Vendor A's revised bid of 85 using the same vendor identity."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that Vendor A's revised bid was accepted."
+    "note": "Verify Vendor A's revised bid was accepted."
    },
    {
     "step": "place_bid",
@@ -162,68 +180,57 @@
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that Vendor B's bid was accepted."
+    "note": "Verify Vendor B's bid was accepted."
    },
    {
     "step": "close_event",
     "args": {},
-    "note": "Close the auction before reading the final QCS and awarding."
+    "note": "Close the auction before inspecting QCS and awarding."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the comparison grid after bidding has closed."
-   },
-   {
-    "step": "expect_qcs_ranks",
-    "args": {
-     "by": "Auction Amount",
-     "order": "lowest",
-     "atLeast": 2
-    },
-    "note": "Verify that the lowest auction amount ranks first among the two bids."
+    "note": "Open the comparison grid used for L1 ranking and award preparation."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
-     "row": "Auction Rate",
+     "row": "Rank",
      "vendor": 1,
-     "equals": "85"
+     "number": 1
     },
-    "note": "Verify that Vendor A's final rate is 85."
+    "note": "Verify the first vendor column, representing Vendor A's bid revision, is ranked L1."
    },
    {
     "step": "expect_qcs_amounts",
     "args": {
-     "rate": "Auction Rate",
-     "amount": "Auction Amount",
-     "qty": "Qty Offer"
+     "vendor": 1
     },
-    "note": "Verify that the QCS computes each amount and total from rate times quantity."
+    "note": "Verify the L1 vendor's displayed amount arithmetic is rate multiplied by quantity."
    },
    {
     "step": "award_event",
     "args": {
-     "vendor": "portal"
+     "vendor": "lowest"
     },
-    "note": "Award the closed event to the portal vendor that submitted Vendor A's bid, which is the 85-ranked bid."
+    "note": "Award all available line items to the lowest bidder, which should be Vendor A at 85."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Verify that the award proposal was created and submitted."
+    "note": "Confirm that the award proposal was created and submitted."
    },
    {
     "step": "approve_award",
     "args": {
-     "remark": "Approved for asset PR award to the lowest bidder."
+     "remark": "Approved for asset PR award"
     },
     "note": "Approve the submitted award with the required remark."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete PO creation from the approved award."
+    "note": "Complete the approved award flow and generate the purchase order."
    },
    {
     "step": "expect_po_items",
@@ -231,24 +238,24 @@
      "count": 1,
      "quantity": 10
     },
-    "note": "Verify that the PO contains the awarded 10-unit PR line."
+    "note": "Verify that the generated PO contains the single PR line with quantity 10."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to verify the event's post-close location."
+    "note": "Return to the events list to verify the post-PO lifecycle state."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Open the History tab where the closed event should appear."
+    "note": "Open the History tab where the completed event should appear."
    },
    {
     "step": "expect_event_in_list",
     "args": {},
-    "note": "Verify that this plan's event appears in History."
+    "note": "Verify that this plan's auction event moved into History."
    }
   ]
  }

@@ -3,51 +3,65 @@
   "caseId": "PRD-RFQ-003",
   "title": "Allow Partial Bidding (rfq.bid.allow_partial) = OFF (default)",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:29:47.265Z",
+  "compiledAt": "2026-11-13T14:50:42.546Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set the tenant setting rfq.bid.allow_partial to OFF or compare it with the ON value.",
-   "Submit a partial RFQ bid for only a subset of line items and verify that the OFF setting refuses it or requires all lines."
+   "Verify the tenant is on the Growth or Enterprise plan.",
+   "Submit an RFQ bid for only a subset of line items and assert that Procol refuses it when rfq.bid.allow_partial is OFF.",
+   "Compare the partial-bidding behavior against the corresponding ON-setting case."
   ],
   "warnings": [
-   "can only test part of this — no step for: Set the tenant setting rfq.bid.allow_partial to OFF or compare it with the ON value.; Submit a partial RFQ bid for only a subset of line items and verify that the OFF setting refuses it or requires all lines."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Verify the tenant is on the Growth or Enterprise plan.; Submit an RFQ bid for only a subset of line items and assert that Procol refuses it when rfq.bid.allow_partial is OFF.; Compare the partial-bidding behavior against the corresponding ON-setting case."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 16,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
    "compose_stages",
-   "switch_stage",
    "select_template",
+   "expect_template_selected",
    "add_line_items",
    "fill_sheet",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
+   "switch_portal",
+   "vendor_open_event",
    "ask_tester",
-   "expect_no_error"
+   "expect_text"
   ],
-  "ms": 11209
+  "ms": 27831
  },
  "plan": {
-  "title": "PRD-RFQ-003 Partial Bidding OFF",
+  "title": "RFQ Partial Bidding Disabled",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start an RFQ project create flow."
+    "note": "Start an eRFX create flow because the case is for an RFQ."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfq.bid.allow_partial",
+     "value": "Off"
+    },
+    "note": "Apply the case's required tenant setting before any other action."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "PRD-RFQ-003 Partial Bidding OFF"
+     "title": "Partial Bidding Disabled RFQ"
     },
-    "note": "Provide the required event title."
+    "note": "Every successful create flow requires a title."
    },
    {
     "step": "compose_stages",
@@ -56,19 +70,17 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ-only stage so the partial-bidding behavior is exercised on the correct event type."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Configure the RFQ stage before selecting its template and items."
+    "note": "Use an RFQ stage rather than the default Auction stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an available RFQ template with the product's configurable terms and pricing structure."
+    "note": "Apply the first available RFQ template."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Assert that the RFQ stage has a template before adding line items."
    },
    {
     "step": "add_line_items",
@@ -80,43 +92,60 @@
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet so the event can be published."
+    "note": "Complete the RFQ pricing sheet for the created line items."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule."
+    "note": "Commit a bidding schedule required for publication."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add the vendor needed to attempt the bid."
+    "note": "Add a vendor needed to test the vendor submission."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the prepared RFQ before testing vendor bidding."
+    "note": "Publish the configured RFQ."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the RFQ reached a real published project page."
+    "note": "Assert that publication reached a real project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the RFQ pricing sheet where the partial bid would be submitted."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "set tenant setting rfq.bid.allow_partial to OFF and submit a partial RFQ bid for only one of the two line items, verifying that the OFF setting refuses the partial submission"
+     "need": "leave one RFQ line item unquoted, submit the vendor bid for only the other line item, and report the refusal or validation shown because partial bidding is disabled"
     },
-    "note": "Tenant settings and the required partial-bid refusal are not expressible by catalog steps."
+    "note": "The catalog has no step that edits and submits only a subset of vendor price cells."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Assert the prepared buyer screen remains usable after the tester intervention."
+    "step": "expect_text",
+    "args": {
+     "text": "Price",
+     "present": true
+    },
+    "note": "Assert that the vendor pricing screen remains available after the tester action."
    }
   ]
  }

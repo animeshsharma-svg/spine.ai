@@ -3,61 +3,41 @@
   "caseId": "PRD-PR-101",
   "title": "SAP MM (Purchase Requisition): on failure — failed PO creation triggers webhook alert",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:48:55.997Z",
+  "compiledAt": "2026-11-13T15:23:48.940Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Configure the SAP MM bidirectional integration and its gate-dependent parameters.",
-   "Make the external SAP system fail or become unreachable.",
-   "Verify that PO creation in SAP fails and that the failure triggers a webhook alert or retry record without being silently dropped."
+   "Configure INT-002 SAP MM with the specified RFC/API-key parameters and authentication",
+   "Make the external SAP system fail or become unreachable",
+   "Approve a Procol purchase requisition and trigger PO creation in SAP",
+   "Observe and verify that the failed PO creation generates a webhook alert",
+   "Verify the failure is retained in an alert, state, log, or retry record and is not silently dropped"
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 6 step(s) that would open a blank event or replace the PR's items",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 6 step(s) that would open a blank event or replace the PR's items",
-   "cannot test this case yet — no step can observe: Configure the SAP MM bidirectional integration and its gate-dependent parameters.; Make the external SAP system fail or become unreachable.; Verify that PO creation in SAP fails and that the failure triggers a webhook alert or retry record without being silently dropped."
+   "can only test part of this — no step for: Configure INT-002 SAP MM with the specified RFC/API-key parameters and authentication; Make the external SAP system fail or become unreachable; Approve a Procol purchase requisition and trigger PO creation in SAP; Observe and verify that the failed PO creation generates a webhook alert; Verify the failure is retained in an alert, state, log, or retry record and is not silently dropped"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 2,
   "stepNames": [
-   "open_purchase_requisitions",
-   "pr_tab",
-   "select_pr",
-   "purchase_items",
-   "choose_stages",
-   "expect_pr_items",
+   "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 10421
+  "ms": 18681
  },
  "plan": {
-  "title": "SAP MM Failed PO Webhook Alert",
+  "title": "SAP MM PO Failure Webhook Alert",
   "steps": [
    {
-    "step": "open_purchase_requisitions"
-   },
-   {
-    "step": "pr_tab",
+    "step": "ask_tester",
     "args": {
-     "tab": "Open"
-    }
-   },
-   {
-    "step": "select_pr"
-   },
-   {
-    "step": "purchase_items"
-   },
-   {
-    "step": "choose_stages",
-    "args": {}
-   },
-   {
-    "step": "expect_pr_items"
+     "need": "configure INT-002 SAP MM, make SAP PO creation fail or become unreachable, approve the Procol purchase requisition to trigger PO creation in SAP, and verify the resulting webhook alert or retry/log record"
+    },
+    "note": "The required integration setup, external failure injection, cross-system trigger, and webhook evidence are not available in the catalog."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Final assertion that the current screen has no crash or server error, though it does not verify the requested webhook handling."
+    "note": "Checks that the current Procol screen has no visible crash or server error after the tester's operation, but does not assert the webhook behavior."
    }
   ]
  }

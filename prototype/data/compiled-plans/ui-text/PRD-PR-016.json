@@ -3,28 +3,27 @@
   "caseId": "PRD-PR-016",
   "title": "PR Hold and ERP Send-Back: refused for a user without the Buyer role",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:23:57.824Z",
+  "compiledAt": "2026-11-13T15:18:50.773Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and repeat as a Buyer on the specified Enterprise tenant",
-   "Identify an ambiguous PR line and perform PR Hold",
-   "Perform ERP Send-Back for correction",
-   "Observe and compare whether each role is refused or offered the actions, including recording deliberate RBAC configuration"
+   "Perform or observe the PR Hold action on an ambiguous PR line",
+   "Perform or observe the ERP Send-Back action on an ambiguous PR line",
+   "Sign in as both the user without the Buyer role and a Buyer to compare their permissions",
+   "Select or verify the Enterprise tenant because no tenant/company identifier is provided",
+   "Record whether any refusal or absence is caused by deliberate tenant RBAC configuration"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and repeat as a Buyer on the specified Enterprise tenant; Identify an ambiguous PR line and perform PR Hold; Perform ERP Send-Back for correction; Observe and compare whether each role is refused or offered the actions, including recording deliberate RBAC configuration"
+   "can only test part of this — no step for: Perform or observe the PR Hold action on an ambiguous PR line; Perform or observe the ERP Send-Back action on an ambiguous PR line; Sign in as both the user without the Buyer role and a Buyer to compare their permissions; Select or verify the Enterprise tenant because no tenant/company identifier is provided; Record whether any refusal or absence is caused by deliberate tenant RBAC configuration"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 3,
   "stepNames": [
    "open_purchase_requisitions",
-   "pr_tab",
-   "select_pr",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 16746
+  "ms": 10231
  },
  "plan": {
   "title": "PR Hold and ERP Send-Back RBAC",
@@ -32,31 +31,22 @@
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Reach the Purchase Requisitions screen where the role-dependent PR actions would begin."
-   },
-   {
-    "step": "pr_tab",
-    "args": {
-     "tab": "Open"
-    },
-    "note": "Show open purchase requests that could contain the ambiguous line."
-   },
-   {
-    "step": "select_pr",
-    "args": {},
-    "note": "Select the first available PR as the closest catalog-supported preparation for inspecting its line items."
+    "note": "Reaches the Purchase Requisitions area, the closest catalog-supported screen for the requested PR actions."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Buyer and Buyer users on the specified Enterprise tenant, select an ambiguous PR line, attempt PR Hold and ERP Send-Back for each role, and record whether each action is refused, absent, available, or allowed by deliberate RBAC configuration"
+     "need": "sign in as the user without the Buyer role on the specified Enterprise tenant, attempt PR Hold and ERP Send-Back on an ambiguous PR line, then repeat both actions as a Buyer and report whether each action is refused, absent, or available and whether tenant RBAC intentionally grants it to other roles"
     },
-    "note": "Role-specific sign-in, tenant configuration, and both PR actions are not expressible by catalog steps."
+    "note": "The catalog has no step for these PR actions or for switching between the two required user roles."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the session remains usable after the tester-assisted investigation."
+    "step": "expect_text",
+    "args": {
+     "text": "Purchase Requisitions",
+     "present": true
+    },
+    "note": "Confirms the run remains in the intended PR area after the tester's manual comparison; this does not assert the requested permission behavior."
    }
   ]
  }

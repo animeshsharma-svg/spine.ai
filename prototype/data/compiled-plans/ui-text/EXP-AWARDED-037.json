@@ -4,30 +4,32 @@
   "title": "Recreate Order: Cancel button closes the Recreate Order window without creating an order",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:16:14.556Z",
+  "compiledAt": "2026-11-13T13:45:28.560Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that no success toast appears after cancellation without a known toast message or absence assertion for success toasts.",
-   "Assert that no order was created because no catalog step can inspect created orders or an order record."
+   "Assert that no success toast of any unspecified wording appears after cancellation",
+   "Verify independently that no order record was created"
   ],
   "warnings": [
-   "can only test part of this — no step for: Assert that no success toast appears after cancellation without a known toast message or absence assertion for success toasts.; Assert that no order was created because no catalog step can inspect created orders or an order record."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Assert that no success toast of any unspecified wording appears after cancellation; Verify independently that no order record was created"
   ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
    "go_to",
    "event_menu",
-   "expect_visible",
    "click",
    "expect_visible"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 8391
+  "ms": 13078
  },
  "plan": {
   "title": "Cancel Recreate Order Window",
@@ -37,7 +39,15 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared awarded event on its summary page."
+    "note": "Open the already-awarded event's summary page as required for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting before accessing the prepared event."
    },
    {
     "step": "go_to",
@@ -45,30 +55,22 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the awarded event's RFQ stage."
+    "note": "Navigate to the event's RFQ stage."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab as required before accessing Settings."
+    "note": "Open the RFQ Responses view where the stage Settings menu is available."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open Recreate Order from the RFQ Settings menu."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Recreate Order",
-     "visible": true
-    },
-    "note": "Verify that the Recreate Order window opened."
+    "note": "Open the Recreate Order window from the RFQ stage Settings menu."
    },
    {
     "step": "click",
@@ -85,7 +87,7 @@
      "name": "Recreate Order",
      "visible": false
     },
-    "note": "Verify that cancellation closes the Recreate Order window."
+    "note": "Verify that the Recreate Order window has closed."
    }
   ]
  }

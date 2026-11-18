@@ -4,25 +4,24 @@
   "title": "Recreate with Custom end time left empty",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:42:04.841Z",
+  "compiledAt": "2026-11-13T12:35:50.897Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "event_menu",
    "expect_visible",
+   "expect_visible",
    "click",
-   "click",
-   "expect_message",
-   "expect_visible"
+   "attempt"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 9148
+  "ms": 17420
  },
  "plan": {
   "title": "Recreate Order with Empty Custom End Time",
@@ -32,7 +31,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ's project summary."
+    "note": "Open the prepared closed RFQ summary for the buyer-side recreate-order flow."
    },
    {
     "step": "event_menu",
@@ -44,42 +43,38 @@
    {
     "step": "expect_visible",
     "args": {
-     "text": "Recreate Order",
+     "text": "Product Sheet",
      "visible": true
     },
-    "note": "Confirm the Recreate Order dialog is open before entering the invalid schedule."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "radio",
-     "name": "Custom"
-    },
-    "note": "Select Custom end time and leave its value empty."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Order"
-    },
-    "note": "Submit the recreate form with the empty Custom end time."
-   },
-   {
-    "step": "expect_message",
-    "args": {
-     "kind": "error",
-     "text": "Please enter valid time"
-    },
-    "note": "Verify Procol refuses the request with the expected validation message."
+    "note": "Confirm the Recreate Order dialog is open."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Recreate Order",
+     "text": "Custom",
      "visible": true
     },
-    "note": "Confirm no new event was created because the recreate dialog remains open after refusal."
+    "note": "Confirm the custom end-time option is available."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Custom"
+    },
+    "note": "Select Custom and intentionally leave its end-time value empty."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Create Order"
+     },
+     "expect": "refused",
+     "because": "Please enter valid time"
+    },
+    "note": "Attempt creation and require Procol to refuse the empty custom end time with the specified validation message."
    }
   ]
  }

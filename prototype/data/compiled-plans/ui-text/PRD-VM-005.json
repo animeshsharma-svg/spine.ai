@@ -3,39 +3,57 @@
   "caseId": "PRD-VM-005",
   "title": "Vendor Approval Levels (vendor.approval.levels) = 5 (maximum)",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T02:29:28.515Z",
+  "compiledAt": "2026-11-13T15:07:12.324Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set the tenant setting vendor.approval.levels to 5 as a Tenant Admin.",
-   "Invite a new supplier with primary details into the Prospect list as a Buyer.",
-   "Observe and verify exactly five sequential approval levels before the vendor is activated."
+   "Observe the vendor management Prospect workflow and verify that exactly five sequential approvals are required before the supplier becomes active."
   ],
   "warnings": [
-   "can only test part of this — no step for: Set the tenant setting vendor.approval.levels to 5 as a Tenant Admin.; Invite a new supplier with primary details into the Prospect list as a Buyer.; Observe and verify exactly five sequential approval levels before the vendor is activated."
+   "can only test part of this — no step for: Observe the vendor management Prospect workflow and verify that exactly five sequential approvals are required before the supplier becomes active."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "require_setting",
+   "do_on_screen",
    "ask_tester",
-   "expect_no_error"
+   "expect_text"
   ],
-  "ms": 8840
+  "ms": 20164
  },
  "plan": {
   "title": "Vendor Approval Levels Maximum",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "set vendor.approval.levels to 5 as a Tenant Admin, invite a new supplier into the Prospect list as a Buyer, and verify exactly five sequential approvals are required before activation"
+     "key": "vendor.approval.levels",
+     "value": 5
     },
-    "note": "The catalog cannot access tenant settings, vendor onboarding, or the approval workflow."
+    "note": "Apply the maximum approval-level setting and verify Procol accepts it."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Final assertion that the manually performed workflow did not produce an application error; this does not verify the requested approval-level behavior."
+    "step": "do_on_screen",
+    "args": {
+     "goal": "as the Buyer, invite a new supplier with its primary details and stop on the supplier's Prospect record showing its current approval state"
+    },
+    "note": "Attempt the buyer-initiated invitation flow and reach the Prospect record, which has no dedicated catalog step."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "complete the five sequential vendor approvals and verify the supplier activates only after approval level 5"
+    },
+    "note": "The catalog cannot perform or observe the multi-level vendor approval process."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Prospect",
+     "present": true
+    },
+    "note": "Assert the known Prospect state if the approval workflow returns to the supplier record."
    }
   ]
  }

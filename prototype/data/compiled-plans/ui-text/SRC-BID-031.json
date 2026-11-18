@@ -4,76 +4,64 @@
   "title": "Tech+RFQ: Leave a required technical question empty",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:27:16.315Z",
+  "compiledAt": "2026-11-13T11:47:06.694Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Partially answer the vendor's technical questionnaire, leave exactly one required question empty, submit it, and observe the refusal message \"This is a required field.\""
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Partially answer the vendor's technical questionnaire, leave exactly one required question empty, submit it, and observe the refusal message \"This is a required field.\""
+   "resolved: “Answer all but one required technical question in the vendor portal and submit while leaving the required answer empty” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "expect_visible",
    "ask_tester",
-   "expect_text"
+   "expect_message"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9225
+  "ms": 11982
  },
  "plan": {
-  "title": "Tech+RFQ Required Question Refusal",
+  "title": "Tech+RFQ Required Technical Field Refusal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared Tech+RFQ project's summary as required for the prepared-state case."
+    "note": "Open the prepared Tech+RFQ project summary as required for this prepared-state case."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
+    "note": "Move to Vendor A's supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the prepared project directly on the vendor's Technical Stage questionnaire."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "tab",
-     "name": "Technical Stage",
-     "visible": true
-    },
-    "note": "Confirm the vendor portal reached the technical-response screen before the missing interaction."
+    "note": "Open the prepared project directly on its Technical Stage questionnaire."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "as Vendor A, answer all but one required technical question and submit the technical response, leaving the required answer empty"
+     "need": "answer all but one required technical question as Vendor A and submit the technical response with the remaining required answer empty"
     },
-    "note": "The catalog cannot perform this vendor-side partial questionnaire submission."
+    "note": "The catalog has no step for selectively answering technical questionnaire questions while leaving one required answer blank."
    },
    {
-    "step": "expect_text",
+    "step": "expect_message",
     "args": {
-     "text": "This is a required field.",
-     "present": true
+     "kind": "error",
+     "text": "This is a required field."
     },
-    "note": "Check for the expected refusal message after the tester performs the submission."
+    "note": "Verify the vendor portal refused submission with the expected required-field message."
    }
   ]
  }

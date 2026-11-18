@@ -4,26 +4,30 @@
   "title": "Approving a second time bounces back as already responded",
   "group": "EMA-APR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:52:54.821Z",
+  "compiledAt": "2026-11-13T14:17:58.757Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Log in as Asha, open the Procol approval email, click Approve, and send the generated approval email",
-   "Wait for Procol to process the approval email",
-   "Submit Asha's second approval email from the original thread",
-   "Observe the same-thread bounce-back email and verify its exact message and automated-footer text",
-   "Verify Procol recorded only one approval by Asha and that step 2 remains pending for Bikram"
+   "Create and submit an event into the configured two-step email approval workflow.",
+   "Access Asha's mailbox, open the approval email, send the first and second approval replies, and wait for Procol to process them.",
+   "Verify the bounce-back arrives in the same email thread with the exact duplicate-response wording and automated-message footer.",
+   "Verify Procol records exactly one approval by Asha and leaves step 2 assigned to Bikram."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Log in as Asha, open the Procol approval email, click Approve, and send the generated approval email; Wait for Procol to process the approval email; Submit Asha's second approval email from the original thread; Observe the same-thread bounce-back email and verify its exact message and automated-footer text; Verify Procol recorded only one approval by Asha and that step 2 remains pending for Bikram"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Create and submit an event into the configured two-step email approval workflow.; Access Asha's mailbox, open the approval email, send the first and second approval replies, and wait for Procol to process them.; Verify the bounce-back arrives in the same email thread with the exact duplicate-response wording and automated-message footer.; Verify Procol records exactly one approval by Asha and leaves step 2 assigned to Bikram."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
+   "ask_tester",
    "expect_text"
   ],
-  "ms": 9309
+  "ms": 17889
  },
  "plan": {
   "title": "EMA-APR-001 Duplicate Email Approval",
@@ -33,14 +37,37 @@
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named event as the closest available way to inspect its approval-related state."
+    "note": "Open the named event that is expected to be awaiting approval."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required company email-approval configuration before attempting the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Ensure the approval workflow prerequisite is enabled."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "access Asha's mailbox, open the Procol approval request, send the first approval email, repeat the approval from the original email, send the second email, wait for processing, and leave the resulting bounce-back email open"
+    },
+    "note": "Mailbox access and sending approval replies are not available through catalog steps."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Approval in Progress"
+     "text": "A response to request"
     },
-    "note": "Check whether the event exposes a general approval-in-progress state, although this cannot validate the duplicate email response."
+    "note": "Check that the displayed bounce-back contains the duplicate-response wording."
    }
   ]
  }

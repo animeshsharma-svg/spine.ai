@@ -3,42 +3,43 @@
   "caseId": "PRD-VM-054",
   "title": "Finance / Tax / MDM Review: refused for a user without the Finance Controller role",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T06:26:02.869Z",
+  "compiledAt": "2026-11-13T15:08:41.927Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Finance Controller role",
-   "Sign in as a Finance Controller for comparison",
-   "Open the Finance / Tax / MDM Review screen",
-   "Set the TDS code and rate without changing other fields",
-   "Compare the refused or absent action for the unprivileged user with its availability for the Finance Controller",
-   "Verify or record tenant RBAC configuration when access is granted to other roles"
+   "Open Finance / Tax / MDM Review and set only the TDS code and rate.",
+   "Sign in as a user without the Finance Controller role and verify the action is refused or absent.",
+   "Repeat the action as a Finance Controller and verify it is available.",
+   "Verify the tenant is Enterprise and compare both roles on the same tenant."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Finance Controller role; Sign in as a Finance Controller for comparison; Open the Finance / Tax / MDM Review screen; Set the TDS code and rate without changing other fields; Compare the refused or absent action for the unprivileged user with its availability for the Finance Controller; Verify or record tenant RBAC configuration when access is granted to other roles"
+   "can only test part of this — no step for: Open Finance / Tax / MDM Review and set only the TDS code and rate.; Sign in as a user without the Finance Controller role and verify the action is refused or absent.; Repeat the action as a Finance Controller and verify it is available.; Verify the tenant is Enterprise and compare both roles on the same tenant."
   ],
   "source": "llm",
   "steps": 2,
   "stepNames": [
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 11174
+  "ms": 18645
  },
  "plan": {
-  "title": "Finance Tax MDM Review RBAC Access",
+  "title": "Finance Tax MDM Review Role Access",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the user without the Finance Controller role and as the Finance Controller, open Finance / Tax / MDM Review, attempt to set only the TDS code and rate for each user, and compare whether the action is refused or available"
+     "need": "sign in as the non-Finance Controller user and the Finance Controller on the same Enterprise tenant, open Finance / Tax / MDM Review, set only the TDS code and rate in each session, and compare whether the action is refused or absent for the first user and available for the Finance Controller"
     },
-    "note": "The catalog cannot sign in as role-specific users or operate the Finance / Tax / MDM Review TDS controls."
+    "note": "No catalog step can navigate to this review, change TDS values, or provide the two required role-specific sessions."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Check that the resulting screen has no visible application error or crash after the tester completes the comparison."
+    "step": "expect_text",
+    "args": {
+     "text": "Finance / Tax / MDM Review",
+     "present": true
+    },
+    "note": "Confirm the tester left the browser on the named review area, although this does not establish the role-based permission outcome."
    }
   ]
  }

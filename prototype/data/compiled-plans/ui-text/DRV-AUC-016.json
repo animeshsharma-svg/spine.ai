@@ -1,36 +1,37 @@
 {
  "meta": {
   "caseId": "DRV-AUC-016",
-  "title": "Auction strategy selection fails if required formula variables are missing",
+  "title": "RCA 326129527519 – Vendor rank visibility differs between devices",
   "group": "DRV-AUC",
   "sheet": "derived-buyer-selects-which-qualified-vendors-ad",
-  "compiledAt": "2026-11-12T13:32:53.015Z",
+  "compiledAt": "2026-11-13T13:27:10.365Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in to the mobile app with the same buyer user, open the same auction, and compare its vendor rank with the laptop rank"
+   "Log in to the Procol mobile app with the same buyer user and compare QA_Platform_Vendor_A's rank with the laptop value"
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Log in to the mobile app with the same buyer user, open the same auction, and compare its vendor rank with the laptop rank"
+   "can only test part of this — no step for: Log in to the Procol mobile app with the same buyer user and compare QA_Platform_Vendor_A's rank with the laptop value"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "open_master_qcs",
    "expect_qcs_cell",
+   "expect_qcs_ranks",
    "ask_tester",
    "expect_screen_clean"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 15300
+  "ms": 14155
  },
  "plan": {
-  "title": "Auction rank consistency across devices",
+  "title": "Auction Rank Consistency Across Devices",
   "steps": [
    {
     "step": "open_prepared",
@@ -46,7 +47,7 @@
       "QA_Platform_Vendor_A"
      ]
     },
-    "note": "Open the buyer comparison grid and verify the named vendor is present."
+    "note": "Open the buyer's comparison grid and verify that the named vendor is visible."
    },
    {
     "step": "expect_qcs_cell",
@@ -54,19 +55,26 @@
      "row": "Rank",
      "vendor": "QA_Platform_Vendor_A"
     },
-    "note": "Read and record the buyer-side rank number for QA_Platform_Vendor_A."
+    "note": "Assert that the buyer console shows a populated rank cell for QA_Platform_Vendor_A."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "atLeast": 1
+    },
+    "note": "Assert that the displayed ranks are calculated consistently with the auction amounts."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "log in to the mobile app with the same buyer user, open the same live rank-based auction, read QA_Platform_Vendor_A's rank, and compare it with the laptop rank"
+     "need": "log in to the Procol mobile app with the same buyer user, open this auction, read QA_Platform_Vendor_A's rank, and compare it with the laptop rank"
     },
-    "note": "The mobile-app view and cross-device comparison are not available in the catalog."
+    "note": "The catalog has no mobile-app or cross-device comparison capability."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert the currently inspected screen remains free of rendering errors after the comparison attempt."
+    "note": "Confirm the accessible auction screen remains rendered without an application error after the device comparison task."
    }
   ]
  }

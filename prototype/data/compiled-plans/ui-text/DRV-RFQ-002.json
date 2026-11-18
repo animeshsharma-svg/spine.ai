@@ -1,56 +1,45 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-002",
-  "title": "Member without lot‑splitting permission cannot see \"Split into Lot\" button",
+  "title": "Import terms from a previous RFQ is blocked when the product or commodity does not match",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-12T13:37:19.591Z",
+  "compiledAt": "2026-11-13T13:38:55.204Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly assert that the commercial section remains masked after the refusal because no catalog assertion identifies or reads the masked commercial section."
+   "A live RFQ with commercial masking enabled where Vendor A has not submitted a bid; prepared RFQ state starts with one vendor bid already submitted.",
+   "Directly assert that the commercial section remains masked because no catalog assertion exposes the portal's masked-commercial state; unconfirmed label: commercial section"
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "dropped open_create — the API built this case's event; open_prepared opens its screen",
-   "dropped set_title — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped publish — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Directly assert that the commercial section remains masked after the refusal because no catalog assertion identifies or reads the masked commercial section."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: A live RFQ with commercial masking enabled where Vendor A has not submitted a bid; prepared RFQ state starts with one vendor bid already submitted.; Directly assert that the commercial section remains masked because no catalog assertion exposes the portal's masked-commercial state; unconfirmed label: commercial section"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
    "switch_portal",
    "vendor_open_event",
    "click",
-   "expect_message"
+   "expect_message",
+   "expect_text"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 2690
+  "ms": 8350
  },
  "plan": {
-  "title": "DRV-RFQ-002 Unauthorized Commercials Access",
+  "title": "Unauthorized Vendor Cannot Open Sealed Commercials",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the API-prepared RFQ event; prepared-state cases must start here."
    },
    {
     "step": "require_setting",
@@ -58,69 +47,28 @@
      "key": "enable_bid_masking_for_event",
      "value": "On"
     },
-    "note": "Enable sealed commercial masking for the tenant before creating the RFQ."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Configure the event as an RFQ rather than the default auction."
-   },
-   {
-    "step": "select_template",
-    "note": "Apply an RFQ pricing template so the commercial sheet can be configured."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add one product so the RFQ has commercial content."
-   },
-   {
-    "step": "fill_sheet",
-    "note": "Complete the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a live bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Invite the vendor who will attempt the unauthorized action."
+    "note": "Enable sealed commercial bidding for the tenant as required by the case."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
+     "to": "vendor"
     },
-    "note": "Log in to the supplier portal as Vendor A without submitting a bid."
+    "note": "Move to the vendor portal session for the assigned QA vendor."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the assigned RFQ's commercial bidding view."
+    "note": "Open the assigned RFQ's pricing round in the vendor portal."
    },
    {
     "step": "click",
     "args": {
      "text": "Open Commercials"
     },
-    "note": "Attempt to manually open the sealed commercial section."
+    "note": "Attempt the unauthorized manual commercial-opening action named by the case."
    },
    {
     "step": "expect_message",
@@ -128,7 +76,15 @@
      "kind": "error",
      "text": "You are not authorized to perform this action"
     },
-    "note": "Verify the vendor receives the expected authorization refusal."
+    "note": "Verify Procol refuses the vendor action with the expected authorization message."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Open Commercials",
+     "present": true
+    },
+    "note": "Confirm the portal remains on the commercial-opening state without exposing a successful commercial view; this is only a partial proxy for masked content."
    }
   ]
  }

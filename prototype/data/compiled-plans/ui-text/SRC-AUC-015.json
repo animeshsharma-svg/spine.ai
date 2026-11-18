@@ -4,20 +4,25 @@
   "title": "Auction with basket auction without interval time",
   "group": "SRC-AUC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:17:55.034Z",
+  "compiledAt": "2026-11-13T11:37:09.528Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "none",
+  "gaps": [
+   "Select basket auction configuration",
+   "Leave the basket auction interval empty",
+   "Verify the refusal message \"Please add basked auction interval time\" specifically caused by the missing basket interval"
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "cannot test this case yet — no step can observe: Select basket auction configuration; Leave the basket auction interval empty; Verify the refusal message \"Please add basked auction interval time\" specifically caused by the missing basket interval"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 11,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -27,22 +32,21 @@
    "add_line_items",
    "set_sheet_cell",
    "fill_sheet",
-   "do_on_screen",
    "set_schedule",
    "invite_vendor",
    "expect_publish_blocked"
   ],
-  "ms": 18404
+  "ms": 11605
  },
  "plan": {
-  "title": "SRC-AUC-015 Basket Auction Without Interval",
+  "title": "SRC-AUC-015 Basket auction interval validation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Opens the Single Stage creation flow."
+    "note": "Open the single-stage event creation flow."
    },
    {
     "step": "require_setting",
@@ -50,28 +54,28 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Enables adding participants during event creation as required by the case."
+    "note": "Ensure vendors can be added during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
-     "auctionSubtype": "price",
+     "auctionSubtype": "rank",
      "awarding": "lot"
     },
-    "note": "Sets the event to a reverse price-based auction."
+    "note": "Configure the closest expressible auction type; basket mode is not supported by the catalog."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-AUC-015 Basket Auction Without Interval"
+     "title": "SRC-AUC-015 Basket Auction Interval"
     },
-    "note": "Provides the mandatory event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Applies the first offered reverse-auction template so the pricing sheet is available."
+    "note": "Apply the first available auction pricing template."
    },
    {
     "step": "add_line_items",
@@ -80,7 +84,7 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Adds the requested product with quantity 10."
+    "note": "Add the requested product and quantity."
    },
    {
     "step": "set_sheet_cell",
@@ -89,40 +93,36 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Sets the requested delivery location on the first line item."
+    "note": "Set the requested delivery location for the first line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Completes remaining mandatory pricing-sheet fields before publishing."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "configure the auction as a basket auction and leave the basket auction interval time empty; stop on the auction configuration showing the empty interval"
-    },
-    "note": "Performs the basket-auction configuration and deliberately leaves its interval blank, which has no dedicated catalog step."
+    "note": "Complete the remaining pricing sheet fields."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commits the required 30-minute schedule."
+    "note": "Commit the 30-minute schedule required before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "count": 2
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
     },
-    "note": "Adds two QA test vendors for the auction audience."
+    "note": "Add the two vendors named in the case."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Please add basked auction interval time"
     },
-    "note": "Asserts that Publish Event is refused with Procol's stated spelling and message."
+    "note": "Attempt to verify the expected publish refusal, although the missing basket configuration cannot be created by the catalog."
    }
   ]
  }

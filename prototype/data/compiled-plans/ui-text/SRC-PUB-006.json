@@ -4,20 +4,16 @@
   "title": "Publish without the savings configuration on a template that needs it",
   "group": "SRC-PUB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:08:27.523Z",
+  "compiledAt": "2026-11-13T12:32:51.853Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Selecting a specific RFQ template known to require savings because the case does not provide its template name.",
-   "Asserting that the Events list is unchanged after the refused publish."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Selecting a specific RFQ template known to require savings because the case does not provide its template name.; Asserting that the Events list is unchanged after the refused publish."
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -30,10 +26,11 @@
    "add_line_items",
    "fill_sheet",
    "set_sheet_cell",
+   "set_schedule",
    "invite_vendor",
    "expect_publish_blocked"
   ],
-  "ms": 16545
+  "ms": 18738
  },
  "plan": {
   "title": "Publish blocked without savings configuration",
@@ -51,7 +48,7 @@
      "key": "is_saving_configuration_mandatory",
      "value": "On"
     },
-    "note": "Make savings configuration mandatory for publishing."
+    "note": "Enable the tenant rule that requires savings configuration before publishing."
    },
    {
     "step": "require_setting",
@@ -59,7 +56,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation."
+    "note": "Enable eRFX project creation for the test."
    },
    {
     "step": "require_setting",
@@ -67,7 +64,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation."
+    "note": "Allow vendors to be added during event creation and avoid an unrelated publish block."
    },
    {
     "step": "set_title",
@@ -83,18 +80,19 @@
       "rfq"
      ]
     },
-    "note": "Configure the project with an RFQ-only stage."
+    "note": "Configure the project with an RFQ-only stage, leaving no auction or technical stage."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfq"
     },
-    "note": "Work on the RFQ stage before selecting its template."
+    "note": "Work on the RFQ stage before selecting its template and filling its sheet."
    },
    {
     "step": "select_template",
-    "note": "Apply the first available RFQ template; the case does not provide a specific template name."
+    "args": {},
+    "note": "Apply the RFQ template that requires savings configuration."
    },
    {
     "step": "add_line_items",
@@ -103,11 +101,12 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add the requested CYLINDER line item with quantity 10."
+    "note": "Add the requested CYLINDER product with quantity 10."
    },
    {
     "step": "fill_sheet",
-    "note": "Populate the RFQ pricing sheet so the event is complete apart from savings configuration."
+    "args": {},
+    "note": "Fill the RFQ pricing sheet so the line item is complete."
    },
    {
     "step": "set_sheet_cell",
@@ -116,7 +115,14 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the requested delivery location on the line item."
+    "note": "Set the requested delivery location for the line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule so missing scheduling cannot cause the refusal."
    },
    {
     "step": "invite_vendor",
@@ -125,14 +131,14 @@
       "Vendor A"
      ]
     },
-    "note": "Add the vendor named in the case as a participant."
+    "note": "Add the vendor named by the case so missing participants cannot cause the refusal."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Savings configuration is mandatory"
     },
-    "note": "Attempt publish and assert Procol refuses it because savings configuration was omitted."
+    "note": "Attempt publishing and assert Procol refuses it because savings configuration was deliberately left missing."
    }
   ]
  }

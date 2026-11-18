@@ -4,53 +4,59 @@
   "title": "A long comment with several lines is kept in full",
   "group": "EMA-REJ",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:57:45.046Z",
+  "compiledAt": "2026-11-13T14:23:01.870Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Asha's mailbox and open the Procol approval email",
-   "Click Reject, enter and send the four-line comment without changing the subject",
-   "Wait for Procol to process the mailbox response",
-   "Verify that the complete four-line comment is displayed in the event's approval history in the original order"
+   "Access Asha's mailbox and open the Procol approval request email",
+   "Click Reject, enter the four-line comment, and send the reply without changing the subject",
+   "Wait for Procol to process the approval mailbox reply",
+   "Verify that the complete four-line comment is preserved in the event in the original order"
   ],
   "warnings": [
    "moved open_event to the front — the steps after it act on that event's page",
    "moved open_event to the front — the steps after it act on that event's page",
-   "can only test part of this — no step for: Access Asha's mailbox and open the Procol approval email; Click Reject, enter and send the four-line comment without changing the subject; Wait for Procol to process the mailbox response; Verify that the complete four-line comment is displayed in the event's approval history in the original order"
+   "can only test part of this — no step for: Access Asha's mailbox and open the Procol approval request email; Click Reject, enter the four-line comment, and send the reply without changing the subject; Wait for Procol to process the approval mailbox reply; Verify that the complete four-line comment is preserved in the event in the original order"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
+   "require_setting",
    "ask_tester",
-   "expect_text"
+   "expect_no_error"
   ],
-  "ms": 9408
+  "ms": 13261
  },
  "plan": {
-  "title": "EMA-REJ-008 Email Rejection Comment Retention",
+  "title": "EMA-REJ-008 Long email rejection comment",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the event after the email workflow so the tester can inspect its approval state."
+    "note": "Open the named event after the email action so the resulting approval record can be inspected by the tester."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required company configuration before testing the email approval flow."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open Asha's mailbox, reject the Procol approval request with the specified four-line comment without changing the subject, send it, and wait for Procol to process the email"
+     "need": "access Asha's mailbox, reject the approval request by sending the unchanged-subject Action:Reject reply with a four-line comment, wait for Procol to process it, and verify the full comment is preserved in the event in the original order"
     },
-    "note": "The catalog has no mailbox or email-approval interaction step."
+    "note": "Mailbox access, sending the reply, processing delay, and verification of the unspecified multi-line comment require the tester."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Approvals",
-     "present": true
-    },
-    "note": "Confirm the event page exposes the approval area, although the catalog cannot verify the retained comment itself."
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the event page loaded without an application error."
    }
   ]
  }

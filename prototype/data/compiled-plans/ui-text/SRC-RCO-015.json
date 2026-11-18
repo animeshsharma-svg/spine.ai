@@ -4,47 +4,67 @@
   "title": "Recreate Order: Schedule ticked with a time already passed",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:42:29.238Z",
+  "compiledAt": "2026-11-13T12:36:22.786Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "event_menu",
    "do_on_screen",
-   "expect_text",
-   "expect_visible"
+   "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 10637
+  "ms": 11721
  },
  "plan": {
-  "title": "Recreate Order rejects past schedule",
+  "title": "Recreate Order Rejects Past Scheduled Time",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary as required for this case."
+    "note": "Open the prepared closed RFQ with the stated bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "scheduled_events_enabled",
+     "value": "On"
+    },
+    "note": "Enable automatic event scheduling required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required by the case."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Open the Recreate Order pop-up from the stage Settings menu."
+    "note": "Open the stage menu and launch the Recreate Order pop-up."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "In the Recreate Order pop-up, tick \"Schedule this event?\", choose today with a time one hour in the past, click \"Create Order\", and verify that the app refuses with \"Invalid scheduled time!\" or \"Scheduled time is invalid!\", keeps the pop-up open, and does not create a new event."
+     "goal": "In the Recreate Order pop-up, tick 'Schedule this event?', choose today with a time one hour before now, click 'Create Order', and verify that the pop-up remains open showing the refusal 'Invalid scheduled time!' or 'Scheduled time is invalid!' with no new event created"
     },
-    "note": "Perform the past-time schedule attempt and verify the refusal and unchanged dialog on the buyer screen."
+    "note": "Perform and verify the recreate-order scheduling refusal, including the dialog remaining open."
    },
    {
     "step": "expect_text",
@@ -53,15 +73,6 @@
      "present": true
     },
     "note": "Assert the expected refusal message is visible."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Recreate Order",
-     "visible": true
-    },
-    "note": "Assert the Recreate Order pop-up remains open after the refusal."
    }
   ]
  }

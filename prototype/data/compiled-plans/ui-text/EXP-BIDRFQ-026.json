@@ -4,44 +4,93 @@
   "title": "A live RFQ with a vendor's bid: \"Send Bulk Counter Offer\" is greyed out and says why",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:19:14.541Z",
+  "compiledAt": "2026-11-13T13:47:18.030Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "open_event_settings",
-   "expect_menu_item"
+   "expect_settings_menu"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 6463
+  "ms": 10656
  },
  "plan": {
-  "title": "Bulk Counter Offer disabled with tooltip",
+  "title": "Bulk Counter Offer Disabled on Live RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ with one vendor bid on its Responses tab."
+    "note": "Open the prepared live RFQ Responses screen with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure RFQ counter offers are not hidden."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required."
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Open the RFQ stage Settings menu where Send Bulk Counter Offer is offered."
+    "note": "Open the RFQ stage Settings menu containing Send Bulk Counter Offer."
    },
    {
-    "step": "expect_menu_item",
+    "step": "expect_settings_menu",
     "args": {
-     "item": "Send Bulk Counter Offer",
-     "enabled": false
+     "greyed": [
+      "Send Bulk Counter Offer"
+     ]
     },
-    "note": "Assert the menu item is greyed out and its explanation tooltip is present."
+    "note": "Assert that Send Bulk Counter Offer is greyed out and that its explanation tooltip is present."
    }
   ]
  }

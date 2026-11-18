@@ -4,23 +4,24 @@
   "title": "eRFX Auction project: add a surrogate bid for Vendor A",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:31:19.333Z",
+  "compiledAt": "2026-11-13T12:13:25.594Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enter or verify the bid reference associated with the surrogate bid"
+   "Guaranteeing that the prepared existing event is an eRFX Auction-only project",
+   "Entering or verifying a bid reference because no catalog step exposes a reference argument or assertion"
   ],
   "warnings": [
-   "added open_prepared(participants) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Enter or verify the bid reference associated with the surrogate bid"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Guaranteeing that the prepared existing event is an eRFX Auction-only project; Entering or verifying a bid reference because no catalog step exposes a reference argument or assertion"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "open_participants",
+   "require_setting",
+   "require_setting",
    "place_surrogate_bid",
    "expect_bid_submitted",
    "expect_responses",
@@ -29,60 +30,65 @@
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 10473
+  "ms": 16912
  },
  "plan": {
-  "title": "Add surrogate bid to eRFX auction",
+  "title": "Add Surrogate Bid to eRFX Auction",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared event's Participants view, as required for an existing prepared event."
    },
    {
-    "step": "open_participants",
-    "args": {},
-    "note": "Reach the published event's Participants list where Vendor A's Add Bid control is available."
+    "step": "require_setting",
+    "args": {
+     "key": "allowed_surrogate_bid_even_after_bid",
+     "value": "On"
+    },
+    "note": "Enable surrogate bids after an existing bid as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects for the tenant."
    },
    {
     "step": "place_surrogate_bid",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Enter and submit the buyer's surrogate bid for Vendor A."
+    "note": "Submit the buyer's bid on behalf of Vendor A."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that the surrogate bid submission was accepted."
+    "note": "Verify that the surrogate bid submission was accepted."
    },
    {
     "step": "expect_responses",
     "args": {
-     "surrogate": 1,
-     "vendors": [
-      "Vendor A"
-     ]
+     "atLeast": 1,
+     "surrogate": 1
     },
-    "note": "Assert that the buyer's response view attributes the bid to Vendor A as a surrogate bid."
+    "note": "Verify the buyer-side responses view marks at least one response as a surrogate bid."
    },
    {
     "step": "open_master_qcs",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Open the comparison grid for the submitted bid."
+    "args": {},
+    "note": "Open the comparison grid to inspect ranking after the surrogate bid."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
      "atLeast": 1
     },
-    "note": "Assert that the submitted bid is ranked in Master QCS."
+    "note": "Verify that the bid is ranked in Master QCS."
    }
   ]
  }

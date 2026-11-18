@@ -4,37 +4,56 @@
   "title": "Master QCS report after awarding a split 6 to B and 4 to A",
   "group": "SRC-RPT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:51:13.023Z",
+  "compiledAt": "2026-11-13T12:43:31.422Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create or access an awarded split allocation of 6 units to vendor B and 4 units to vendor A",
-   "Verify report rows showing vendor B amount 540, vendor A amount 400, and total 940",
-   "Compare the report totals with the split award proposal"
+   "Verify as structured report data that vendor B is specifically associated with amount 540 and vendor A with amount 400.",
+   "Verify that the report totals are equal to the proposal through a direct cross-screen or structured comparison."
   ],
   "warnings": [
-   "can only test part of this — no step for: Create or access an awarded split allocation of 6 units to vendor B and 4 units to vendor A; Verify report rows showing vendor B amount 540, vendor A amount 400, and total 940; Compare the report totals with the split award proposal"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify as structured report data that vendor B is specifically associated with amount 540 and vendor A with amount 400.; Verify that the report totals are equal to the proposal through a direct cross-screen or structured comparison."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_download"
   ],
   "state": "awarded",
   "screen": "master_qcs",
-  "ms": 76606
+  "ms": 13801
  },
  "plan": {
-  "title": "Master QCS split-award report",
+  "title": "Master QCS Split Award Report",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared awarded event's Master QCS without searching the events list."
+    "note": "Open Master QCS for the existing awarded event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable split awarding for the prepared awarded event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
    },
    {
     "step": "click",
@@ -42,12 +61,18 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Download the Master QCS report."
+    "note": "Download the Master QCS report for the awarded event."
    },
    {
     "step": "expect_download",
-    "args": {},
-    "note": "Assert that the report file was saved."
+    "args": {
+     "contains": [
+      "540",
+      "400",
+      "940"
+     ]
+    },
+    "note": "Verify the downloaded report contains the two awarded amounts and the total."
    }
   ]
  }

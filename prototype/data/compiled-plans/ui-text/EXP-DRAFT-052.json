@@ -4,120 +4,134 @@
   "title": "Manage Line Items: Save fails when Quantity exceeds maximum allowed digits",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:45:22.530Z",
+  "compiledAt": "2026-11-13T14:07:30.940Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The Manage Line Items drawer's exact response when saving quantity 9999999999 after entering price 1200, including whether it saves or which validation message appears."
+   "Enter 1200 in the price field within the Manage Line Items window and verify the result of clicking that window's Save button."
   ],
   "warnings": [
-   "can only test part of this — no step for: The Manage Line Items drawer's exact response when saving quantity 9999999999 after entering price 1200, including whether it saves or which validation message appears."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added select_template — the Items drawer stays inert without one",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added select_template — the Items drawer stays inert without one",
+   "can only test part of this — no step for: Enter 1200 in the price field within the Manage Line Items window and verify the result of clicking that window's Save button."
   ],
   "source": "llm",
   "steps": 14,
   "stepNames": [
    "open_create",
+   "compose_stages",
    "set_title",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "open_events_list",
+   "expect_events_list",
+   "filter_events",
+   "open_first_event",
+   "click",
    "select_template",
    "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "save_draft",
-   "open_events_list",
-   "filter_events",
-   "expect_event_in_list",
-   "open_event",
-   "do_on_screen",
-   "expect_visible"
+   "expect_error"
   ],
-  "ms": 12221
+  "ms": 25505
  },
  "plan": {
-  "title": "EXP-DRAFT-052 Excessive Quantity Save",
+  "title": "Draft line-item quantity limit",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    },
-    "note": "Create the saved eRFX draft needed as the starting state."
+    }
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the required draft title."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply a pricing template before adding line items."
-   },
-   {
-    "step": "add_line_items",
+    "step": "compose_stages",
     "args": {
-     "count": 1
-    },
-    "note": "Create the initial line item so the draft has an Items 1 control."
+     "stages": [
+      "rfq"
+     ]
+    }
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet for the initial line item."
+    "step": "set_title"
    },
    {
-    "step": "set_schedule",
+    "step": "require_setting",
     "args": {
-     "minutes": 30
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Commit a schedule so the draft can be saved."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "invite_vendor",
-    "args": {},
-    "note": "Complete the draft's required participant setup."
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-lock configuration."
    },
    {
-    "step": "save_draft",
-    "args": {},
-    "note": "Save the eRFX as a draft."
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage configuration."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the events list to locate the saved draft."
+    "note": "Open the Events list to reach the saved draft."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify the Events list rendered without an error."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab specified by the case."
+    "note": "Show saved eRFX drafts."
    },
    {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Assert that the newly saved draft appears in the draft list."
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Reopen this plan's saved draft on its create screen."
-   },
-   {
-    "step": "do_on_screen",
+    "step": "open_first_event",
     "args": {
-     "goal": "On the saved eRFX draft, open the Items 1 Manage Line Items window, select a product from its product dropdown, enter 9999999999 in Quantity, enter 1200 in Price, click Save, and stop with the resulting save or validation outcome visible."
+     "tab": "Drafts"
     },
-    "note": "Perform the exact Manage Line Items interaction and record the application's response, which no catalog assertion can specifically judge."
+    "note": "Open the first available saved draft, which reopens its create screen."
    },
    {
-    "step": "expect_visible",
+    "step": "click",
     "args": {
-     "text": "Manage Line Items",
-     "visible": true
+     "role": "button",
+     "name": "Items 1"
     },
-    "note": "Assert that the line-item management screen remains visibly available after the interaction."
+    "note": "Open the Manage Line Items window for the draft."
+   },
+   {
+    "step": "select_template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "quantity": "9999999999"
+    },
+    "note": "Use the line-item flow to select a product and enter the 10-digit quantity."
+   },
+   {
+    "step": "expect_error",
+    "args": {},
+    "note": "Assert that Procol refuses the maximum-digit quantity."
    }
   ]
  }

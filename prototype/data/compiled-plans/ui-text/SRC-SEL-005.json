@@ -4,39 +4,37 @@
   "title": "No selection while bidding is live",
   "group": "SRC-SEL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:14:31.719Z",
+  "compiledAt": "2026-11-13T12:53:42.607Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Force the live order to close or attempt Select Quote to observe the refusal message \"Unable to close the order at this time. Please wait for the bidding to end\".",
-   "unconfirmed label \"Select Quote\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "The exact refusal message \"Unable to close the order at this time. Please wait for the bidding to end\" when forced is not observable because no catalog step can force Select Quote while live."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "coverage partial: unconfirmed label \"Select Quote\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Force the live order to close or attempt Select Quote to observe the refusal message \"Unable to close the order at this time. Please wait for the bidding to end\"."
+   "can only test part of this — no step for: The exact refusal message \"Unable to close the order at this time. Please wait for the bidding to end\" when forced is not observable because no catalog step can force Select Quote while live."
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "expect_visible"
+   "attempt"
   ],
   "state": "two_bids",
   "screen": "responses",
-  "ms": 10038
+  "ms": 16382
  },
  "plan": {
-  "title": "Select Quote unavailable while bidding is live",
+  "title": "Select Quote unavailable while live",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ with two bids on the buyer's Responses view."
+    "note": "Open the prepared live RFQ with two bids on the buyer's Responses screen."
    },
    {
     "step": "require_setting",
@@ -44,15 +42,18 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project configuration before accessing the prepared RFQ."
+    "note": "Enable the required eRFX project configuration for this case."
    },
    {
-    "step": "expect_visible",
+    "step": "attempt",
     "args": {
-     "text": "Select Quote",
-     "visible": false
+     "step": "click",
+     "args": {
+      "text": "Select Quote"
+     },
+     "expect": "nothing_opens"
     },
-    "note": "Verify that Select Quote is not available while bidding remains live."
+    "note": "Verify that attempting to access Select Quote while bidding is live opens no selection flow."
    }
   ]
  }

@@ -4,13 +4,16 @@
   "title": "Edit Evaluation Time: Edit Evaluation Time with no selection (radio left unchosen) still accepts Ok",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:40:48.502Z",
+  "compiledAt": "2026-11-13T13:51:16.353Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Ensuring that any pre-selected radio option is clicked again so that no option remains selected before pressing Ok"
+  ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Ensuring that any pre-selected radio option is clicked again so that no option remains selected before pressing Ok"
   ],
   "source": "llm",
   "steps": 14,
@@ -22,17 +25,17 @@
    "require_setting",
    "require_setting",
    "go_to",
+   "go_to",
    "event_menu",
-   "expect_visible",
    "remember",
-   "do_on_screen",
-   "expect_visible",
+   "click",
    "expect_toast",
+   "event_menu",
    "expect_remembered"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 17653
+  "ms": 27229
  },
  "plan": {
   "title": "Edit Evaluation Time Without Selection",
@@ -42,7 +45,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with one invited vendor bid, as required for prepared-state cases."
+    "note": "Open the prepared live RFQ summary containing one invited vendor's bid."
    },
    {
     "step": "require_setting",
@@ -58,7 +61,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Apply the required RFQ counter-offer configuration."
+    "note": "Use the required RFQ counter-offer configuration."
    },
    {
     "step": "require_setting",
@@ -66,7 +69,7 @@
      "key": "disable_reject_bid_in_bidding_time",
      "value": "Off"
     },
-    "note": "Apply the required bidding-time rejection configuration."
+    "note": "Use the required bid-rejection configuration."
    },
    {
     "step": "require_setting",
@@ -74,7 +77,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Allow buyer bid editing as required by the scenario configuration."
+    "note": "Enable buyer bid editing as required by the case."
    },
    {
     "step": "require_setting",
@@ -82,14 +85,22 @@
      "key": "is_counter_offer_percent_bid_allowed",
      "value": "On"
     },
-    "note": "Enable percentage counter offers as required by the scenario configuration."
+    "note": "Enable percentage counter offers as required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Reach the RFQ Responses view where the stage Settings menu is available."
+    "note": "Open the Responses view named in the scenario."
    },
    {
     "step": "event_menu",
@@ -97,16 +108,7 @@
      "item": "Edit Evaluation Time",
      "stage": "rfq"
     },
-    "note": "Open the Edit Evaluation Time dialog from the RFQ Settings menu."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Edit Evaluation Time",
-     "visible": true
-    },
-    "note": "Confirm the expected evaluation-time dialog opened."
+    "note": "Open the Edit Evaluation Time window from the RFQ Settings menu."
    },
    {
     "step": "remember",
@@ -115,23 +117,15 @@
      "text": "Evaluation will end at",
      "within": "dialog"
     },
-    "note": "Capture the dialog's evaluation end time before confirming with no selection."
+    "note": "Capture the dialog's current evaluation end time before confirming."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "In the open Edit Evaluation Time dialog, leave every radio option unselected, including deselecting an already-selected option if necessary, then click Ok and stop after the dialog closes."
+     "role": "button",
+     "name": "Ok"
     },
-    "note": "Perform the case-specific no-selection interaction that has no dedicated catalog action."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Edit Evaluation Time",
-     "visible": false
-    },
-    "note": "Verify that Ok closes the evaluation-time dialog."
+    "note": "Confirm without changing any radio selection."
    },
    {
     "step": "expect_toast",
@@ -139,17 +133,25 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Verify the expected success toast."
+    "note": "Verify the expected successful update toast."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Edit Evaluation Time",
+     "stage": "rfq"
+    },
+    "note": "Reopen the dialog to read the resulting evaluation end time."
    },
    {
     "step": "expect_remembered",
     "args": {
      "key": "evaluation_end_before",
+     "same": true,
      "text": "Evaluation will end at",
-     "within": "dialog",
-     "same": true
+     "within": "dialog"
     },
-    "note": "Verify that the evaluation end time remains unchanged after accepting Ok."
+    "note": "Verify the evaluation end time remains unchanged."
    }
   ]
  }

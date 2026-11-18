@@ -4,20 +4,27 @@
   "title": "Events list and the Create Event menu: the \"RECURRING\" tab opens",
   "group": "EXP-CREATEMENU",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:34:31.942Z",
+  "compiledAt": "2026-11-13T13:58:31.022Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 8,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
-   "expect_events_list"
+   "expect_visible",
+   "expect_no_error"
   ],
-  "ms": 68344
+  "ms": 8929
  },
  "plan": {
   "title": "Recurring events tab opens",
@@ -25,24 +32,57 @@
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list from the buyer portal."
+    "note": "Open the Events list, the screen under test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable RFX projects as required by the test configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "boq_in_erfx_allowed",
+     "value": "On"
+    },
+    "note": "Enable BOQ events as required by the test configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "scheduled_events_enabled",
+     "value": "On"
+    },
+    "note": "Enable recurring event functionality so the Recurring tab is available."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the events list rendered without an error before interacting with its tabs."
+    "note": "Confirm the Events list rendered successfully before interacting with its tabs."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Recurring"
     },
-    "note": "Open the Recurring tab."
+    "note": "Open the Recurring tab as required by the case."
    },
    {
-    "step": "expect_events_list",
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Recurring",
+     "visible": true
+    },
+    "note": "Confirm the Recurring tab remains visible after navigation."
+   },
+   {
+    "step": "expect_no_error",
     "args": {},
-    "note": "Verify the Recurring view rendered its list state and no error is shown."
+    "note": "Verify the Recurring tab opened without an application error."
    }
   ]
  }

@@ -4,63 +4,86 @@
   "title": "A bid revised after the award was prepared must be re-awarded",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:48:11.009Z",
+  "compiledAt": "2026-11-13T12:40:49.272Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The catalog cannot explicitly reopen bidding before the vendor revision; it only supports revising an existing vendor bid."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: The catalog cannot explicitly reopen bidding before the vendor revision; it only supports revising an existing vendor bid."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "start_awarding",
-   "allocate_award",
-   "place_bid",
-   "attempt"
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_text",
+   "switch_portal",
+   "click",
+   "expect_message"
   ],
-  "ms": 15969
+  "ms": 13062
  },
  "plan": {
-  "title": "Re-award After Vendor Bid Revision",
+  "title": "Re-award after revised bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
-     "screen": "master_qcs"
+     "screen": "proposal"
     },
-    "note": "Open a prepared event with an existing vendor bid."
+    "note": "Open the prepared award proposal that contains Vendor A's earlier bid."
    },
    {
-    "step": "start_awarding",
-    "args": {},
-    "note": "Enter the awarding flow for the existing bid."
-   },
-   {
-    "step": "allocate_award",
+    "step": "switch_portal",
     "args": {
-     "vendor": 1
+     "to": "vendor"
     },
-    "note": "Prepare the award allocation before the bid is revised."
+    "note": "Move to Vendor A's supplier portal without closing the buyer session."
    },
    {
-    "step": "place_bid",
+    "step": "vendor_open_event",
     "args": {
-     "vendor": 1
+     "stage": "pricing"
     },
-    "note": "Have Vendor A revise its bid through the vendor portal while the buyer session remains available."
+    "note": "Open the prepared event's pricing round so Vendor A can revise the bid."
    },
    {
-    "step": "attempt",
+    "step": "vendor_bid",
     "args": {
-     "step": "start_awarding",
-     "expect": "refused",
-     "because": "A few bids have been revised. Please re-award to continue."
+     "price": 110
     },
-    "note": "Return to awarding and assert that the revised bid prevents continuing until the buyer re-awards."
+    "note": "Submit Vendor A's revised bid while bidding is reopened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Confirm the vendor portal shows the revised bid as submitted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's prepared award proposal."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Attempt to submit the award prepared before the bid revision."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "revised"
+    },
+    "note": "Verify Procol refuses the stale award and reports that the bid was revised or must be re-awarded."
    }
   ]
  }

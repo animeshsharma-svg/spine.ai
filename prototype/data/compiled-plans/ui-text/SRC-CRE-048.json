@@ -4,12 +4,11 @@
   "title": "Upload a file bigger than 10 MB",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T12:57:41.265Z",
+  "compiledAt": "2026-11-13T11:53:29.419Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Provide or select a file larger than 10 MB using a catalog upload fixture",
-   "Assert the exact file-size wording because the test case does not specify the expected message text"
+   "Upload a file larger than 10 MB using a size-controlled fixture and verify the specific file-size refusal message."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -18,10 +17,10 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Provide or select a file larger than 10 MB using a catalog upload fixture; Assert the exact file-size wording because the test case does not specify the expected message text"
+   "can only test part of this — no step for: Upload a file larger than 10 MB using a size-controlled fixture and verify the specific file-size refusal message."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -29,15 +28,19 @@
    "set_title",
    "select_template",
    "add_line_items",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
    "set_sheet_cell",
    "expect_sheet_cell",
-   "do_on_screen",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "ask_tester",
    "expect_message"
   ],
-  "ms": 14187
+  "ms": 26179
  },
  "plan": {
-  "title": "SRC-CRE-048 — Reject oversized sheet upload",
+  "title": "Single-stage RFQ large upload refusal",
   "steps": [
    {
     "step": "open_create",
@@ -52,21 +55,21 @@
      "key": "allowed_file_size",
      "value": "10"
     },
-    "note": "Apply the required 10 MB upload limit before testing the screen behavior."
+    "note": "Configure the company limit required by the case before opening the create flow."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Switch the event type to RFQ as required by the scenario."
+    "note": "Switch the default event type to RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-CRE-048 Oversized Upload"
+     "title": "SRC-CRE-048 Large Upload Test"
     },
-    "note": "Provide the mandatory event title for the create flow."
+    "note": "Provide the required event title for the create screen."
    },
    {
     "step": "select_template",
@@ -77,10 +80,45 @@
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB",
-     "quantity": "10"
+     "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the specified product and quantity to populate the sheet."
+    "note": "Add the specified product to the sheet."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product",
+     "contains": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Verify the requested product was selected."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "equals": "Variant 1"
+    },
+    "note": "Verify the product variant filled automatically."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "value": "10"
+    },
+    "note": "Enter the requested quantity."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10"
+    },
+    "note": "Verify the quantity was retained."
    },
    {
     "step": "set_sheet_cell",
@@ -89,31 +127,30 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the required delivery location on the first product row."
+    "note": "Choose the specified delivery location."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
-     "column": "Quantity Requested",
-     "kept": true,
-     "equals": "10"
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
     },
-    "note": "Verify the requested quantity was retained before the upload test."
+    "note": "Verify the delivery location selection."
    },
    {
-    "step": "do_on_screen",
+    "step": "ask_tester",
     "args": {
-     "goal": "On the current Single Stage RFQ product sheet, upload a file larger than 10 MB and stop when the screen shows that the upload was refused for exceeding the file-size limit"
+     "need": "upload a file larger than 10 MB through the product sheet's Upload Sheet control"
     },
-    "note": "Perform the oversized-file upload that no catalog upload fixture can directly express."
+    "note": "No catalog step can supply a file whose size exceeds 10 MB."
    },
    {
     "step": "expect_message",
     "args": {
      "kind": "error"
     },
-    "note": "Assert that the oversized upload produced an error/refusal message."
+    "note": "Assert that the large-file upload was refused with an error message."
    }
   ]
  }

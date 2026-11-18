@@ -4,7 +4,7 @@
   "title": "Add Columns — empty column name",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-13T11:32:03.237Z",
+  "compiledAt": "2026-11-13T11:52:46.460Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -14,10 +14,11 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "the model was unsure of 1 label(s) that are known from the app — coverage full"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 16,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -25,14 +26,21 @@
    "select_template",
    "add_line_items",
    "set_sheet_cell",
+   "expect_sheet_cell",
    "set_sheet_cell",
-   "do_on_screen",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "click",
+   "click",
+   "fill",
+   "click",
    "expect_message"
   ],
-  "ms": 16007
+  "ms": 21996
  },
  "plan": {
-  "title": "SRC-CRE-042 Empty Column Name",
+  "title": "Single-stage RFQ rejects empty column name",
   "steps": [
    {
     "step": "open_create",
@@ -46,7 +54,7 @@
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ as required by the scenario."
+    "note": "Set the event type to RFQ as required by the case."
    },
    {
     "step": "set_title",
@@ -58,7 +66,7 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ template so the product sheet and Add Columns control are available."
+    "note": "Apply the RFQ template so the pricing sheet is available."
    },
    {
     "step": "add_line_items",
@@ -66,7 +74,25 @@
      "count": 1,
      "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the specified product; the product's configured variant is applied by the product selection flow."
+    "note": "Add the specified product to create the sheet row under test."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product",
+     "value": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Select the requested product in the first product cell."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product",
+     "equals": "CYLINDER WITH KEY & KNOB"
+    },
+    "note": "Confirm the requested product was selected."
    },
    {
     "step": "set_sheet_cell",
@@ -75,7 +101,16 @@
      "column": "Quantity Requested",
      "value": "10"
     },
-    "note": "Enter the scenario's requested quantity."
+    "note": "Enter the requested quantity."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Quantity Requested",
+     "equals": "10"
+    },
+    "note": "Confirm the quantity was accepted."
    },
    {
     "step": "set_sheet_cell",
@@ -84,14 +119,47 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Choose the specified delivery location from the sheet dropdown."
+    "note": "Choose the specified delivery location."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_sheet_cell",
     "args": {
-     "goal": "On the RFQ product sheet, open Add Columns, choose a text column, leave the column name empty, save it, and stop with the validation error visible."
+     "row": 1,
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
     },
-    "note": "Perform the Add Columns interaction whose exact dialog controls are not represented by a dedicated catalog step."
+    "note": "Confirm the delivery location was selected."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Add Columns"
+    },
+    "note": "Open the sheet's custom-column controls."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Text"
+    },
+    "note": "Choose a text column type."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Column Name",
+     "value": ""
+    },
+    "note": "Leave the column name empty; this label is not confirmed by the catalog."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save"
+    },
+    "note": "Attempt to save the unnamed text column."
    },
    {
     "step": "expect_message",
@@ -99,7 +167,7 @@
      "kind": "error",
      "text": "Column name cannot be empty"
     },
-    "note": "Assert the required refusal message for the empty column name."
+    "note": "Assert that Procol refuses the empty column name with the expected message."
    }
   ]
  }

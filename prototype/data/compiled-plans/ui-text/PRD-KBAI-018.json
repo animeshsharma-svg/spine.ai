@@ -3,36 +3,35 @@
   "caseId": "PRD-KBAI-018",
   "title": "\"Purchase Items\" shows the selected count and the side panel lists items with quantities",
   "group": "PRD-KBAI",
-  "compiledAt": "2026-11-10T06:46:36.241Z",
+  "compiledAt": "2026-11-13T15:38:26.126Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The Purchase Items button must show the number of selected PR line items.",
-   "The Create Project button must show the number of selected PR line items.",
-   "The side panel must list every selected PR line item with its respective quantity.",
-   "Select several PR line items when the required count is not specified."
+   "The Purchase Items button and Create Project button display the number of selected items.",
+   "The side panel lists every selected item with its respective quantity."
   ],
   "warnings": [
    "added open_create — every create test has to start somewhere",
    "added set_title — publishing without a title is refused",
    "added open_create — every create test has to start somewhere",
    "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: The Purchase Items button must show the number of selected PR line items.; The Create Project button must show the number of selected PR line items.; The side panel must list every selected PR line item with its respective quantity.; Select several PR line items when the required count is not specified."
+   "can only test part of this — no step for: The Purchase Items button and Create Project button display the number of selected items.; The side panel lists every selected item with its respective quantity."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_create",
    "set_title",
    "open_purchase_requisitions",
    "pr_tab",
-   "ask_tester",
-   "expect_visible"
+   "select_pr",
+   "purchase_items",
+   "expect_pr_items"
   ],
-  "ms": 16099
+  "ms": 14526
  },
  "plan": {
-  "title": "PR Purchase Items selection panel",
+  "title": "Purchase Items selected count and quantities",
   "steps": [
    {
     "step": "open_create",
@@ -46,29 +45,31 @@
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions page, the required entry point for a PR-based flow."
+    "note": "Open the Purchase Requisitions page, the required starting screen for a PR-based event."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Only Open purchase requests can be selected for sourcing."
+    "note": "Use the Open tab because only open purchase requests can be sourced."
    },
    {
-    "step": "ask_tester",
+    "step": "select_pr",
     "args": {
-     "need": "select several PR line items, verify that the Purchase Items and Create Project buttons show the selected count, click Purchase Items, and verify that the side panel lists each selected item with its quantity"
+     "items": 3
     },
-    "note": "No catalog assertion observes the selected counts or the side panel's item quantities."
+    "note": "Select three line items from one purchase request to represent selecting several PR lines."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "Purchase Items",
-     "visible": true
-    },
-    "note": "Final screen sanity check that the Purchase Items control remains visible."
+    "step": "purchase_items",
+    "args": {},
+    "note": "Enter the sourcing flow from the selected purchase request and continue to the new project screen."
+   },
+   {
+    "step": "expect_pr_items",
+    "args": {},
+    "note": "Verify that the selected PR content carried into the new project's item list."
    }
   ]
  }

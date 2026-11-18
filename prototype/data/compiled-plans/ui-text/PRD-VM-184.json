@@ -3,39 +3,58 @@
   "caseId": "PRD-VM-184",
   "title": "Mandatory Document Types with Vendor Form Sections missing or misconfigured (DEP-001)",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T03:48:40.261Z",
+  "compiledAt": "2026-11-13T15:15:26.726Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Inspect or modify CONF-VM-001 Vendor Form Sections and CONF-VM-002 Mandatory Document Types tenant settings",
-   "Submit a vendor without documents and observe whether the misconfigured mandatory document requirement is ignored or blocked",
-   "Record whether Procol prevents the misconfiguration up front instead of ignoring the mandatory document configuration"
+   "Exercise vendor form submission with the Documents section missing and mandatory document types configured, then observe whether the vendor can be submitted without documents."
   ],
   "warnings": [
-   "can only test part of this — no step for: Inspect or modify CONF-VM-001 Vendor Form Sections and CONF-VM-002 Mandatory Document Types tenant settings; Submit a vendor without documents and observe whether the misconfigured mandatory document requirement is ignored or blocked; Record whether Procol prevents the misconfiguration up front instead of ignoring the mandatory document configuration"
+   "can only test part of this — no step for: Exercise vendor form submission with the Documents section missing and mandatory document types configured, then observe whether the vendor can be submitted without documents."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 10555
+  "ms": 18855
  },
  "plan": {
-  "title": "Mandatory Document Types Misconfiguration",
+  "title": "Mandatory documents ignored when Documents section is missing",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Vendor Form Sections (CONF-VM-001) without the Documents section",
+     "value": "missing Documents"
+    },
+    "note": "Prepare the misconfigured prerequisite tenant setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Mandatory Document Types (CONF-VM-002)",
+     "value": "configured with mandatory document types"
+    },
+    "note": "Configure mandatory document types as required by the case."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "configure Vendor Form Sections without a valid Documents section, configure Mandatory Document Types, submit a vendor without the required documents, and record whether submission succeeds or the misconfiguration is prevented"
+     "need": "exercise vendor form submission with mandatory document types configured but the Documents section missing, without attaching documents, and observe whether the submission is accepted"
     },
-    "note": "The catalog cannot access tenant configuration settings or the vendor submission workflow required by this case."
+    "note": "No catalog step can access or submit the vendor form for this dependency behavior."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Final assertion required by the plan format; it only checks that the current screen has no crash or server error and does not establish the requested configuration behavior."
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Check for the known vendor-portal submission confirmation if the tester leaves the accepted submission screen open."
    }
   ]
  }

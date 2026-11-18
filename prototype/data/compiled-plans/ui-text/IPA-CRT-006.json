@@ -1,0 +1,182 @@
+{
+ "meta": {
+  "caseId": "IPA-CRT-006",
+  "title": "RFQ 2 is created in Draft after both approve",
+  "group": "IPA-CRT",
+  "sheet": "in-principle-approval",
+  "compiledAt": "2026-11-18T09:41:43.106Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The fixed prepared event does not include Project A's completed Technical stage.",
+   "The prepared IPA audience includes ads but not the additional non-quoting vendor asdf.",
+   "The fixed fixture does not reproduce the named DAB Hi-Media Make item and its specified unit, discount and tax breakdown.",
+   "unconfirmed label \"QA_Platform IPA 2-step\" (click) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"QA_Platform IPA 2-step\" (click) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: The fixed prepared event does not include Project A's completed Technical stage.; The prepared IPA audience includes ads but not the additional non-quoting vendor asdf.; The fixed fixture does not reproduce the named DAB Hi-Media Make item and its specified unit, discount and tax breakdown."
+  ],
+  "source": "llm",
+  "steps": 18,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "open_master_qcs",
+   "click",
+   "click",
+   "click",
+   "fill",
+   "click",
+   "act_as",
+   "do_on_screen",
+   "act_as",
+   "do_on_screen",
+   "act_as",
+   "open_master_qcs",
+   "scroll_to",
+   "do_on_screen",
+   "expect_text",
+   "expect_text"
+  ],
+  "state": "closed_two_bids",
+  "screen": "summary",
+  "ms": 0
+ },
+ "plan": {
+  "title": "IPA approval creates draft RFQ 2",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "summary"
+    },
+    "note": "Open the prepared closed RFQ as the already-signed-in event owner."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "in_principle_approval_price_recovery",
+     "value": "On"
+    },
+    "note": "Enable the required IPA feature before browser actions."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Reach and verify the comparison grid containing the two submitted quotes."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "In-Principle Approval"
+    },
+    "note": "Start the in-principle approval request."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "QA_Platform IPA 2-step"
+    },
+    "note": "Choose the workflow assigned to Rohan Mehta and Anita Rao rather than accepting the preselected workflow."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Next"
+    },
+    "note": "Reach the second page containing Closing Remarks and Submit."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Closing Remarks",
+     "value": "Requesting in-principle approval at L1 value so purchase can run RFQ 2"
+    },
+    "note": "Enter the case's request remarks."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit",
+     "within": "dialog"
+    },
+    "note": "Raise the two-step approval."
+   },
+   {
+    "step": "act_as",
+    "args": {
+     "who": "Rohan Mehta"
+    },
+    "note": "Perform the first approval as its assigned approver."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Open this project's newly submitted In-Principle Approval from Approvals, approve it as Rohan Mehta, and verify that his approval is recorded before stopping on the approval page."
+    },
+    "note": "Use the approval's own navigation and confirmation controls, not award-proposal approval."
+   },
+   {
+    "step": "act_as",
+    "args": {
+     "who": "Anita Rao"
+    },
+    "note": "Switch to the second assigned approver."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Open this project's In-Principle Approval from Approvals, approve it as Anita Rao, and verify that her approval is recorded before stopping on the approval page."
+    },
+    "note": "Complete the workflow that triggers RFQ 2 creation."
+   },
+   {
+    "step": "act_as",
+    "args": {
+     "who": "buyer"
+    },
+    "note": "Return to Procol Support's original project session."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Return to the source project after both approvals."
+   },
+   {
+    "step": "scroll_to",
+    "args": {
+     "text": "RFQ 2",
+     "timeoutMs": 60000
+    },
+    "note": "Allow up to one minute for asynchronous RFQ 2 creation."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Inspect this project's stage tabs and Project Details → Published Stages: verify the new RFQ 2 is Draft with a blue Price Recovery tag, RFQ 1 has an orange Locked tag, and the header shows In-Principle Approval · Done; record whether the stage instead reads RFQ 2 – Price recovery and shows Assign event. Open RFQ 2 and its participant selection, verify its audience contains exactly the two original quoting QA vendors representing asd and demo123 and excludes the non-quoting invited vendor, then return to the RFQ 2 view showing Created from In-Principle Approval."
+    },
+    "note": "Check the generated stage's actual status, colors and exact audience, including the documented naming and pending-action difference."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "RFQ 2"
+    },
+    "note": "Assert the generated stage is visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Created from In-Principle Approval"
+    },
+    "note": "Assert RFQ 2 visibly identifies its IPA origin."
+   }
+  ]
+ }
+}

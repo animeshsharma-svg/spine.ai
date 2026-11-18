@@ -4,45 +4,50 @@
   "title": "Extend a live RFQ by 1 Days",
   "group": "SRC-IET",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:27:26.261Z",
+  "compiledAt": "2026-11-13T12:09:50.144Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Starting from a live RFQ with no bids, because the prepared state contains one bid and no catalog step removes it.",
-   "Checking that the updated end time is identically shown in the events list and vendor portal against the original end time E."
+   "Verify the updated end time for this specific RFQ in the events list and confirm it matches the buyer's stage-header end time."
   ],
   "warnings": [
-   "can only test part of this — no step for: Starting from a live RFQ with no bids, because the prepared state contains one bid and no catalog step removes it.; Checking that the updated end time is identically shown in the events list and vendor portal against the original end time E."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Verify the vendor portal displays the exact same updated end time.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Verify the updated end time for this specific RFQ in the events list and confirm it matches the buyer's stage-header end time."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
    "extend_time",
-   "expect_toast"
+   "expect_toast",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 14988
+  "ms": 22339
  },
  "plan": {
-  "title": "Extend Live RFQ by One Day",
+  "title": "Extend live RFQ by one day",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary as required for prepared-state cases."
+    "note": "Open the prepared live RFQ with no bids; prepared-state rules require this as the first navigation step."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Reach the RFQ stage page where the current end time and Settings menu are shown."
+    "note": "Enable the eRFX project capability required by the setup."
    },
    {
     "step": "extend_time",
@@ -51,10 +56,9 @@
      "option": "custom",
      "amount": 1,
      "unit": "days",
-     "direction": "increase",
      "expect": "saved"
     },
-    "note": "Choose Custom, add one day, and verify Procol saves the extension and moves the end by the requested duration."
+    "note": "Extend the live RFQ submission window by one day and verify the new end equals the previous end plus 24 hours."
    },
    {
     "step": "expect_toast",
@@ -62,7 +66,30 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Verify the success message explicitly required by the case."
+    "note": "Verify the expected confirmation message after saving the extension."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor's supplier portal to check that bidding remains available after the extension."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the prepared RFQ's pricing round in the vendor portal."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote",
+     "visible": true
+    },
+    "note": "Verify the vendor can still submit a quote during the extended bidding window."
    }
   ]
  }

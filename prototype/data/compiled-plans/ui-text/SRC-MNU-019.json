@@ -4,39 +4,37 @@
   "title": "Unlock Bids after evaluation",
   "group": "SRC-MNU",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:02:24.429Z",
+  "compiledAt": "2026-11-13T12:16:13.345Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Reliably selecting an existing RFQ that simultaneously has bids locked by default, is in evaluation, and has completed technical evaluation."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added open_prepared(master_qcs) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Reliably selecting an existing RFQ that simultaneously has bids locked by default, is in evaluation, and has completed technical evaluation."
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "open_event_settings",
-   "expect_enabled",
+   "expect_menu_item",
    "click",
+   "expect_no_error",
    "go_to",
    "expect_api_value",
-   "go_to",
-   "expect_qcs_cell",
+   "open_master_qcs",
+   "expect_api_value",
    "click",
    "expect_download"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 34663
+  "ms": 22280
  },
  "plan": {
-  "title": "Unlock Bids after technical evaluation",
+  "title": "Unlock Bids after evaluation",
   "steps": [
    {
     "step": "open_prepared",
@@ -51,7 +49,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX projects as required for the RFQ project flow."
    },
    {
     "step": "open_event_settings",
@@ -59,11 +57,12 @@
     "note": "Open the stage Settings menu where Unlock Bids is offered."
    },
    {
-    "step": "expect_enabled",
+    "step": "expect_menu_item",
     "args": {
-     "control": "Unlock Bids"
+     "item": "Unlock Bids",
+     "enabled": true
     },
-    "note": "Verify Unlock Bids is available and clickable in the current state."
+    "note": "Verify Unlock Bids is available and enabled in this state."
    },
    {
     "step": "click",
@@ -74,11 +73,16 @@
     "note": "Unlock the RFQ bids."
    },
    {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the unlock action did not produce an application error."
+   },
+   {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to Responses to verify that bid prices are visible after unlocking."
+    "note": "Navigate to Responses to verify bid prices are visible after unlocking."
    },
    {
     "step": "expect_api_value",
@@ -86,22 +90,20 @@
      "key": "bidPrice",
      "within": "Responses"
     },
-    "note": "Assert that a bid price is now displayed in Responses."
+    "note": "Assert that a bid price is displayed in the Responses view."
    },
    {
-    "step": "go_to",
-    "args": {
-     "screen": "master_qcs"
-    },
-    "note": "Navigate to Master QCS to verify the unlocked commercial value there."
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open Master QCS to verify the unlocked comparison grid."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "expect_api_value",
     "args": {
-     "row": "RFQ Rate",
-     "key": "bidPrice"
+     "key": "bidPrice",
+     "within": "Master QCS"
     },
-    "note": "Assert that the RFQ rate is visible in the Master QCS grid."
+    "note": "Assert that a bid price is displayed in Master QCS."
    },
    {
     "step": "click",
@@ -109,12 +111,12 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Download the report from the event page."
+    "note": "Download the report from the project page."
    },
    {
     "step": "expect_download",
     "args": {},
-    "note": "Assert that the report download completed."
+    "note": "Confirm that the report download completed."
    }
   ]
  }

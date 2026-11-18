@@ -4,29 +4,28 @@
   "title": "Shared With when the event moves from live to evaluation",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:00:35.568Z",
+  "compiledAt": "2026-11-13T12:50:38.422Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Transition the existing no-bid RFQ specifically into the evaluation state and verify Shared With is absent in that exact evaluation state"
+   "Move the RFQ from live to evaluation by waiting for bidding to end or otherwise changing its state, then refresh Settings and verify that Shared With is absent.",
+   "Use the exact live RFQ with no bids from the setup case; the prepared event state is fixed and may contain a bid."
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Transition the existing no-bid RFQ specifically into the evaluation state and verify Shared With is absent in that exact evaluation state"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Move the RFQ from live to evaluation by waiting for bidding to end or otherwise changing its state, then refresh Settings and verify that Shared With is absent.; Use the exact live RFQ with no bids from the setup case; the prepared event state is fixed and may contain a bid."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
-   "expect_settings_menu",
-   "close_event",
-   "expect_settings_menu"
+   "require_setting",
+   "expect_menu_item"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9878
+  "ms": 21693
  },
  "plan": {
   "title": "Shared With availability across RFQ states",
@@ -36,32 +35,24 @@
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared event's summary page; prepared-state plans must start here."
    },
    {
-    "step": "expect_settings_menu",
+    "step": "require_setting",
     "args": {
-     "offered": [
-      "Shared With"
-     ]
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Assert that Shared With is offered while the event is live."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "close_event",
+    "step": "expect_menu_item",
     "args": {
-     "natural": true
+     "item": "Shared With",
+     "stage": "rfq",
+     "enabled": true
     },
-    "note": "Wait for the RFQ bidding window to end, approximating the requested state transition."
-   },
-   {
-    "step": "expect_settings_menu",
-    "args": {
-     "absent": [
-      "Shared With"
-     ]
-    },
-    "note": "Assert that Shared With is no longer offered after bidding ends."
+    "note": "Assert that Shared With is offered in the RFQ stage Settings menu while the event is live."
    }
   ]
  }

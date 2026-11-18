@@ -4,14 +4,13 @@
   "title": "Reverse auction: bid for less than the auction quantity",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:27:57.176Z",
+  "compiledAt": "2026-11-13T11:47:53.885Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "resolved: “Set the vendor portal's offered quantity to 6 for an auction quantity of 10 and submit the bid to verify the refusal.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
   "steps": 6,
@@ -20,15 +19,15 @@
    "require_setting",
    "switch_portal",
    "vendor_open_event",
-   "ask_tester",
-   "expect_text"
+   "fill",
+   "attempt"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10701
+  "ms": 11978
  },
  "plan": {
-  "title": "Reverse Auction Under-Quantity Bid",
+  "title": "Reverse auction rejects under-quantity bid",
   "steps": [
    {
     "step": "open_prepared",
@@ -43,7 +42,7 @@
      "key": "allow_quantity_less_auction",
      "value": "Off"
     },
-    "note": "Enforce full-quantity bidding for the test."
+    "note": "Disable bidding below the auction quantity as required by the case."
    },
    {
     "step": "switch_portal",
@@ -51,29 +50,34 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Continue in the vendor session while keeping the buyer session available."
+    "note": "Continue in a separate vendor portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live auction's vendor pricing sheet."
+    "note": "Open the live auction's vendor bid sheet."
    },
    {
-    "step": "ask_tester",
+    "step": "fill",
     "args": {
-     "need": "enter 6 as the offered quantity for the 10-unit auction and submit the bid, then leave the refusal visible"
+     "label": "Quantity Available",
+     "value": "6"
     },
-    "note": "The catalog can open the vendor bid sheet but cannot set and submit an under-quantity bid."
+    "note": "Enter an offered quantity of 6 against the auction quantity of 10."
    },
    {
-    "step": "expect_text",
+    "step": "attempt",
     "args": {
-     "text": "Bid Quantity should be equal to the Auction Quantity",
-     "present": true
+     "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused",
+     "because": "Bid Quantity should be equal to the Auction Quantity"
     },
-    "note": "Verify the expected refusal message is visible."
+    "note": "Submit the bid and verify Procol refuses the under-quantity offer with the expected message."
    }
   ]
  }

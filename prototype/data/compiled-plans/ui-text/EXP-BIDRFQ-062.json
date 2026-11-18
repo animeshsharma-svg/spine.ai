@@ -4,23 +4,29 @@
   "title": "Edit Evaluation Time: Edit Evaluation Time saves custom duration successfully",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:23:37.529Z",
+  "compiledAt": "2026-11-13T13:50:59.172Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "go_to",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "extend_time",
    "expect_toast"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 9360
+  "ms": 15970
  },
  "plan": {
   "title": "Edit Evaluation Time with Custom Duration",
@@ -30,31 +36,59 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with one vendor bid."
+    "note": "Open the prepared live RFQ summary containing the vendor bid; prepared-state rules require this as the first step."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Navigate to the RFQ stage."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
     },
-    "note": "Open the Responses tab where the stage Settings action is available."
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Allow buyer-side bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required percentage counter-offer configuration."
    },
    {
     "step": "extend_time",
     "args": {
      "which": "evaluation",
      "option": "custom",
+     "amount": 30,
+     "unit": "minutes",
+     "direction": "increase",
      "expect": "saved"
     },
-    "note": "Open Edit Evaluation Time, use the custom duration option, save it, and verify the evaluation end time changes successfully."
+    "note": "Open Edit Evaluation Time, save a custom 30-minute increase, and verify the dialog saves, the end time changes by the requested duration, and the update is accepted."
    },
    {
     "step": "expect_toast",
@@ -62,7 +96,7 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Assert the expected success toast after saving the evaluation duration."
+    "note": "Confirm the required success toast appears after saving."
    }
   ]
  }

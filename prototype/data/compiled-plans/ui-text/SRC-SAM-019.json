@@ -4,15 +4,20 @@
   "title": "Reschedule Event is offered on an upcoming RFQ",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:55:15.508Z",
+  "compiledAt": "2026-11-13T12:47:08.755Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 7,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
    "open_event_settings",
    "expect_menu_item",
    "event_menu",
@@ -22,7 +27,7 @@
   ],
   "state": "upcoming",
   "screen": "summary",
-  "ms": 7878
+  "ms": 18014
  },
  "plan": {
   "title": "Upcoming RFQ Reschedule Availability",
@@ -32,12 +37,28 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared upcoming RFQ as the buyer."
+    "note": "Open the preconfigured upcoming RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Reach the RFQ stage page where its Settings menu is available."
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Open the stage Settings menu where Reschedule Event should be offered."
+    "note": "Open the RFQ stage Settings menu."
    },
    {
     "step": "expect_menu_item",
@@ -45,14 +66,14 @@
      "item": "Reschedule Event",
      "enabled": true
     },
-    "note": "Assert that Reschedule Event is present and clickable for an upcoming RFQ."
+    "note": "Verify Reschedule Event is offered and clickable for an upcoming RFQ."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Reschedule Event"
     },
-    "note": "Select Reschedule Event to open its confirmation window."
+    "note": "Select Reschedule Event to verify that its window opens."
    },
    {
     "step": "expect_visible",
@@ -61,7 +82,7 @@
      "name": "Reschedule Event",
      "visible": true
     },
-    "note": "Assert that the rescheduling window opens before any confirmation is made."
+    "note": "Assert the reschedule window is open before any confirmation."
    },
    {
     "step": "click",
@@ -69,7 +90,7 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the rescheduling operation so the event remains unchanged."
+    "note": "Cancel the reschedule operation so the event remains unchanged."
    },
    {
     "step": "expect_visible",
@@ -78,7 +99,7 @@
      "name": "Reschedule Event",
      "visible": false
     },
-    "note": "Assert that cancelling closes the rescheduling window."
+    "note": "Verify the dialog closed after cancellation."
    }
   ]
  }

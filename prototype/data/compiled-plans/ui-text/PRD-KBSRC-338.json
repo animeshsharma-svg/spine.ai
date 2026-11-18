@@ -3,144 +3,55 @@
   "caseId": "PRD-KBSRC-338",
   "title": "Reject a bid without allowing the seller to bid again",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:14:51.571Z",
+  "compiledAt": "2026-11-13T14:39:04.952Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids"
-  ],
+  "warnings": [],
   "source": "llm",
-  "steps": 20,
+  "steps": 8,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "compose_stages",
-   "switch_stage",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
-   "expect_bid_submitted",
-   "switch_portal",
-   "go_to",
+   "open_prepared",
    "do_on_screen",
-   "open_master_qcs",
+   "expect_responses",
+   "open_prepared",
    "expect_qcs_vendors",
    "switch_portal",
    "vendor_open_event",
    "attempt"
   ],
-  "ms": 13987
+  "ms": 23164
  },
  "plan": {
-  "title": "Reject auction bid without rebidding",
+  "title": "Reject Bid Without Rebid",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Create the auction event used by this test."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "Reject Bid Without Rebid"
-    },
-    "note": "Provide the required event title."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "auction"
-     ]
-    },
-    "note": "Configure the event with an auction stage."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "auction"
-    },
-    "note": "Move to the auction stage before configuring it."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the auction pricing template."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add one auction line item."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the auction pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a live bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite one vendor who can submit the bid."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the auction."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the auction reached a published project page."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the vendor bid was accepted before rejection."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "buyer"
-    },
-    "note": "Return to the buyer console for the rejection workflow."
-   },
-   {
-    "step": "go_to",
+    "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the auction Responses tab where the vendor bid is shown."
+    "note": "Open the prepared auction Responses tab containing the vendor bid."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "open the three-dot menu next to the vendor's bid, choose Reject Bid, leave the allow-to-bid-again checkbox unchecked, confirm the rejection, and stop when the rejection is visibly completed"
+     "goal": "Open the three-dot menu next to the vendor's bid, select Reject Bid, leave the allow-to-bid-again checkbox unchecked, confirm the rejection, and stop when the bid is removed from the Responses comparison view"
     },
-    "note": "Perform the rejection flow and explicitly leave rebidding disabled."
+    "note": "Perform the rejection flow and leave re-bidding disabled as required by the case."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the comparison grid to verify the rejected bid is gone."
+    "step": "expect_responses",
+    "args": {
+     "count": 0
+    },
+    "note": "Verify the rejected bid is no longer shown in the buyer's Responses comparison view."
+   },
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared event's Master QCS after rejection."
    },
    {
     "step": "expect_qcs_vendors",
@@ -148,21 +59,21 @@
      "count": 0,
      "realNames": true
     },
-    "note": "Assert that no vendor bid column remains in QCS."
+    "note": "Verify the rejected vendor bid is absent from the QCS."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Return to the vendor session to test whether rebidding is blocked."
+    "note": "Switch to the invited vendor's supplier portal to test re-bidding."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the rejected auction in the vendor portal."
+    "note": "Open the rejected auction round in the vendor portal."
    },
    {
     "step": "attempt",
@@ -173,7 +84,7 @@
      },
      "expect": "refused"
     },
-    "note": "Attempt a new quote and require Procol to refuse it because rebidding was disabled."
+    "note": "Attempt a new bid and require Procol to refuse it because re-bidding was disabled."
    }
   ]
  }

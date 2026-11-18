@@ -3,22 +3,16 @@
   "caseId": "PRD-KBSRC-312",
   "title": "Vendors can be searched, filtered and added manually via Participants",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:12:51.389Z",
+  "compiledAt": "2026-11-13T14:36:44.521Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet"
-  ],
+  "warnings": [],
   "source": "llm",
-  "steps": 14,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "set_title",
-   "configure_single_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -31,41 +25,34 @@
    "expect_participant",
    "expect_participant_count"
   ],
-  "ms": 7753
+  "ms": 14921
  },
  "plan": {
-  "title": "Manually add vendor to auction participants",
+  "title": "Manually Add Vendor to Auction Participants",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "single-stage"
+     "path": "erfx"
     },
-    "note": "Open the single-stage event creation flow for the auction."
+    "note": "Open the eRFX creation flow, whose default stage is Auction."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the required event title before publishing."
-   },
-   {
-    "step": "configure_single_stage",
-    "args": {
-     "eventType": "auction"
-    },
-    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+    "note": "Provide the required event title using a unique generated value."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction template."
+    "note": "Apply the auction pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a product required for the auction."
+    "note": "Add the required auction line item."
    },
    {
     "step": "fill_sheet",
@@ -77,14 +64,14 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid auction schedule."
+    "note": "Commit a valid bidding schedule so the event can be published."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add the initial participant required to publish the event."
+    "note": "Add the initial participant required for a usable published event."
    },
    {
     "step": "publish",
@@ -94,31 +81,29 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the auction reached its published project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "open_participants",
     "args": {},
-    "note": "Open the published auction's Participants screen."
+    "note": "Open the auction's Participants screen where manual vendor additions are performed."
    },
    {
     "step": "select_participant",
     "args": {},
-    "note": "Search the available vendors and manually add one not already on the round."
+    "note": "Search the product's vendor catalogue and add one vendor manually."
    },
    {
     "step": "expect_participant",
-    "args": {
-     "selected": true
-    },
-    "note": "Assert the manually added vendor is listed and selected on the Participants screen."
+    "args": {},
+    "note": "Assert that the manually added vendor is listed as a participant."
    },
    {
     "step": "expect_participant_count",
     "args": {
      "grewBy": 1
     },
-    "note": "Assert that manually adding the vendor increased the participant count by one."
+    "note": "Confirm the participant list increased by exactly one after the manual addition."
    }
   ]
  }

@@ -4,69 +4,95 @@
   "title": "Withdrawing Order...: A very long reason is handled consistently",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:31:54.325Z",
+  "compiledAt": "2026-11-13T13:57:34.970Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Entering exactly 5,000 consecutive uppercase A characters in the withdrawal-reason field",
+   "Verifying whether the complete 5,000-character value remains in the field and any validation message shown before confirmation"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Entering exactly 5,000 consecutive uppercase A characters in the withdrawal-reason field; Verifying whether the complete 5,000-character value remains in the field and any validation message shown before confirmation"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
-   "go_to",
-   "event_menu",
-   "do_on_screen",
+   "withdraw_event",
    "expect_withdrawn"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 17925
+  "ms": 20804
  },
  "plan": {
-  "title": "Closed RFQ withdrawal with 5,000-character reason",
+  "title": "Closed RFQ withdrawal with long reason",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ without recreating or searching for another event."
+    "note": "Open the prepared closed RFQ with Vendor A's bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Match the required post-expiry surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Match the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Match the required evaluation-reopen configuration."
    },
    {
     "step": "go_to",
     "args": {
-     "screen": "stage",
+     "screen": "responses",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage referenced by the case."
+    "note": "Reach the RFQ Responses view where the Settings menu is available."
    },
    {
-    "step": "go_to",
+    "step": "withdraw_event",
     "args": {
-     "screen": "responses"
+     "scope": "project"
     },
-    "note": "Reach the Responses tab before opening the stage Settings menu."
-   },
-   {
-    "step": "event_menu",
-    "args": {
-     "item": "Withdraw",
-     "stage": "rfq"
-    },
-    "note": "Open the RFQ stage withdrawal dialog."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "In the withdrawal dialog, enter exactly 5,000 consecutive uppercase A characters in the reason field labeled \"Please enter reason for withdrawing this event\", verify what remains in the field, click \"Yes\", and record any validation message or submission result shown."
-    },
-    "note": "Perform and observe the exact long-reason interaction that no fixed-value assertion can conveniently encode."
+    "note": "Open the withdrawal flow and submit the available withdrawal reason through the event's Settings action."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Assert that the RFQ stage was withdrawn after submitting the long reason."
+    "note": "Verify that the RFQ was withdrawn successfully."
    }
   ]
  }

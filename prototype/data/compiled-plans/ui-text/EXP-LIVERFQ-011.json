@@ -4,22 +4,30 @@
   "title": "A live RFQ: the \"Price Trends\" tab opens",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T01:46:27.440Z",
+  "compiledAt": "2026-11-13T14:11:39.453Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
+   "expect_navigated",
    "expect_text",
    "expect_screen_clean"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 6267
+  "ms": 17286
  },
  "plan": {
   "title": "Live RFQ Price Trends Tab",
@@ -29,26 +37,65 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ on the buyer's Responses tab."
+    "note": "Open the prepared live RFQ directly on the buyer's Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the live RFQ."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the requested withdrawal-visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal during submission time as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Enable the requested vendor-masking configuration."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "price_trends"
     },
-    "note": "Open the RFQ's Price Trends tab."
+    "note": "Open the Price Trends tab, the behavior under test."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "price_trends"
+    },
+    "note": "Confirm that the Price Trends screen opened successfully."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "All Products"
     },
-    "note": "Verify that the Price Trends content rendered with its product filter."
+    "note": "Verify that the Price Trends content is rendered."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Verify that the tab shows no server error, crash, raw values, or other rendering issue."
+    "note": "Confirm there is no visible error, crash, raw value, or server error on the opened tab."
    }
   ]
  }

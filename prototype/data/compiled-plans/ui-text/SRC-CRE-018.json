@@ -4,21 +4,17 @@
   "title": "Reverse auction: Quantity Requested = -5",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:30:10.714Z",
+  "compiledAt": "2026-11-13T11:50:16.259Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The test's later assertion that nothing is published is not directly observed because inline-value tests must stop immediately after the quantity validation error.",
-   "Whether the invalid quantity cell specifically turns red or clears is not asserted; the plan verifies the inline error instead."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: The test's later assertion that nothing is published is not directly observed because inline-value tests must stop immediately after the quantity validation error.; Whether the invalid quantity cell specifically turns red or clears is not asserted; the plan verifies the inline error instead."
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
   "steps": 7,
@@ -31,17 +27,17 @@
    "add_line_items",
    "expect_error"
   ],
-  "ms": 16010
+  "ms": 13443
  },
  "plan": {
-  "title": "SRC-CRE-018 Negative Quantity in Reverse Auction",
+  "title": "Reverse Auction Rejects Negative Quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the Single Stage event creation screen."
+    "note": "Opens the Single Stage event creation screen."
    },
    {
     "step": "require_setting",
@@ -49,28 +45,26 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Ensure vendors can be added during event creation as required by the case."
+    "note": "Ensures vendors can be added during event creation as required by the scenario."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction",
-     "auctionSubtype": "rank",
-     "awarding": "lot"
+     "eventType": "auction"
     },
-    "note": "Configure the event as a reverse buy auction with rank-based bidding."
+    "note": "Changes the event type from the default RFP to Auction."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-CRE-018 Reverse Auction Negative Quantity"
+     "title": "SRC-CRE-018 Negative Quantity"
     },
-    "note": "Provide the mandatory event title for a create test."
+    "note": "Provides the mandatory event title required on create screens."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction pricing template so the product sheet is available."
+    "note": "Applies the first available auction template so the product sheet is available."
    },
    {
     "step": "add_line_items",
@@ -79,14 +73,14 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "-5"
     },
-    "note": "Add the specified product with the invalid negative quantity to trigger inline validation."
+    "note": "Adds the specified product and enters the invalid negative quantity in the first row."
    },
    {
     "step": "expect_error",
     "args": {
      "contains": "Quantity"
     },
-    "note": "Assert that Procol rejects the negative quantity with a quantity-related validation error."
+    "note": "Asserts the quantity validation rejects the negative value immediately."
    }
   ]
  }

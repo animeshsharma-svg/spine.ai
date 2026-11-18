@@ -4,18 +4,15 @@
   "title": "Revising with error prices pending",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:47:49.670Z",
+  "compiledAt": "2026-11-13T12:40:36.210Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Establish that Vendor A's last bid contains price cells flagged as errors before the revision",
-   "Guarantee that the revision price is higher than the last valid price when that prior value is not provided"
+   "Establish Vendor A's last bid with prices flagged as errors before attempting the revision.",
+   "Enter a specifically higher price relative to the last valid price because the case does not provide the prior valid price or target revision amount."
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Establish that Vendor A's last bid contains price cells flagged as errors before the revision; Guarantee that the revision price is higher than the last valid price when that prior value is not provided"
+   "can only test part of this — no step for: Establish Vendor A's last bid with prices flagged as errors before attempting the revision.; Enter a specifically higher price relative to the last valid price because the case does not provide the prior valid price or target revision amount."
   ],
   "source": "llm",
   "steps": 4,
@@ -27,42 +24,40 @@
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 11340
+  "ms": 13736
  },
  "plan": {
-  "title": "Reject bid revision with pending error prices",
+  "title": "Reject revision with pending error prices",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared event summary as the required starting point."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
+     "to": "vendor"
     },
-    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
+    "note": "Move to Vendor A's supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing bid sheet for Vendor A."
+    "note": "Open the prepared event's pricing round for Vendor A."
    },
    {
     "step": "attempt",
     "args": {
      "step": "vendor_bid",
-     "args": {},
      "expect": "refused",
      "because": "You cannot increase the price from last valid price, Please resolve error prices first."
     },
-    "note": "Attempt the bid revision and require the expected refusal rather than allowing the quote to be submitted."
+    "note": "Attempt the vendor's revision and require the expected refusal message; the missing error-price setup limits this check."
    }
   ]
  }

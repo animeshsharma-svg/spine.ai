@@ -4,48 +4,47 @@
   "title": "Choose an existing event to test Recreate Order",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:00:35.681Z",
+  "compiledAt": "2026-11-13T12:05:42.388Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
    "Verify that the selected event was not created from a purchase request",
-   "Record the selected event's RFX number in Test Data"
+   "Record the selected event title and RFX number in Test Data"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the selected event was not created from a purchase request; Record the selected event's RFX number in Test Data"
+   "can only test part of this — no step for: Verify that the selected event was not created from a purchase request; Record the selected event title and RFX number in Test Data"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
    "open_events_list",
    "expect_events_list",
    "filter_events",
    "open_first_event",
-   "expect_text",
-   "expect_api_value",
+   "expect_event_status",
    "expect_responses"
   ],
-  "ms": 20465
+  "ms": 21861
  },
  "plan": {
-  "title": "Select Existing Closed RFQ for Recreate Order",
+  "title": "Select Closed RFQ for Recreate Order",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list where the Live, History, Drafts, and Recurring tabs are available."
+    "note": "Open the Events list where the event state and source can be selected."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered successfully before selecting an existing event."
+    "note": "Confirm the Events list and its creation control rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Restrict selection to historical events, where a closed RFQ can be found."
+    "note": "Restrict the search to closed or historical events."
    },
    {
     "step": "open_first_event",
@@ -56,27 +55,19 @@
     "note": "Open the first historical event whose card identifies it as an RFQ."
    },
    {
-    "step": "expect_text",
+    "step": "expect_event_status",
     "args": {
-     "text": "Closed",
-     "present": true
+     "status": "Closed"
     },
-    "note": "Verify the selected event displays a closed status badge."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "title"
-    },
-    "note": "Read and verify the selected event's title for the test data."
+    "note": "Verify that the selected event is closed rather than live, draft, or withdrawn."
    },
    {
     "step": "expect_responses",
     "args": {
-     "atLeast": 1,
-     "stage": "rfq"
+     "stage": "rfq",
+     "atLeast": 1
     },
-    "note": "Verify that the closed RFQ has at least one vendor response/bid."
+    "note": "Verify that the closed RFQ has at least one vendor response or bid."
    }
   ]
  }

@@ -4,99 +4,149 @@
   "title": "A saved eRFX draft: \"Items 1\" opens the \"Manage Line Items\" window",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:39:23.932Z",
+  "compiledAt": "2026-11-13T14:02:32.287Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog cannot directly assert that no event data changes until Save or another drawer action is pressed."
+   "Whether opening the Manage Line Items window causes no underlying event mutation before Save is pressed"
   ],
   "warnings": [
-   "can only test part of this — no step for: The catalog cannot directly assert that no event data changes until Save or another drawer action is pressed."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Whether opening the Manage Line Items window causes no underlying event mutation before Save is pressed"
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 21,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_title",
+   "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_schedule",
    "save_draft",
    "open_events_list",
    "filter_events",
-   "expect_event_in_list",
-   "open_event",
+   "open_first_event",
    "click",
-   "expect_text",
-   "expect_text",
    "expect_visible",
+   "expect_text",
+   "expect_text",
    "expect_visible",
    "expect_visible"
   ],
-  "ms": 12792
+  "ms": 20834
  },
  "plan": {
-  "title": "EXP-DRAFT-001 Items drawer",
+  "title": "Saved eRFX draft Items window",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start an eRFX create flow so the test can produce the required saved draft."
+    "note": "Start creating the eRFX draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration for vendor addition during creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage configuration."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "EXP-DRAFT-001 Items Drawer"
+     "title": "EXP-DRAFT-001 Items Window"
     },
-    "note": "Provide the mandatory title needed to save the draft."
+    "note": "Give the draft a title so it can be identified and saved."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the draft with an RFQ stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage before selecting its template."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template before adding the line item."
+    "note": "Apply a pricing template so line items can be added."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Create the single line item required for the Items 1 control."
+    "note": "Create the single line item needed for the Items 1 control."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet so the draft can be saved consistently."
+    "note": "Complete the pricing sheet for the draft line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid draft schedule."
    },
    {
     "step": "save_draft",
     "args": {},
-    "note": "Persist the eRFX event as an unpublished draft."
+    "note": "Save the configured eRFX as an unpublished draft."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the events list to reopen the saved draft."
+    "note": "Navigate to the events list to reach the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show the saved draft in the Drafts tab."
+    "note": "Open the Drafts tab specified by the case."
    },
    {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Verify that the plan's draft is present before opening it."
-   },
-   {
-    "step": "open_event",
+    "step": "open_first_event",
     "args": {
-     "tab": "Drafts"
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-001 Items Window"
     },
-    "note": "Open the saved draft's create screen from the Drafts list."
+    "note": "Open the draft created by this plan."
    },
    {
     "step": "click",
@@ -104,30 +154,31 @@
      "role": "button",
      "name": "Items 1"
     },
-    "note": "Open the line-item management window from the saved draft."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Manage Line Items"
-    },
-    "note": "Verify that the expected line-item management window opened."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Quantity"
-    },
-    "note": "Verify that the drawer exposes the Quantity control."
+    "note": "Open the saved draft's line-item window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "button",
-     "name": "Variant 1",
+     "text": "Manage Line Items",
      "visible": true
     },
-    "note": "Verify that the expected Variant 1 control is present."
+    "note": "Verify that the Manage Line Items window opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Quantity",
+     "present": true
+    },
+    "note": "Verify that the window contains the Quantity control."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Variant 1",
+     "present": true
+    },
+    "note": "Verify that the expected variant control is present."
    },
    {
     "step": "expect_visible",
@@ -136,7 +187,7 @@
      "name": "Cancel",
      "visible": true
     },
-    "note": "Verify that the drawer offers Cancel."
+    "note": "Verify that Cancel is available in the window."
    },
    {
     "step": "expect_visible",
@@ -145,7 +196,7 @@
      "name": "Save",
      "visible": true
     },
-    "note": "Verify that the drawer offers Save without pressing it."
+    "note": "Verify that Save is available in the window."
    }
   ]
  }

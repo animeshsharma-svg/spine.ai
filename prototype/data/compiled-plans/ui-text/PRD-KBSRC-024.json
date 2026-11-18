@@ -3,62 +3,58 @@
   "caseId": "PRD-KBSRC-024",
   "title": "Bulk-enter savings references with \"Paste from CSV\"",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:08:28.769Z",
+  "compiledAt": "2026-11-13T14:31:39.283Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Copying the specified values from the external Excel sheet and asserting each reference cell against its corresponding value, because no Excel fixture or expected values are provided."
+   "Copying the reference values from an external Excel sheet into the browser clipboard",
+   "Pasting the copied values into the savings reference cells and verifying each cell holds its corresponding value"
   ],
   "warnings": [
-   "can only test part of this — no step for: Copying the specified values from the external Excel sheet and asserting each reference cell against its corresponding value, because no Excel fixture or expected values are provided."
+   "can only test part of this — no step for: Copying the reference values from an external Excel sheet into the browser clipboard; Pasting the copied values into the savings reference cells and verifying each cell holds its corresponding value"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 8,
   "stepNames": [
    "open_create",
    "set_title",
    "select_template",
    "add_line_items",
-   "fill_sheet",
    "click",
-   "expect_visible",
    "click",
-   "do_on_screen",
-   "expect_visible"
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 16132
+  "ms": 22578
  },
  "plan": {
-  "title": "Paste CSV Savings References",
+  "title": "Bulk paste savings references",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start an event creation flow with the pricing stages needed for line-item savings."
+    "note": "Open the event creation flow needed to prepare line items for the savings panel."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title before configuring the event."
+    "args": {
+     "title": "Bulk Savings References Test"
+    },
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template so line items and the savings panel are available."
+    "note": "Apply a pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 3
     },
-    "note": "Create several line items as required by the setup."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Render and populate the pricing sheet before opening savings configuration."
+    "note": "Create several line items so the savings reference paste covers multiple cells."
    },
    {
     "step": "click",
@@ -66,15 +62,7 @@
      "role": "button",
      "name": "Savings"
     },
-    "note": "Open the Savings Calculation panel."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Savings Calculation",
-     "visible": true
-    },
-    "note": "Confirm that the savings panel opened."
+    "note": "Open the savings configuration panel."
    },
    {
     "step": "click",
@@ -82,22 +70,19 @@
      "role": "button",
      "name": "Paste from CSV"
     },
-    "note": "Invoke the product control that accepts pasted CSV values."
+    "note": "Activate the catalog-visible Paste from CSV control."
    },
    {
-    "step": "do_on_screen",
+    "step": "ask_tester",
     "args": {
-     "goal": "paste the reference values copied from the provided Excel sheet into the Paste from CSV flow, confirm the import, and stop on the Savings Calculation panel showing each corresponding reference cell populated"
+     "need": "copy the reference values from Excel, paste them through the open Paste from CSV flow, and verify that each savings reference cell shows its corresponding copied value"
     },
-    "note": "Perform the clipboard paste and inspect the resulting reference cells, which no other catalog step can execute or validate."
+    "note": "The external Excel clipboard operation and cell-by-cell correspondence check are not expressible by catalog steps."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "Savings Calculation",
-     "visible": true
-    },
-    "note": "Confirm the savings panel remains available after the paste interaction."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the application remains rendered without a crash or server error after the attempted flow."
    }
   ]
  }

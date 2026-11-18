@@ -4,19 +4,20 @@
   "title": "Try to purchase a dormant-locked PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:29:13.808Z",
+  "compiledAt": "2026-11-13T12:25:03.565Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Selecting a specific dormant-locked PR line by its lock icon rather than relying on the first available PR selection",
-   "The Unlock or Request to unlock action and the resulting \"Unlock request sent successfully\" confirmation"
+   "Select specifically the dormant-locked PR line identified by its lock icon rather than the first available PR row",
+   "Unlock or request to unlock the dormant PR line and verify \"Unlock request sent successfully\""
   ],
   "warnings": [
-   "can only test part of this — no step for: Selecting a specific dormant-locked PR line by its lock icon rather than relying on the first available PR selection; The Unlock or Request to unlock action and the resulting \"Unlock request sent successfully\" confirmation"
+   "can only test part of this — no step for: Select specifically the dormant-locked PR line identified by its lock icon rather than the first available PR row; Unlock or request to unlock the dormant PR line and verify \"Unlock request sent successfully\""
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
@@ -25,34 +26,42 @@
    "expect_message",
    "attempt"
   ],
-  "ms": 8646
+  "ms": 12399
  },
  "plan": {
-  "title": "Dormant-Locked PR Purchase Block",
+  "title": "Dormant PR Purchase Items Block",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "pr_dormant_threshold_days",
+     "value": 30
+    },
+    "note": "Enable the dormant-lock rule required by the case."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen as the buyer."
+    "note": "Open the Purchase Requisitions screen, the required entry point for PR sourcing."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Use the Open tab, where a PR line can be selected for sourcing."
+    "note": "Ensure only open requisitions eligible for sourcing are shown."
    },
    {
     "step": "select_pr",
     "args": {},
-    "note": "Select the available PR; the test data is expected to provide the dormant-locked line."
+    "note": "Select the closest available PR row; the catalog cannot identify the dormant lock icon directly."
    },
    {
     "step": "expect_disabled",
     "args": {
      "control": "Purchase Items"
     },
-    "note": "Assert that the Purchase Items control remains disabled for the selected dormant-locked line."
+    "note": "Verify that sourcing remains disabled after the PR selection."
    },
    {
     "step": "hover",
@@ -60,7 +69,7 @@
      "role": "button",
      "name": "Purchase Items"
     },
-    "note": "Hover the disabled Purchase Items control to reveal its explanation."
+    "note": "Hover the disabled Purchase Items control to reveal its reason."
    },
    {
     "step": "expect_message",
@@ -69,7 +78,7 @@
      "on": "Purchase Items",
      "text": "Dormant locked PR cannot be purchased"
     },
-    "note": "Verify the exact dormant-lock tooltip message."
+    "note": "Verify the exact dormant-lock explanation."
    },
    {
     "step": "attempt",
@@ -81,7 +90,7 @@
      },
      "expect": "refused"
     },
-    "note": "Try the disabled action and verify that it is refused rather than opening sourcing."
+    "note": "Confirm that clicking the disabled Purchase Items control is refused."
    }
   ]
  }

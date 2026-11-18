@@ -3,19 +3,18 @@
   "caseId": "PRD-KBSRC-382",
   "title": "Vendor who does not accept is knocked out",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:19:03.660Z",
+  "compiledAt": "2026-11-13T14:42:35.356Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Create or reach a live knockout auction with a current offer",
-   "Sign in as the vendor and click Not Accept on the current knockout offer",
-   "Verify that the vendor is no longer among the bidders still in the running"
+   "Configure and publish a live knockout auction with a current vendor offer.",
+   "As the vendor, click Not Accept on the knockout offer and verify that the vendor is absent from the bidders still in the running."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Create or reach a live knockout auction with a current offer; Sign in as the vendor and click Not Accept on the current knockout offer; Verify that the vendor is no longer among the bidders still in the running"
+   "can only test part of this — no step for: Configure and publish a live knockout auction with a current vendor offer.; As the vendor, click Not Accept on the knockout offer and verify that the vendor is absent from the bidders still in the running."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "set_title",
@@ -28,24 +27,25 @@
    "publish",
    "expect_published",
    "convert_to_auction",
-   "expect_no_error"
+   "expect_no_error",
+   "ask_tester"
   ],
-  "ms": 7292
+  "ms": 9615
  },
  "plan": {
-  "title": "Knockout Non-Acceptance Eliminates Vendor",
+  "title": "Knockout non-acceptance knockout",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start the closest supported event creation flow."
+    "note": "Start the closest supported event-creation flow."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -59,53 +59,60 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template."
+    "note": "Apply the RFQ template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the minimum line item needed for publication."
+    "note": "Add the required auction line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
+    "note": "Complete the pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule."
+    "note": "Commit a bidding schedule before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add one participant to satisfy publication prerequisites."
+    "note": "Add a vendor participant."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ before conversion."
+    "note": "Publish the source RFQ so it can be converted."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the RFQ reached a published project page."
+    "note": "Assert that the source event was published."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Reach the supported RFQ-to-auction conversion flow, the nearest available path to a knockout auction."
+    "note": "Reach the supported RFQ-to-Auction conversion flow, the only catalog route related to knockout auctions."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Verify the conversion screen loaded without an application error."
+    "note": "Assert that conversion itself completed without an application error."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "configure and publish the converted event as a live knockout auction, sign in as the invited vendor, click Not Accept on the current offer, and verify the vendor is no longer among the bidders still in the running"
+    },
+    "note": "The knockout strategy, vendor Not Accept action, and running-bidder oracle have no catalog step."
    }
   ]
  }

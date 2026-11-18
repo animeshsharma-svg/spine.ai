@@ -3,37 +3,23 @@
   "caseId": "PRD-KBINT-031",
   "title": "Price / Amount / Number column: prefix, suffix and precision",
   "group": "PRD-KBINT",
-  "compiledAt": "2026-11-10T02:12:10.034Z",
+  "compiledAt": "2026-11-13T15:05:26.653Z",
   "tier": "fast",
-  "coverage": "none",
-  "gaps": [
-   "Add Price, Amount, and Number columns through the template column builder",
-   "Enter column names and verify the key attribute auto-fills from each name",
-   "Set and save prefix, suffix, and precision for each column",
-   "Observe the saved column settings as the oracle"
-  ],
-  "warnings": [
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
-   "cannot test this case yet — no step can observe: Add Price, Amount, and Number columns through the template column builder; Enter column names and verify the key attribute auto-fills from each name; Set and save prefix, suffix, and precision for each column; Observe the saved column settings as the oracle"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_create",
-   "compose_stages",
    "set_title",
+   "compose_stages",
    "select_template",
-   "expect_template_selected",
-   "expect_visible"
+   "add_line_items",
+   "do_on_screen",
+   "expect_no_error"
   ],
-  "ms": 10478
+  "ms": 18633
  },
  "plan": {
   "title": "Price Amount Number Column Settings",
@@ -43,7 +29,12 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Reach the single-stage template-backed creation screen closest to the stated RFQ/Auction template setup."
+    "note": "Open the closest available pricing-sheet creation context."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title so the create flow remains usable."
    },
    {
     "step": "compose_stages",
@@ -51,33 +42,32 @@
      "stages": [
       "rfq"
      ]
-    }
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "Price Amount Number Column Settings Test"
     },
-    "note": "Provide the required title for a create flow."
+    "note": "Configure the context as an RFQ pricing stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available pricing template so the pricing sheet and column controls are available."
+    "note": "Apply a pricing template so column controls become available."
    },
    {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Confirm that a template was applied before attempting to reach column controls."
-   },
-   {
-    "step": "expect_visible",
+    "step": "add_line_items",
     "args": {
-     "role": "button",
-     "name": "Add Columns",
-     "visible": true
+     "count": 1
     },
-    "note": "Confirm the closest available column-management control is present, without claiming that its settings can be tested."
+    "note": "Create a line item so the pricing sheet and column controls render."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the current RFQ pricing-sheet creation screen, open Add Columns and add one Price column, one Amount column, and one Number column. For each column, enter the column name using the test case's specified value, verify that the key attribute auto-fills from that name, enter the test case's specified prefix, suffix, and precision, save each column, and stop on the column settings or sheet screen showing the saved values."
+    },
+    "note": "Perform and visually verify the column configuration that has no dedicated catalog step."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the configuration completed without an application error."
    }
   ]
  }

@@ -4,18 +4,19 @@
   "title": "RFQ bid: Quantity above the requested quantity",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:26:02.963Z",
+  "compiledAt": "2026-11-13T11:45:36.277Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "resolved: “Enter quantity 12 in the vendor bid sheet and submit it as Vendor A using the vendor portal.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+  ],
   "source": "llm",
-  "steps": 18,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
-   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -25,30 +26,27 @@
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "vendor_bid",
-   "fill",
-   "toggle",
-   "attempt",
+   "ask_tester",
    "expect_message"
   ],
-  "ms": 22960
+  "ms": 13633
  },
  "plan": {
-  "title": "RFQ bid rejects quantity above requested",
+  "title": "RFQ bid quantity above requested",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage event creation flow."
+    "note": "Open the eRFX create screen for the RFQ event."
    },
    {
     "step": "set_title",
     "args": {
      "title": "SRC-BID-013 Quantity Validation"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -57,19 +55,12 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "Work on the RFQ stage before configuring its template and items."
+    "note": "Configure the event with an RFQ stage rather than the default auction."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply the RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
@@ -77,7 +68,7 @@
      "count": 1,
      "quantity": "10"
     },
-    "note": "Create one line item with the requested quantity set to 10."
+    "note": "Create a line item whose requested quantity is 10."
    },
    {
     "step": "fill_sheet",
@@ -89,31 +80,34 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding window."
+    "note": "Commit a live bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "count": 1
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Invite the QA vendor to the RFQ."
+    "note": "Invite the vendor named in the test case."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ for vendor bidding."
+    "note": "Publish the live RFQ for vendor bidding."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the RFQ reached a real published event page."
+    "note": "Confirm the RFQ reached a real published project page."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the invited vendor's separate supplier-portal session."
+    "note": "Open the separate vendor portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
@@ -123,49 +117,19 @@
     "note": "Open this event's live RFQ bid sheet in the vendor portal."
    },
    {
-    "step": "vendor_bid",
+    "step": "ask_tester",
     "args": {
-     "price": 100,
-     "submit": false
+     "need": "enter quantity 12 in Vendor A's bid sheet and submit the quote"
     },
-    "note": "Fill the required price fields without submitting, leaving the quantity available for the targeted invalid value."
-   },
-   {
-    "step": "fill",
-    "args": {
-     "label": "Quantity Available",
-     "value": "12"
-    },
-    "note": "Enter a vendor quantity of 12, exceeding the requested quantity of 10."
-   },
-   {
-    "step": "toggle",
-    "args": {
-     "label": "Terms and Conditions",
-     "on": true
-    },
-    "note": "Accept the required terms so the submission attempt tests quantity validation rather than an unrelated prerequisite."
-   },
-   {
-    "step": "attempt",
-    "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Submit Quote"
-     },
-     "expect": "refused",
-     "because": "Quantity cannot be greater than the mentioned quantity"
-    },
-    "note": "Attempt to submit the over-quantity quote and require the application to refuse it."
+    "note": "The catalog cannot enter a vendor-side quantity or submit that quantity-specific bid."
    },
    {
     "step": "expect_message",
     "args": {
      "kind": "error",
-     "text": "Quantity cannot be greater than the mentioned quantity"
+     "text": "Quantity cannot be greater than the mentioned quantity."
     },
-    "note": "Assert the exact expected refusal message."
+    "note": "Assert the expected refusal message after the tester submits quantity 12."
    }
   ]
  }

@@ -3,35 +3,40 @@
   "caseId": "PRD-INTK-021",
   "title": "Withdraw Intake Request: refused for a user without the Requester / End User role",
   "group": "PRD-INTK",
-  "compiledAt": "2026-11-10T04:59:09.990Z",
+  "compiledAt": "2026-11-13T15:24:52.991Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Requester / End User role on the specified Growth tenant.",
-   "Open a pending-approval intake and use Withdraw Intake Request, observing whether Procol refuses or omits the action.",
-   "Repeat the same withdrawal as a Requester / End User and compare availability or success.",
-   "Verify or record the tenant's RBAC configuration when access is granted to additional roles.",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "Open and withdraw a pending intake request using the Withdraw Intake Request action",
+   "Sign in as a user without the Requester / End User role and verify the action is refused or absent",
+   "Repeat the withdrawal as a Requester / End User and verify the action is available",
+   "Verify the tenant is on the Growth plan when no tenant identifier is provided"
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "can only test part of this — no step for: Open and withdraw a pending intake request using the Withdraw Intake Request action; Sign in as a user without the Requester / End User role and verify the action is refused or absent; Repeat the withdrawal as a Requester / End User and verify the action is available; Verify the tenant is on the Growth plan when no tenant identifier is provided"
   ],
   "source": "llm",
-  "steps": 1,
+  "steps": 2,
   "stepNames": [
-   "ask_tester"
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 8734
+  "ms": 9305
  },
  "plan": {
-  "title": "Withdraw Intake Request Role Restriction",
+  "title": "Withdraw Intake Request RBAC",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as both the user without the Requester / End User role and the Requester / End User, open an intake request with approvals pending, try Withdraw Intake Request for each user, and record whether the action is refused, absent, or succeeds"
+     "need": "sign in as the user without the Requester / End User role, attempt to withdraw a pending intake request, then repeat as a Requester / End User and record whether the action is refused or available"
     },
-    "note": "The catalog cannot access intake requests, configure pending approvals, switch to these user roles, or observe the required RBAC outcome."
+    "note": "No catalog step can navigate intake requests, switch to the specified personas, or perform the role-based withdrawal comparison."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the session remains usable after the tester completes the unavailable role-based workflow; this does not assert the intake permission outcome."
    }
   ]
  }

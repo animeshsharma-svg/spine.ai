@@ -4,15 +4,19 @@
   "title": "Forward auction (tick 1): raise by 10 (100 → 110)",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:46:55.964Z",
+  "compiledAt": "2026-11-13T12:39:45.868Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 11,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "switch_portal",
    "vendor_open_event",
    "vendor_bid",
@@ -26,66 +30,74 @@
   ],
   "state": "forward",
   "screen": "master_qcs",
-  "ms": 16047
+  "ms": 13974
  },
  "plan": {
-  "title": "SRC-REV-009 Forward Auction Revision",
+  "title": "Forward Auction Bid Revision",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared live forward-auction event while keeping the buyer session available."
+    "note": "Open the prepared live auction with Vendor A's existing bid while keeping the buyer session available."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project configuration before starting."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the separate vendor portal session for Vendor A."
+    "note": "Move to the separate Vendor A portal session while preserving the buyer page."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live auction bid sheet containing Vendor A's existing bid."
+    "note": "Open the live auction's pricing round where the existing bid can be revised."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 110
     },
-    "note": "Revise Vendor A's existing 100 bid to 110 and submit it."
+    "note": "Submit the revised bid, replacing Vendor A's previous price of 100 with 110."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the vendor portal accepted the revised bid."
+    "note": "Confirm the vendor portal accepted the revised submission."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's event page."
+    "note": "Return to the buyer's event page to verify the updated bid."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's Responses view for the revised bid."
+    "note": "Open the buyer's Responses view for the auction."
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 1,
-     "direct": 1,
-     "stage": "auction"
+     "direct": 1
     },
-    "note": "Confirm the buyer sees Vendor A's direct response on the auction."
+    "note": "Confirm the buyer sees Vendor A's direct response after the revision."
    },
    {
     "step": "open_master_qcs",
@@ -99,7 +111,7 @@
      "vendor": 1,
      "equals": "110"
     },
-    "note": "Verify the buyer's grid shows the revised bid value of 110."
+    "note": "Verify the buyer-side comparison grid shows the revised price of 110."
    },
    {
     "step": "expect_qcs_ranks",
@@ -107,7 +119,7 @@
      "order": "highest",
      "atLeast": 1
     },
-    "note": "Verify the forward-auction ranking reflects the revised bid."
+    "note": "Verify the forward-auction ranking reflects the updated bid under the highest-price ranking order."
    }
   ]
  }

@@ -4,20 +4,19 @@
   "title": "eRFX Technical stage only, no clause mandatory: the vendor accepts both clauses",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:19:13.310Z",
+  "compiledAt": "2026-11-13T13:05:33.119Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Add specific custom T&C text clauses 'Payment within 45 days' and 'Delivery within 7 days' via catalog step"
+   "Verify on the buyer side that Vendor A accepted both clauses.",
+   "Verify that the clauses are not requested on the RFQ stage."
   ],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
-   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
-   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
-   "can only test part of this — no step for: Add specific custom T&C text clauses 'Payment within 45 days' and 'Delivery within 7 days' via catalog step"
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "cannot test this case yet — no step can observe: Verify on the buyer side that Vendor A accepted both clauses.; Verify that the clauses are not requested on the RFQ stage."
   ],
   "source": "llm",
   "steps": 19,
@@ -32,27 +31,27 @@
    "add_line_items",
    "fill_questionnaires",
    "assign_evaluator",
+   "switch_stage",
+   "select_template",
+   "fill_sheet",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
-   "switch_portal",
-   "vendor_open_event",
-   "vendor_bid",
-   "switch_portal",
-   "expect_responses"
+   "place_bid",
+   "expect_bid_submitted"
   ],
-  "ms": 13536
+  "ms": 31960
  },
  "plan": {
-  "title": "SRC-TNC-030 eRFX Technical stage only, no clause mandatory: the vendor accepts both clauses",
+  "title": "SRC-TNC-030 Technical Stage Clauses",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open create eRFX project screen"
+    "note": "Open the eRFX create screen."
    },
    {
     "step": "require_setting",
@@ -60,7 +59,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure eRFX projects feature is enabled"
+    "note": "Enable eRFX project creation required by the case."
    },
    {
     "step": "require_setting",
@@ -68,105 +67,98 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Ensure vendors can be added during event creation"
+    "note": "Allow vendors to be added during event creation."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Set a unique event title"
+    "args": {
+     "title": "SRC-TNC-030 Technical Clauses"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
     "args": {
      "stages": [
-      "rfp"
+      "rfp",
+      "rfq"
      ]
     },
-    "note": "Compose a Technical stage"
+    "note": "Create the required Technical and RFQ stages."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Switch to the Technical stage tab"
+    "note": "configure the rfp stage on its own tab"
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Select template for the technical stage"
+    "note": "rfp needs its own template"
    },
    {
     "step": "add_line_items",
-    "args": {},
-    "note": "a product is needed before participants or publishing"
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item."
    },
    {
-    "step": "fill_questionnaires",
-    "args": {},
-    "note": "Fill required questionnaires"
+    "step": "fill_questionnaires"
    },
    {
-    "step": "assign_evaluator",
-    "args": {},
-    "note": "Assign evaluator for the technical stage"
+    "step": "assign_evaluator"
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "configure the rfq stage on its own tab"
+   },
+   {
+    "step": "select_template",
+    "note": "rfq needs its own template"
+   },
+   {
+    "step": "fill_sheet"
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Set schedule duration"
+    "note": "Commit the 30-minute event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite Vendor A to the event"
+    "note": "Invite one QA vendor for the submission."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the eRFX project"
+    "note": "Publish the configured eRFX event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert project is successfully published"
+    "note": "Verify that a real published project page was reached."
    },
    {
-    "step": "switch_portal",
+    "step": "place_bid",
     "args": {
-     "to": "vendor"
+     "price": 100
     },
-    "note": "Switch to vendor portal as Vendor A"
+    "note": "Submit the invited vendor's Technical response and RFQ quote at 100 through the vendor portal flow."
    },
    {
-    "step": "vendor_open_event",
-    "args": {
-     "stage": "technical"
-    },
-    "note": "Open the event technical stage in vendor portal"
-   },
-   {
-    "step": "vendor_bid",
+    "step": "expect_bid_submitted",
     "args": {},
-    "note": "Submit quote/response from vendor portal"
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "buyer"
-    },
-    "note": "Switch back to buyer side"
-   },
-   {
-    "step": "expect_responses",
-    "args": {
-     "stage": "rfp"
-    },
-    "note": "Assert responses are received on the technical stage"
+    "note": "Assert that the vendor submission was accepted."
    }
   ]
  }

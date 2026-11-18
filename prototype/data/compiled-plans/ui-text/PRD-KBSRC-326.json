@@ -3,17 +3,19 @@
   "caseId": "PRD-KBSRC-326",
   "title": "Traffic Light: yellow band covers above X up to and including Y",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:14:37.584Z",
+  "compiledAt": "2026-11-13T14:38:01.899Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Execute two distinct vendor sessions bidding simultaneously at precise values straddling the traffic light X and Y thresholds"
+   "The concrete green limit X and yellow limit Y are not specified, so the threshold values cannot be entered.",
+   "The vendor-facing traffic-light color assignment cannot be asserted, including yellow for values greater than X and at or below Y and non-yellow for values above Y.",
+   "The second vendor's own supplier-portal view cannot be opened to verify its color because the catalog supports only one QA vendor session."
   ],
   "warnings": [
-   "can only test part of this — no step for: Execute two distinct vendor sessions bidding simultaneously at precise values straddling the traffic light X and Y thresholds"
+   "cannot test this case yet — no step can observe: The concrete green limit X and yellow limit Y are not specified, so the threshold values cannot be entered.; The vendor-facing traffic-light color assignment cannot be asserted, including yellow for values greater than X and at or below Y and non-yellow for values above Y.; The second vendor's own supplier-portal view cannot be opened to verify its color because the catalog supports only one QA vendor session."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 15,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -24,74 +26,110 @@
    "set_schedule",
    "invite_vendor",
    "publish",
-   "expect_published"
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "expect_responses"
   ],
-  "ms": 55642
+  "ms": 16723
  },
  "plan": {
-  "title": "Traffic Light yellow band upper bound inclusive",
+  "title": "Traffic Light Yellow Band Boundary",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Start creating a single-stage event"
+    "note": "Open the single-stage create screen required for configuring a traffic-light auction."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
      "auctionSubtype": "traffic_light",
-     "awarding": "lot",
-     "rangeLower": 80,
-     "rangeUpper": 120
+     "awarding": "lot"
     },
-    "note": "Configure a traffic-light auction with lower bound 80 and upper bound 120"
+    "note": "Configure the auction strategy and entire-lot awarding; threshold values are omitted because X and Y were not supplied."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "Traffic Light Yellow Band Test"
-    },
-    "note": "Provide a title for the auction"
+    "args": {},
+    "note": "Provide the mandatory event title before publishing."
    },
    {
     "step": "select_template",
-    "note": "Select the pricing template"
+    "args": {},
+    "note": "Apply the auction pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item"
+    "note": "Add the line item needed for vendor bids."
    },
    {
     "step": "fill_sheet",
-    "note": "Fill out the pricing sheet"
+    "args": {},
+    "note": "Complete the pricing sheet before scheduling and publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Set a 30-minute schedule"
+    "note": "Commit a valid auction schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "count": 1
+     "count": 2
     },
-    "note": "Invite a test vendor"
+    "note": "Invite two vendors so bids can be submitted at the two requested value ranges."
    },
    {
     "step": "publish",
-    "note": "Publish the traffic light auction event"
+    "args": {},
+    "note": "Publish the configured auction."
    },
    {
     "step": "expect_published",
-    "note": "Assert the event published successfully"
+    "args": {},
+    "note": "Assert that the auction reached a published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the first vendor bid; the value is only a placeholder because the case did not specify X or Y."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the first vendor bid was accepted."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 200
+    },
+    "note": "Submit a second bid for another invited vendor as the closest available way to create the above-Y comparison without a second vendor session."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the second vendor bid was accepted."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2
+    },
+    "note": "Confirm that the buyer sees both submitted vendor responses, although their traffic-light colors cannot be checked."
    }
   ]
  }

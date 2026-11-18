@@ -4,20 +4,23 @@
   "title": "Event name with & < > and quotes shows correctly in the email",
   "group": "EMA-NAME",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:56:39.705Z",
+  "compiledAt": "2026-11-13T14:21:29.409Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Send the event through Procol's approval workflow to Asha and access Asha's mailbox to open the approval request email",
-   "Verify the approval email's sender, recipient, and full rendering beyond the visible title text"
+   "Send the event through the configured email approval workflow and open Asha's mailbox to verify the exact subject/name rendering without HTML entities or missing characters"
   ],
   "warnings": [
-   "can only test part of this — no step for: Send the event through Procol's approval workflow to Asha and access Asha's mailbox to open the approval request email; Verify the approval email's sender, recipient, and full rendering beyond the visible title text"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Send the event through the configured email approval workflow and open Asha's mailbox to verify the exact subject/name rendering without HTML entities or missing characters"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 13,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "select_template",
    "add_line_items",
@@ -27,12 +30,12 @@
    "publish",
    "expect_published",
    "ask_tester",
-   "expect_text"
+   "expect_no_error"
   ],
-  "ms": 76171
+  "ms": 24442
  },
  "plan": {
-  "title": "EMA-NAME-004 — Special characters in approval email",
+  "title": "EMA-NAME-004 special-character event name",
   "steps": [
    {
     "step": "open_create",
@@ -42,23 +45,39 @@
     "note": "Open the event creation flow."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required company email-approval configuration before creating the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Ensure the event uses the approval workflow required by the case."
+   },
+   {
     "step": "set_title",
     "args": {
      "title": "Chairs & Tables <Phase 2> \"Urgent\""
     },
-    "note": "Enter the exact special-character title required by the case."
+    "note": "Set the exact special-character event name specified by the case."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template so line items and publishing can proceed."
+    "note": "Apply a pricing template so the event can be completed."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required event line item."
+    "note": "Add the required line item for a valid event."
    },
    {
     "step": "fill_sheet",
@@ -75,32 +94,29 @@
    {
     "step": "invite_vendor",
     "args": {},
-    "note": "Add the product's available participant so the event can be published."
+    "note": "Add the product's available participant so publication is valid."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Create the valid event before the approval-email portion."
+    "note": "Publish the event and trigger the available approval-related creation flow."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert that the event was successfully created and reached its project page."
+    "note": "Confirm the event was created successfully before the mailbox verification."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "send this event through the approval workflow to Asha, sign in as Asha or open her mailbox, and open the Procol approval request email"
+     "need": "send the event for approval as Ravi, then sign in as Asha and open the Procol approval email to verify it shows exactly Chairs & Tables <Phase 2> \"Urgent\" without HTML entities or missing characters"
     },
-    "note": "The catalog has no approval-submission or mailbox step, and this requires another user's account and an external mailbox."
+    "note": "The approval submission and external mailbox inspection are not expressible by catalog steps."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Chairs & Tables <Phase 2> \"Urgent\"",
-     "present": true
-    },
-    "note": "Assert that the approval email currently open shows the title exactly, without HTML entity encoding or missing characters."
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the buyer session remains free of an application error after the tester completes the external verification."
    }
   ]
  }

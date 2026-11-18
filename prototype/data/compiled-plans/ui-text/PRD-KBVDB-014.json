@@ -3,47 +3,155 @@
   "caseId": "PRD-KBVDB-014",
   "title": "Vendor cannot place a commercial bid for a regretted item",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:54:53.755Z",
+  "compiledAt": "2026-11-13T15:44:42.622Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Create or verify that a vendor regretted a specific line item in the Technical Stage.",
-   "Enter a price only for the specific regretted item and assert that item-level entry or submission is blocked."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Create or verify that a vendor regretted a specific line item in the Technical Stage.; Enter a price only for the specific regretted item and assert that item-level entry or submission is blocked."
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "resolved: “Regret a specific line item in the Technical Stage as the vendor” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 20,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "switch_stage",
+   "select_template",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
    "switch_portal",
+   "vendor_open_event",
+   "ask_tester",
    "vendor_open_event",
    "attempt"
   ],
-  "ms": 69752
+  "ms": 21075
  },
  "plan": {
-  "title": "Regretted item commercial bid blocked",
+  "title": "Regretted Item Commercial Bid Block",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start a two-stage event that includes Technical and commercial stages."
+   },
+   {
+    "step": "set_title",
     "args": {},
-    "note": "Open the existing event with the commercial stage available."
+    "note": "Provide the mandatory event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    },
+    "note": "Create the required Technical Stage and commercial RFQ stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "configure the rfp stage on its own tab"
+   },
+   {
+    "step": "select_template",
+    "note": "rfp needs its own template"
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the line item that will later be regretted."
+   },
+   {
+    "step": "fill_questionnaires"
+   },
+   {
+    "step": "assign_evaluator"
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "configure the rfq stage on its own tab"
+   },
+   {
+    "step": "select_template",
+    "note": "rfq needs its own template"
+   },
+   {
+    "step": "fill_sheet"
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor who will regret the line and attempt the commercial bid."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can access both stages."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event is available for vendor interaction."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Act as the invited vendor in the supplier portal."
+    "note": "Open the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "technical"
+    },
+    "note": "Open the Technical Stage where the line must be regretted."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "as the invited vendor, regret the specified line item in the Technical Stage and leave the vendor portal ready to open the commercial RFQ"
+    },
+    "note": "The catalog has no step for regretting a technical line item."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the commercial RFQ/RA bid sheet."
+    "note": "Open the commercial RFQ after the regret prerequisite."
    },
    {
     "step": "attempt",
@@ -54,7 +162,7 @@
      },
      "expect": "refused"
     },
-    "note": "Attempt to submit a commercial bid and require the portal to refuse it; this is the closest available check, though vendor_bid cannot limit the attempt to the regretted item."
+    "note": "Verify that the vendor cannot enter or submit a commercial price for the regretted item."
    }
   ]
  }

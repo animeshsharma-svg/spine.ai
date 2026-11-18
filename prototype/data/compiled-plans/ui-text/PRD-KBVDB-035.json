@@ -3,58 +3,64 @@
   "caseId": "PRD-KBVDB-035",
   "title": "Breakdown total that does not match the auction bid is rejected",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:55:20.165Z",
+  "compiledAt": "2026-11-13T15:46:15.591Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Place the vendor in Cost Breakdown Time.",
-   "Edit cost-breakdown line-item prices independently of the submitted auction bid.",
-   "Submit the cost breakdown.",
-   "Observe the error message showing the remaining reduction amount.",
-   "Verify that submission succeeds only when the cost-breakdown total matches the submitted auction bid."
+   "Open the vendor's Cost Breakdown Time screen and edit line-item prices.",
+   "Submit the cost breakdown with a total exceeding the submitted auction bid.",
+   "Assert the error message showing the remaining reduction amount and verify submission succeeds only when the total matches the auction bid."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Place the vendor in Cost Breakdown Time.; Edit cost-breakdown line-item prices independently of the submitted auction bid.; Submit the cost breakdown.; Observe the error message showing the remaining reduction amount.; Verify that submission succeeds only when the cost-breakdown total matches the submitted auction bid."
+   "cannot test this case yet — no step can observe: Open the vendor's Cost Breakdown Time screen and edit line-item prices.; Submit the cost breakdown with a total exceeding the submitted auction bid.; Assert the error message showing the remaining reduction amount and verify submission succeeds only when the total matches the auction bid."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_event",
    "switch_portal",
    "vendor_open_event",
+   "capture_screen",
    "expect_visible"
   ],
-  "ms": 9191
+  "ms": 15811
  },
  "plan": {
-  "title": "Cost Breakdown Total Validation",
+  "title": "Cost Breakdown Total Mismatch",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing event that the runner can use as the closest available bid-event context; this does not establish Cost Breakdown Time."
+    "note": "Open an existing event that is suitable for vendor bidding; no event title was provided."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Switch to the vendor portal, which is the required side for vendor cost-breakdown activity, but the catalog has no cost-breakdown control."
+    "note": "Move to the invited vendor portal, which is the closest available session for this vendor-side case."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the vendor's pricing view as the closest available vendor screen; this is a normal bid sheet rather than a cost-breakdown submission screen."
+    "note": "Open the event's vendor pricing view; the catalog cannot reach the separate cost-breakdown workflow."
+   },
+   {
+    "step": "capture_screen",
+    "args": {
+     "label": "vendor-pricing-before-cost-breakdown"
+    },
+    "note": "Capture the closest available vendor screen as evidence of the reachable state."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Submit Quote",
+     "text": "Price",
      "visible": true
     },
-    "note": "Assert that the vendor pricing screen loaded, without treating the normal quote control as coverage of cost-breakdown validation."
+    "note": "Assert that the vendor pricing screen rendered, without treating it as coverage of cost-breakdown validation."
    }
   ]
  }

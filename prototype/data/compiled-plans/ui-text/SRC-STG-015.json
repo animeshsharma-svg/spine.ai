@@ -4,25 +4,27 @@
   "title": "Save weights with no value",
   "group": "SRC-STG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:06:11.252Z",
+  "compiledAt": "2026-11-13T12:56:26.431Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "go_to",
-   "go_to",
-   "expect_visible",
-   "click",
    "do_on_screen",
    "expect_message"
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 8455
+  "ms": 8215
  },
  "plan": {
   "title": "Reject Weight Save Without Value",
@@ -32,7 +34,23 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared RFQ with two bids on the buyer side."
+    "note": "Open the prepared RFQ event with two bids on its summary page."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_edit_weight_param_rfq",
+     "value": "On"
+    },
+    "note": "Enable RFQ weight-parameter editing for this case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the setup."
    },
    {
     "step": "go_to",
@@ -40,38 +58,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "participants"
-    },
-    "note": "Reach the Participants screen where weight parameters are managed."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Add Weight Params",
-     "visible": true
-    },
-    "note": "Confirm the weight-parameter control is available."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Add Weight Params"
-    },
-    "note": "Open the weight parameter form."
+    "note": "Open the RFQ stage where weight parameters are managed."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "add a weight parameter name, leave its weight value empty, press the form's save control, and stop when the refusal is shown"
+     "goal": "Add a weight parameter name without entering any weight value, attempt to save it, and stop when the screen shows the refusal for the missing weight value"
     },
-    "note": "Enter the invalid combination and submit it using the buyer-side form."
+    "note": "Perform the weight-parameter interaction that has no dedicated catalog action."
    },
    {
     "step": "expect_message",
@@ -79,7 +73,7 @@
      "kind": "error",
      "text": "Please add at least one weight value"
     },
-    "note": "Assert that Procol refuses the save with the expected validation message."
+    "note": "Assert the exact refusal message for saving without a weight value."
    }
   ]
  }

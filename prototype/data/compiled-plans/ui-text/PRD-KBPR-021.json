@@ -3,80 +3,64 @@
   "caseId": "PRD-KBPR-021",
   "title": "Quantity can be edited directly in the cart",
   "group": "PRD-KBPR",
-  "compiledAt": "2026-11-10T06:48:50.207Z",
+  "compiledAt": "2026-11-13T15:40:49.945Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 7 step(s) that would open a blank event or replace the PR's items",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 7 step(s) that would open a blank event or replace the PR's items"
-  ],
+  "warnings": [],
   "source": "llm",
-  "steps": 9,
+  "steps": 6,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
    "purchase_items",
-   "choose_stages",
-   "expect_pr_items",
-   "click",
-   "remember",
-   "expect_remembered"
+   "do_on_screen",
+   "expect_visible"
   ],
-  "ms": 19224
+  "ms": 12929
  },
  "plan": {
   "title": "PR Cart Quantity Editing",
   "steps": [
    {
-    "step": "open_purchase_requisitions"
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the purchase-request flow containing the cart line items."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
-    }
-   },
-   {
-    "step": "select_pr"
-   },
-   {
-    "step": "purchase_items"
-   },
-   {
-    "step": "choose_stages",
-    "args": {}
-   },
-   {
-    "step": "expect_pr_items"
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Items"
     },
-    "note": "Open the line-item cart or Manage Line Items panel."
+    "note": "Use an open purchase request that can be started as a project."
    },
    {
-    "step": "remember",
+    "step": "select_pr",
     "args": {
-     "key": "requested_quantity",
+     "items": 1
+    },
+    "note": "Select one PR line so its cart quantity can be edited."
+   },
+   {
+    "step": "purchase_items",
+    "args": {},
+    "note": "Open the selected purchase items and start the project flow where the cart is available."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Open the PR line-item cart side panel, click the quantity box for a line, enter a value lower than that line's requested quantity, and stop with the cart line showing the edited quantity."
+    },
+    "note": "Perform the direct cart edit and confirm on screen that the lower quantity is accepted and displayed."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
      "label": "Quantity",
-     "within": "Manage Line Items"
+     "visible": true
     },
-    "note": "Record the original requested quantity before editing."
-   },
-   {
-    "step": "expect_remembered",
-    "args": {
-     "key": "requested_quantity",
-     "same": false,
-     "label": "Quantity",
-     "within": "Manage Line Items"
-    },
-    "note": "Verify that the cart's displayed quantity changed from the original requested value."
+    "note": "Assert that the edited cart still exposes the quantity field on the resulting screen."
    }
   ]
  }

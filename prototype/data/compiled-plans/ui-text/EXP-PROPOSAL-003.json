@@ -4,42 +4,78 @@
   "title": "The award proposal page: \"Allocation Summary\" — record what happens",
   "group": "EXP-PROPOSAL",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:50:59.303Z",
+  "compiledAt": "2026-11-13T14:16:40.842Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "start_awarding",
+   "allocate_award",
    "click",
    "expect_navigated",
+   "remember",
    "click",
-   "expect_navigated",
-   "expect_text"
+   "capture_screen",
+   "expect_remembered"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 9659
+  "ms": 22551
  },
  "plan": {
-  "title": "EXP-PROPOSAL-003 Allocation Summary behavior",
+  "title": "EXP-PROPOSAL-003 Allocation Summary exploration",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS for the prepared closed RFQ with a draft award proposal."
+    "note": "Open the prepared closed RFQ in Master QCS."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "ntd_required_on_proposal",
+     "value": "On"
+    },
+    "note": "Enable the required Note to Director proposal configuration."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Open the awarding flow for the closed RFQ."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Allocate the award to Vendor A as specified by the scenario."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Bid Selection Proposal"
+     "name": "Create Proposal"
     },
-    "note": "Open the existing award proposal from Master QCS."
+    "note": "Create and open the award proposal page."
    },
    {
     "step": "expect_navigated",
@@ -49,26 +85,38 @@
     "note": "Confirm the award proposal page opened."
    },
    {
+    "step": "remember",
+    "args": {
+     "key": "allocation-summary-control",
+     "role": "button",
+     "name": "Allocation Summary"
+    },
+    "note": "Record the control before clicking it so any visible change can be compared."
+   },
+   {
     "step": "click",
     "args": {
      "role": "button",
      "name": "Allocation Summary"
     },
-    "note": "Exercise the Allocation Summary control being explored."
+    "note": "Exercise the control whose behavior is being explored."
    },
    {
-    "step": "expect_navigated",
+    "step": "capture_screen",
     "args": {
-     "screen": "proposal"
+     "label": "allocation-summary-after-click"
     },
-    "note": "Verify the click does not navigate away from the proposal page."
+    "note": "Record what opens or changes after clicking Allocation Summary."
    },
    {
-    "step": "expect_text",
+    "step": "expect_remembered",
     "args": {
-     "text": "Allocation Summary"
+     "key": "allocation-summary-control",
+     "role": "button",
+     "name": "Allocation Summary",
+     "same": true
     },
-    "note": "Verify the Allocation Summary control or section remains visible, indicating no visible change after the click."
+    "note": "Verify the visible Allocation Summary control remains unchanged, matching the expected exploration result."
    }
   ]
  }

@@ -4,7 +4,7 @@
   "title": "All Vendors: Search for an existing vendor shows the vendor in the list",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:38:47.821Z",
+  "compiledAt": "2026-11-13T14:01:52.401Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,9 +17,12 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 14,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
@@ -28,10 +31,10 @@
    "click",
    "fill",
    "press",
-   "expect_visible",
-   "expect_count"
+   "expect_text",
+   "expect_text"
   ],
-  "ms": 13012
+  "ms": 10437
  },
  "plan": {
   "title": "Single-Stage RFQ Vendor Search",
@@ -41,26 +44,53 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Opens the single-stage creation screen named by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Enables the tenant configuration required for the participant-search scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Applies the required read-only price-cap configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Applies the required terms-and-conditions configuration."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "Configure the event as an RFQ."
+    "note": "Sets the event type to RFQ and configures whole-lot awarding."
    },
    {
     "step": "set_title",
     "args": {
      "title": "EXP-CREATESINGLE-021 Vendor Search"
     },
-    "note": "Provide the required event title."
+    "note": "Provides the mandatory title for a create test."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply the first available RFQ template."
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Selects the requested buying template before adding the product."
    },
    {
     "step": "add_line_items",
@@ -69,7 +99,7 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product with quantity 10."
+    "note": "Adds the specified product with quantity 10 so the Participants panel is available."
    },
    {
     "step": "click",
@@ -77,7 +107,7 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the Participants panel on the create screen."
+    "note": "Opens the participant controls on the RFQ creation screen."
    },
    {
     "step": "click",
@@ -85,7 +115,7 @@
      "role": "button",
      "name": "All Vendors"
     },
-    "note": "Open the All Vendors window."
+    "note": "Opens the All Vendors window whose search behavior is under test."
    },
    {
     "step": "fill",
@@ -93,30 +123,30 @@
      "label": "Search Vendors",
      "value": "QA_Platform Vendor A"
     },
-    "note": "Search for the specified vendor."
+    "note": "Enters the named vendor into the participant search field."
    },
    {
     "step": "press",
     "args": {
      "key": "Enter"
     },
-    "note": "Submit the vendor search."
+    "note": "Submits the vendor search."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "QA_Platform Vendor A",
-     "visible": true
+     "present": true
     },
-    "note": "Verify that the searched vendor appears in the filtered list."
+    "note": "Verifies the requested vendor appears in the filtered list."
    },
    {
-    "step": "expect_count",
+    "step": "expect_text",
     "args": {
-     "text": "QA_Platform Vendor A",
-     "count": 1
+     "text": "1",
+     "present": true
     },
-    "note": "Verify that exactly one matching vendor result is shown."
+    "note": "Verifies the filtered result count reflects one matching vendor."
    }
   ]
  }

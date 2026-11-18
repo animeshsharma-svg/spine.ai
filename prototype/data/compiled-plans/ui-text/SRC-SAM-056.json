@@ -4,21 +4,25 @@
   "title": "Send Bulk Counter Offer is greyed out, with a tooltip, on a live RFQ with no bid yet",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:59:59.781Z",
+  "compiledAt": "2026-11-13T12:49:40.261Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
+   "require_setting",
+   "require_setting",
    "expect_menu_item"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 9252
+  "ms": 9369
  },
  "plan": {
   "title": "Bulk Counter Offer Disabled Without Bids",
@@ -28,20 +32,32 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ with no bids on its Responses tab."
+    "note": "Open the prepared live RFQ with no bids on its Responses screen."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the stage Settings menu where Send Bulk Counter Offer is offered."
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure RFQ counter-offer actions are visible so the disabled bulk action can be inspected."
    },
    {
     "step": "expect_menu_item",
     "args": {
      "item": "Send Bulk Counter Offer",
-     "enabled": false
+     "enabled": false,
+     "stage": "rfq"
     },
-    "note": "Assert the menu item is present, greyed out, and has the required explanatory tooltip."
+    "note": "Assert the Settings menu contains Send Bulk Counter Offer, that it is greyed out, and that its disabled-state tooltip explains the restriction."
    }
   ]
  }

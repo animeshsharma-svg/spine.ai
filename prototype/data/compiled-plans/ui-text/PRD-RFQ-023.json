@@ -3,56 +3,48 @@
   "caseId": "PRD-RFQ-023",
   "title": "Delete Line Items: refused for a user without the Buyer role",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:30:32.174Z",
+  "compiledAt": "2026-11-13T14:51:37.515Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and verify that deleting PR line items is refused or unavailable.",
-   "Sign in as a Buyer in the same tenant and verify that deleting PR line items is available and returns the lines to the open PR pool.",
-   "Compare the two role outcomes while accounting for tenant RBAC configuration."
+   "Sign in as the non-Buyer and Buyer users in the same tenant and compare whether Delete Line Items is absent, refused, or available.",
+   "Delete line items from a PR-created event and verify the non-Buyer is refused while the Buyer can delete them and the lines return to the open PR pool."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 8 step(s) that would open a blank event or replace the PR's items",
-   "cannot test this case yet — no step can observe: Sign in as a user without the Buyer role and verify that deleting PR line items is refused or unavailable.; Sign in as a Buyer in the same tenant and verify that deleting PR line items is available and returns the lines to the open PR pool.; Compare the two role outcomes while accounting for tenant RBAC configuration."
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Sign in as the non-Buyer and Buyer users in the same tenant and compare whether Delete Line Items is absent, refused, or available.; Delete line items from a PR-created event and verify the non-Buyer is refused while the Buyer can delete them and the lines return to the open PR pool."
   ],
   "source": "llm",
   "steps": 9,
   "stepNames": [
+   "open_create",
+   "compose_stages",
+   "set_title",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
    "purchase_items",
-   "choose_stages",
-   "expect_pr_items",
-   "select_template",
-   "fill_sheet",
-   "expect_screen_clean"
+   "ask_tester",
+   "expect_visible"
   ],
-  "ms": 10595
+  "ms": 14643
  },
  "plan": {
   "title": "PR line-item deletion RBAC",
   "steps": [
    {
-    "step": "open_purchase_requisitions"
-   },
-   {
-    "step": "pr_tab",
+    "step": "open_create",
     "args": {
-     "tab": "Open"
+     "path": "erfx"
     }
    },
    {
-    "step": "select_pr"
-   },
-   {
-    "step": "purchase_items"
-   },
-   {
-    "step": "choose_stages",
+    "step": "compose_stages",
     "args": {
      "stages": [
       "rfq"
@@ -60,18 +52,44 @@
     }
    },
    {
-    "step": "expect_pr_items"
+    "step": "set_title"
    },
    {
-    "step": "select_template"
-   },
-   {
-    "step": "fill_sheet"
-   },
-   {
-    "step": "expect_screen_clean",
+    "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Assert the session remains free of application errors after the tester's role comparison."
+    "note": "Begin the required purchase-request event flow."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Use an open purchase request, which is the eligible PR state for event creation."
+   },
+   {
+    "step": "select_pr",
+    "args": {},
+    "note": "Select an available purchase request so its purchase actions become available."
+   },
+   {
+    "step": "purchase_items",
+    "args": {},
+    "note": "Start creating an event from the selected purchase request."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "choose the event stages, sign in as the non-Buyer and test Delete Line Items, then repeat in the same tenant as a Buyer and verify the deletion and return-to-open-PR-pool behavior"
+    },
+    "note": "Role-specific sign-in and the requested permission comparison are not expressible by the catalog."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Items",
+     "visible": true
+    },
+    "note": "Confirm the PR-derived event create screen remains visible after the tester's role comparison."
    }
   ]
  }

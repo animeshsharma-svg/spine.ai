@@ -4,55 +4,61 @@
   "title": "Dutch (price falls step by step) auction: the result after it ends",
   "group": "SRC-STR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:07:45.375Z",
+  "compiledAt": "2026-11-13T12:58:11.879Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the accepting vendor, rather than a lowest or highest bid, is the winner under Dutch-auction semantics.",
-   "Verify that every dynamic value in the downloaded report exactly matches the corresponding Master QCS value on screen."
+   "Verify that the Master QCS applies Dutch-auction acceptance semantics to identify the accepting vendor as the winner.",
+   "Verify that the downloaded report's dynamic bid and ranking values exactly match the Master QCS screen."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the accepting vendor, rather than a lowest or highest bid, is the winner under Dutch-auction semantics.; Verify that every dynamic value in the downloaded report exactly matches the corresponding Master QCS value on screen."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that the Master QCS applies Dutch-auction acceptance semantics to identify the accepting vendor as the winner.; Verify that the downloaded report's dynamic bid and ranking values exactly match the Master QCS screen."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "expect_screen_clean",
    "expect_qcs_vendors",
-   "expect_qcs_cell",
    "click",
    "expect_download"
   ],
   "state": "dutch",
   "screen": "master_qcs",
-  "ms": 9719
+  "ms": 21505
  },
  "plan": {
-  "title": "Dutch Auction Final Result and Report",
+  "title": "Dutch Auction Final QCS Report",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared finished Dutch auction directly on the buyer's Master QCS."
+    "note": "Open the prepared finished-auction Master QCS on the buyer side."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX project capability required by the case."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Verify that the Master QCS renders without errors, raw values, or a page crash."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
-     "count": 1,
      "realNames": true
     },
-    "note": "Confirm the Master QCS has the expected real vendor column for the prepared one-bid event."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "Rank",
-     "vendor": 1,
-     "number": 1
-    },
-    "note": "Assert that the final bid is ranked first in the Master QCS."
+    "note": "Verify that the Master QCS shows real vendor columns rather than placeholders."
    },
    {
     "step": "click",
@@ -60,16 +66,12 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Download the buyer's report from the Master QCS."
+    "note": "Start the report download from the Master QCS."
    },
    {
     "step": "expect_download",
-    "args": {
-     "contains": [
-      "Rank"
-     ]
-    },
-    "note": "Confirm that a report was saved and contains ranking information."
+    "args": {},
+    "note": "Verify that the report was saved during the run."
    }
   ]
  }

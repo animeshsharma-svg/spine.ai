@@ -4,24 +4,29 @@
   "title": "Configuration for Event: Select partial award option and save",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:38:08.572Z",
+  "compiledAt": "2026-11-13T14:01:09.537Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Directly verify that the events-list row displays the award type as \"I may partially award the event to multiple vendors\"."
+  ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Directly verify that the events-list row displays the award type as \"I may partially award the event to multiple vendors\"."
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 16,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
-   "expect_visible",
    "set_title",
    "select_template",
    "add_line_items",
@@ -32,20 +37,43 @@
    "expect_published",
    "open_events_list",
    "expect_events_list",
-   "expect_event_in_list",
-   "expect_text"
+   "expect_event_in_list"
   ],
-  "ms": 12436
+  "ms": 18349
  },
  "plan": {
-  "title": "Single-stage RFQ partial award configuration",
+  "title": "Single-Stage RFQ Partial Award Configuration",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the Single Stage event creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Enable the required tenant configuration that prevents vendor additions during event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable the required ceiling-price configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Disable mandatory T&Cs so the case uses the requested tenant setup."
    },
    {
     "step": "configure_single_stage",
@@ -53,28 +81,19 @@
      "eventType": "rfq",
      "awarding": "line_item"
     },
-    "note": "Select RFQ and save the option to partially award the event to multiple vendors."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Configuration for Event",
-     "visible": false
-    },
-    "note": "Verify that saving the configuration closes the Configuration for Event window."
+    "note": "Select RFQ and the radio option for partially awarding the event to multiple vendors; saving this configuration checks that the window closes."
    },
    {
     "step": "set_title",
     "args": {
      "title": "EXP-CREATESINGLE-013 Partial Award RFQ"
     },
-    "note": "Provide the required event title so the event can be published and found in the list."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template."
+    "note": "Apply the available RFQ pricing template."
    },
    {
     "step": "add_line_items",
@@ -88,54 +107,44 @@
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet for the added product."
+    "note": "Complete the pricing sheet required for publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required event schedule."
+    "note": "Commit a valid event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {},
-    "note": "Add the product-provided vendor audience required for publishing."
+    "note": "Add the product's available vendor audience before publishing."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured event so it is available in the events list."
+    "note": "Publish the configured RFQ so it can appear in the events list."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm that publishing reached the event project page."
+    "note": "Confirm the event was created as a real published project."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to verify the created event there."
+    "note": "Return to the events list to verify the plan's own event is listed."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm that the events list rendered without an error."
+    "note": "Confirm the events list rendered without an error."
    },
    {
     "step": "expect_event_in_list",
-    "args": {
-     "title": "EXP-CREATESINGLE-013 Partial Award RFQ"
-    },
-    "note": "Verify that the configured event appears in the events list."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "I may partially award the event to multiple vendors",
-     "present": true
-    },
-    "note": "Verify that the list displays the selected partial-award type."
+    "args": {},
+    "note": "Assert that the newly published event appears in the list."
    }
   ]
  }

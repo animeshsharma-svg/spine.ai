@@ -4,59 +4,91 @@
   "title": "Configuration for Event: Check that the checkbox can be toggled and saved",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:38:19.380Z",
+  "compiledAt": "2026-11-13T14:01:23.080Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "none",
+  "gaps": [
+   "Identify the unnamed checkbox and verify that it changes from unchecked to checked",
+   "Verify that the checkbox state remains persisted in the event details view after saving"
+  ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "cannot test this case yet — no step can observe: Identify the unnamed checkbox and verify that it changes from unchecked to checked; Verify that the checkbox state remains persisted in the event details view after saving"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 11,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "do_on_screen",
-   "expect_no_error"
+   "click",
+   "click",
+   "expect_visible"
   ],
-  "ms": 13880
+  "ms": 23324
  },
  "plan": {
-  "title": "Single-stage RFQ configuration checkbox persistence",
+  "title": "Single-stage RFQ configuration checkbox save",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the Single Stage creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Enable the tenant configuration required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable the tenant configuration required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Set the tenant configuration required by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ and reach the event configuration flow."
+    "note": "Set the event type to RFQ and open the configuration window."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title so the create flow is valid."
+    "args": {
+     "title": "EXP-CREATESINGLE-014"
+    },
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "select_template",
-    "args": {
-     "name": "Buy"
-    },
-    "note": "Choose the requested Buy Template before adding the product."
+    "args": {},
+    "note": "Apply the first available RFQ template before adding products."
    },
    {
     "step": "add_line_items",
@@ -68,16 +100,27 @@
     "note": "Add the specified product with quantity 10."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "open the RFQ Configuration for Event window, toggle the unnamed checkbox, click Save, verify the window closes, and verify the checkbox state remains persisted on the RFQ creation or event details screen"
+     "role": "checkbox"
     },
-    "note": "Perform and observe the unnamed checkbox interaction and its saved state, which has no dedicated catalog step."
+    "note": "Attempt to toggle the unnamed checkbox; the catalog has no label or state assertion for it."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the save flow completed without an application error."
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save"
+    },
+    "note": "Save the configuration window."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Configuration for Event",
+     "visible": false
+    },
+    "note": "Verify the configuration window closes after saving."
    }
   ]
  }

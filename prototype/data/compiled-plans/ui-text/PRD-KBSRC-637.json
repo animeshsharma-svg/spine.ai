@@ -3,143 +3,50 @@
   "caseId": "PRD-KBSRC-637",
   "title": "All approvals received triggers a purchase order request to the ERP",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:27:41.239Z",
+  "compiledAt": "2026-11-13T14:48:57.933Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact ERP request sent automatically, including its endpoint, payload, or transport-level outcome, is not specified by the catalog."
+   "Have every approver in the full approval chain approve the proposal when an approver other than the signed-in buyer is required",
+   "Verify the exact automatic request sent to the ERP"
   ],
   "warnings": [
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: The exact ERP request sent automatically, including its endpoint, payload, or transport-level outcome, is not specified by the catalog."
+   "can only test part of this — no step for: Have every approver in the full approval chain approve the proposal when an approver other than the signed-in buyer is required; Verify the exact automatic request sent to the ERP"
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 4,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
-   "place_surrogate_bid",
-   "expect_bid_submitted",
-   "close_event",
-   "award_event",
-   "expect_awarded",
+   "open_prepared",
+   "approve_award",
    "create_po",
    "expect_po_items"
   ],
-  "ms": 69966
+  "ms": 8110
  },
  "plan": {
-  "title": "Approved Award Generates Purchase Orders",
+  "title": "Approved award creates purchase orders",
   "steps": [
    {
-    "step": "open_create",
+    "step": "open_prepared",
     "args": {
-     "path": "erfx"
+     "screen": "proposal"
     },
-    "note": "Start a new multi-stage event."
+    "note": "Open the prepared awarded proposal awaiting approval."
    },
    {
-    "step": "set_title",
+    "step": "approve_award",
     "args": {},
-    "note": "Provide the required event title so it can be published and identified."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Configure the event as an RFQ, which supports bidding and awarding."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the first available RFQ pricing template."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add one item so the award and resulting PO have a concrete line."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet before publishing."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 3
-    },
-    "note": "Commit a valid bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the participant required for publishing and bidding."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the RFQ so a vendor bid can be submitted."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event reached a published project page."
-   },
-   {
-    "step": "place_surrogate_bid",
-    "args": {},
-    "note": "Submit a bid for the invited vendor so the event can be awarded."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify that the bid was accepted."
-   },
-   {
-    "step": "close_event",
-    "args": {},
-    "note": "Close bidding so awarding is allowed."
-   },
-   {
-    "step": "award_event",
-    "args": {
-     "vendor": "surrogate"
-    },
-    "note": "Allocate the awarded line to the vendor and submit the award proposal."
-   },
-   {
-    "step": "expect_awarded",
-    "args": {},
-    "note": "Confirm that the award proposal was created and submitted."
+    "note": "Approve the proposal with the available buyer approver."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete the available approval flow and generate the purchase order request/results."
+    "note": "Complete the award approval flow and generate the purchase orders requested from the awarded event."
    },
    {
     "step": "expect_po_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Verify that the resulting purchase orders list exactly the awarded event line item."
+    "args": {},
+    "note": "Assert that the generated purchase orders contain the awarded event's line items."
    }
   ]
  }

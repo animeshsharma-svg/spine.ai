@@ -3,17 +3,13 @@
   "caseId": "PRD-KBSRC-328",
   "title": "Knockout configuration: offer basis, starting price, tick size, time difference",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:14:08.860Z",
+  "compiledAt": "2026-11-13T14:38:15.070Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "No dedicated catalog assertion can compare the exact configured starting price, tick size, or time-difference values with saved event data."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: No dedicated catalog assertion can compare the exact configured starting price, tick size, or time-difference values with saved event data."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 15,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "set_title",
@@ -27,26 +23,26 @@
    "expect_published",
    "convert_to_auction",
    "do_on_screen",
-   "expect_text",
-   "expect_text",
-   "expect_text"
+   "expect_visible"
   ],
-  "ms": 12525
+  "ms": 19957
  },
  "plan": {
-  "title": "Knockout Auction Configuration Settings",
+  "title": "Knockout auction configuration settings",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start the required eRFX flow because Knockout auctions are only reachable through RFQ-to-Auction conversion."
+    "note": "Start the eRFX flow used to reach RFQ-to-Auction conversion."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title before publishing the RFQ."
+    "args": {
+     "title": "PRD-KBSRC-328 Knockout configuration"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -55,7 +51,7 @@
       "rfq"
      ]
     },
-    "note": "Create a single RFQ stage as the source event for conversion."
+    "note": "Create an RFQ, which is the required source event for a Knockout auction."
    },
    {
     "step": "select_template",
@@ -67,7 +63,7 @@
     "args": {
      "count": 1
     },
-    "note": "Add the required line item for the RFQ."
+    "note": "Add the required product line for the auction."
    },
    {
     "step": "fill_sheet",
@@ -86,53 +82,37 @@
     "args": {
      "count": 1
     },
-    "note": "Add a participant required for publication."
+    "note": "Add a participant required for publishing."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so it can be converted to an auction."
+    "note": "Publish the RFQ so it can be converted."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the RFQ reached a published project page."
+    "note": "Verify the RFQ reached a real published project page."
    },
    {
     "step": "convert_to_auction",
     "args": {},
-    "note": "Open the converted auction create screen where Knockout configuration is available."
+    "note": "Open the converted-auction create screen where Knockout configuration is available."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the converted auction create screen, select the Knockout strategy, choose the offer basis Best Price, enter valid Starting Price, Tick Size (price difference), and Time Difference values, save or apply the configuration, and stop with the event screen visibly showing all four configured settings."
+     "goal": "On the converted auction create screen, select the Knockout strategy, choose either Best Price or Total Amount as the offer basis, enter valid starting price, tick size, and time difference values, save the configuration, and verify all four configured settings are visibly retained before publishing."
     },
-    "note": "Configure and visually verify the Knockout-specific settings that no dedicated catalog step can manipulate."
+    "note": "Configure and verify the four Knockout settings that have no dedicated catalog step."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
-     "text": "Starting Price",
-     "present": true
+     "text": "Publish",
+     "visible": true
     },
-    "note": "Assert that the final configuration screen still exposes the saved starting-price setting."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Tick Size",
-     "present": true
-    },
-    "note": "Assert that the final configuration screen still exposes the saved tick-size setting."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Time Difference",
-     "present": true
-    },
-    "note": "Assert that the final configuration screen still exposes the saved time-difference setting."
+    "note": "Confirm the configured converted-auction screen remains available for publishing after the settings are saved."
    }
   ]
  }

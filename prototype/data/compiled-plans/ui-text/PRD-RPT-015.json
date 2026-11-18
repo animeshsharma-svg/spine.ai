@@ -3,58 +3,61 @@
   "caseId": "PRD-RPT-015",
   "title": "Letter of Award / ARN: refused for a user without the Buyer role",
   "group": "PRD-RPT",
-  "compiledAt": "2026-11-10T07:00:09.139Z",
+  "compiledAt": "2026-11-13T15:49:53.937Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and verify that Letter of Award / ARN generation is refused or absent, then sign in as a Buyer and verify the action is available and generates the organisation-formatted NFA.",
-   "Compare the same Letter of Award / ARN action across the non-Buyer and Buyer personas on the same Enterprise tenant."
+   "Sign in as a user without the Buyer role on the specified Enterprise tenant",
+   "Attempt Letter of Award / ARN generation and verify that NFA generation is refused or unavailable for the non-Buyer",
+   "Repeat the action as a Buyer and verify that NFA generation is available",
+   "Verify the generated NFA uses the organisation's format",
+   "Compare the two role outcomes while accounting for tenant RBAC configuration"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify that Letter of Award / ARN generation is refused or absent, then sign in as a Buyer and verify the action is available and generates the organisation-formatted NFA.; Compare the same Letter of Award / ARN action across the non-Buyer and Buyer personas on the same Enterprise tenant."
+   "can only test part of this — no step for: Sign in as a user without the Buyer role on the specified Enterprise tenant; Attempt Letter of Award / ARN generation and verify that NFA generation is refused or unavailable for the non-Buyer; Repeat the action as a Buyer and verify that NFA generation is available; Verify the generated NFA uses the organisation's format; Compare the two role outcomes while accounting for tenant RBAC configuration"
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_prepared",
-   "expect_visible",
+   "expect_text",
    "ask_tester",
-   "expect_visible"
+   "expect_text"
   ],
-  "ms": 8284
+  "ms": 14202
  },
  "plan": {
-  "title": "Letter of Award RBAC access",
+  "title": "Letter of Award RBAC refusal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "proposal"
     },
-    "note": "Open an existing award proposal where the Letter of Award controls are available to inspect."
+    "note": "Reach the proposal screen where the Letter of Award / ARN action is expected to be available."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "Letter of Award",
-     "visible": true
+     "present": true
     },
-    "note": "Confirm the proposal screen exposes the Letter of Award area, without claiming this proves role-based access."
+    "note": "Confirm the relevant proposal section is present before requesting the tester's role-specific comparison."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a user without the Buyer role, verify Letter of Award / ARN generation is refused or absent, then sign in as a Buyer on the same tenant and verify the action is available and generates the organisation-formatted NFA"
+     "need": "sign in as the non-Buyer user and then as a Buyer on the same Enterprise tenant, attempt Letter of Award / ARN NFA generation in each role, and report whether the action is refused or available and whether the generated NFA uses the organisation's format"
     },
-    "note": "The catalog has no step for switching to another user's role or comparing RBAC outcomes."
+    "note": "The catalog has no step for switching to these user roles or executing and comparing this role-protected action."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "Letter of Award",
-     "visible": true
+     "present": true
     },
-    "note": "Provide a final observable check that the proposal context still exposes the Letter of Award area after the role comparison."
+    "note": "Keep a known assertion at the end of the plan for the proposal screen involved in the requested action."
    }
   ]
  }

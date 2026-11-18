@@ -4,24 +4,21 @@
   "title": "Edit Evaluation Time is offered on a live RFQ with no bid yet",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:58:46.523Z",
+  "compiledAt": "2026-11-13T12:49:22.220Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The case does not provide the live RFQ title, so the exact setup event cannot be selected deterministically; open_event may choose another fitting live event."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: The case does not provide the live RFQ title, so the exact setup event cannot be selected deterministically; open_event may choose another fitting live event."
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
    "open_prepared",
-   "expect_responses",
-   "expect_settings_menu",
+   "require_setting",
+   "expect_menu_item",
    "event_menu",
    "expect_visible",
    "click",
@@ -29,7 +26,7 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 11264
+  "ms": 9712
  },
  "plan": {
   "title": "Edit Evaluation Time on Live RFQ",
@@ -42,24 +39,21 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "expect_responses",
+    "step": "require_setting",
     "args": {
-     "count": 0,
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Verify the selected RFQ has no vendor responses, matching the required setup state."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "expect_settings_menu",
+    "step": "expect_menu_item",
     "args": {
-     "offered": [
-      "Edit Evaluation Time"
-     ],
-     "enabled": [
-      "Edit Evaluation Time"
-     ]
+     "item": "Edit Evaluation Time",
+     "enabled": true,
+     "stage": "rfq"
     },
-    "note": "Assert that Edit Evaluation Time is present and clickable in the current event state."
+    "note": "Verify the RFQ Settings menu offers Edit Evaluation Time and that it is clickable."
    },
    {
     "step": "event_menu",
@@ -67,7 +61,7 @@
      "item": "Edit Evaluation Time",
      "stage": "rfq"
     },
-    "note": "Open the Edit Evaluation Time window to verify the action can be activated."
+    "note": "Open the Edit Evaluation Time window."
    },
    {
     "step": "expect_visible",
@@ -76,7 +70,7 @@
      "name": "Edit Evaluation Time",
      "visible": true
     },
-    "note": "Confirm the expected evaluation-time dialog opened."
+    "note": "Assert that clicking the enabled menu item opens the expected dialog."
    },
    {
     "step": "click",
@@ -94,7 +88,7 @@
      "name": "Edit Evaluation Time",
      "visible": false
     },
-    "note": "Verify cancellation closes the window without leaving it open."
+    "note": "Confirm the dialog closed without applying a change."
    }
   ]
  }

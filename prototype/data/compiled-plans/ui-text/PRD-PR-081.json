@@ -3,37 +3,57 @@
   "caseId": "PRD-PR-081",
   "title": "PR Approval: step 2 \"Line Manager Approval\" routes to Requestor's Line Manager",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:39:03.745Z",
+  "compiledAt": "2026-11-13T15:22:09.458Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Trigger an employee-submitted Purchase Requisition, complete the preceding sequential approval, and verify that the pending step 2 approval record names the requestor's line manager."
+   "Trigger and submit a Purchase Requisition, complete the preceding sequential approval step, and verify that the step 2 pending-approval record names the Requestor's Line Manager as approver."
   ],
   "warnings": [
-   "can only test part of this — no step for: Trigger an employee-submitted Purchase Requisition, complete the preceding sequential approval, and verify that the pending step 2 approval record names the requestor's line manager."
+   "can only test part of this — no step for: Trigger and submit a Purchase Requisition, complete the preceding sequential approval step, and verify that the step 2 pending-approval record names the Requestor's Line Manager as approver."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "open_prepared",
+   "expect_text",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 8457
+  "ms": 14751
  },
  "plan": {
   "title": "PR Approval Step 2 Line Manager Routing",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "open_prepared",
     "args": {
-     "need": "submit the Purchase Requisition as the employee, complete the approval steps before step 2, and verify that the pending Line Manager Approval is assigned to the requestor's line manager only after the previous step completes"
+     "screen": "proposal"
     },
-    "note": "The catalog cannot perform the PR approval workflow or inspect its pending-approval routing."
+    "note": "Open the closest available approval-related screen in the prepared-state catalog."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the resulting screen has no visible crash or server error after the tester completes the workflow."
+    "step": "expect_text",
+    "args": {
+     "text": "Approvals",
+     "present": true
+    },
+    "note": "Confirm that the available screen exposes the approval area before the missing workflow is performed."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "trigger and submit the Purchase Requisition, complete the preceding sequential approval step, and verify that step 2 Line Manager Approval is pending only for the Requestor's Line Manager"
+    },
+    "note": "The catalog cannot perform the PR submission, sequential prerequisite completion, or inspect the pending approver identity."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Approvals",
+     "present": true
+    },
+    "note": "Confirm the approval area remains available after tester intervention."
    }
   ]
  }

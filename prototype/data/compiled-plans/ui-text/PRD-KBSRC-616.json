@@ -3,179 +3,87 @@
   "caseId": "PRD-KBSRC-616",
   "title": "Vendor modifies the counter offer — buyer QCS shows modified tag and new value",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:25:12.533Z",
+  "compiledAt": "2026-11-13T14:47:33.017Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Vendor modifies the pending counter offer to ₹85 and submits a remark explaining the adjustment."
+   "Vendor provides a remark explaining the counter-offer adjustment",
+   "Buyer QCS shows the vendor's specific remark because the remark content is not specified and no catalog assertion can identify the corresponding remark"
   ],
   "warnings": [
-   "can only test part of this — no step for: Vendor modifies the pending counter offer to ₹85 and submits a remark explaining the adjustment."
+   "can only test part of this — no step for: Vendor provides a remark explaining the counter-offer adjustment; Buyer QCS shows the vendor's specific remark because the remark content is not specified and no catalog assertion can identify the corresponding remark"
   ],
   "source": "llm",
-  "steps": 21,
+  "steps": 8,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
-   "place_bid",
+   "open_prepared",
+   "vendor_open_event",
+   "vendor_bid",
    "expect_bid_submitted",
-   "open_master_qcs",
-   "place_counter_offer",
-   "expect_counter_offer_sent",
-   "ask_tester",
    "switch_portal",
-   "open_master_qcs",
+   "open_prepared",
    "expect_qcs_cell",
-   "expect_text",
    "expect_text"
   ],
-  "ms": 11492
+  "ms": 12120
  },
  "plan": {
   "title": "Vendor modifies counter offer to ₹85",
   "steps": [
    {
-    "step": "open_create",
+    "step": "open_prepared",
     "args": {
-     "path": "erfx"
+     "screen": "vendor"
     },
-    "note": "Create the RFQ event used for the counter-offer flow."
+    "note": "Open the prepared vendor session with the pending counter offer."
    },
    {
-    "step": "set_title",
+    "step": "vendor_open_event",
     "args": {
-     "title": "Vendor modifies counter offer"
+     "stage": "pricing"
     },
-    "note": "Provide the required event title."
+    "note": "Open the prepared event's RFQ pricing round in the vendor portal."
    },
    {
-    "step": "compose_stages",
+    "step": "vendor_bid",
     "args": {
-     "stages": [
-      "rfq"
-     ]
+     "price": 85
     },
-    "note": "Configure the event as an RFQ so the QCS and counter-offer flow apply."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the RFQ pricing template before adding line items."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add one product for the bid and counter offer."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a bidding schedule before publishing."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite the QA vendor who will submit the original bid."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the RFQ so the vendor can bid."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event reached a real published project page."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "price": 90
-    },
-    "note": "Submit the vendor's original bid of ₹90."
+    "note": "Submit the vendor's revised counter-offer value of ₹85; this is the closest available vendor-side modification action."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the vendor bid was accepted."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's QCS before sending the counter offer."
-   },
-   {
-    "step": "place_counter_offer",
-    "args": {
-     "price": 80
-    },
-    "note": "Send the buyer's counter offer of ₹80 against the vendor bid."
-   },
-   {
-    "step": "expect_counter_offer_sent",
-    "args": {},
-    "note": "Confirm the counter offer is pending for the vendor."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "sign in as the vendor, modify the pending counter offer to ₹85, enter a remark explaining the adjustment, and submit it"
-    },
-    "note": "The catalog has no vendor action for modifying a pending counter offer with a remark."
+    "note": "Confirm the vendor's revised submission was accepted."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer session after the vendor modification."
+    "note": "Return to the buyer's console to inspect the QCS."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Reopen the buyer's QCS on the RFQ tab to inspect the modified bid."
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the buyer's prepared Master QCS on the RFQ event."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
-     "vendor": 1,
-     "number": 85
+     "equals": "85"
     },
-    "note": "Assert the vendor's modified RFQ value is ₹85."
+    "note": "Assert that the buyer QCS shows the modified price ₹85."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Modified Counter Offer Bid"
     },
-    "note": "Assert the modified counter-offer status tag is shown."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "explaining the adjustment"
-    },
-    "note": "Assert the vendor's submitted remark is visible in the QCS."
+    "note": "Assert that the QCS displays the required modified-counter-offer tag."
    }
   ]
  }

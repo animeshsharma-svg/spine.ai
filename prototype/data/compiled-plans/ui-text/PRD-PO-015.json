@@ -3,27 +3,28 @@
   "caseId": "PRD-PO-015",
   "title": "SAP PO Creation & MQCS Push: refused for a user without the Buyer role",
   "group": "PRD-PO",
-  "compiledAt": "2026-11-10T06:29:32.109Z",
+  "compiledAt": "2026-11-13T15:26:24.369Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role on the specified Enterprise tenant",
-   "Observe whether SAP PO Creation & MQCS Push is absent or refused for the non-Buyer",
-   "Create the PO in SAP with the MQCS pushed and attached",
-   "Repeat the action as a Buyer and compare availability",
-   "Verify the Oracle same-tenant role comparison and tenant RBAC configuration"
+   "Sign in as a user without the Buyer role and repeat the action as a Buyer for a role-based comparison.",
+   "Verify that the tenant is on the Enterprise plan.",
+   "Verify that the PO is created in SAP with the MQCS pushed and attached.",
+   "Observe whether Procol refuses or omits SAP PO Creation & MQCS Push specifically for the non-Buyer user."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role on the specified Enterprise tenant; Observe whether SAP PO Creation & MQCS Push is absent or refused for the non-Buyer; Create the PO in SAP with the MQCS pushed and attached; Repeat the action as a Buyer and compare availability; Verify the Oracle same-tenant role comparison and tenant RBAC configuration"
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and repeat the action as a Buyer for a role-based comparison.; Verify that the tenant is on the Enterprise plan.; Verify that the PO is created in SAP with the MQCS pushed and attached.; Observe whether Procol refuses or omits SAP PO Creation & MQCS Push specifically for the non-Buyer user."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "create_po",
+   "expect_po_items",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 9160
+  "ms": 16468
  },
  "plan": {
   "title": "SAP PO Creation and MQCS Push Role Access",
@@ -31,19 +32,29 @@
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing event suitable for PO creation so the role-specific SAP workflow can be attempted in the relevant event context."
+    "note": "Open a suitable existing awarded event so the closest available purchase-order flow can be exercised."
+   },
+   {
+    "step": "create_po",
+    "args": {},
+    "note": "Exercise Procol's closest catalogued PO creation flow and read back the resulting purchase orders."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {},
+    "note": "Assert that the created PO carries the awarded event line items, confirming the local PO creation result."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Buyer and Buyer users on the specified Enterprise tenant, attempt SAP PO Creation & MQCS Push for each role, and verify the SAP PO and attached MQCS result"
+     "need": "sign in as the non-Buyer and Buyer users and verify SAP PO Creation & MQCS Push is refused or absent for the non-Buyer and available to the Buyer, including the SAP/MQCS push and attachment"
     },
-    "note": "The catalog cannot switch to role-specific users or perform and observe the SAP/MQCS push workflow."
+    "note": "Role-specific sessions and SAP/MQCS integration behavior are not available in the catalog."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the session remains usable after the tester completes or skips the unavailable role-specific workflow."
+    "note": "Finish with a screen health assertion after the tester-assisted comparison."
    }
   ]
  }

@@ -4,67 +4,75 @@
   "title": "Surrogate bid form allows resubmission after previous surrogate bid rejection",
   "group": "DRV-TPL",
   "sheet": "derived-provide-configurable-rfq-templates-line-",
-  "compiledAt": "2026-11-09T23:12:18.163Z",
+  "compiledAt": "2026-11-13T13:42:44.031Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create or verify that Vendor A's previous surrogate bid was rejected before resubmission",
-   "Open the Add Surrogate Bid control from the Responses tab; the catalog performs surrogate bidding from the Participants list"
+   "Establishing that Vendor A previously submitted a surrogate bid that was rejected by the buyer",
+   "Verifying that the same rejected surrogate bid can be resubmitted specifically as a retry"
   ],
   "warnings": [
-   "can only test part of this — no step for: Create or verify that Vendor A's previous surrogate bid was rejected before resubmission; Open the Add Surrogate Bid control from the Responses tab; the catalog performs surrogate bidding from the Participants list"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Establishing that Vendor A previously submitted a surrogate bid that was rejected by the buyer; Verifying that the same rejected surrogate bid can be resubmitted specifically as a retry"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "search_participants",
-   "expect_participant",
+   "require_setting",
+   "go_to",
+   "expect_navigated",
    "place_surrogate_bid",
    "expect_bid_submitted"
   ],
   "state": "bid",
   "screen": "participants",
-  "ms": 9167
+  "ms": 11863
  },
  "plan": {
-  "title": "Resubmit surrogate bid after rejection",
+  "title": "Surrogate Bid Resubmission After Rejection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared event's Participants list, where the surrogate-bid control is available."
+    "note": "Open the prepared RFQ participant screen, which is the available starting state for a surrogate bid."
    },
    {
-    "step": "search_participants",
+    "step": "require_setting",
     "args": {
-     "vendor": "Vendor A"
+     "key": "can_buyer_edit_bid",
+     "value": "On"
     },
-    "note": "Locate the named vendor's participant row before entering the replacement bid."
+    "note": "Enable the required buyer bid-editing configuration before testing the form."
    },
    {
-    "step": "expect_participant",
+    "step": "go_to",
     "args": {
-     "vendor": "Vendor A",
-     "present": true,
-     "addBid": true
+     "screen": "responses"
     },
-    "note": "Confirm Vendor A is present and currently offers the Add Bid control."
+    "note": "Navigate to the Responses tab as required by the case."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Confirm that the Responses tab is open before submitting the surrogate bid."
    },
    {
     "step": "place_surrogate_bid",
     "args": {
-     "vendor": "Vendor A",
      "price": 150
     },
-    "note": "Enter and submit the new surrogate rate of 150 for Vendor A; the step observes whether the fields accept the value and whether submission is refused or succeeds."
+    "note": "Submit a surrogate bid at the specified new rate; this exercises the available buyer-side bid form and submission path."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert that the surrogate bid submission completed successfully."
+    "note": "Assert that Procol accepted the surrogate bid rather than showing a permission or locking refusal."
    }
   ]
  }

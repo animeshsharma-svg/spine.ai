@@ -4,43 +4,78 @@
   "title": "A draft moves to Live when it is published",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:20:59.352Z",
+  "compiledAt": "2026-11-13T12:04:46.478Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Complete the prepared draft with participants and schedule.",
-   "Publish the prepared draft.",
-   "Verify that the event disappears from Drafts and appears in Live with the same title."
+   "Finish the draft by adding participants and committing its schedule",
+   "Publish the draft and verify that it disappears from Drafts and appears in Live with the same title"
   ],
   "warnings": [
-   "can only test part of this — no step for: Complete the prepared draft with participants and schedule.; Publish the prepared draft.; Verify that the event disappears from Drafts and appears in Live with the same title."
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Finish the draft by adding participants and committing its schedule; Publish the draft and verify that it disappears from Drafts and appears in Live with the same title"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "expect_api_value"
+   "require_setting",
+   "expect_api_value",
+   "filter_events",
+   "expect_event_in_list",
+   "expect_event_status"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 8940
+  "ms": 15335
  },
  "plan": {
-  "title": "Draft to Live on publish",
+  "title": "Draft event publication lifecycle",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "draft"
     },
-    "note": "Open the existing prepared draft event without creating or searching for another event."
+    "note": "Open the API-prepared draft event, which is the required starting state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Ensure vendor addition is enabled as required by the case."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "title"
+     "key": "title",
+     "within": "Event Title"
     },
-    "note": "Verify that the draft event displays its API-held title before the unavailable publish transition."
+    "note": "Capture and verify the draft event's existing title before checking its list placement."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Switch to Drafts, where the prepared unpublished event should currently be listed."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Assert that this plan's prepared event is present in Drafts."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Draft"
+    },
+    "note": "Assert that the listed event currently has Draft status."
    }
   ]
  }

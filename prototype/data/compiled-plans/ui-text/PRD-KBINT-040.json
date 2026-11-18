@@ -3,24 +3,33 @@
   "caseId": "PRD-KBINT-040",
   "title": "Duplicate or Delete a column from Column settings",
   "group": "PRD-KBINT",
-  "compiledAt": "2026-11-10T06:26:00.275Z",
+  "compiledAt": "2026-11-13T15:05:41.471Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "A dedicated catalog assertion for the exact column count increasing by one after Duplicate and decreasing by one after Delete."
+  ],
+  "warnings": [
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: A dedicated catalog assertion for the exact column count increasing by one after Duplicate and decreasing by one after Delete."
+  ],
   "source": "llm",
-  "steps": 8,
+  "steps": 9,
   "stepNames": [
    "open_create",
-   "set_title",
    "compose_stages",
+   "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "expect_sheet_columns",
    "do_on_screen",
    "expect_sheet_columns"
   ],
-  "ms": 17891
+  "ms": 15543
  },
  "plan": {
   "title": "Duplicate and Delete Pricing Column",
@@ -30,12 +39,7 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage create screen for the RFQ pricing event."
-   },
-   {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title before configuring and inspecting the sheet."
+    "note": "Open the eRFX create screen for a pricing-stage column test."
    },
    {
     "step": "compose_stages",
@@ -43,13 +47,17 @@
      "stages": [
       "rfq"
      ]
-    },
-    "note": "Use an RFQ pricing stage so the template-backed column sheet is available."
+    }
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title required for a valid create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template, which supplies the initial column."
+    "note": "Apply an RFQ/Auction pricing template so Column settings and its columns are available."
    },
    {
     "step": "add_line_items",
@@ -61,19 +69,24 @@
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the pricing sheet before testing its column controls."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "On the RFQ pricing sheet, record the current number of columns, open the three-dots menu next to Column settings, choose Duplicate, and verify on the sheet that the column count increased by exactly one. Then open the three-dots menu for a column, choose Delete, and verify that the column count decreased by exactly one; stop on the pricing sheet showing the resulting columns."
-    },
-    "note": "Perform and visually verify the column duplication and deletion behavior, including both count changes."
+    "note": "Populate the pricing sheet and establish the initial column state."
    },
    {
     "step": "expect_sheet_columns",
     "args": {},
-    "note": "Assert that the pricing sheet remains rendered with at least one column after the operations."
+    "note": "Assert that the template produced at least one pricing-sheet column before testing column settings."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the pricing sheet, record the initial column count, open the three-dots menu next to Column settings, choose Duplicate, and verify the column count increases by one and a copied column appears; then open the three-dots menu on a column, choose Delete, and verify the column count decreases by one and that column is removed; stop on the pricing sheet showing the final columns."
+    },
+    "note": "Perform and observe the catalog-missing Duplicate and Delete column actions and their count changes directly on the buyer's screen."
+   },
+   {
+    "step": "expect_sheet_columns",
+    "args": {},
+    "note": "Assert that the pricing sheet remains rendered with columns after the duplicate and delete operations."
    }
   ]
  }

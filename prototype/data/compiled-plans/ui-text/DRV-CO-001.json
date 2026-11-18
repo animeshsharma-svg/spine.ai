@@ -1,36 +1,36 @@
 {
  "meta": {
   "caseId": "DRV-CO-001",
-  "title": "Vendor interface displays consistent ranking and counter offer rate columns correctly",
+  "title": "Vendor user is refused access to issue counter offers from the buyer QCS interface",
   "group": "DRV-CO",
   "sheet": "derived-buyer-can-send-a-counter-offer-on-an-act",
-  "compiledAt": "2026-11-12T13:35:23.112Z",
+  "compiledAt": "2026-11-13T13:32:33.199Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The awarding screen displaying the accepted price and recomputed ranking, because the prepared event is live and awarding requires a closed event.",
-   "unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case"
+   "The awarding screen displaying the accepted price 90 and recomputed ranking, because the prepared event is live and awarding requires a closed event."
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: The awarding screen displaying the accepted price and recomputed ranking, because the prepared event is live and awarding requires a closed event."
+   "can only test part of this — no step for: The awarding screen displaying the accepted price 90 and recomputed ranking, because the prepared event is live and awarding requires a closed event."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
+   "open_master_qcs",
    "place_counter_offer",
    "expect_counter_offer_sent",
    "accept_counter_offer",
    "expect_counter_offer_accepted",
-   "expect_text",
+   "go_to",
+   "expect_api_value",
    "open_master_qcs",
    "expect_qcs_cell",
    "expect_qcs_ranks"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 11349
+  "ms": 1319
  },
  "plan": {
   "title": "Counter Offer Acceptance Updates Bid Price",
@@ -40,7 +40,12 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses tab with one active vendor bid."
+    "note": "Open the prepared live RFQ on the buyer's Responses tab, which is the required starting state."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open Master QCS before sending the counter offer, as required by the counter-offer flow."
    },
    {
     "step": "place_counter_offer",
@@ -48,43 +53,50 @@
      "price": 90,
      "remark": "Please revise pricing for bulk approval"
     },
-    "note": "Submit the buyer's counter offer at the specified lower price and remark."
+    "note": "Send the buyer's lower counter price and required remark to the vendor."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Verify the buyer's counter offer was initiated on the vendor bid."
+    "note": "Verify that the buyer's grid marks the vendor's bid as having a counter offer initiated."
    },
    {
     "step": "accept_counter_offer",
     "args": {},
-    "note": "Have the vendor portal accept the pending counter offer."
+    "note": "Have the invited vendor accept the pending counter offer in the supplier portal."
    },
    {
     "step": "expect_counter_offer_accepted",
     "args": {},
-    "note": "Verify the buyer's Responses grid marks the counter offer as accepted."
+    "note": "Verify on the buyer side that the vendor's counter offer is marked accepted."
    },
    {
-    "step": "expect_text",
+    "step": "go_to",
     "args": {
-     "text": "90",
-     "present": true
+     "screen": "responses"
     },
-    "note": "Verify the Responses tab displays the accepted counter price."
+    "note": "Return to the Responses tab to verify the accepted bid value there."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Assert that the Responses view shows the accepted bid price of 90 held for this prepared event."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open Master QCS to verify the accepted bid value and ranking."
+    "note": "Return to Master QCS to verify the accepted price and ranking."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
-     "equals": "90"
+     "vendor": 1,
+     "number": 90
     },
-    "note": "Assert the vendor's accepted RFQ rate is 90."
+    "note": "Assert that the vendor's Master QCS rate is updated to 90."
    },
    {
     "step": "expect_qcs_ranks",
@@ -93,7 +105,7 @@
      "order": "lowest",
      "atLeast": 1
     },
-    "note": "Verify ranking is recomputed from the updated accepted amount."
+    "note": "Verify that Master QCS ranking follows the RFQ amount after the accepted price update."
    }
   ]
  }

@@ -3,36 +3,58 @@
   "caseId": "PRD-PR-054",
   "title": "PR Grouping and Consolidation Engine: refused for a user without the Buyer role",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:33:39.660Z",
+  "compiledAt": "2026-11-13T15:20:48.019Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user holding none of the Buyer roles and switch roles to compare permissions",
-   "Use PR Grouping and Consolidation Engine to group line items and float an RFX from the group"
+   "Verify or set that the tenant is on the Growth plan.",
+   "Sign in as a user without the Buyer role and as a Buyer in separate sessions.",
+   "Open and execute the PR Grouping and Consolidation Engine, including grouping line items by category, location, or vendor within guardrails.",
+   "Float an RFX from a grouped PR and compare refusal or availability between the two roles.",
+   "Record RBAC configuration when the engine is intentionally granted to additional roles.",
+   "unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user holding none of the Buyer roles and switch roles to compare permissions; Use PR Grouping and Consolidation Engine to group line items and float an RFX from the group"
+   "coverage partial: unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Verify or set that the tenant is on the Growth plan.; Sign in as a user without the Buyer role and as a Buyer in separate sessions.; Open and execute the PR Grouping and Consolidation Engine, including grouping line items by category, location, or vendor within guardrails.; Float an RFX from a grouped PR and compare refusal or availability between the two roles.; Record RBAC configuration when the engine is intentionally granted to additional roles."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
-   "open_events_list",
-   "expect_events_list"
+   "open_purchase_requisitions",
+   "expect_visible",
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 271194
+  "ms": 10596
  },
  "plan": {
-  "title": "PRD-PR-054 — PR Grouping and Consolidation Engine: refused for a user without the Buyer role",
+  "title": "PR grouping role authorization",
   "steps": [
    {
-    "step": "open_events_list",
+    "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the main list to verify user permissions and interface access."
+    "note": "Reach the closest catalog-supported starting screen for the purchase-request grouping workflow."
    },
    {
-    "step": "expect_events_list",
+    "step": "expect_visible",
+    "args": {
+     "text": "Purchase Items",
+     "visible": true
+    },
+    "note": "Assert that the Purchase Requisitions screen exposes the purchase-item action before the unsupported grouping workflow is attempted."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as a non-Buyer and as a Buyer on the specified Growth tenant, run PR Grouping and Consolidation Engine grouping and float an RFX from the group, and compare whether the action is refused or available"
+    },
+    "note": "Role-specific login and the PR grouping/consolidation engine are not available in the catalog."
+   },
+   {
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert the events list renders properly for the current session."
+    "note": "Assert that the session remains free of a crash or server error after the tester performs the unsupported comparison."
    }
   ]
  }

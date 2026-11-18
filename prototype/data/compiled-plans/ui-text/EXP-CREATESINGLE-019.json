@@ -4,7 +4,7 @@
   "title": "All Vendors: Save button closes dialog when no vendors are listed",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:39:33.376Z",
+  "compiledAt": "2026-11-13T14:01:43.738Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,52 +17,80 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 16,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "click",
-   "expect_visible",
    "click",
    "expect_visible",
+   "expect_text",
    "click",
    "expect_visible",
    "expect_visible",
    "expect_no_error"
   ],
-  "ms": 69659
+  "ms": 11468
  },
  "plan": {
-  "title": "Single-stage All Vendors Save closes dialog",
+  "title": "Single-stage RFQ All Vendors Save with Empty List",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Opens the single-stage creation screen specified by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Prevents vendors from being added during event creation, allowing the empty All Vendors state to be tested."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Applies the requested read-only ceiling-price configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Applies the requested terms-and-conditions configuration."
    },
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "Set the event type to RFQ as required by the case."
+    "note": "Sets the event type to RFQ and configures whole-lot awarding."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "EXP-CREATESINGLE-019 All Vendors"
+     "title": "EXP-CREATESINGLE-019 Empty All Vendors"
     },
-    "note": "Provide the required event title before configuring the event."
+    "note": "Provides the required title for a valid create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the available RFQ pricing template."
+    "note": "Selects the RFQ pricing template before adding the product."
    },
    {
     "step": "add_line_items",
@@ -71,7 +99,7 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the specified product with quantity 10."
+    "note": "Adds the specified product with quantity 10."
    },
    {
     "step": "click",
@@ -79,22 +107,15 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the Participants panel."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Participants",
-     "visible": true
-    },
-    "note": "Confirm the Participants panel is open."
+    "note": "Opens the Participants panel."
    },
    {
     "step": "click",
     "args": {
-     "text": "All Vendors"
+     "role": "button",
+     "name": "All Vendors"
     },
-    "note": "Open the All Vendors window."
+    "note": "Opens the All Vendors window."
    },
    {
     "step": "expect_visible",
@@ -103,16 +124,23 @@
      "name": "All Vendors",
      "visible": true
     },
-    "note": "Confirm the All Vendors window opened."
+    "note": "Confirms the All Vendors window opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "No vendors to show",
+     "present": true
+    },
+    "note": "Confirms that no vendors are listed in the All Vendors window."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Save",
-     "within": "dialog"
+     "name": "Save"
     },
-    "note": "Save the empty All Vendors selection."
+    "note": "Saves the empty vendor selection."
    },
    {
     "step": "expect_visible",
@@ -121,20 +149,21 @@
      "name": "All Vendors",
      "visible": false
     },
-    "note": "Verify that the All Vendors window closes after saving."
+    "note": "Asserts that Save closes the All Vendors window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Participants",
+     "role": "button",
+     "name": "Participants",
      "visible": true
     },
-    "note": "Verify that the screen returns to the Participants panel."
+    "note": "Confirms the flow returned to the Participants panel."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Verify that no error message is shown."
+    "note": "Asserts that saving with no vendors produces no application error."
    }
   ]
  }

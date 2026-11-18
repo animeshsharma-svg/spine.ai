@@ -3,45 +3,51 @@
   "caseId": "PRD-KBSRC-345",
   "title": "Disable View-Only Mode by clicking the same action again",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:15:26.005Z",
+  "compiledAt": "2026-11-13T14:39:44.392Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly assert that View-Only Mode changed from enabled to disabled; no catalog step exposes the mode state."
+   "Directly assert that View-Only Mode is internally disabled after clicking the action again",
+   "Verify that every restricted action, beyond counter offer, is available again"
   ],
   "warnings": [
-   "can only test part of this — no step for: Directly assert that View-Only Mode changed from enabled to disabled; no catalog step exposes the mode state."
+   "can only test part of this — no step for: Directly assert that View-Only Mode is internally disabled after clicking the action again; Verify that every restricted action, beyond counter offer, is available again"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 7,
   "stepNames": [
    "open_event",
    "go_to",
+   "expect_text",
    "click",
    "click",
-   "click",
-   "click",
-   "go_to",
-   "click",
-   "expect_visible"
+   "place_counter_offer",
+   "expect_counter_offer_sent"
   ],
-  "ms": 12536
+  "ms": 16080
  },
  "plan": {
-  "title": "Disable View-Only Mode and Restore Counter Offer",
+  "title": "Disable View-Only Mode and Send Counter Offer",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing event suitable for testing auction actions and counter offers."
+    "note": "Open the existing live auction from the prepared environment."
    },
    {
     "step": "go_to",
     "args": {
-     "screen": "stage",
-     "stage": "auction"
+     "screen": "responses"
     },
-    "note": "Navigate to the auction stage where the Actions menu is available."
+    "note": "Go to the buyer's responses view where the Actions menu and counter-offer controls are available."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Auction",
+     "present": true
+    },
+    "note": "Confirm the opened event is an auction before testing the auction-specific action."
    },
    {
     "step": "click",
@@ -54,47 +60,22 @@
    {
     "step": "click",
     "args": {
-     "text": "View-Only Mode"
+     "role": "menuitem",
+     "name": "View-Only Mode"
     },
-    "note": "Select View-Only Mode once to exercise the same action."
+    "note": "Click the same View-Only Mode action to disable it."
    },
    {
-    "step": "click",
+    "step": "place_counter_offer",
     "args": {
-     "role": "button",
-     "name": "Actions"
+     "price": 90
     },
-    "note": "Reopen the Actions menu after the first toggle."
+    "note": "Attempt the restricted counter-offer action after disabling View-Only Mode."
    },
    {
-    "step": "click",
-    "args": {
-     "text": "View-Only Mode"
-    },
-    "note": "Select the same action again to disable View-Only Mode."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Open the responses view where the counter-offer action is available."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Counter Offer"
-    },
-    "note": "Attempt the previously restricted counter-offer action."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Counter Offer",
-     "visible": true
-    },
-    "note": "Verify that the counter-offer interface opened after View-Only Mode was disabled."
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Assert that the counter offer was successfully initiated, proving the action became available again."
    }
   ]
  }

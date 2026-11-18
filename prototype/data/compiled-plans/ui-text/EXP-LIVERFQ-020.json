@@ -4,62 +4,94 @@
   "title": "A live RFQ: \"Order Activity\" opens the \"Activity\" window",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:30:19.818Z",
+  "compiledAt": "2026-11-13T14:12:18.046Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "event_menu",
-   "expect_visible",
-   "expect_navigated"
+   "expect_text"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 7490
+  "ms": 10700
  },
  "plan": {
-  "title": "Live RFQ Order Activity drawer",
+  "title": "Live RFQ Order Activity window",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ as the buyer."
+    "note": "Open the already prepared live RFQ as the buyer."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required withdrawal-visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal behavior during submission time as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses tab."
+    "note": "Reach the RFQ Responses tab before opening its Settings menu."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Order Activity"
+     "item": "Order Activity",
+     "stage": "rfq"
     },
-    "note": "Open Order Activity from the RFQ Settings menu."
+    "note": "Choose Order Activity from the RFQ Settings menu; this should open the Activity drawer without confirming any action."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "Activity",
-     "visible": true
+     "present": true
     },
-    "note": "Assert that the Activity window opens."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Assert that the event remains on the Responses screen while the Activity window is open."
+    "note": "Verify that the Activity window/drawer opened."
    }
   ]
  }

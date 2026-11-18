@@ -4,34 +4,32 @@
   "title": "eRFX Auction project: recreate it after the close",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:01:35.270Z",
+  "compiledAt": "2026-11-13T12:13:37.433Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The prepared event is an RFQ rather than the required eRFX Auction-only project.",
-   "The recreated event's products are not named in the case and no catalog assertion can compare the original and recreated product set.",
-   "The recreated event's auction-specific settings cannot be read and compared by the catalog steps."
+   "Verify that the recreated event contains exactly the same products as the original event.",
+   "Verify that the recreated event preserves the original auction settings."
   ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: The prepared event is an RFQ rather than the required eRFX Auction-only project.; The recreated event's products are not named in the case and no catalog assertion can compare the original and recreated product set.; The recreated event's auction-specific settings cannot be read and compared by the catalog steps."
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Verify that the recreated event contains exactly the same products as the original event.; Verify that the recreated event preserves the original auction settings."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "event_menu",
-   "expect_visible",
    "click",
    "expect_navigated",
-   "expect_text",
-   "expect_no_error"
+   "expect_stages"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 19219
+  "ms": 20572
  },
  "plan": {
   "title": "Recreate closed eRFX auction",
@@ -41,7 +39,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing prepared event rather than creating or searching for another event."
+    "note": "the API built this case's state"
    },
    {
     "step": "require_setting",
@@ -49,22 +47,14 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project capability before accessing the event."
+    "note": "Ensure eRFX projects are enabled for the tenant."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Recreate Order"
     },
-    "note": "Open the stage Settings action that recreates the event."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Create Order",
-     "visible": true
-    },
-    "note": "Verify that the recreate flow exposes its Create Order action."
+    "note": "Open the project's action and choose Recreate Order."
    },
    {
     "step": "click",
@@ -72,27 +62,23 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Confirm creation of the recreated event."
+    "note": "Keep the default recreation values and submit the recreate action."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "create"
     },
-    "note": "Verify that the new event opens in the create flow."
+    "note": "Verify that the recreated event opens on the create screen."
    },
    {
-    "step": "expect_text",
+    "step": "expect_stages",
     "args": {
-     "text": "Auction",
-     "present": true
+     "stages": [
+      "auction"
+     ]
     },
-    "note": "Check that the resulting create screen still identifies the auction event type."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Verify that recreating the event did not produce an application error."
+    "note": "Verify that the recreated event has an Auction-only stage."
    }
   ]
  }

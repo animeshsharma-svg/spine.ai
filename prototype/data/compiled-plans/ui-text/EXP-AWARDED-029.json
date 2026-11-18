@@ -4,55 +4,59 @@
   "title": "Download Reports: Deselect all checkbox toggles all individual checkboxes off",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:15:51.863Z",
+  "compiledAt": "2026-11-13T13:45:02.489Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Assert that all individual checkboxes across Basic Details, Bid Details, and Product Details are unchecked after deselecting Select all."
+   "Verify that every individual checkbox under Basic Details, Bid Details, and Product Details is unchecked after deselecting Select all."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Assert that all individual checkboxes across Basic Details, Bid Details, and Product Details are unchecked after deselecting Select all."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that every individual checkbox under Basic Details, Bid Details, and Product Details is unchecked after deselecting Select all."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
    "go_to",
    "click",
    "expect_visible",
+   "expect_visible",
    "click",
    "click",
-   "expect_visible"
+   "expect_count"
   ],
   "state": "awarded",
   "screen": "master_qcs",
-  "ms": 70830
+  "ms": 21450
  },
  "plan": {
-  "title": "Awarded Event Report Select-All Toggle",
+  "title": "Download Reports Deselect All",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared awarded event as required."
+    "note": "Open the existing awarded event prepared for this case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "go_to",
     "args": {
-     "screen": "stage",
+     "screen": "responses",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Open the RFQ Responses tab specified by the case."
+    "note": "Navigate to the RFQ Responses screen where Download Report is available."
    },
    {
     "step": "click",
@@ -69,13 +73,24 @@
      "name": "Download Reports",
      "visible": true
     },
-    "note": "Confirm the report window opened before interacting with its controls."
+    "note": "Confirm that the Download Reports window opened."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "checkbox",
+     "name": "Select all",
+     "visible": true,
+     "within": "dialog"
+    },
+    "note": "Confirm the Select all checkbox is present in the report window."
    },
    {
     "step": "click",
     "args": {
      "role": "checkbox",
-     "name": "Select all"
+     "name": "Select all",
+     "within": "dialog"
     },
     "note": "Select all report fields."
    },
@@ -83,18 +98,19 @@
     "step": "click",
     "args": {
      "role": "checkbox",
-     "name": "Select all"
+     "name": "Select all",
+     "within": "dialog"
     },
-    "note": "Deselect all report fields; the individual checkbox states cannot be asserted by the catalog."
+    "note": "Toggle Select all again to deselect the report fields."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_count",
     "args": {
-     "role": "dialog",
-     "name": "Download Reports",
-     "visible": true
+     "role": "checkbox",
+     "min": 1,
+     "within": "dialog"
     },
-    "note": "Confirm the Download Reports window remains open after the second toggle."
+    "note": "Confirm the report window still contains individual checkbox controls after deselection."
    }
   ]
  }

@@ -4,49 +4,59 @@
   "title": "Dutch auction incorrect report symptom check for participation status",
   "group": "DRV-EVT",
   "sheet": "derived-track-each-vendor-s-participation-status",
-  "compiledAt": "2026-11-09T23:06:39.080Z",
+  "compiledAt": "2026-11-13T13:37:32.217Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Verify that the report's duration metrics accurately reflect seconds.",
-   "Verify that participation status accurately reflects active login states.",
-   "Verify that non-participants are not marked as active."
+   "Verify the exact duration in seconds reported for the vendor",
+   "Verify the vendor’s active login state and ensure non-participants are not marked active within the downloaded report",
+   "Inspect the downloaded workbook’s individual report cells"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Verify that the report's duration metrics accurately reflect seconds.; Verify that participation status accurately reflects active login states.; Verify that non-participants are not marked as active."
+   "can only test part of this — no step for: Verify the exact duration in seconds reported for the vendor; Verify the vendor’s active login state and ensure non-participants are not marked active within the downloaded report; Inspect the downloaded workbook’s individual report cells"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "open_prepared",
-   "expect_screen_clean"
+   "go_to",
+   "click",
+   "expect_download"
   ],
   "state": "converted",
   "screen": "summary",
-  "ms": 12309
+  "ms": 14867
  },
  "plan": {
-  "title": "Dutch auction participation report",
+  "title": "Dutch Auction Participation Report",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared converted auction event as required for prepared-state tests."
+    "note": "Open the API-prepared converted auction event as required."
    },
    {
-    "step": "open_prepared",
+    "step": "go_to",
     "args": {
-     "screen": "analytics"
+     "screen": "stage",
+     "stage": "auction"
     },
-    "note": "Navigate to the event's analytics/report screen where participation and duration information is expected."
+    "note": "Navigate to the auction stage whose participation report is being checked."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Download Report"
+    },
+    "note": "Request the auction participation report from the stage page."
+   },
+   {
+    "step": "expect_download",
     "args": {},
-    "note": "Assert that the analytics report renders without crashes, server errors, raw identifiers, or invalid values."
+    "note": "Assert that the report download was produced; the catalog cannot inspect workbook cell contents."
    }
   ]
  }

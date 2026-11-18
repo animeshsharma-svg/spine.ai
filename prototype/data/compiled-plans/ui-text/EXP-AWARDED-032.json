@@ -4,15 +4,21 @@
   "title": "Recreate Order: Create Order after clearing all optional fields leaves them empty",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:15:58.485Z",
+  "compiledAt": "2026-11-13T13:45:08.346Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
+   "go_to",
    "event_menu",
    "click",
    "click",
@@ -21,17 +27,40 @@
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 6620
+  "ms": 7280
  },
  "plan": {
-  "title": "Recreate order with empty optional fields",
+  "title": "Recreate Order with Empty Optional Fields",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared awarded event summary as the buyer."
+    "note": "Open the already awarded event's summary page."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab."
    },
    {
     "step": "event_menu",
@@ -39,14 +68,15 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and launch the Recreate Order window."
+    "note": "Open the Recreate Order window from the RFQ Settings menu."
    },
    {
     "step": "click",
     "args": {
-     "text": "Clear"
+     "role": "button",
+     "name": "Clear"
     },
-    "note": "Clear all optional fields in the Recreate Order window."
+    "note": "Clear all optional fields so the dialog is empty."
    },
    {
     "step": "click",
@@ -54,7 +84,7 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Submit the empty form to verify that no required fields block order creation."
+    "note": "Submit the empty recreate-order form."
    },
    {
     "step": "expect_toast",
@@ -62,16 +92,15 @@
      "kind": "success",
      "text": "New Order Created"
     },
-    "note": "Verify the order was created successfully."
+    "note": "Verify that order creation succeeds without required fields."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
-     "name": "Recreate Order",
      "visible": false
     },
-    "note": "Verify the Recreate Order window closes after successful creation."
+    "note": "Verify that the Recreate Order window closes after successful creation."
    }
   ]
  }

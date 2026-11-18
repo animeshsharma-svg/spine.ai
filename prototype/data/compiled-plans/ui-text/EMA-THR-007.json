@@ -4,49 +4,75 @@
   "title": "When Procol's server is down, the approver is told to try again",
   "group": "EMA-THR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T01:00:09.403Z",
+  "compiledAt": "2026-11-13T14:24:41.840Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Stop or block Procol's backend for several minutes",
-   "Log in to Asha's mailbox, open the Procol approval email, click Approve, and send the unchanged Action:Approve email",
-   "Wait for Procol to read the mailbox and verify the approval is later recorded or can be retried"
+   "Stop or block Procol's backend during the approval attempt",
+   "Log in to Asha's mailbox and open the Procol approval email",
+   "Click the email's Approve action and send the generated Action:Approve email",
+   "Observe the mailbox reply containing \"Please try again in a few minutes, or take the action directly in Procol.\"",
+   "Verify the approval is retried and later recorded or available to act on again",
+   "Configure or verify the company's connected approval mailbox and the named two-step approval workflow"
   ],
   "warnings": [
-   "can only test part of this — no step for: Stop or block Procol's backend for several minutes; Log in to Asha's mailbox, open the Procol approval email, click Approve, and send the unchanged Action:Approve email; Wait for Procol to read the mailbox and verify the approval is later recorded or can be retried"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Stop or block Procol's backend during the approval attempt; Log in to Asha's mailbox and open the Procol approval email; Click the email's Approve action and send the generated Action:Approve email; Observe the mailbox reply containing \"Please try again in a few minutes, or take the action directly in Procol.\"; Verify the approval is retried and later recorded or available to act on again; Configure or verify the company's connected approval mailbox and the named two-step approval workflow"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "expect_visible",
    "ask_tester",
-   "expect_text"
+   "expect_visible"
   ],
-  "ms": 72466
+  "ms": 15151
  },
  "plan": {
-  "title": "EMA-THR-007 Server-Down Approval Retry",
+  "title": "EMA-THR-007 Server-down email approval retry",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the existing event named in the case without creating or modifying another event."
+    "note": "Open the existing event named in the test case; no create flow is involved."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the stated email-approval configuration before inspecting the event."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Approvals",
+     "visible": true
+    },
+    "note": "Confirm the event page exposes its approval area before the mailbox-driven portion."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "stop or block Procol's backend, then use Asha's mailbox to approve the request by sending the unchanged Action:Approve email and return to the thread showing Procol's reply"
+     "need": "stop or block Procol's backend, sign in as Asha, approve the request from the Procol email by sending the generated Action:Approve reply, and verify the retry guidance and later approval outcome in the same email thread"
     },
-    "note": "Backend outage simulation, mailbox access, email sending, and thread interaction are not available in the catalog."
+    "note": "The catalog has no server-outage control, mailbox access, email sending, or email-thread assertion."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
-     "text": "Please try again in a few minutes, or take the action directly in Procol."
+     "role": "tab",
+     "name": "Approvals",
+     "visible": true
     },
-    "note": "Assert the expected temporary-server-problem reply appears in the approval thread."
+    "note": "Leave a final known-label assertion after the tester completes the unavailable mailbox workflow."
    }
   ]
  }

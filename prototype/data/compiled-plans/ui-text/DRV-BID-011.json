@@ -1,37 +1,35 @@
 {
  "meta": {
   "caseId": "DRV-BID-011",
-  "title": "Total amount is calculated correctly from discount percentage",
+  "title": "RCA 335725583080: Special character hash in specification field label does not break vendor submission",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-12T13:34:55.862Z",
+  "compiledAt": "2026-11-13T13:31:04.861Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Log in to and navigate within the Procol mobile app as the buyer",
-   "Tap Reject Bid in the mobile app and verify the mobile toast \"Bid rejection is disabled while bidding is in progress\"",
-   "Verify the vendor bid remains Active in the mobile app"
+   "Log in to the Procol mobile app as the buyer and navigate to the live RFQ Responses screen.",
+   "Verify that the mobile app shows the toast \"Bid rejection is disabled while bidding is in progress\" and keeps the bid Active."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Log in to and navigate within the Procol mobile app as the buyer; Tap Reject Bid in the mobile app and verify the mobile toast \"Bid rejection is disabled while bidding is in progress\"; Verify the vendor bid remains Active in the mobile app"
+   "cannot test this case yet — no step can observe: Log in to the Procol mobile app as the buyer and navigate to the live RFQ Responses screen.; Verify that the mobile app shows the toast \"Bid rejection is disabled while bidding is in progress\" and keeps the bid Active."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "expect_visible",
-   "ask_tester",
+   "attempt",
    "expect_text"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 16213
+  "ms": 12805
  },
  "plan": {
-  "title": "Mobile bid rejection validation",
+  "title": "DRV-BID-011 Mobile bid rejection validation",
   "steps": [
    {
     "step": "open_prepared",
@@ -46,23 +44,20 @@
      "key": "disable_reject_bid_in_bidding_time",
      "value": "On"
     },
-    "note": "Configure the required tenant restriction before testing the comparable response screen."
+    "note": "Ensure the tenant restriction required by the case is enabled."
    },
    {
-    "step": "expect_visible",
+    "step": "attempt",
     "args": {
-     "role": "button",
-     "name": "Reject",
-     "visible": true
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Reject"
+     },
+     "expect": "refused",
+     "because": "Bid rejection is disabled while bidding is in progress"
     },
-    "note": "Confirm the comparable web Responses screen exposes the Reject control."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "open the live RFQ in the Procol mobile app as the buyer, tap Reject Bid for Vendor A's active bid, and verify the stated validation toast and that the bid remains Active"
-    },
-    "note": "The mobile app session and its bid rejection outcome cannot be operated or observed by the catalog."
+    "note": "Attempt the web equivalent of rejecting the active bid and require the configured refusal message."
    },
    {
     "step": "expect_text",
@@ -70,7 +65,7 @@
      "text": "Active",
      "present": true
     },
-    "note": "Assert the closest available browser-side indication that the bid remains active after the mobile-specific check."
+    "note": "Check that the bid remains active after the rejection attempt."
    }
   ]
  }

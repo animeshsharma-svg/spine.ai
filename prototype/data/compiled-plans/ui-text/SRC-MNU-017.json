@@ -4,55 +4,70 @@
   "title": "Convert to Auction is hidden when vendor masking is on",
   "group": "SRC-MNU",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:34:57.307Z",
+  "compiledAt": "2026-11-13T12:15:57.494Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
-   "expect_menu_item",
-   "expect_menu_item"
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "expect_settings_menu"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 67623
+  "ms": 15286
  },
  "plan": {
-  "title": "Masked RFQ Settings Menu",
+  "title": "Vendor Masking Hides Convert to Auction",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ on the buyer's summary page."
+    "note": "Open the existing prepared live RFQ summary; the prepared-state rules require this as the starting screen."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the RFQ stage's Settings menu."
-   },
-   {
-    "step": "expect_menu_item",
+    "step": "require_setting",
     "args": {
-     "item": "Convert to Auction",
-     "present": false,
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Enable vendor masking so conversion and the specified menu behavior can be checked."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Assert conversion is not offered when vendor masking is enabled."
+    "note": "Navigate to the live RFQ stage page where the gear Settings menu is available."
    },
    {
-    "step": "expect_menu_item",
+    "step": "expect_settings_menu",
     "args": {
-     "item": "Order Activity",
-     "present": false,
-     "stage": "rfq"
+     "absent": [
+      "Convert to Auction",
+      "Order Activity"
+     ]
     },
-    "note": "Assert Order Activity is also absent from the Settings menu."
+    "note": "Assert that vendor masking removes both specified menu items from the current RFQ Settings menu."
    }
   ]
  }

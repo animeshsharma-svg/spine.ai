@@ -4,19 +4,22 @@
   "title": "Recreate Order: A new order is created with the displayed RFQ details",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:40:16.990Z",
+  "compiledAt": "2026-11-13T13:48:49.115Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly assert that the Schedule this event? checkbox is unchecked; the catalog can inspect field values but has no dedicated checkbox-state assertion without changing the control."
+   "unconfirmed label \"31\" (expect_text) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"KG\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Directly assert that the Schedule this event? checkbox is unchecked; the catalog can inspect field values but has no dedicated checkbox-state assertion without changing the control."
+   "coverage partial: unconfirmed label \"31\" (expect_text) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"KG\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 21,
+  "steps": 22,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -31,18 +34,19 @@
    "expect_value",
    "expect_value",
    "expect_value",
-   "expect_text",
-   "expect_text",
-   "expect_api_value",
-   "expect_text",
-   "expect_api_value",
+   "expect_value",
    "click",
+   "expect_toast",
    "expect_visible",
-   "expect_toast"
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 22224
+  "ms": 17071
  },
  "plan": {
   "title": "Recreate Order from Live RFQ",
@@ -52,7 +56,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with Vendor A's bid."
+    "note": "Open the prepared live RFQ summary containing one invited vendor's bid."
    },
    {
     "step": "require_setting",
@@ -60,7 +64,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects for the prepared RFQ flow."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "require_setting",
@@ -84,7 +88,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Allow buyer bid editing as required by the case."
+    "note": "Apply the required buyer bid-editing configuration."
    },
    {
     "step": "require_setting",
@@ -92,7 +96,7 @@
      "key": "is_counter_offer_percent_bid_allowed",
      "value": "On"
     },
-    "note": "Enable percentage counter offers as required by the case."
+    "note": "Apply the required percentage counter-offer configuration."
    },
    {
     "step": "go_to",
@@ -100,14 +104,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage."
+    "note": "Open the RFQ stage of the prepared event."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab where the bid's Settings menu is available."
+    "note": "Open the RFQ Responses tab where the bid and Settings menu are available."
    },
    {
     "step": "event_menu",
@@ -115,7 +119,7 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the Recreate Order window from the RFQ stage Settings menu."
+    "note": "Open the Recreate Order window from the RFQ Settings menu."
    },
    {
     "step": "expect_visible",
@@ -124,7 +128,7 @@
      "name": "Recreate Order",
      "visible": true
     },
-    "note": "Verify that the Recreate Order window opened."
+    "note": "Confirm that the Recreate Order window is open."
    },
    {
     "step": "expect_value",
@@ -132,7 +136,7 @@
      "label": "Event End Time",
      "value": "15 Mins"
     },
-    "note": "Verify the default event end duration remains 15 Mins."
+    "note": "Verify the event end duration remains 15 Mins."
    },
    {
     "step": "expect_value",
@@ -140,7 +144,7 @@
      "label": "Evaluation Duration",
      "value": "15 Mins"
     },
-    "note": "Verify the default evaluation duration remains 15 Mins."
+    "note": "Verify the evaluation duration remains 15 Mins."
    },
    {
     "step": "expect_value",
@@ -148,45 +152,15 @@
      "label": "Delivery Date",
      "value": ""
     },
-    "note": "Verify the Delivery Date field is empty."
+    "note": "Verify that Delivery Date is empty."
    },
    {
-    "step": "expect_text",
+    "step": "expect_value",
     "args": {
-     "text": "AAC Block 600x250x150MM(1100013510)",
-     "present": true
+     "label": "Schedule this event?",
+     "value": "unchecked"
     },
-    "note": "Verify the displayed product detail."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Variant 1",
-     "present": true
-    },
-    "note": "Verify the displayed product variant."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "quantity"
-    },
-    "note": "Verify the displayed quantity is the prepared RFQ quantity, 31."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Gurgaon(loc-002)",
-     "present": true
-    },
-    "note": "Verify the displayed delivery location."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "unit"
-    },
-    "note": "Verify the displayed unit is the prepared RFQ unit, KG."
+    "note": "Verify that scheduling this event remains unchecked."
    },
    {
     "step": "click",
@@ -197,21 +171,61 @@
     "note": "Create the new order using the displayed RFQ details."
    },
    {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "New Order Created"
+    },
+    "note": "Verify the application reports successful order creation."
+   },
+   {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
      "name": "Recreate Order",
      "visible": false
     },
-    "note": "Verify that the Recreate Order window closes after submission."
+    "note": "Verify that the Recreate Order window closes after creation."
    },
    {
-    "step": "expect_toast",
+    "step": "expect_text",
     "args": {
-     "kind": "success",
-     "text": "New Order Created"
+     "text": "AAC Block 600x250x150MM(1100013510)",
+     "present": true
     },
-    "note": "Verify the required success message."
+    "note": "Verify the displayed product remains unchanged."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Variant 1",
+     "present": true
+    },
+    "note": "Verify the displayed product variant remains unchanged."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "31",
+     "present": true
+    },
+    "note": "Verify the displayed quantity requested remains unchanged."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Gurgaon(loc-002)",
+     "present": true
+    },
+    "note": "Verify the displayed delivery location remains unchanged."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "KG",
+     "present": true
+    },
+    "note": "Verify the displayed unit remains unchanged."
    }
   ]
  }

@@ -3,27 +3,35 @@
   "caseId": "PRD-KBINT-032",
   "title": "Precision for number-based fields is limited to 0–4 decimals",
   "group": "PRD-KBINT",
-  "compiledAt": "2026-11-10T06:25:42.384Z",
+  "compiledAt": "2026-11-13T15:05:25.830Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Open a Price, Amount, or Number column's precision setting, set precision to 0 and 4, and verify that values above 4 are unavailable or rejected."
+   "Open the Price, Amount, or Number column's precision setting",
+   "Set precision to 0 and verify it is accepted",
+   "Set precision to 4 and verify it is accepted",
+   "Attempt to set precision above 4 and verify it is rejected",
+   "Assert that the precision control offers only 0–4"
   ],
   "warnings": [
-   "added set_title — publishing without a title is refused",
-   "added set_title — publishing without a title is refused",
-   "cannot test this case yet — no step can observe: Open a Price, Amount, or Number column's precision setting, set precision to 0 and 4, and verify that values above 4 are unavailable or rejected."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "cannot test this case yet — no step can observe: Open the Price, Amount, or Number column's precision setting; Set precision to 0 and verify it is accepted; Set precision to 4 and verify it is accepted; Attempt to set precision above 4 and verify it is rejected; Assert that the precision control offers only 0–4"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
    "open_create",
    "compose_stages",
    "set_title",
    "select_template",
-   "expect_template_selected"
+   "add_line_items",
+   "inventory_screen",
+   "expect_no_error"
   ],
-  "ms": 7461
+  "ms": 15681
  },
  "plan": {
   "title": "PRD-KBINT-032 Precision Limits",
@@ -33,7 +41,7 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Reach the event create screen where a pricing template can be selected."
+    "note": "Reach a template-backed event creation screen where number-column configuration may be available."
    },
    {
     "step": "compose_stages",
@@ -41,21 +49,38 @@
      "stages": [
       "rfq"
      ]
-    },
-    "note": "Use an RFQ pricing stage, which is one of the template types named by the case."
+    }
    },
    {
-    "step": "set_title"
+    "step": "set_title",
+    "args": {
+     "title": "PRD-KBINT-032 Precision Limits"
+    },
+    "note": "Provide the required event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an available RFQ pricing template as the closest reachable setup."
+    "note": "Apply an RFQ/Auction pricing template so its number-based columns are rendered."
    },
    {
-    "step": "expect_template_selected",
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Populate the pricing sheet context associated with the selected template."
+   },
+   {
+    "step": "inventory_screen",
+    "args": {
+     "label": "precision-column-controls"
+    },
+    "note": "Record whether the current screen exposes any precision configuration controls for follow-up investigation."
+   },
+   {
+    "step": "expect_no_error",
     "args": {},
-    "note": "Assert that the template was applied, although the catalog cannot inspect its column precision control."
+    "note": "Confirm the setup screen loaded without an application error."
    }
   ]
  }

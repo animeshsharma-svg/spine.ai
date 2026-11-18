@@ -4,15 +4,19 @@
   "title": "Rejected Bids is offered on an upcoming RFQ",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:57:05.401Z",
+  "compiledAt": "2026-11-13T12:48:27.594Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_menu_item",
    "event_menu",
    "expect_visible",
@@ -21,56 +25,69 @@
   ],
   "state": "upcoming",
   "screen": "summary",
-  "ms": 7666
+  "ms": 11290
  },
  "plan": {
-  "title": "Rejected Bids Offered on Upcoming RFQ",
+  "title": "Rejected Bids on Upcoming RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared upcoming RFQ on its project summary page."
+    "note": "Open the prepared upcoming RFQ rather than creating or searching for an event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
    },
    {
     "step": "expect_menu_item",
     "args": {
      "item": "Rejected Bids",
+     "stage": "rfq",
      "enabled": true
     },
-    "note": "Assert that Rejected Bids is present and clickable in the current RFQ Settings menu."
+    "note": "Verify Rejected Bids is present and clickable in the RFQ Settings menu."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Rejected Bids"
+     "item": "Rejected Bids",
+     "stage": "rfq"
     },
-    "note": "Choose Rejected Bids and leave its window open for inspection."
+    "note": "Select Rejected Bids to open its window without confirming any change."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Rejected Bids",
+     "role": "dialog",
+     "name": "Rejected Bids",
      "visible": true
     },
-    "note": "Assert that selecting the menu item opens the Rejected Bids window."
+    "note": "Assert that the Rejected Bids window opened."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Cancel"
+     "name": "Cancel",
+     "within": "dialog"
     },
-    "note": "Cancel the window to ensure no change is confirmed."
+    "note": "Cancel the window so no rejection action is applied."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Rejected Bids",
+     "role": "dialog",
+     "name": "Rejected Bids",
      "visible": false
     },
-    "note": "Assert that the Rejected Bids window closes after cancellation."
+    "note": "Verify the Rejected Bids window closed after cancellation."
    }
   ]
  }

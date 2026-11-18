@@ -1,0 +1,117 @@
+{
+ "meta": {
+  "caseId": "IPA-SUB-008",
+  "title": "Pop-up shows the right numbers",
+  "group": "IPA-SUB",
+  "sheet": "in-principle-approval",
+  "compiledAt": "2026-11-18T07:18:21.340Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The fixed prepared RFQ does not establish Project A's completed Technical stage or its fourth invited, non-quoting vendor asdf.",
+   "The fixed prepared line item does not establish the exact DAB Hi-Media Make product and original pre-discount prices specified by the case.",
+   "unconfirmed label \"QA_Platform IPA 2-step\" (click) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"Shared with approvers\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"QA_Platform IPA 2-step\" (click) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"Shared with approvers\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: The fixed prepared RFQ does not establish Project A's completed Technical stage or its fourth invited, non-quoting vendor asdf.; The fixed prepared line item does not establish the exact DAB Hi-Media Make product and original pre-discount prices specified by the case."
+  ],
+  "source": "llm",
+  "steps": 9,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "click",
+   "expect_visible",
+   "click",
+   "click",
+   "do_on_screen",
+   "expect_text",
+   "expect_text"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 0
+ },
+ "plan": {
+  "title": "IPA-SUB-008 — Approval pop-up summary numbers",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ as the already signed-in event owner."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "in_principle_approval_price_recovery",
+     "value": "On"
+    },
+    "note": "Enable the required company feature before inspecting the event."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "In-Principle Approval"
+    },
+    "note": "Open the approval submission pop-up without raising an approval."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Submit for In-Principle Approval"
+    },
+    "note": "Check that the intended pop-up opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "QA_Platform IPA 2-step",
+     "within": "dialog"
+    },
+    "note": "Choose the workflow for Rohan Mehta followed by Anita Rao rather than accepting the default workflow."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Next",
+     "within": "dialog"
+    },
+    "note": "Reach page two, where the summary figures are displayed."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the approval pop-up summary page, verify that the value associated with Tot. line items is exactly 1 and Tot. Value for Approval is ₹5,520; leave the pop-up open without submitting."
+    },
+    "note": "Check each value against its own label, avoiding an ambiguous page-wide match for the number 1."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "₹5,520",
+     "within": "dialog"
+    },
+    "note": "Assert the summary displays the L1 total including tax, not the competing quote or a pre-tax amount."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Shared with approvers",
+     "present": false,
+     "within": "dialog"
+    },
+    "note": "Verify the documented build difference: the reused pop-up omits the PRD's shared-QCS disclosure."
+   }
+  ]
+ }
+}

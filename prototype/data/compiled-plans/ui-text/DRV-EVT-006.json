@@ -4,27 +4,27 @@
   "title": "Participation status tracking updates correctly just before the live window closes",
   "group": "DRV-EVT",
   "sheet": "derived-track-each-vendor-s-participation-status",
-  "compiledAt": "2026-11-09T23:06:15.327Z",
+  "compiledAt": "2026-11-13T13:37:16.024Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Timing the observation to exactly 30 seconds before the submission window closes",
-   "Verifying that participation indicators update without stale caching delays in real time"
+   "Real-time participation indicator counters on the Participants tab",
+   "Verifying that participation statuses update without stale caching delays",
+   "Positioning the test precisely 30 seconds before the submission window closes"
   ],
   "warnings": [
-   "can only test part of this — no step for: Timing the observation to exactly 30 seconds before the submission window closes; Verifying that participation indicators update without stale caching delays in real time"
+   "cannot test this case yet — no step can observe: Real-time participation indicator counters on the Participants tab; Verifying that participation statuses update without stale caching delays; Positioning the test precisely 30 seconds before the submission window closes"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
-   "expect_participant",
-   "go_to",
-   "expect_responses"
+   "expect_participant_count",
+   "expect_participant"
   ],
   "state": "bid",
   "screen": "participants",
-  "ms": 9896
+  "ms": 7829
  },
  "plan": {
   "title": "Live RFQ Participation Status Tracking",
@@ -34,7 +34,14 @@
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ directly on the buyer's Participants tab as required for this state."
+    "note": "Open the already-prepared live RFQ directly on the buyer's Participants tab."
+   },
+   {
+    "step": "expect_participant_count",
+    "args": {
+     "atLeast": 1
+    },
+    "note": "Confirm that the Participants tab contains at least one invited vendor."
    },
    {
     "step": "expect_participant",
@@ -42,22 +49,7 @@
      "present": true,
      "addBid": false
     },
-    "note": "Verify the invited vendor is listed and no longer offers Add Bid, indicating its bid is recorded."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Navigate to the RFQ Responses tab to inspect the buyer-facing participation counters."
-   },
-   {
-    "step": "expect_responses",
-    "args": {
-     "count": 1,
-     "direct": 1
-    },
-    "note": "Assert that the submitted vendor response is present and the participation count reflects the latest bid."
+    "note": "Verify the prepared vendor row is present and no longer offers Add Bid, which is the closest available observation that a bid has been submitted."
    }
   ]
  }

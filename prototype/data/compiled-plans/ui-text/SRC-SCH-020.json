@@ -4,35 +4,37 @@
   "title": "eRFX Auction stage with Duration 15 Mins",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:03:00.230Z",
+  "compiledAt": "2026-11-13T12:52:58.036Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly verify that Bidding Ends At is exactly 15 minutes after Bidding Starts At on Project Details."
+   "Directly verify that the Bidding Ends At timestamp is exactly 15 minutes after the auction start time."
   ],
   "warnings": [
-   "can only test part of this — no step for: Directly verify that Bidding Ends At is exactly 15 minutes after Bidding Starts At on Project Details."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Directly verify that the Bidding Ends At timestamp is exactly 15 minutes after the auction start time."
   ],
   "source": "llm",
   "steps": 12,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
-   "compose_stages",
-   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "invite_vendor",
    "set_schedule",
-   "expect_text",
+   "invite_vendor",
    "publish",
-   "expect_published"
+   "expect_published",
+   "expect_text"
   ],
-  "ms": 13591
+  "ms": 18139
  },
  "plan": {
-  "title": "SRC-SCH-020 eRFX Auction 15-Minute Schedule",
+  "title": "eRFX Auction with 15-Minute Duration",
   "steps": [
    {
     "step": "open_create",
@@ -42,72 +44,76 @@
     "note": "Open the eRFX project creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation so publishing is available."
+   },
+   {
     "step": "set_title",
     "args": {
-     "title": "SRC-SCH-020 Auction 15 Mins"
+     "title": "eRFX Auction 15 Minutes"
     },
-    "note": "Provide the mandatory event title required for publishing."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "auction"
-     ]
-    },
-    "note": "Keep the project configured with an Auction stage."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "auction"
-    },
-    "note": "Configure the Auction stage before selecting its template and items."
+    "note": "Provide the required event title before publishing."
    },
    {
     "step": "select_template",
-    "note": "Choose an available Auction template."
+    "args": {},
+    "note": "Apply an auction template to the Auction stage."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the single required item."
+    "note": "Add the single requested line item."
    },
    {
     "step": "fill_sheet",
-    "note": "Complete the Auction pricing sheet for the added item."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 2
-    },
-    "note": "Invite two QA vendors without inventing vendor names."
+    "args": {},
+    "note": "Complete the auction pricing sheet for the line item."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 15
     },
-    "note": "Set and save the event duration to 15 minutes."
+    "note": "Configure and save a 15-minute event duration."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Add two available QA vendors to the auction participants."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured eRFX auction."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Verify that publishing reached the real project page."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "15 Mins",
+     "text": "Bidding Ends At",
      "present": true
     },
-    "note": "Verify the saved schedule displays the requested 15-minute duration."
-   },
-   {
-    "step": "publish",
-    "note": "Publish the configured eRFX Auction event."
-   },
-   {
-    "step": "expect_published",
-    "note": "Confirm publishing reached a real project page."
+    "note": "Verify that the published Project Details screen exposes the bidding end-time field used by the case."
    }
   ]
  }

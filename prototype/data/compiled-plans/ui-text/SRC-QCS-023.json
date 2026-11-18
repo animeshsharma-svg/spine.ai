@@ -4,51 +4,54 @@
   "title": "Master QCS of a Tech+RFQ project",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:40:40.231Z",
+  "compiledAt": "2026-11-13T12:34:53.407Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The technical result displayed beside each commercial price, including the technically rejected vendor marker",
-   "That a technically rejected vendor cannot be awarded"
+   "Verify that a technically rejected vendor is visibly marked and cannot be awarded in Master QCS."
   ],
   "warnings": [
-   "can only test part of this — no step for: The technical result displayed beside each commercial price, including the technically rejected vendor marker; That a technically rejected vendor cannot be awarded"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that a technically rejected vendor is visibly marked and cannot be awarded in Master QCS."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
    "open_master_qcs",
    "expect_qcs_vendors",
-   "expect_qcs_cell",
-   "expect_qcs_amounts"
+   "expect_qcs_amounts",
+   "expect_qcs_ranks",
+   "expect_screen_clean"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10957
+  "ms": 10684
  },
  "plan": {
-  "title": "Tech+RFQ Master QCS comparison",
+  "title": "Master QCS Tech-RFQ Comparison",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing prepared Tech+RFQ project from the buyer summary page."
+    "note": "Open the prepared Tech+RFQ project's summary as required for prepared-state cases."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "master_qcs"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Navigate to the project's Master QCS comparison screen."
+    "note": "Enable the required eRFX project configuration before opening the prepared project."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Assert that the Master QCS comparison grid renders with its line items and bidding vendor."
+    "note": "Navigate to the project's Master QCS comparison screen."
    },
    {
     "step": "expect_qcs_vendors",
@@ -56,23 +59,24 @@
      "count": 1,
      "realNames": true
     },
-    "note": "Verify the vendor column is present and uses a real vendor name."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": 1,
-     "key": "bidPrice"
-    },
-    "note": "Verify the commercial price shown in Master QCS matches the prepared bid."
+    "note": "Verify that the comparison has the real vendor column for the prepared project."
    },
    {
     "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify that the commercial line amount and vendor total calculations are correct."
+   },
+   {
+    "step": "expect_qcs_ranks",
     "args": {
-     "vendor": 1
+     "atLeast": 1
     },
-    "note": "Verify the commercial line amount and total are calculated correctly from the bid and quantity."
+    "note": "Verify that the available commercial bid has a valid rank in the QCS."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the Master QCS rendered without raw values, server errors, or a page crash."
    }
   ]
  }

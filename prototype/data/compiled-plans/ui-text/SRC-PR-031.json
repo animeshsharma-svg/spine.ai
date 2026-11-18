@@ -4,18 +4,21 @@
   "title": "Use a quantity in a different unit than the PR of a PR line in the event",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:31:24.707Z",
+  "compiledAt": "2026-11-13T12:26:28.475Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "The specific alternate unit is not provided in the case, so no catalog argument can name the exact unit to select; the on-screen step must identify and choose a different available unit."
+  ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items"
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: The specific alternate unit is not provided in the case, so no catalog argument can name the exact unit to select; the on-screen step must identify and choose a different available unit."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 14,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -25,15 +28,17 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
    "set_title",
    "set_schedule",
    "invite_vendor",
    "expect_publish_blocked"
   ],
-  "ms": 18243
+  "ms": 20820
  },
  "plan": {
-  "title": "PR Quantity Unit Mismatch",
+  "title": "PR quantity unit mismatch is refused",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -71,16 +76,32 @@
     "step": "fill_sheet"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow the buyer to add a vendor during event creation and publish."
+   },
+   {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title required to reach the quantity validation at publish."
+    "note": "Provide the required event title before attempting publication."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the requested Start now and 30-minute schedule."
+    "note": "Commit the required 30-minute schedule before publishing."
    },
    {
     "step": "invite_vendor",
@@ -89,14 +110,14 @@
       "Vendor A"
      ]
     },
-    "note": "Add the specifically named Vendor A participant."
+    "note": "Add the vendor named in the case under Participants."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Quantity should be in same unit as requested"
     },
-    "note": "Attempt publication and assert that Procol refuses the event with the expected unit-mismatch message."
+    "note": "Attempt publication and assert Procol refuses it with the expected quantity-unit validation message."
    }
   ]
  }

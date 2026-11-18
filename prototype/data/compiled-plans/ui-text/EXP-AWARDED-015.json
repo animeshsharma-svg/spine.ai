@@ -4,19 +4,19 @@
   "title": "An awarded event: the \"Participant Remarks\" tab opens",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:14:07.877Z",
+  "compiledAt": "2026-11-13T13:43:47.383Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The case allows multiple alternative Participant Remarks messages, but the catalog cannot assert that any one of several possible content messages is present without choosing a specific expected text."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The case allows multiple alternative Participant Remarks messages, but the catalog cannot assert that any one of several possible content messages is present without choosing a specific expected text."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
    "expect_navigated",
    "expect_text",
@@ -24,7 +24,7 @@
   ],
   "state": "awarded",
   "screen": "responses",
-  "ms": 70423
+  "ms": 10846
  },
  "plan": {
   "title": "Awarded Event Participant Remarks Tab",
@@ -34,35 +34,42 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared awarded event on its Responses tab."
+    "note": "Open the existing awarded event on its RFQ Responses tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting for the buyer tenant."
    },
    {
     "step": "go_to",
     "args": {
-     "screen": "tab",
-     "name": "Participant Remarks"
+     "screen": "participant_remarks"
     },
-    "note": "Open the Participant Remarks tab named in the case."
+    "note": "Open the Participant Remarks tab requested by the case."
    },
    {
     "step": "expect_navigated",
     "args": {
-     "screen": "tab"
+     "screen": "participant_remarks"
     },
-    "note": "Assert that navigation to the requested tab completed."
+    "note": "Verify that the Participant Remarks destination opened successfully."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "No bidder remarks on this event!",
+     "text": "Participant Remarks",
      "present": true
     },
-    "note": "Check the known Participant Remarks empty-state content."
+    "note": "Confirm the opened screen identifies the Participant Remarks content."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the tab rendered without an application error or crash."
+    "note": "Verify that the tab rendered without an error, crash, or malformed content."
    }
   ]
  }

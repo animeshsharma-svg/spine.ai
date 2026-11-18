@@ -4,29 +4,31 @@
   "title": "Single stage RFP, no clause mandatory: the vendor accepts both clauses",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:11:48.860Z",
+  "compiledAt": "2026-11-13T13:02:46.333Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify on the buyer side that both clauses are recorded as accepted after the vendor submits the single-stage RFP response"
+   "Verify on the buyer side that both specific clauses are marked as accepted."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "inserted add_line_items before invite_vendor — the create screen locks Participants and Publish until a template is chosen and a product added",
    "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "inserted add_line_items before invite_vendor — the create screen locks Participants and Publish until a template is chosen and a product added",
    "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
-   "can only test part of this — no step for: Verify on the buyer side that both clauses are recorded as accepted after the vendor submits the single-stage RFP response"
+   "can only test part of this — no step for: Verify on the buyer side that both specific clauses are marked as accepted."
   ],
   "source": "llm",
-  "steps": 21,
+  "steps": 24,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
@@ -34,24 +36,25 @@
    "fill_questionnaires",
    "assign_evaluator",
    "do_on_screen",
-   "set_schedule",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
-   "expect_text",
-   "toggle",
-   "toggle",
-   "ask_tester",
+   "click",
+   "click",
+   "fill",
+   "click",
+   "expect_bid_submitted",
    "switch_portal",
-   "expect_no_error"
+   "expect_responses",
+   "ask_tester"
   ],
-  "ms": 20080
+  "ms": 31401
  },
  "plan": {
-  "title": "Single-Stage RFP Optional Terms Acceptance",
+  "title": "SRC-TNC-009 Single-Stage RFP Terms Acceptance",
   "steps": [
    {
     "step": "open_create",
@@ -61,23 +64,39 @@
     "note": "Open the single-stage event creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX functionality required for the event flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow the vendor to be added during event creation."
+   },
+   {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfp"
     },
-    "note": "Set the event type to RFP."
+    "note": "Set the single-stage event type to RFP."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-TNC-009 Optional Clauses RFP"
+     "title": "SRC-TNC-009 Single Stage RFP"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a questionnaire template to the RFP."
+    "note": "Apply the first available questionnaire template."
    },
    {
     "step": "add_line_items",
@@ -87,33 +106,33 @@
    {
     "step": "fill_questionnaires",
     "args": {},
-    "note": "Complete the required questionnaire fields."
+    "note": "Complete the mandatory questionnaire content for the RFP."
    },
    {
     "step": "assign_evaluator",
     "args": {},
-    "note": "Assign the evaluator required for an RFP."
+    "note": "Assign the evaluator required for publishing a technical event."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the single-stage RFP create screen, open Terms & Conditions, add clauses \"Payment within 45 days\" and \"Delivery within 7 days\", leave both clause modes as None, leave \"Mark all Terms & Conditions mandatory\" unticked, and click Done; stop with the terms configuration saved"
+     "goal": "On the buyer's single-stage RFP create screen, open Terms & Conditions, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", leave both clause modes set to None, leave \"Mark all Terms & Conditions mandatory\" unticked, and click Done; stop when the create screen is visible again."
     },
-    "note": "Configure the two event clauses as optional."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit the 30-minute schedule."
+    "note": "Configure the two optional, non-mandatory clauses; no catalog domain step can add these clauses."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor used for Vendor A."
+    "note": "Add one QA vendor without inventing a vendor company name."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the required 30-minute schedule."
    },
    {
     "step": "publish",
@@ -130,63 +149,73 @@
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor portal session."
+    "note": "Open the invited vendor's supplier portal in a separate session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the event's RFP questionnaire as the vendor."
+    "note": "Open the event's technical questionnaire as the vendor."
    },
    {
-    "step": "expect_text",
+    "step": "click",
     "args": {
-     "text": "Payment within 45 days"
+     "role": "checkbox",
+     "name": "Payment within 45 days"
     },
-    "note": "Confirm the first optional clause is visible to the vendor."
+    "note": "Accept the first optional clause."
    },
    {
-    "step": "expect_text",
+    "step": "click",
     "args": {
-     "text": "Delivery within 7 days"
+     "role": "checkbox",
+     "name": "Delivery within 7 days"
     },
-    "note": "Confirm the second optional clause is visible to the vendor."
+    "note": "Accept the second optional clause."
    },
    {
-    "step": "toggle",
+    "step": "fill",
     "args": {
-     "label": "Payment within 45 days",
-     "on": true
+     "label": "Enter answer here...",
+     "value": "Accepted"
     },
-    "note": "Accept the first clause."
+    "note": "Provide the vendor's questionnaire response where the answer field is available."
    },
    {
-    "step": "toggle",
+    "step": "click",
     "args": {
-     "label": "Delivery within 7 days",
-     "on": true
+     "role": "button",
+     "name": "Submit"
     },
-    "note": "Accept the second clause."
+    "note": "Submit the vendor's technical response after accepting both clauses."
    },
    {
-    "step": "ask_tester",
-    "args": {
-     "need": "submit the single-stage RFP response as Vendor A after accepting both clauses and verify on the buyer side that both clauses show as accepted"
-    },
-    "note": "The catalog has no step that submits this single-stage RFP questionnaire and verifies the buyer-side accepted state."
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the vendor's technical submission was accepted."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer session after the vendor action."
+    "note": "Return to the buyer's event view for response verification."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the buyer session has no application error after the vendor submission attempt."
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "stage": "rfp"
+    },
+    "note": "Confirm the buyer sees one vendor response on the technical stage."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "verify on the buyer side that both clauses, \"Payment within 45 days\" and \"Delivery within 7 days\", are shown as accepted"
+    },
+    "note": "The catalog has no assertion for per-clause acceptance state on the buyer side."
    }
   ]
  }

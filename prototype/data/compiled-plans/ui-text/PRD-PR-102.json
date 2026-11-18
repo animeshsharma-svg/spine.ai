@@ -3,17 +3,17 @@
   "caseId": "PRD-PR-102",
   "title": "SAP MM (Purchase Requisition): on failure — PR held in 'Sync Pending' state",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:49:04.365Z",
+  "compiledAt": "2026-11-13T15:23:48.237Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure the SAP MM bidirectional integration and its CONF-INT-001 sync-mode dependency.",
-   "Make the external SAP/RFC/API endpoint fail or become unreachable.",
-   "Approve a Procol purchase requisition and cause the resulting purchase order synchronization to SAP.",
-   "Verify the PR is held in Sync Pending through integration state, alert, retry record, or log evidence, and verify nothing was silently dropped."
+   "Configure SAP MM integration INT-002 with the specified RFC/API key parameters and CONF-INT-001 sync mode",
+   "Make the SAP MM endpoint fail or become unreachable",
+   "Approve a Procol purchase requisition and trigger PO creation in SAP",
+   "Observe and verify that the PR is held in Sync Pending with an alert, log, or retry record and is not silently dropped"
   ],
   "warnings": [
-   "can only test part of this — no step for: Configure the SAP MM bidirectional integration and its CONF-INT-001 sync-mode dependency.; Make the external SAP/RFC/API endpoint fail or become unreachable.; Approve a Procol purchase requisition and cause the resulting purchase order synchronization to SAP.; Verify the PR is held in Sync Pending through integration state, alert, retry record, or log evidence, and verify nothing was silently dropped."
+   "can only test part of this — no step for: Configure SAP MM integration INT-002 with the specified RFC/API key parameters and CONF-INT-001 sync mode; Make the SAP MM endpoint fail or become unreachable; Approve a Procol purchase requisition and trigger PO creation in SAP; Observe and verify that the PR is held in Sync Pending with an alert, log, or retry record and is not silently dropped"
   ],
   "source": "llm",
   "steps": 3,
@@ -22,22 +22,22 @@
    "ask_tester",
    "expect_text"
   ],
-  "ms": 11743
+  "ms": 11658
  },
  "plan": {
-  "title": "SAP PR Sync Pending on Failure",
+  "title": "SAP MM PR Sync Pending on Failure",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the purchase requisitions area as the closest available starting point for the PR-based scenario."
+    "note": "Opens the closest available PR-related screen before the unsupported integration failure scenario."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "configure the SAP MM integration, make SAP unreachable, approve the Procol PR to trigger PO synchronization, and leave the resulting PR state or integration evidence visible"
+     "need": "configure the SAP MM integration, make SAP unreachable, approve a Procol PR to trigger PO creation, and verify the PR remains in Sync Pending with visible failure evidence and no silent drop"
     },
-    "note": "The catalog has no integration configuration, external-failure simulation, SAP synchronization, approval, or retry/log inspection step."
+    "note": "The catalog cannot configure or fail the SAP integration, perform the required approval-to-SAP trigger, or inspect the resulting sync state and retry evidence."
    },
    {
     "step": "expect_text",
@@ -45,7 +45,7 @@
      "text": "Sync Pending",
      "present": true
     },
-    "note": "Check for the exact expected held state if the tester leaves the relevant PR or integration evidence screen visible."
+    "note": "Checks for the required final state if the tester leaves a screen showing the PR status."
    }
   ]
  }

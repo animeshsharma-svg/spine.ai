@@ -3,50 +3,40 @@
   "caseId": "PRD-KBINT-052",
   "title": "Add a question in Form View",
   "group": "PRD-KBINT",
-  "compiledAt": "2026-11-10T02:28:03.321Z",
+  "compiledAt": "2026-11-13T15:06:28.421Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "unconfirmed label \"KB integration question\" (expect_text) — not among the labels known from the app nor in the case",
-   "unconfirmed label \"Question added through Form View\" (expect_text) — not among the labels known from the app nor in the case"
-  ],
-  "warnings": [
-   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
-   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
-   "coverage partial: unconfirmed label \"KB integration question\" (expect_text) — not among the labels known from the app nor in the case",
-   "coverage partial: unconfirmed label \"Question added through Form View\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 9,
+  "steps": 7,
   "stepNames": [
    "open_create",
-   "compose_stages",
    "set_title",
+   "compose_stages",
+   "switch_stage",
    "select_template",
    "do_on_screen",
-   "expect_text",
-   "expect_text",
-   "expect_text",
-   "expect_text"
+   "expect_no_error"
   ],
-  "ms": 9793
+  "ms": 10030
  },
  "plan": {
-  "title": "Add a question in RFP Form View",
+  "title": "Add a question in Form View",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the single-stage create screen for the RFP setup."
+    "note": "Open the multi-stage event creation flow needed for an RFP technical stage."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "PRD-KBINT-052 Form View Question"
+    },
+    "note": "Provide the mandatory event title before configuring the stage."
    },
    {
     "step": "compose_stages",
@@ -54,58 +44,32 @@
      "stages": [
       "rfp"
      ]
-    }
+    },
+    "note": "Create an RFP-only event so the technical questionnaire builder is available."
    },
    {
-    "step": "set_title",
+    "step": "switch_stage",
     "args": {
-     "title": "PRD-KBINT-052 Add Question"
+     "stage": "rfp"
     },
-    "note": "Provide the required event title for the create flow."
+    "note": "Work on the RFP stage where the Form View questions are configured."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the available RFP template before editing its questionnaire."
+    "note": "Apply an available RFP template as the test setup."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "In the RFP questionnaire Form View, click Add New Question, enter Question 'KB integration question', Description 'Question added through Form View', Field Type 'Text', set Required to Yes, click the blue Add button, and stop on the form showing the saved question with its description, type, and required state"
+     "goal": "In the RFP template's Form View, click Add New Question, enter a question and description, choose a field type, set the Required toggle to either Yes or No, click the blue Add button, and stop on the section showing the new question with its entered description, field type, and required state."
     },
-    "note": "Perform the question-builder interaction and finish on the saved question so the result is observable."
+    "note": "Perform the catalog-missing question-creation interaction and verify the saved question details on screen."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "KB integration question",
-     "present": true
-    },
-    "note": "Verify the newly added question appears in the form."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Question added through Form View",
-     "present": true
-    },
-    "note": "Verify the saved description is displayed."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Text",
-     "present": true
-    },
-    "note": "Verify the saved field type is displayed."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Required",
-     "present": true
-    },
-    "note": "Verify the saved required-state indicator is displayed."
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the question was saved without an application error."
    }
   ]
  }

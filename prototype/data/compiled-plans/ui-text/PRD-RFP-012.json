@@ -3,21 +3,21 @@
   "caseId": "PRD-RFP-012",
   "title": "Evaluator Assignment and Groups: refused for a user without the Buyer role",
   "group": "PRD-RFP",
-  "compiledAt": "2026-11-10T01:39:48.569Z",
+  "compiledAt": "2026-11-13T14:59:58.161Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Sign in as the non-Buyer and then the Buyer in the same tenant, execute Evaluator Assignment and Groups with PR-fetched evaluators, reassignment, and groups, and compare refusal or availability."
+   "Sign in as a user without the Buyer role and verify that Evaluator Assignment and Groups is refused or absent, then repeat as a Buyer and verify it is available in the same tenant.",
+   "Observe evaluator auto-fetching from the PR together with reassignment and evaluator groups across the two role sessions.",
+   "Determine whether the tenant intentionally grants this capability to additional roles rather than treating it as a defect."
   ],
   "warnings": [
-   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 11 step(s) that would open a blank event or replace the PR's items",
-   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 11 step(s) that would open a blank event or replace the PR's items",
-   "cannot test this case yet — no step can observe: Sign in as the non-Buyer and then the Buyer in the same tenant, execute Evaluator Assignment and Groups with PR-fetched evaluators, reassignment, and groups, and compare refusal or availability."
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 6 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp); dropped 6 step(s) that would open a blank event or replace the PR's items",
+   "cannot test this case yet — no step can observe: Sign in as a user without the Buyer role and verify that Evaluator Assignment and Groups is refused or absent, then repeat as a Buyer and verify it is available in the same tenant.; Observe evaluator auto-fetching from the PR together with reassignment and evaluator groups across the two role sessions.; Determine whether the tenant intentionally grants this capability to additional roles rather than treating it as a defect."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 11,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -28,12 +28,13 @@
    "select_template",
    "fill_questionnaires",
    "assign_evaluator",
-   "expect_screen_clean"
+   "set_title",
+   "expect_no_error"
   ],
-  "ms": 14166
+  "ms": 18540
  },
  "plan": {
-  "title": "RFP evaluator assignment RBAC",
+  "title": "RFP Evaluator Assignment RBAC",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -71,9 +72,14 @@
     "step": "assign_evaluator"
    },
    {
-    "step": "expect_screen_clean",
+    "step": "set_title",
     "args": {},
-    "note": "Assert the resulting screen remains usable after the tester's role comparison."
+    "note": "Provide the required event title before configuring the technical stage."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the prepared technical-stage screen remains usable after the tester's role comparison."
    }
   ]
  }

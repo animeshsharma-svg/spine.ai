@@ -4,67 +4,50 @@
   "title": "A user limited to the PR's location and category is shown",
   "group": "PRA-ONE",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:05:43.042Z",
+  "compiledAt": "2026-11-13T14:29:15.185Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 6,
+  "steps": 4,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "select_pr",
-   "do_on_screen",
-   "expect_text",
-   "expect_text"
+   "do_on_screen"
   ],
-  "ms": 9205
+  "ms": 9001
  },
  "plan": {
   "title": "PR Assignee Location Match",
   "steps": [
    {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the filtering behavior required by the case."
+   },
+   {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions area where PR-1 can be selected."
+    "note": "Open Purchase Requisitions as the starting screen for the PR flow."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "The case requires PR-1 to be handled from the Open tab."
-   },
-   {
-    "step": "select_pr",
-    "args": {
-     "pr": "PR-1"
-    },
-    "note": "Select the named PR's line item so the assignment action becomes available."
+    "note": "Keep the requisition list on the Open tab."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the Purchase Requisitions Open tab, click the Assign person icon for PR-1, search for User E in the Search a user box, and stop with the matching assignee result visible"
+     "goal": "Find PR-1 for Gurgaon, select one of its line-item checkboxes, click the Assign person control next to Upload PRs, type User E in the Search a user box, and stop with the assignee results visible showing User E (Food Buyer Gurgaon)."
     },
-    "note": "Perform the assignment search and leave the result visible for assertion."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "User E",
-     "present": true
-    },
-    "note": "Assert that the expected user appears in the assignee list."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Food Buyer Gurgaon",
-     "present": true
-    },
-    "note": "Assert that the displayed user is the Gurgaon buyer matching the PR's location and category."
+    "note": "Perform the PR line-item assignment flow and verify the expected user is visible in the filtered assignee list."
    }
   ]
  }

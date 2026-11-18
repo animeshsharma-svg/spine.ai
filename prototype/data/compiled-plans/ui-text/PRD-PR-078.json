@@ -3,32 +3,29 @@
   "caseId": "PRD-PR-078",
   "title": "PR Approval (WF-PR-001): end-to-end order of steps",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:38:54.741Z",
+  "compiledAt": "2026-11-13T15:21:54.707Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
    "Trigger an employee-submitted Purchase Requisition",
-   "Run and verify the automatic Budget Check step",
+   "Complete the automatic Budget Check step",
    "Complete Line Manager Approval as the requestor's line manager",
    "Complete Finance Approval as the finance controller",
-   "Verify the exact workflow step order, actors, and outcomes in workflow history",
-   "Complete PR-to-PO Conversion and verify whether it auto-converts or requires manual buyer PO creation",
-   "Verify that no workflow step ran out of sequence",
-   "unconfirmed label \"Purchase Requisitions\" (expect_text) — not among the labels known from the app nor in the case"
+   "Complete the PR-to-PO Conversion system action",
+   "Inspect workflow history for each step's order, actor, and outcome",
+   "Verify the conditional automatic PO conversion or buyer manual PO creation outcome"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Purchase Requisitions\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Trigger an employee-submitted Purchase Requisition; Run and verify the automatic Budget Check step; Complete Line Manager Approval as the requestor's line manager; Complete Finance Approval as the finance controller; Verify the exact workflow step order, actors, and outcomes in workflow history; Complete PR-to-PO Conversion and verify whether it auto-converts or requires manual buyer PO creation; Verify that no workflow step ran out of sequence"
+   "can only test part of this — no step for: Trigger an employee-submitted Purchase Requisition; Complete the automatic Budget Check step; Complete Line Manager Approval as the requestor's line manager; Complete Finance Approval as the finance controller; Complete the PR-to-PO Conversion system action; Inspect workflow history for each step's order, actor, and outcome; Verify the conditional automatic PO conversion or buyer manual PO creation outcome"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 3,
   "stepNames": [
    "open_purchase_requisitions",
-   "pr_tab",
    "ask_tester",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 13895
+  "ms": 17190
  },
  "plan": {
   "title": "PR Approval Workflow Order",
@@ -36,29 +33,19 @@
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Closest available navigation to the Purchase Requisitions area; it does not trigger or execute the approval workflow."
-   },
-   {
-    "step": "pr_tab",
-    "args": {
-     "tab": "Open"
-    },
-    "note": "Shows open requisitions that could be used as a starting point, but does not assert workflow state, approvals, or history."
+    "note": "Reaches the closest available PR screen, but does not trigger or execute the configured approval workflow."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "submit a Purchase Requisition as an employee, complete the Budget Check, obtain Line Manager and Finance approvals in order, complete PR-to-PO Conversion, and provide the workflow history showing each step, actor, outcome, and final PO result"
+     "need": "submit a Purchase Requisition as the employee, complete Budget Check, obtain Line Manager and Finance approvals in their respective sessions, complete PR-to-PO Conversion, and verify the workflow history order and PO outcome"
     },
-    "note": "The catalog cannot perform or observe the requested workflow actors, ordered history, or conditional conversion outcome."
+    "note": "The required workflow actors, approvals, history inspection, and PO conversion are not expressible by catalog steps."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Purchase Requisitions",
-     "present": true
-    },
-    "note": "Final screen assertion confirming the run remains in the requisitions area if the unavailable workflow actions are not supplied; it does not establish case coverage."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Final sanity assertion only; it does not verify the workflow subject."
    }
   ]
  }

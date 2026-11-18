@@ -4,23 +4,27 @@
   "title": "Technical stage \"NDA signed\" Required, RFQ stage \"Payment within 45 days\" Required: the vendor accepts each stage's clause on that stage",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:17:36.104Z",
+  "compiledAt": "2026-11-13T13:10:13.444Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A dedicated assertion that Procol recorded each stage's required clause as accepted independently of the vendor's submitted response"
+   "Directly verify from the buyer view that each stage record contains its own accepted clause after the vendor submits."
   ],
   "warnings": [
    "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
    "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "can only test part of this — no step for: A dedicated assertion that Procol recorded each stage's required clause as accepted independently of the vendor's submitted response"
+   "can only test part of this — no step for: Directly verify from the buyer view that each stage record contains its own accepted clause after the vendor submits."
   ],
   "source": "llm",
-  "steps": 25,
+  "steps": 27,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
@@ -44,24 +48,40 @@
    "expect_text",
    "vendor_open_event",
    "toggle",
-   "expect_bid_submitted"
+   "expect_text"
   ],
-  "ms": 16703
+  "ms": 23394
  },
  "plan": {
-  "title": "Technical and RFQ stage-specific required T&C acceptance",
+  "title": "SRC-TNC-069 Stage-specific required terms acceptance",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation flow required for a Technical + RFQ event."
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow adding the vendor during event creation as required."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Stage-specific T&C acceptance test"
+     "title": "SRC-TNC-069 Technical RFQ Terms"
     },
     "note": "Provide the mandatory event title."
    },
@@ -73,7 +93,7 @@
       "rfq"
      ]
     },
-    "note": "Configure the Technical and RFQ stages."
+    "note": "Create the required Technical and RFQ stages."
    },
    {
     "step": "switch_stage",
@@ -91,7 +111,7 @@
     "args": {
      "count": 1
     },
-    "note": "Add the single required line item at project level."
+    "note": "Add the single event line item."
    },
    {
     "step": "fill_questionnaires"
@@ -118,28 +138,28 @@
     "args": {
      "minutes": 30
     },
-    "note": "Schedule the Technical stage."
+    "note": "Commit the event schedule on the current RFQ stage."
    },
    {
     "step": "switch_stage",
     "args": {
-     "stage": "rfq"
+     "stage": "rfp"
     },
-    "note": "Open the RFQ stage to commit its schedule."
+    "note": "Schedule the Technical stage as well."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Schedule the RFQ stage."
+    "note": "Commit the Technical-stage schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one QA vendor without inventing a vendor name."
+    "note": "Invite one QA vendor, representing Vendor A without inventing a company name."
    },
    {
     "step": "publish",
@@ -149,21 +169,21 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publishing reached the real project page."
+    "note": "Assert that publication reached a real event page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the separate supplier portal session while keeping the buyer session available."
+    "note": "Open the invited QA vendor's supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the event's Technical stage in the vendor portal."
+    "note": "Open the Technical stage in the vendor portal."
    },
    {
     "step": "toggle",
@@ -171,7 +191,7 @@
      "label": "NDA signed",
      "on": true
     },
-    "note": "Accept the required Technical-stage clause."
+    "note": "Have the vendor accept the required Technical-stage clause."
    },
    {
     "step": "click",
@@ -184,9 +204,10 @@
    {
     "step": "expect_text",
     "args": {
-     "text": "Submitted"
+     "text": "Submitted",
+     "present": true
     },
-    "note": "Verify that the Technical-stage response was submitted."
+    "note": "Assert that the Technical-stage vendor response was submitted."
    },
    {
     "step": "vendor_open_event",
@@ -201,12 +222,15 @@
      "label": "Payment within 45 days",
      "on": true
     },
-    "note": "Accept the required RFQ-stage clause."
+    "note": "Have the vendor accept the required RFQ-stage clause."
    },
    {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify that the RFQ response was submitted successfully."
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Assert that the RFQ-stage vendor response was submitted."
    }
   ]
  }

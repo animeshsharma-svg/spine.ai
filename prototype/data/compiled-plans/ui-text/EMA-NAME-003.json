@@ -4,26 +4,25 @@
   "title": "Email for the second step also names the event",
   "group": "EMA-NAME",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-12T13:46:53.244Z",
+  "compiledAt": "2026-11-13T14:21:20.510Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Switch to the specified DLF Hospitality UAT company because no company ID is provided",
-   "Create or configure the specified two-step approval workflow with Asha as step 1 and Bikram as step 2",
-   "Log in as Ravi and submit the event for approval rather than publish it normally",
-   "Access Asha's mailbox, open the Procol approval email, approve it, and send the generated email reply",
-   "Wait for Procol to process the approval mailbox",
-   "Access Bikram's mailbox and verify that the second approval email names the same event in bold without truncation"
+   "Submit the event through the configured approval workflow if this is distinct from publishing",
+   "Log in to Asha's mailbox, open the approval email, approve it, and send the generated reply",
+   "Wait for Procol to process the approval-mail reply",
+   "Log in to Bikram's mailbox and verify that the second-step email names the event in bold without truncation"
   ],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Switch to the specified DLF Hospitality UAT company because no company ID is provided; Create or configure the specified two-step approval workflow with Asha as step 1 and Bikram as step 2; Log in as Ravi and submit the event for approval rather than publish it normally; Access Asha's mailbox, open the Procol approval email, approve it, and send the generated email reply; Wait for Procol to process the approval mailbox; Access Bikram's mailbox and verify that the second approval email names the same event in bold without truncation"
+   "can only test part of this — no step for: Submit the event through the configured approval workflow if this is distinct from publishing; Log in to Asha's mailbox, open the approval email, approve it, and send the generated reply; Wait for Procol to process the approval-mail reply; Log in to Bikram's mailbox and verify that the second-step email names the event in bold without truncation"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 13,
   "stepNames": [
    "open_create",
+   "require_setting",
    "require_setting",
    "set_title",
    "select_template",
@@ -32,51 +31,61 @@
    "set_schedule",
    "invite_vendor",
    "publish",
-   "expect_published",
+   "expect_no_error",
    "ask_tester",
-   "expect_no_error"
+   "expect_text"
   ],
-  "ms": 12311
+  "ms": 18278
  },
  "plan": {
-  "title": "EMA-NAME-003 — Second approval email names event",
+  "title": "EMA-NAME-003 — Second-step approval email names event",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Opens the event creation flow for the closest representable setup."
+    "note": "Starts creation of the approval test event."
    },
    {
     "step": "require_setting",
     "args": {
-     "phrase": "Email approvals switched on for the company, with the company's approval mailbox connected to Procol",
+     "phrase": "Email approvals switched on for the company",
      "value": "On"
     },
-    "note": "Attempts to establish the email approval prerequisite before creating the event."
+    "note": "Enables email approvals for the tenant as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Ensures the event uses the configured approval workflow."
    },
    {
     "step": "set_title",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Creates the event with the exact name whose propagation to the approval email is under test."
+    "note": "Creates the exact event name that the approval email must reference."
    },
    {
     "step": "select_template",
-    "note": "Applies the required pricing template so the event can be completed."
+    "args": {},
+    "note": "Applies the first available template so the event can be configured."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Adds the minimum line item needed to complete a normal event."
+    "note": "Adds the required event item."
    },
    {
     "step": "fill_sheet",
-    "note": "Completes the pricing sheet for the event."
+    "args": {},
+    "note": "Completes the pricing sheet before submission."
    },
    {
     "step": "set_schedule",
@@ -87,29 +96,33 @@
    },
    {
     "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Adds the minimum participant required for publication."
+    "args": {},
+    "note": "Adds the product's available participant so the event is complete."
    },
    {
     "step": "publish",
-    "note": "Publishes the closest representable event state before the unavailable approval-mailbox workflow."
+    "args": {},
+    "note": "Submits the completed event through the available event submission flow."
    },
    {
-    "step": "expect_published",
-    "note": "Confirms the event was created successfully before the missing mailbox and approval actions."
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Checks that event submission did not produce an application error."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "access Asha's and Bikram's mailboxes, process the two-step email approval, and verify that Bikram's approval email names \"QA Email Approval - Office Chairs Nov\" in bold without truncation"
+     "need": "complete the approval workflow: log in as Asha, open the Procol approval email, approve it and send the generated Action:Approve reply unchanged, then log in as Bikram and open the resulting approval email"
     },
-    "note": "The catalog has no mailbox, email approval, or email-content inspection step."
+    "note": "Separate mailboxes, email sending, mailbox processing, and the second approver's email are not accessible through catalog steps."
    },
    {
-    "step": "expect_no_error",
-    "note": "Provides a final assertion on the buyer portal after the tester-handled portion."
+    "step": "expect_text",
+    "args": {
+     "text": "QA Email Approval - Office Chairs Nov",
+     "present": true
+    },
+    "note": "Checks that the second-step email visible after the tester workflow contains the exact event name; bold styling and truncation remain unverified."
    }
   ]
  }

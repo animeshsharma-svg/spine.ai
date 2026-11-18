@@ -3,11 +3,15 @@
   "caseId": "PRD-KBSRC-376",
   "title": "Vendor sees their current zone and can bid to move zones",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:19:25.875Z",
+  "compiledAt": "2026-11-13T14:42:10.790Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Reliably assert the traffic-light zone's visual colour treatment or prove the vendor can move zones using only trial and error beyond the observed textual zone changes."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Reliably assert the traffic-light zone's visual colour treatment or prove the vendor can move zones using only trial and error beyond the observed textual zone changes."
+  ],
   "source": "llm",
   "steps": 18,
   "stepNames": [
@@ -30,10 +34,10 @@
    "expect_bid_submitted",
    "expect_text"
   ],
-  "ms": 71353
+  "ms": 15151
  },
  "plan": {
-  "title": "Vendor Traffic-Light Zone Revision",
+  "title": "Traffic Light Vendor Zone Revision",
   "steps": [
    {
     "step": "open_create",
@@ -51,31 +55,31 @@
      "rangeLower": 80,
      "rangeUpper": 120
     },
-    "note": "Configure the auction bands so bids above 120 are red and bids at or below 80 are green."
+    "note": "Configure a buy auction with a green-to-yellow traffic-light range."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Traffic Light Zone Revision"
+     "title": "Traffic Light Zone Revision Test"
     },
-    "note": "Provide the required event title before publishing."
+    "note": "Give the event the required title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction pricing template."
+    "note": "Apply the first available pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one product for the vendor's bid sheet."
+    "note": "Add one product for the vendor to bid on."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the pricing sheet so the event can be published."
+    "note": "Complete the auction pricing sheet."
    },
    {
     "step": "set_schedule",
@@ -89,7 +93,7 @@
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor that will submit and revise the bid."
+    "note": "Invite one QA vendor who will submit and revise the bid."
    },
    {
     "step": "publish",
@@ -99,7 +103,7 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the auction reached a real published event page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "switch_portal",
@@ -113,45 +117,47 @@
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the auction's vendor bid sheet."
+    "note": "Open the auction bid sheet as the vendor."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 130
     },
-    "note": "Submit an initial bid above the upper band to establish the starting zone."
+    "note": "Submit an initial bid above the configured upper bound so the vendor enters the red zone."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the vendor's initial bid was submitted."
+    "note": "Confirm the initial vendor bid was submitted."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Red"
+     "text": "Red",
+     "present": true
     },
-    "note": "Assert that the vendor can see the current red traffic-light zone."
+    "note": "Check that the vendor's current displayed zone is red after the initial bid."
    },
    {
     "step": "vendor_bid",
     "args": {
-     "price": 70
+     "price": 100
     },
-    "note": "Revise the same vendor's bid into the green band to test movement between zones."
+    "note": "Revise the same vendor's bid into the configured lower band to move to a safer zone."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the revised bid was submitted."
+    "note": "Confirm the revised bid was submitted."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Green"
+     "text": "Green",
+     "present": true
     },
-    "note": "Assert that the displayed zone updates to green after the revised bid crosses the configured band."
+    "note": "Check that the displayed zone updates to green after the revised bid crosses the band."
    }
   ]
  }

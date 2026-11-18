@@ -3,42 +3,46 @@
   "caseId": "PRD-VM-084",
   "title": "Mandatory Document Types (vendor.documents.required) = default set (PAN, GST Certificate)",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T02:56:57.003Z",
+  "compiledAt": "2026-11-13T15:10:09.686Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Set the tenant setting vendor.documents.required to PAN and GST Certificate",
-   "Import vendors through VMS / VRP Import as an Implementation Partner",
-   "Observe and verify the vendor profile approval submission requirement and confirm that exactly PAN and GST Certificate are required"
+   "Sign in as an Implementation Partner, import vendors from the enterprise VMS/VRP, and verify that vendor profiles require exactly PAN and GST Certificate before approval"
   ],
   "warnings": [
-   "can only test part of this — no step for: Set the tenant setting vendor.documents.required to PAN and GST Certificate; Import vendors through VMS / VRP Import as an Implementation Partner; Observe and verify the vendor profile approval submission requirement and confirm that exactly PAN and GST Certificate are required"
+   "can only test part of this — no step for: Sign in as an Implementation Partner, import vendors from the enterprise VMS/VRP, and verify that vendor profiles require exactly PAN and GST Certificate before approval"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
+   "require_setting",
    "ask_tester",
-   "expect_text"
+   "expect_no_error"
   ],
-  "ms": 10313
+  "ms": 15988
  },
  "plan": {
-  "title": "Mandatory vendor document types",
+  "title": "Mandatory Vendor Document Types",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "vendor.documents.required",
+     "value": "PAN, GST Certificate"
+    },
+    "note": "Set the mandatory document types to the required default values before testing the controlled behavior."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as an Implementation Partner, import vendors through VMS / VRP Import, and verify the vendor profile approval screen requires exactly PAN and GST Certificate documents"
+     "need": "sign in as the Implementation Partner, use VMS / VRP Import to import vendors, and observe the document types required before a vendor profile can be submitted for approval"
     },
-    "note": "The catalog has no tenant-admin setting step, VMS/VRP import step, or vendor profile approval document-validation step."
+    "note": "The catalog has no step for the VMS/VRP import or vendor profile approval document requirement flow, and this role-specific session may require credentials."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "PAN",
-     "present": true
-    },
-    "note": "If the tester reaches the relevant screen, check for one of the required document types; this does not establish full coverage."
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm that the completed session did not leave an application error, while acknowledging that this does not verify the required document list."
    }
   ]
  }

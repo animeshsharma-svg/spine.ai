@@ -4,24 +4,29 @@
   "title": "Add a surrogate bid on a closed RFQ, company does NOT allow surrogate bids after expiry",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:09:14.792Z",
+  "compiledAt": "2026-11-13T13:00:02.141Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "search_participants",
    "expect_participant"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "participants",
-  "ms": 7366
+  "ms": 14312
  },
  "plan": {
-  "title": "Closed RFQ blocks surrogate bid",
+  "title": "Reject surrogate bid after RFQ expiry",
   "steps": [
    {
     "step": "open_prepared",
@@ -31,11 +36,27 @@
     "note": "Open the prepared closed RFQ directly on its Participants tab."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Disable surrogate bids after event expiry as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled for the RFQ context."
+   },
+   {
     "step": "search_participants",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Locate the named vendor's participant row."
+    "note": "Find Vendor A's participant row."
    },
    {
     "step": "expect_participant",
@@ -44,7 +65,7 @@
      "present": true,
      "addBid": false
     },
-    "note": "Assert that Vendor A is listed but Add Bid is not offered after bidding has ended."
+    "note": "Assert that Vendor A is present but Add Bid is not offered after bidding has ended."
    }
   ]
  }

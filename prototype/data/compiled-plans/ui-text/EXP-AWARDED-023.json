@@ -4,45 +4,84 @@
   "title": "An awarded event: \"Recreate Order\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:14:32.193Z",
+  "compiledAt": "2026-11-13T13:44:28.654Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "resolved: “Direct before-and-after comparison of the event status and schedule times” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "resolved: “A complete before-and-after comparison proving every vendor and bid is unchanged” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Directly compare the event's status and schedule times before and after cancelling Recreate Order.” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
+   "go_to",
    "event_menu",
+   "expect_visible",
    "click",
    "expect_visible",
+   "expect_responses",
    "expect_api_value",
    "expect_api_value",
-   "expect_api_value"
+   "expect_screen_clean"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 10075
+  "ms": 16934
  },
  "plan": {
-  "title": "Cancel Recreate Order Without Changes",
+  "title": "Cancel Recreate Order on Awarded Event",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared awarded event on the buyer summary page."
+    "note": "Open the already-awarded event supplied by the prepared state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting for the test tenant."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage named in the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab before accessing Settings."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open the stage Settings menu and launch the Recreate Order window."
+    "note": "Open the RFQ Settings menu and choose Recreate Order."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Verify that the Recreate Order window opened."
    },
    {
     "step": "click",
@@ -50,36 +89,45 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the Recreate Order flow without confirming any changes."
+    "note": "Cancel the Recreate Order operation as required by the case."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
+     "name": "Recreate Order",
      "visible": false
     },
-    "note": "Verify that the Recreate Order window has closed."
+    "note": "Verify that cancelling closes the Recreate Order window."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 1,
+     "stage": "rfq"
+    },
+    "note": "Verify that the awarded event still shows its existing single vendor response."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "title"
+     "key": "vendorName",
+     "within": "Responses"
     },
-    "note": "Verify the event title remains present after cancellation."
+    "note": "Verify that the existing vendor remains present after cancellation."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "vendorName"
+     "key": "bidPrice",
+     "within": "Responses"
     },
-    "note": "Verify the awarded vendor remains present after cancellation."
+    "note": "Verify that the existing bid price remains present after cancellation."
    },
    {
-    "step": "expect_api_value",
-    "args": {
-     "key": "bidPrice"
-    },
-    "note": "Verify the existing bid price remains unchanged and visible after cancellation."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the event page has no rendering or server errors after cancelling."
    }
   ]
  }

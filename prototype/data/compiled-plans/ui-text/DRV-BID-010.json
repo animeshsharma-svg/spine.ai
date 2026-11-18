@@ -1,70 +1,80 @@
 {
  "meta": {
   "caseId": "DRV-BID-010",
-  "title": "Item-wise awarding in BOQ allows selecting individual un-regretted lines when enabled",
+  "title": "Vendor sees only their own submitted bid prices in the bidding interface",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-12T13:34:39.648Z",
+  "compiledAt": "2026-11-13T13:30:56.090Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A rapid double-click as one timing-sensitive browser action",
-   "Verifying that exactly one rejection record was persisted and that the second click was ignored"
+   "Reproducing the exact rapid double-click timing and proving the second click was ignored rather than merely processed sequentially",
+   "Directly verifying backend-side rejection count and duplicate side effects beyond the single visible rejected-bid record"
   ],
   "warnings": [
-   "can only test part of this — no step for: A rapid double-click as one timing-sensitive browser action; Verifying that exactly one rejection record was persisted and that the second click was ignored"
+   "can only test part of this — no step for: Reproducing the exact rapid double-click timing and proving the second click was ignored rather than merely processed sequentially; Directly verifying backend-side rejection count and duplicate side effects beyond the single visible rejected-bid record"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "click",
    "click",
-   "expect_text",
-   "expect_screen_clean"
+   "expect_screen_clean",
+   "event_menu",
+   "expect_table"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 11187
+  "ms": 27159
  },
  "plan": {
-  "title": "DRV-BID-010 Reject Bid Double-Click",
+  "title": "Reject Bid Double-Click Idempotency",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses tab with Vendor A's active bid."
+    "note": "Open the prepared live RFQ on the buyer's Responses tab with Vendor A's active bid."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Reject"
+     "name": "Reject",
+     "within": "Vendor A"
     },
-    "note": "Reject Vendor A's bid from the Responses view."
+    "note": "Reject Vendor A's active bid."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Reject"
+     "name": "Reject",
+     "within": "Vendor A"
     },
-    "note": "Attempt the second rejection click to approximate the duplicate-click scenario."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Rejected",
-     "present": true
-    },
-    "note": "Verify the bid status is visibly rejected."
+    "note": "Issue the second sequential click as the closest available approximation to the requested double-click."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Verify no server error or page crash is shown after the repeated clicks."
+    "note": "Assert that no server error or page failure is visible after the repeated rejection action."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Rejected Bids"
+    },
+    "note": "Open the Rejected Bids view to inspect the recorded rejection."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "within": "Rejected Bids",
+     "rows": 1
+    },
+    "note": "Assert that exactly one rejected-bid record is visible."
    }
   ]
  }

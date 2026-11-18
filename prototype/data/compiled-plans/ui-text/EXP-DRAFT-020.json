@@ -4,32 +4,34 @@
   "title": "A saved eRFX draft: \"Manage Line Items\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:41:42.452Z",
+  "compiledAt": "2026-11-13T14:04:28.450Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Compare the saved draft's status, schedule times, vendors, and bids before and after Cancel to prove each is unchanged."
+   "Directly verify that the draft's status, times, vendors, and bids are unchanged from before opening Manage Line Items"
   ],
   "warnings": [
-   "can only test part of this — no step for: Compare the saved draft's status, schedule times, vendors, and bids before and after Cancel to prove each is unchanged."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Directly verify that the draft's status, times, vendors, and bids are unchanged from before opening Manage Line Items"
   ],
   "source": "llm",
-  "steps": 20,
+  "steps": 16,
   "stepNames": [
    "open_create",
+   "compose_stages",
    "set_title",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "save_draft",
-   "expect_no_error",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "open_events_list",
+   "expect_events_list",
    "filter_events",
-   "expect_event_in_list",
-   "expect_event_status",
-   "open_event",
+   "open_first_event",
    "expect_line_items",
    "click",
    "expect_visible",
@@ -37,70 +39,61 @@
    "expect_visible",
    "expect_line_items"
   ],
-  "ms": 75161
+  "ms": 16105
  },
  "plan": {
-  "title": "EXP-DRAFT-020 Cancel Manage Line Items",
+  "title": "Cancel Manage Line Items in Saved Draft",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    },
-    "note": "Start an eRFX create flow."
+    }
    },
    {
-    "step": "set_title",
+    "step": "compose_stages",
     "args": {
-     "title": "EXP-DRAFT-020 Cancel Test"
-    },
-    "note": "Provide the required draft title."
+     "stages": [
+      "rfq"
+     ]
+    }
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply a template so line items can be managed."
+    "step": "set_title"
    },
    {
-    "step": "add_line_items",
+    "step": "require_setting",
     "args": {
-     "count": 1
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Create the one line item referenced by the test."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet before saving the draft."
-   },
-   {
-    "step": "set_schedule",
+    "step": "require_setting",
     "args": {
-     "minutes": 30
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
     },
-    "note": "Give the draft a committed schedule so it has saved event data."
+    "note": "Apply the required vendor-lock configuration for event creation."
    },
    {
-    "step": "invite_vendor",
+    "step": "require_setting",
     "args": {
-     "count": 1
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
     },
-    "note": "Give the draft a participant as part of its saved state."
-   },
-   {
-    "step": "save_draft",
-    "args": {},
-    "note": "Create the saved, unpublished eRFX draft under test."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm saving the draft did not produce an application error."
+    "note": "Apply the case's required stage configuration."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the Events list to open the saved draft."
+    "note": "Open Events so the saved draft can be reached from the Drafts tab."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered successfully."
    },
    {
     "step": "filter_events",
@@ -110,28 +103,18 @@
     "note": "Show saved drafts."
    },
    {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Confirm this plan's saved draft appears in Drafts."
-   },
-   {
-    "step": "expect_event_status",
+    "step": "open_first_event",
     "args": {
-     "status": "Draft"
+     "tab": "Drafts"
     },
-    "note": "Verify the saved event is still a Draft before opening it."
-   },
-   {
-    "step": "open_event",
-    "args": {},
-    "note": "Reopen this plan's saved draft on its create screen."
+    "note": "Open the first saved draft, which lands on its create screen."
    },
    {
     "step": "expect_line_items",
     "args": {
      "count": 1
     },
-    "note": "Record the expected one-line-item state before opening Manage Line Items."
+    "note": "Record the expected one-line-item state before opening the manager."
    },
    {
     "step": "click",
@@ -139,7 +122,7 @@
      "role": "button",
      "name": "Items 1"
     },
-    "note": "Open the Manage Line Items window."
+    "note": "Open the Manage Line Items window for the draft."
    },
    {
     "step": "expect_visible",
@@ -147,7 +130,7 @@
      "text": "Manage Line Items",
      "visible": true
     },
-    "note": "Confirm the required management window opened."
+    "note": "Confirm the line-item management window opened."
    },
    {
     "step": "click",
@@ -155,7 +138,7 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel without making any line-item changes."
+    "note": "Cancel the drawer without saving any changes."
    },
    {
     "step": "expect_visible",
@@ -163,14 +146,14 @@
      "text": "Manage Line Items",
      "visible": false
     },
-    "note": "Assert that Cancel closes the Manage Line Items window."
+    "note": "Verify that Cancel closes the Manage Line Items window."
    },
    {
     "step": "expect_line_items",
     "args": {
      "count": 1
     },
-    "note": "Assert that the event still has the original single line item after cancellation."
+    "note": "Verify the draft still has the same single line item after cancellation."
    }
   ]
  }

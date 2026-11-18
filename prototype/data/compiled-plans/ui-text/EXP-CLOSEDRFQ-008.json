@@ -4,25 +4,31 @@
   "title": "A closed RFQ: \"horizontal-switch\" — record what happens",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:26:07.566Z",
+  "compiledAt": "2026-11-13T13:52:53.068Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "probe_controls",
-   "expect_navigated",
-   "expect_screen_clean"
+   "expect_navigated"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 74133
+  "ms": 25332
  },
  "plan": {
-  "title": "Closed RFQ horizontal switch behavior",
+  "title": "EXP-CLOSEDRFQ-008 Horizontal Switch Exploration",
   "steps": [
    {
     "step": "open_prepared",
@@ -32,27 +38,53 @@
     "note": "Open the prepared closed RFQ directly on the buyer's Responses tab."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Ensure post-expiry surrogate bidding is disabled."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid-field editing as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Keep evaluation reopening restricted as required."
+   },
+   {
     "step": "probe_controls",
     "args": {
      "include": [
       "horizontal-switch"
      ],
-     "max": 1,
-     "reload": false
+     "max": 1
     },
-    "note": "Click only horizontal-switch and record whether it opens, changes, navigates, errors, or does nothing."
+    "note": "Click horizontal-switch and record what opens, changes, or remains unchanged."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "responses"
     },
-    "note": "Assert the click leaves the buyer on the Responses screen."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert the expected no-op leaves no error, crash, or malformed content."
+    "note": "Assert that the control leaves the buyer on the Responses screen, matching the expected lack of visible navigation change."
    }
   ]
  }

@@ -4,37 +4,136 @@
   "title": "Buttons work when the approval mailbox address has a + or quote in it",
   "group": "EMA-LINK",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:55:17.933Z",
+  "compiledAt": "2026-11-13T14:21:02.231Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create or send an event for approval, access Asha's mailbox, open Procol's approval email, click its Approve button, and verify the compose recipient is the full special-character mailbox address and the subject starts with Action:Approve"
+   "Select the DLF Hospitality UAT company by name because switch_company requires a numeric company ID.",
+   "Connect and verify the company's Outlook approval mailbox.",
+   "Send the event into the configured email-approval workflow.",
+   "Log in to Asha's mailbox, open the Procol approval email, click Approve, and verify the new email is addressed to the full plus-addressed mailbox.",
+   "Verify the exact full approval mailbox address in the newly opened email."
   ],
   "warnings": [
-   "can only test part of this — no step for: Create or send an event for approval, access Asha's mailbox, open Procol's approval email, click its Approve button, and verify the compose recipient is the full special-character mailbox address and the subject starts with Action:Approve"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Select the DLF Hospitality UAT company by name because switch_company requires a numeric company ID.; Connect and verify the company's Outlook approval mailbox.; Send the event into the configured email-approval workflow.; Log in to Asha's mailbox, open the Procol approval email, click Approve, and verify the new email is addressed to the full plus-addressed mailbox.; Verify the exact full approval mailbox address in the newly opened email."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 14,
   "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
    "ask_tester",
-   "expect_no_error"
+   "expect_text"
   ],
-  "ms": 11717
+  "ms": 19660
  },
  "plan": {
-  "title": "Approval Email Special-Character Link",
+  "title": "EMA-LINK-009 Plus-Address Approval Email",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the closest supported event setup for the approval scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the email-approval configuration required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow prerequisite before creating the event."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EMA-LINK-009 Plus Address Approval"
+    },
+    "note": "Every successful create flow requires an event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ, which is the closest supported event type for the approval flow."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ template so line items can be added."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item for a publishable event."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule so the event can be published."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {},
+    "note": "Add the product-provided vendor audience required for publishing."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event, which is the closest catalog action to sending it into an approval workflow."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert that the event was successfully created and published before the mailbox step."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "create or send an event for approval, sign in to Asha's mailbox, open Procol's approval request email, click the green Approve button, and verify the new email is addressed to the full approval mailbox address and its subject starts with Action:Approve"
+     "need": "On the DLF Hospitality UAT company, log in to Asha's mailbox, open the Procol approval request, click the green Approve button, and verify the newly opened email is addressed to the full plus-addressed approval mailbox and has a subject starting with Action:Approve"
     },
-    "note": "The catalog cannot access mailboxes or observe email compose recipient and subject fields."
+    "note": "Mailbox access, the email action, and inspection of the generated recipient and subject are not available through catalog steps."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Generic final check that the session did not show an application error after the tester's interaction; this does not verify the email behavior."
+    "step": "expect_text",
+    "args": {
+     "text": "Action:Approve",
+     "present": true
+    },
+    "note": "If the tester leaves the generated email open in the controlled browser, assert the required subject prefix."
    }
   ]
  }

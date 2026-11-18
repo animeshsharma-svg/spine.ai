@@ -4,7 +4,7 @@
   "title": "Recreate Order: Attempt to create order with Delivery Date not selected",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:41:59.920Z",
+  "compiledAt": "2026-11-13T13:56:03.390Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -13,7 +13,7 @@
    "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -23,7 +23,8 @@
    "go_to",
    "go_to",
    "event_menu",
-   "select",
+   "expect_visible",
+   "fill",
    "fill",
    "click",
    "expect_field_error",
@@ -31,7 +32,7 @@
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 12239
+  "ms": 18808
  },
  "plan": {
   "title": "Recreate Order Requires Delivery Date",
@@ -41,7 +42,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary; the event and Vendor A bid already exist."
+    "note": "Open the prepared closed RFQ event required for this case."
    },
    {
     "step": "require_setting",
@@ -49,7 +50,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the test setup."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "require_setting",
@@ -57,7 +58,7 @@
      "key": "is_allowed_to_add_surrogate_bid_post_expiry",
      "value": "Off"
     },
-    "note": "Configure post-expiry surrogate bidding as required."
+    "note": "Apply the specified expired-event surrogate-bid setting."
    },
    {
     "step": "require_setting",
@@ -65,7 +66,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Enable buyer bid editing as required."
+    "note": "Enable buyer bid editing as required by the case."
    },
    {
     "step": "require_setting",
@@ -73,7 +74,7 @@
      "key": "allow_event_evaluation_reopen_for_everyone",
      "value": "Off"
     },
-    "note": "Restrict evaluation reopening as required."
+    "note": "Apply the specified evaluation-reopen setting."
    },
    {
     "step": "go_to",
@@ -88,7 +89,7 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab containing the bid and Settings control."
+    "note": "Open the RFQ Responses view where the stage Settings menu is available."
    },
    {
     "step": "event_menu",
@@ -99,12 +100,20 @@
     "note": "Open the Recreate Order window from the RFQ Settings menu."
    },
    {
-    "step": "select",
+    "step": "expect_visible",
+    "args": {
+     "text": "Recreate Order",
+     "visible": true
+    },
+    "note": "Confirm the Recreate Order window is open before entering its fields."
+   },
+   {
+    "step": "fill",
     "args": {
      "label": "Event End Time Duration",
-     "option": "15"
+     "value": "15"
     },
-    "note": "Select the requested event-end duration."
+    "note": "Set the requested event end-time duration."
    },
    {
     "step": "fill",
@@ -112,7 +121,7 @@
      "label": "Evaluation Duration",
      "value": "10"
     },
-    "note": "Enter the requested evaluation duration."
+    "note": "Set the requested evaluation duration."
    },
    {
     "step": "click",
@@ -120,7 +129,7 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Submit while deliberately leaving Delivery Date empty."
+    "note": "Attempt creation while deliberately leaving Delivery Date empty."
    },
    {
     "step": "expect_field_error",
@@ -128,7 +137,7 @@
      "field": "Delivery Date",
      "message": "Please select a delivery date"
     },
-    "note": "Verify the required Delivery Date validation message."
+    "note": "Assert the required Delivery Date validation appears."
    },
    {
     "step": "expect_visible",
@@ -136,7 +145,7 @@
      "text": "Recreate Order",
      "visible": true
     },
-    "note": "Verify the Recreate Order window remains open after the refused submission."
+    "note": "Assert the validation does not close the Recreate Order window."
    }
   ]
  }

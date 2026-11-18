@@ -3,17 +3,18 @@
   "caseId": "PRD-KBSRC-021",
   "title": "Gross Total savings with default references (Budget, Historical Price, Existing Proposal)",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:08:17.194Z",
+  "compiledAt": "2026-11-13T14:31:26.048Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Specific Budget, Historical Price, and Existing Proposal reference values are not provided, so their entry and saved values cannot be asserted."
+   "The exact field labels for the Budget, Historical Price, and Existing Proposal reference inputs are not confirmed by the catalog.",
+   "The catalog cannot directly assert that the panel internally stores exactly one reference per category beyond verifying the entered values are displayed."
   ],
   "warnings": [
-   "can only test part of this — no step for: Specific Budget, Historical Price, and Existing Proposal reference values are not provided, so their entry and saved values cannot be asserted."
+   "can only test part of this — no step for: The exact field labels for the Budget, Historical Price, and Existing Proposal reference inputs are not confirmed by the catalog.; The catalog cannot directly assert that the panel internally stores exactly one reference per category beyond verifying the entered values are displayed."
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 19,
   "stepNames": [
    "open_create",
    "set_title",
@@ -21,40 +22,48 @@
    "add_line_items",
    "click",
    "expect_visible",
-   "expect_text",
-   "expect_text",
-   "expect_text",
+   "expect_visible",
+   "expect_visible",
+   "expect_visible",
    "select",
+   "expect_value",
+   "fill",
+   "fill",
+   "fill",
+   "click",
+   "expect_value",
+   "expect_value",
+   "expect_value",
    "expect_value"
   ],
-  "ms": 13444
+  "ms": 17850
  },
  "plan": {
-  "title": "Gross Total Savings References",
+  "title": "Gross Total savings references",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open a new event creation screen."
+    "note": "Open a new event create screen."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the required event title so the create flow is valid."
+    "note": "Provide the required event title without making it the subject of the test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template so event configuration controls become available."
+    "note": "Apply a template so the event configuration controls, including Savings, are usable."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one line item so the Savings control is enabled."
+    "note": "Add the minimum line item needed for full-event savings configuration."
    },
    {
     "step": "click",
@@ -73,28 +82,28 @@
     "note": "Confirm the savings settings panel opened."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
      "text": "Budget",
-     "present": true
+     "visible": true
     },
-    "note": "Verify Budget is offered as a default savings reference."
+    "note": "Verify the default Budget savings reference is offered."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
      "text": "Historical Price",
-     "present": true
+     "visible": true
     },
-    "note": "Verify Historical Price is offered as a default savings reference."
+    "note": "Verify the default Historical Price savings reference is offered."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
      "text": "Existing Proposal",
-     "present": true
+     "visible": true
     },
-    "note": "Verify Existing Proposal is offered as a default savings reference."
+    "note": "Verify the default Existing Proposal savings reference is offered."
    },
    {
     "step": "select",
@@ -102,7 +111,7 @@
      "label": "How do you want to measure savings?",
      "option": "Gross Total"
     },
-    "note": "Choose Gross Total as the savings measurement basis."
+    "note": "Select Gross Total as the savings basis."
    },
    {
     "step": "expect_value",
@@ -110,7 +119,71 @@
      "label": "How do you want to measure savings?",
      "value": "Gross Total"
     },
-    "note": "Assert that Gross Total remains selected in the panel."
+    "note": "Assert Gross Total remains selected."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Budget",
+     "value": "1000"
+    },
+    "note": "Enter one Budget reference value."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Historical Price",
+     "value": "900"
+    },
+    "note": "Enter one Historical Price reference value."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Existing Proposal",
+     "value": "950"
+    },
+    "note": "Enter one Existing Proposal reference value."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Add Savings"
+    },
+    "note": "Save the savings configuration in the panel."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "How do you want to measure savings?",
+     "value": "Gross Total"
+    },
+    "note": "Verify the saved panel still shows Gross Total."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Budget",
+     "value": "1000"
+    },
+    "note": "Verify the saved Budget reference value."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Historical Price",
+     "value": "900"
+    },
+    "note": "Verify the saved Historical Price reference value."
+   },
+   {
+    "step": "expect_value",
+    "args": {
+     "label": "Existing Proposal",
+     "value": "950"
+    },
+    "note": "Verify the saved Existing Proposal reference value."
    }
   ]
  }

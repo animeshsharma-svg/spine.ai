@@ -4,30 +4,27 @@
   "title": "Asset PR → eRFX Technical + RFQ → split award → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:14:53.252Z",
+  "compiledAt": "2026-11-13T11:59:24.591Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog cannot independently sign in as the separate approver and approve the proposal without tester-provided credentials.",
-   "The catalog cannot assert that the PR transitions Open → In Progress → ordered.",
-   "The catalog cannot assert that there is exactly one PO per awarded vendor or that asset account assignment A appears on each PO.",
-   "The catalog cannot directly open and verify the PR after PO creation."
+   "Verify the PR line transitions through Open → In Progress → ordered.",
+   "Verify that asset account assignment A is present on the resulting purchase order.",
+   "Verify approval performed by a separate approver identity rather than the current buyer session."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp + rfq); dropped 16 step(s) that would open a blank event or replace the PR's items",
-   "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp + rfq); dropped 14 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now names Vendor 1, Vendor 2 — a later step expects that vendor on the event",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp + rfq); dropped 16 step(s) that would open a blank event or replace the PR's items",
-   "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp + rfq); dropped 14 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now names Vendor 1, Vendor 2 — a later step expects that vendor on the event",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
-   "can only test part of this — no step for: The catalog cannot independently sign in as the separate approver and approve the proposal without tester-provided credentials.; The catalog cannot assert that the PR transitions Open → In Progress → ordered.; The catalog cannot assert that there is exactly one PO per awarded vendor or that asset account assignment A appears on each PO.; The catalog cannot directly open and verify the PR after PO creation."
+   "can only test part of this — no step for: Verify the PR line transitions through Open → In Progress → ordered.; Verify that asset account assignment A is present on the resulting purchase order.; Verify approval performed by a separate approver identity rather than the current buyer session."
   ],
   "source": "llm",
-  "steps": 34,
+  "steps": 43,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -42,32 +39,41 @@
    "switch_stage",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_title",
    "set_schedule",
    "do_on_screen",
    "invite_vendor",
+   "do_on_screen",
    "publish",
    "expect_published",
    "place_bid",
    "expect_bid_submitted",
    "place_bid",
    "expect_bid_submitted",
-   "expect_responses",
    "close_event",
    "open_master_qcs",
    "expect_qcs_ranks",
    "start_awarding",
+   "allocate_award",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "click",
    "expect_awarded",
+   "approve_award",
    "create_po",
    "expect_po_items",
    "open_events_list",
    "filter_events",
    "expect_event_in_list"
   ],
-  "ms": 30184
+  "ms": 46843
  },
  "plan": {
-  "title": "Asset PR to Split Award PO",
+  "title": "Asset PR to Split Award and PO",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -127,10 +133,32 @@
     "step": "fill_sheet"
    },
    {
-    "step": "set_title",
+    "step": "require_setting",
     "args": {
-     "title": "SRC-E2E-016 Asset PR Technical RFQ"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
+    "note": "Enable eRFX projects for the PR-created event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable splitting one line across multiple awarded vendors."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
+    "step": "set_title",
+    "args": {},
     "note": "Provide the mandatory event title."
    },
    {
@@ -143,30 +171,37 @@
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the buyer create screen, add one required Terms and Conditions clause and set the Technical evaluation duration to 30 minutes, leaving both saved"
+     "goal": "set the Technical Stage evaluation duration to 30 minutes in the Schedule Event screen and save the schedule"
     },
-    "note": "Handle the required T&C and exact evaluation-duration setup, which have no dedicated catalog step."
+    "note": "Set the exact evaluation duration, which set_schedule cannot parameterize."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2,
      "names": [
-      "Vendor A",
-      "Vendor B"
+      "Vendor 1",
+      "Vendor 2"
      ]
     },
-    "note": "Invite two QA vendors without inventing real supplier names."
+    "note": "Invite two QA test vendors without inventing supplier names."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "add one Required T&C clause to the event and save it, ending on the create screen"
+    },
+    "note": "Add the required T&C clause before publishing."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed Technical + RFQ event."
+    "note": "Publish the Technical + RFQ event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publishing reached a real project page."
+    "note": "Verify the event reached a published project page."
    },
    {
     "step": "place_bid",
@@ -174,12 +209,12 @@
      "vendor": 1,
      "price": 100
     },
-    "note": "Have Vendor A answer the technical stage and submit a quote of 100 through the vendor portal."
+    "note": "Submit Vendor A's technical response and RFQ quote at 100."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify Vendor A's submission was accepted."
+    "note": "Verify the first vendor submission was accepted."
    },
    {
     "step": "place_bid",
@@ -187,21 +222,12 @@
      "vendor": 2,
      "price": 90
     },
-    "note": "Have Vendor B answer the technical stage and submit a quote of 90 through the vendor portal."
+    "note": "Submit Vendor B's technical response and RFQ quote at 90."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify Vendor B's submission was accepted."
-   },
-   {
-    "step": "expect_responses",
-    "args": {
-     "count": 2,
-     "direct": 2,
-     "stage": "rfq"
-    },
-    "note": "Verify the buyer sees both direct vendor responses on the RFQ stage."
+    "note": "Verify the second vendor submission was accepted."
    },
    {
     "step": "close_event",
@@ -209,17 +235,17 @@
      "natural": true,
      "maxWaitMinutes": 36
     },
-    "note": "Wait for bidding to end before reading rankings and awarding."
+    "note": "Wait for bidding and evaluation windows to close before comparison and awarding."
    },
    {
     "step": "open_master_qcs",
     "args": {
      "vendors": [
-      "Vendor A",
-      "Vendor B"
+      "Vendor 1",
+      "Vendor 2"
      ]
     },
-    "note": "Open the buyer comparison grid after bids are closed; vendor names are asserted only if the configured QA identities expose them."
+    "note": "Open the buyer comparison grid after both bids are complete."
    },
    {
     "step": "expect_qcs_ranks",
@@ -228,7 +254,7 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Verify the lower quote ranks better, making Vendor B rank 1."
+    "note": "Verify the lower-priced second vendor ranks first."
    },
    {
     "step": "start_awarding",
@@ -236,40 +262,88 @@
     "note": "Enter the awarding flow for the closed event."
    },
    {
+    "step": "allocate_award",
+    "args": {
+     "vendor": 2,
+     "quantity": 6,
+     "line": 1
+    },
+    "note": "Allocate six units to the lower-priced vendor."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": 1,
+     "quantity": 4,
+     "line": 1
+    },
+    "note": "Allocate the remaining four units to the other vendor."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "2/2",
+     "proposal": 940
+    },
+    "note": "Verify both vendors are selected and the split proposal total is 6×90 + 4×100."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the split award proposal."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the award proposal."
+   },
+   {
     "step": "expect_awarded",
     "args": {},
-    "note": "Verify that the award proposal was created and submitted."
+    "note": "Verify the award proposal was submitted."
+   },
+   {
+    "step": "approve_award",
+    "args": {
+     "remark": "Approved for split award of the asset PR line."
+    },
+    "note": "Approve the submitted award with the required remark."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete PO creation after the award approval."
+    "note": "Complete approval and create the purchase orders."
    },
    {
     "step": "expect_po_items",
     "args": {
      "count": 2
     },
-    "note": "Verify that the resulting POs contain the two awarded portions; exact vendor-per-PO and account-assignment checks remain unavailable."
+    "note": "Verify one PO line exists for each awarded vendor."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to check the post-bidding event location."
+    "note": "Navigate to the events list to verify the event's historical placement."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Open the History tab where the completed event should appear."
+    "note": "Open the History tab after the event lifecycle completes."
    },
    {
     "step": "expect_event_in_list",
-    "args": {
-     "title": "SRC-E2E-016 Asset PR Technical RFQ"
-    },
-    "note": "Verify that the plan's event is present in History."
+    "args": {},
+    "note": "Verify this plan's event appears in event history."
    }
   ]
  }

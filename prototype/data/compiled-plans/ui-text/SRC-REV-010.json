@@ -4,54 +4,63 @@
   "title": "Forward auction (tick 1): lower by 10 (100 → 90)",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:46:55.583Z",
+  "compiledAt": "2026-11-13T12:39:54.429Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "added open_prepared(master_qcs) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "switch_portal",
    "vendor_open_event",
    "attempt",
    "switch_portal",
    "go_to",
    "expect_responses",
-   "open_master_qcs"
+   "open_master_qcs",
+   "expect_qcs_vendors"
   ],
   "state": "forward",
   "screen": "master_qcs",
-  "ms": 15443
+  "ms": 19607
  },
  "plan": {
-  "title": "Forward Auction Bid Decrease Refusal",
+  "title": "Forward Auction Price Decrease Refusal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live forward auction while keeping the buyer session available."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting for the auction scenario."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the separate vendor portal session while keeping the buyer session open."
+    "note": "Move to Vendor A's separate supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live auction's pricing round and bid sheet for Vendor A."
+    "note": "Open the live auction's pricing round with the existing bid."
    },
    {
     "step": "attempt",
@@ -63,34 +72,43 @@
      "expect": "refused",
      "because": "You cannot decrease the price"
     },
-    "note": "Attempt to revise the existing 100 bid down to 90 and require the forward-auction refusal."
+    "note": "Attempt to revise the existing 100 bid down to 90 and require the forward-auction decrease refusal."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer-side event page."
+    "note": "Return to the buyer session after the vendor refusal."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's Responses view."
+    "note": "Open the auction's Responses view as requested."
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 1,
-     "direct": 1
+     "direct": 1,
+     "stage": "auction"
     },
-    "note": "Confirm the existing direct vendor response remains visible and no replacement response was created."
+    "note": "Confirm the original vendor response remains visible and no replacement bid was accepted."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's Master QCS view."
+    "note": "Open the Master QCS view for the buyer-side confirmation."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 1,
+     "realNames": true
+    },
+    "note": "Confirm the Master QCS still contains the real vendor response column."
    }
   ]
  }

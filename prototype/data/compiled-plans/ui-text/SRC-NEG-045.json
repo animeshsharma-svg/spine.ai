@@ -4,21 +4,24 @@
   "title": "Tech+RFQ project (RFQ stage): counter offer accepted and used in the award",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:40:47.592Z",
+  "compiledAt": "2026-11-13T12:21:02.737Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Close the prepared live event so that awarding becomes available",
-   "Start Awarding and award the event to Vendor A after the event closes",
-   "Verify that the submitted award uses the accepted 90 bid"
+   "Close the prepared live event after the counter offer is accepted and start awarding Vendor A after bidding closes.",
+   "Verify that the submitted award specifically uses 90 for Vendor A."
   ],
   "warnings": [
-   "can only test part of this — no step for: Close the prepared live event so that awarding becomes available; Start Awarding and award the event to Vendor A after the event closes; Verify that the submitted award uses the accepted 90 bid"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Close the prepared live event after the counter offer is accepted and start awarding Vendor A after bidding closes.; Verify that the submitted award specifically uses 90 for Vendor A."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "place_counter_offer",
    "expect_counter_offer_sent",
    "accept_counter_offer",
@@ -28,53 +31,69 @@
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 8798
+  "ms": 15579
  },
  "plan": {
-  "title": "Tech+RFQ Counter Offer Acceptance",
+  "title": "Tech+RFQ Counter Offer Accepted at 90",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared Tech+RFQ event on the RFQ Responses screen, which is the required starting point for this state."
+    "note": "Open the prepared Tech+RFQ event’s RFQ Responses tab with Vendor A’s normal bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Enable counter offers on RFQ stages as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled for the Tech+RFQ scenario."
    },
    {
     "step": "place_counter_offer",
     "args": {
      "price": 90
     },
-    "note": "Send a counter offer of 90 on the invited vendor's own normal bid."
+    "note": "Send the buyer’s counter offer changing Vendor A’s bid to 90."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Verify the buyer's Responses grid marks the counter offer as initiated."
+    "note": "Verify the RFQ response grid marks the counter offer as initiated."
    },
    {
     "step": "accept_counter_offer",
     "args": {},
-    "note": "Switch to the configured vendor portal and have Vendor A accept the pending counter offer."
+    "note": "Switch to the invited vendor portal and have Vendor A accept the pending counter offer."
    },
    {
     "step": "expect_counter_offer_accepted",
     "args": {},
-    "note": "Verify the buyer's Responses grid marks Vendor A's counter offer as accepted."
+    "note": "Verify the buyer-side response grid records Vendor A’s counter offer as accepted."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open Master QCS to inspect the accepted bid value."
+    "note": "Open Master QCS to inspect the accepted bid amount."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
      "vendor": 1,
-     "number": 90
+     "equals": "90"
     },
-    "note": "Verify Master QCS shows the accepted RFQ rate as 90 for Vendor A."
+    "note": "Verify Master QCS shows the accepted Vendor A RFQ rate as 90."
    }
   ]
  }

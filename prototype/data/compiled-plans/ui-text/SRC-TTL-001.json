@@ -4,12 +4,12 @@
   "title": "RFQ: auto title for one product at one location",
   "group": "SRC-TTL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:17:53.949Z",
+  "compiledAt": "2026-11-13T13:10:40.396Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify truncation with a product name longer than 70 characters and the exact ellipsis behavior.",
-   "Verify title updates across every row-add and row-removal permutation while the title remains untyped."
+   "Verify that auto-generated titles truncate product names longer than 70 characters with an ellipsis.",
+   "Verify that the auto title updates again after rows are added or removed while the title remains unedited."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -20,31 +20,32 @@
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Verify truncation with a product name longer than 70 characters and the exact ellipsis behavior.; Verify title updates across every row-add and row-removal permutation while the title remains untyped."
+   "can only test part of this — no step for: Verify that auto-generated titles truncate product names longer than 70 characters with an ellipsis.; Verify that the auto title updates again after rows are added or removed while the title remains unedited."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 9,
   "stepNames": [
    "open_create",
    "set_title",
    "configure_single_stage",
    "select_template",
-   "expect_template_selected",
    "add_line_items",
    "set_sheet_cell",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
    "expect_value"
   ],
-  "ms": 14610
+  "ms": 26952
  },
  "plan": {
-  "title": "RFQ auto-generated title",
+  "title": "RFQ auto title for product and location",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen required by the scenario."
+    "note": "Open the single-stage event creation screen."
    },
    {
     "step": "set_title"
@@ -54,7 +55,7 @@
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ."
+    "note": "Switch the default event type to RFQ."
    },
    {
     "step": "select_template",
@@ -62,17 +63,12 @@
     "note": "Apply the RFQ pricing template so the product sheet is available."
    },
    {
-    "step": "expect_template_selected",
-    "args": {},
-    "note": "Confirm that an RFQ template is applied before adding the product."
-   },
-   {
     "step": "add_line_items",
     "args": {
      "count": 1,
      "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the specified product and allow the product variant to be populated by the product flow."
+    "note": "Add the specified product as the single line item."
    },
    {
     "step": "set_sheet_cell",
@@ -81,7 +77,25 @@
      "column": "Delivery location",
      "value": "Plant Name"
     },
-    "note": "Enter the specified delivery location in the first product row."
+    "note": "Select the requested delivery location, which is the final input for the generated title."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "equals": "Variant 1"
+    },
+    "note": "Verify that the product's variant was filled automatically."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "equals": "Plant Name"
+    },
+    "note": "Verify that the requested location was selected."
    },
    {
     "step": "expect_value",
@@ -89,7 +103,7 @@
      "label": "Enter the title of this event",
      "value": "[RFQ] CYLINDER WITH KEY & KNOB - Plant Name"
     },
-    "note": "Assert that the untouched title field is automatically populated from the RFQ, product, and location."
+    "note": "Assert the exact auto-generated RFQ title without typing a custom title."
    }
   ]
  }

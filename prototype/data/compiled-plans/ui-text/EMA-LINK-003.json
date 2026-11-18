@@ -4,56 +4,106 @@
   "title": "Approve button opens a correct email in Outlook on the web",
   "group": "EMA-LINK",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:56.415Z",
+  "compiledAt": "2026-11-13T14:20:30.976Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the approval request in Asha's Outlook mailbox and click Approve.",
-   "Verify the exact company's approval-mailbox address because the address is not provided in the case."
+   "Open the approval request in Outlook on the web and click Approve using the approver's mailbox",
+   "Verify the new email is addressed to the company's approval mailbox",
+   "Verify the complete dynamic subject is Action:Approve|Proposal:[...] with literal brackets and pipe and no URL encoding",
+   "unconfirmed label \"%7C\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "unconfirmed label \"%5B\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "can only test part of this — no step for: Open the approval request in Asha's Outlook mailbox and click Approve.; Verify the exact company's approval-mailbox address because the address is not provided in the case."
+   "coverage partial: unconfirmed label \"%7C\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "coverage partial: unconfirmed label \"%5B\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: Open the approval request in Outlook on the web and click Approve using the approver's mailbox; Verify the new email is addressed to the company's approval mailbox; Verify the complete dynamic subject is Action:Approve|Proposal:[...] with literal brackets and pipe and no URL encoding"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 9,
   "stepNames": [
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "ask_tester",
+   "expect_text",
+   "expect_text",
    "expect_text",
    "expect_text",
    "expect_text"
   ],
-  "ms": 10413
+  "ms": 17664
  },
  "plan": {
-  "title": "EMA-LINK-003 Outlook approval email",
+  "title": "EMA-LINK-003 — Approve email in Outlook",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required company setting before testing email approval behavior."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "the company's approval mailbox connected to Procol with permission to send replies",
+     "value": "On"
+    },
+    "note": "Ensure the approval mailbox prerequisite is configured."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Ensure event approval requests use the email approval workflow."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Asha, open the approval request email in Outlook on the web, click Approve, and leave the new email open for inspection"
+     "need": "sign in as approver Asha, open the approval request in Outlook on the web, and click Approve so the resulting email opens"
     },
-    "note": "The catalog has no Outlook or mailbox step, so the tester must perform the email action."
+    "note": "Outlook mailbox access and the email approval action are outside the Procol browser session."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Action:Approve|Proposal:["
     },
-    "note": "Verifies the generated subject contains the literal approval action, pipe, and opening square bracket rather than URL-encoded characters."
+    "note": "Check that the opened email subject begins with the expected literal, unencoded approval format."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "(Required) Comment:"
     },
-    "note": "Verifies the generated email body includes the required comment prompt."
+    "note": "Verify the generated email body contains the required comment prompt."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "This is a system-generated message, content after this will be ignored"
     },
-    "note": "Verifies the generated body contains the required system-generated instruction."
+    "note": "Verify the generated email body contains the system-generated message."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "%7C",
+     "present": false
+    },
+    "note": "Ensure the pipe in the subject is displayed normally rather than URL-encoded."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "%5B",
+     "present": false
+    },
+    "note": "Ensure the opening square bracket in the subject is displayed normally rather than URL-encoded."
    }
   ]
  }

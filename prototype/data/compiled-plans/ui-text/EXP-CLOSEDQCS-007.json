@@ -4,34 +4,73 @@
   "title": "Master QCS of a closed RFQ: \"Create New Version\" opens the \"Are you sure you want to create a new version?\" window",
   "group": "EXP-CLOSEDQCS",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:24:35.448Z",
+  "compiledAt": "2026-11-13T13:51:59.092Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "click",
+   "expect_navigated",
    "expect_text",
    "expect_visible",
-   "expect_visible",
-   "expect_navigated"
+   "expect_visible"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 7025
+  "ms": 8739
  },
  "plan": {
-  "title": "Closed RFQ Master QCS version confirmation",
+  "title": "Closed RFQ Create New Version Confirmation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS for the prepared closed RFQ with Vendor A's bid."
+    "note": "Open Master QCS for the prepared closed RFQ with bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Apply the required partial-awarding configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "restrict_unlock_bid_before_evaluation",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-unlock configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_over_awarding_allowed",
+     "value": "Off"
+    },
+    "note": "Prevent awarding more quantity than requested, as required."
    },
    {
     "step": "click",
@@ -39,7 +78,14 @@
      "role": "button",
      "name": "Create New Version"
     },
-    "note": "Open the versioning confirmation without confirming it."
+    "note": "Open the version-creation confirmation without confirming it."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Verify the event remains on Master QCS while the confirmation is open."
    },
    {
     "step": "expect_text",
@@ -47,7 +93,7 @@
      "text": "Are you sure you want to create a new version?",
      "present": true
     },
-    "note": "Verify the expected confirmation message is shown."
+    "note": "Assert the expected confirmation message is shown."
    },
    {
     "step": "expect_visible",
@@ -56,7 +102,7 @@
      "name": "Cancel",
      "visible": true
     },
-    "note": "Verify the dialog offers Cancel."
+    "note": "Assert the confirmation offers Cancel."
    },
    {
     "step": "expect_visible",
@@ -65,14 +111,7 @@
      "name": "Create a New Version",
      "visible": true
     },
-    "note": "Verify the dialog offers Create a New Version."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "master_qcs"
-    },
-    "note": "Verify no navigation or version creation occurred while the confirmation remains open."
+    "note": "Assert the confirmation offers Create a New Version."
    }
   ]
  }

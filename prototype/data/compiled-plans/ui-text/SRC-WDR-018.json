@@ -4,30 +4,51 @@
   "title": "Withdraw is refused once an award proposal is submitted",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:23:27.098Z",
+  "compiledAt": "2026-11-13T13:16:59.701Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "attempt"
   ],
   "state": "proposal",
   "screen": "summary",
-  "ms": 7693
+  "ms": 10117
  },
  "plan": {
-  "title": "Withdraw blocked after award proposal",
+  "title": "Withdraw Refused After Award Proposal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing event whose award proposal has been submitted for approval."
+    "note": "Open the existing prepared event whose award proposal has been submitted for approval."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure the Withdraw option is shown in the event menu."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX event functionality is enabled for the prepared event."
    },
    {
     "step": "attempt",
@@ -35,12 +56,12 @@
      "step": "withdraw_event",
      "args": {
       "scope": "project",
-      "reason": "Test withdrawal"
+      "reason": "Testing withdrawal refusal after award proposal submission"
      },
      "expect": "refused",
      "because": "Cannot withdraw the event as proposals are already submitted."
     },
-    "note": "Attempt withdrawal from the event menu and require Procol to refuse it with the expected proposal-submitted message."
+    "note": "Attempt withdrawal with a reason and verify Procol refuses it with the expected message."
    }
   ]
  }

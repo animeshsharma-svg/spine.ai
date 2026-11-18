@@ -4,33 +4,44 @@
   "title": "Messages — send an empty reply",
   "group": "SRC-STG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:05:44.039Z",
+  "compiledAt": "2026-11-13T12:56:09.924Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
-   "click",
    "do_on_screen",
    "expect_message"
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 9168
+  "ms": 11227
  },
  "plan": {
-  "title": "Messages — Send Empty Reply",
+  "title": "Messages — empty reply refusal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared RFQ event without searching the events list."
+    "note": "Open the API-prepared RFQ event with two bids on its summary page."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting for the case."
    },
    {
     "step": "go_to",
@@ -38,22 +49,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage of the prepared project."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Messages"
-    },
-    "note": "Open the buyer's Messages area."
+    "note": "Open the RFQ stage before accessing its messages."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "open a message thread and attempt to send an empty reply on the buyer's Messages screen; stop when the screen shows the refusal"
+     "goal": "as the buyer, open a message thread for the RFQ stage, attempt to send an empty reply, and leave the screen showing the refusal"
     },
-    "note": "Perform the thread interaction that has no dedicated catalog action."
+    "note": "Perform the message-thread interaction that has no dedicated catalog step."
    },
    {
     "step": "expect_message",
@@ -61,7 +64,7 @@
      "kind": "error",
      "text": "Reply can't be empty"
     },
-    "note": "Verify the exact refusal for the empty reply."
+    "note": "Assert the required refusal for the empty reply."
    }
   ]
  }

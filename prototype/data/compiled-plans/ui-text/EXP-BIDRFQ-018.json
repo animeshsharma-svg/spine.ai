@@ -4,15 +4,24 @@
   "title": "A live RFQ with a vendor's bid: \"Recreate Order\" opens the \"Recreate Order\" window",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:17:59.236Z",
+  "compiledAt": "2026-11-13T13:46:49.455Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 10,
+  "steps": 16,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
    "go_to",
    "event_menu",
    "expect_visible",
@@ -25,25 +34,72 @@
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 9735
+  "ms": 19971
  },
  "plan": {
-  "title": "Recreate Order dialog for live RFQ bid",
+  "title": "Recreate Order window for live RFQ bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ event with a vendor bid."
+    "note": "Open the prepared live RFQ event with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bidding-time rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required percentage counter-offer configuration."
    },
    {
     "step": "go_to",
     "args": {
-     "screen": "responses",
+     "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ Responses view where the stage Settings menu is available."
+    "note": "Open the RFQ stage named by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab where the Settings menu is tested."
    },
    {
     "step": "event_menu",
@@ -51,7 +107,7 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and select Recreate Order without confirming anything in the resulting window."
+    "note": "Choose Recreate Order from the RFQ Settings menu and leave its window open."
    },
    {
     "step": "expect_visible",
@@ -60,12 +116,12 @@
      "name": "Recreate Order",
      "visible": true
     },
-    "note": "Verify that the Recreate Order window opened."
+    "note": "Assert that the Recreate Order window opened."
    },
    {
     "step": "expect_options",
     "args": {
-     "label": "Event End Time Duration",
+     "within": "dialog",
      "options": [
       "15 Mins",
       "30 Mins",
@@ -75,52 +131,57 @@
      ],
      "count": 14
     },
-    "note": "Verify the duration picker contains the five named presets and the expected additional options."
+    "note": "Assert the five named duration choices and the expected total of 14 available choices."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Details",
+     "within": "dialog",
      "visible": true
     },
-    "note": "Verify the Details control is present."
+    "note": "Assert the Details button is present."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Clear",
+     "within": "dialog",
      "visible": true
     },
-    "note": "Verify the Clear control is present."
+    "note": "Assert the Clear button is present."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Edit More Details",
+     "within": "dialog",
      "visible": true
     },
-    "note": "Verify the Edit More Details control is present."
+    "note": "Assert the Edit More Details button is present."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Cancel",
+     "within": "dialog",
      "visible": true
     },
-    "note": "Verify the Cancel control is present without pressing it."
+    "note": "Assert the Cancel button is present."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Create Order",
+     "within": "dialog",
      "visible": true
     },
-    "note": "Verify the Create Order control is present without pressing it, leaving the event unchanged."
+    "note": "Assert the Create Order button is present while no action has been pressed."
    }
   ]
  }

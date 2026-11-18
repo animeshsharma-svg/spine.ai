@@ -4,35 +4,54 @@
   "title": "Download Reports: Switch report type dropdown selection and download report",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:15:59.150Z",
+  "compiledAt": "2026-11-13T13:45:01.065Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The exact visible label or role of the report type dropdown is not confirmed in the catalog.",
+   "Record arbitrary application behavior beyond the observable report window and download result."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “Conditionally select an alternative report type when the available option is not specified.” — expect_options opens the list and reads what it offers, with greyed-out items",
+   "can only test part of this — no step for: The exact visible label or role of the report type dropdown is not confirmed in the catalog.; Record arbitrary application behavior beyond the observable report window and download result."
+  ],
   "source": "llm",
-  "steps": 7,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
    "go_to",
+   "expect_visible",
    "click",
    "expect_visible",
-   "do_on_screen",
+   "expect_options",
+   "click",
    "expect_download"
   ],
   "state": "awarded",
   "screen": "master_qcs",
-  "ms": 12111
+  "ms": 10190
  },
  "plan": {
-  "title": "Download Alternative Report",
+  "title": "Awarded Event Report Type Download",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared awarded event as required for this state."
+    "note": "The awarded event already exists in prepared state; this is the required first step for prepared cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case before opening the prepared awarded event."
    },
    {
     "step": "go_to",
@@ -40,14 +59,23 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the event's RFQ stage."
+    "note": "Navigate to the awarded event's RFQ stage."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses view specified by the case."
+    "note": "Open the RFQ Responses tab where the Download Report control is available."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Download Report",
+     "visible": true
+    },
+    "note": "Confirm the report control is present before activating it."
    },
    {
     "step": "click",
@@ -64,19 +92,27 @@
      "name": "Download Reports",
      "visible": true
     },
-    "note": "Verify that the Download Reports window opened."
+    "note": "Assert that the Download Reports window opened."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_options",
     "args": {
-     "goal": "in the Download Reports window, open the report type dropdown, select an alternative report type if one is available, click Download Excel, and stop after the download action completes"
+     "label": "Report Type"
     },
-    "note": "Handle the dynamic report type options and perform the requested download."
+    "note": "Inspect the available report-type options; the exact dropdown label is not confirmed and the result is used to document availability."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Download Excel"
+    },
+    "note": "Attempt the requested Excel download using the known button text."
    },
    {
     "step": "expect_download",
     "args": {},
-    "note": "Verify that the download action produced a report file."
+    "note": "Verify that an Excel report download occurred."
    }
   ]
  }

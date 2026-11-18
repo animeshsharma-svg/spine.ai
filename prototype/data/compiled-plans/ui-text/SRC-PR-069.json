@@ -4,29 +4,38 @@
   "title": "Purchase Contract for a material line with a contract",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:34:44.192Z",
+  "compiledAt": "2026-11-13T12:30:46.289Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
    "do_on_screen",
-   "expect_no_error"
+   "expect_text"
   ],
-  "ms": 11206
+  "ms": 15668
  },
  "plan": {
-  "title": "Create Purchase Contract from PR",
+  "title": "Create purchase contract from PR",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_contract_creation_enabled",
+     "value": "On"
+    },
+    "note": "Enable contract creation as required by the case."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions area as the buyer."
+    "note": "Open the Purchase Requisitions area."
    },
    {
     "step": "pr_tab",
@@ -38,19 +47,22 @@
    {
     "step": "select_pr",
     "args": {},
-    "note": "Select the available material requisition line with a valid contract."
+    "note": "Select an open material PR line with a valid contract."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "Open Purchase Items > Purchase Contract for the selected material line, first verify that submitting without a quantity or contract is refused with the message \"Please enter quantity and select a contract for all line items.\", then enter a valid quantity, select the valid contract, submit the contract order, and stop on the screen proving that the contract order was created."
+     "goal": "click Purchase Items, choose Purchase Contract, enter a valid quantity and select the valid contract for the material line, submit and verify that the contract order is created; then repeat the submission without quantity and without selecting a contract, stopping with the validation message visible"
     },
-    "note": "Execute and observe the Purchase Contract workflow and both required-field validation and successful creation."
+    "note": "Handle the Purchase Contract flow and both the successful and missing-field submissions, which have no dedicated catalog step."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the completed contract-order screen has no application error."
+    "step": "expect_text",
+    "args": {
+     "text": "Please enter quantity and select a contract for all line items.",
+     "present": true
+    },
+    "note": "Assert the required validation message for submission without quantity or contract."
    }
   ]
  }

@@ -3,37 +3,58 @@
   "caseId": "PRD-VM-147",
   "title": "Vendor IP Capture: refused for a user without the Compliance Officer role",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T03:16:41.404Z",
+  "compiledAt": "2026-11-13T15:13:05.160Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as the non-Compliance Officer and Compliance Officer users on the Enterprise tenant and attempt Vendor IP Capture for participating vendors, verifying that the first is refused or does not see the action while the second can use it."
+   "Sign in as a user without the Compliance Officer role on an Enterprise tenant.",
+   "Use Vendor IP Capture and assert that the non-Compliance Officer is refused or does not see it.",
+   "Repeat the action as a Compliance Officer and assert that it is available.",
+   "Compare the two role outcomes and record tenant RBAC configuration if access is granted to additional roles."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as the non-Compliance Officer and Compliance Officer users on the Enterprise tenant and attempt Vendor IP Capture for participating vendors, verifying that the first is refused or does not see the action while the second can use it."
+   "can only test part of this — no step for: Sign in as a user without the Compliance Officer role on an Enterprise tenant.; Use Vendor IP Capture and assert that the non-Compliance Officer is refused or does not see it.; Repeat the action as a Compliance Officer and assert that it is available.; Compare the two role outcomes and record tenant RBAC configuration if access is granted to additional roles."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "open_event",
+   "probe_controls",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 9312
+  "ms": 21355
  },
  "plan": {
-  "title": "Vendor IP Capture RBAC",
+  "title": "Vendor IP Capture Role Restriction",
   "steps": [
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open an existing event as the closest available route to event actions."
+   },
+   {
+    "step": "probe_controls",
+    "args": {
+     "within": "Settings",
+     "include": [
+      "Vendor IP Capture"
+     ],
+     "max": 10
+    },
+    "note": "Explore Settings controls for any Vendor IP Capture action and record whether it is present, disabled, or opens a refusal."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Compliance Officer and Compliance Officer users on the Enterprise tenant and attempt Vendor IP Capture for participating vendors, verifying that the first is refused or does not see the action while the second can use it"
+     "need": "sign in as the non-Compliance Officer user and the Compliance Officer on the Enterprise tenant, then compare whether Vendor IP Capture is refused or available for each role"
     },
-    "note": "No catalog step can sign in as role-specific users or observe the Vendor IP Capture control and its permission outcome."
+    "note": "Role-specific sign-in and the Vendor IP Capture permission comparison are not expressible by the catalog."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the browser remains free of a crash or server error after the manual permission comparison."
+    "note": "Assert the session remains free of a page crash or server error after the exploratory and tester-assisted work."
    }
   ]
  }

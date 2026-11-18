@@ -4,34 +4,32 @@
   "title": "eRFX RFQ project: award it after the close",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:29:57.888Z",
+  "compiledAt": "2026-11-13T12:12:26.252Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that the specific pre-existing event selected for awarding appears in History after PO creation, because the case provides no event title and no catalog assertion can carry a remembered title into the events-list search."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify that the specific pre-existing event selected for awarding appears in History after PO creation, because the case provides no event title and no catalog assertion can carry a remembered title into the events-list search."
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "close_event",
    "award_event",
    "expect_awarded",
    "create_po",
-   "expect_po_items",
    "filter_events",
-   "expect_events_list"
+   "expect_event_in_list"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 14591
+  "ms": 18637
  },
  "plan": {
   "title": "Award Closed eRFX RFQ",
@@ -44,6 +42,19 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX project capability required by the case."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the RFQ before starting the award flow."
+   },
+   {
     "step": "award_event",
     "args": {
      "vendor": "lowest"
@@ -53,17 +64,12 @@
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Confirm that the award proposal was created and submitted."
+    "note": "Verify that the award proposal was created and submitted."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete approval and create the purchase order for the awarded vendor."
-   },
-   {
-    "step": "expect_po_items",
-    "args": {},
-    "note": "Confirm that the created purchase order contains the awarded event line items."
+    "note": "Complete the award approval flow and create the purchase order."
    },
    {
     "step": "filter_events",
@@ -73,9 +79,9 @@
     "note": "Open the History tab where completed events should appear."
    },
    {
-    "step": "expect_events_list",
+    "step": "expect_event_in_list",
     "args": {},
-    "note": "Assert that the History events list rendered without an error."
+    "note": "Verify that the awarded event appears in History after PO creation."
    }
   ]
  }

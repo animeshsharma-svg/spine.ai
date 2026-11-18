@@ -3,16 +3,17 @@
   "caseId": "PRD-KBVDB-005",
   "title": "Technical Stage tab reached manually when not opened automatically",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:53:29.762Z",
+  "compiledAt": "2026-11-13T15:43:56.869Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the vendor clicked “I will participate” and was not automatically taken to the Technical Stage before manually selecting the tab"
+  ],
   "warnings": [
-   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing"
+   "can only test part of this — no step for: Verify that the vendor clicked “I will participate” and was not automatically taken to the Technical Stage before manually selecting the tab"
   ],
   "source": "llm",
-  "steps": 20,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "set_title",
@@ -22,9 +23,6 @@
    "add_line_items",
    "fill_questionnaires",
    "assign_evaluator",
-   "switch_stage",
-   "select_template",
-   "fill_sheet",
    "set_schedule",
    "invite_vendor",
    "publish",
@@ -32,75 +30,66 @@
    "switch_portal",
    "vendor_open_event",
    "click",
-   "expect_visible",
-   "expect_visible"
+   "expect_navigated",
+   "expect_text",
+   "expect_text"
   ],
-  "ms": 9358
+  "ms": 9927
  },
  "plan": {
-  "title": "Vendor manually opens Technical Stage tab",
+  "title": "Manual Technical Stage Tab Navigation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create a two-stage event needed to expose the vendor's Technical Stage tab."
+    "note": "Create the multi-stage event used to reach the vendor's Technical Stage."
    },
    {
     "step": "set_title",
     "args": {
      "title": "Manual Technical Stage Navigation Test"
     },
-    "note": "Provide the required event title before publishing."
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
     "args": {
      "stages": [
-      "rfp",
-      "rfq"
+      "rfp"
      ]
     },
-    "note": "Configure Technical Stage and RFQ stages."
+    "note": "Configure the event with a Technical Stage."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "configure the rfp stage on its own tab"
+    "note": "Work on the Technical Stage before configuring it."
    },
    {
     "step": "select_template",
-    "note": "rfp needs its own template"
+    "args": {},
+    "note": "Apply a technical-stage template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the line item required for the technical specification section."
+    "note": "Add a line item so the vendor can see Line Item Specifications."
    },
    {
-    "step": "fill_questionnaires"
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Populate the Vendor Assessments and line-item technical questions."
    },
    {
-    "step": "assign_evaluator"
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "configure the rfq stage on its own tab"
-   },
-   {
-    "step": "select_template",
-    "note": "rfq needs its own template"
-   },
-   {
-    "step": "fill_sheet"
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Complete the required technical-stage evaluator setup."
    },
    {
     "step": "set_schedule",
@@ -114,31 +103,31 @@
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor who will manually navigate the event."
+    "note": "Invite the QA vendor whose portal view will be tested."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so it is available in the supplier portal."
+    "note": "Publish the technical event for vendor access."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a published project page."
+    "note": "Verify the event is available on its project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Act as the participating vendor in the supplier portal."
+    "note": "Open the invited vendor's supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "overview": true
     },
-    "note": "Open the event overview, representing the state where the vendor is not automatically taken to Technical Stage."
+    "note": "Leave the vendor on the event overview/details view before manual tab selection."
    },
    {
     "step": "click",
@@ -149,20 +138,27 @@
     "note": "Manually select the Technical Stage tab next to Details."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_navigated",
     "args": {
-     "text": "Vendor Assessments",
-     "visible": true
+     "screen": "technical"
     },
-    "note": "Verify the Technical Stage screen displays the Vendor Assessments section."
+    "note": "Verify that the Technical Stage screen opened."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
+    "args": {
+     "text": "Vendor Assessments",
+     "present": true
+    },
+    "note": "Confirm the Vendor Assessments section is displayed."
+   },
+   {
+    "step": "expect_text",
     "args": {
      "text": "Line Item Specifications",
-     "visible": true
+     "present": true
     },
-    "note": "Verify the Technical Stage screen displays the Line Item Specifications section."
+    "note": "Confirm the Line Item Specifications section is displayed."
    }
   ]
  }

@@ -3,17 +3,15 @@
   "caseId": "PRD-KBSRC-615",
   "title": "Vendor rejects the counter offer — buyer QCS shows rejected tag",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:25:01.039Z",
+  "compiledAt": "2026-11-13T14:47:32.665Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The vendor rejecting the pending counter offer in the supplier portal"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The vendor rejecting the pending counter offer in the supplier portal"
+   "resolved: “Reject the pending counter offer in the supplier portal as the vendor.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 21,
   "stepNames": [
    "open_create",
    "set_title",
@@ -30,26 +28,29 @@
    "open_master_qcs",
    "place_counter_offer",
    "expect_counter_offer_sent",
+   "switch_portal",
+   "vendor_open_event",
    "ask_tester",
+   "switch_portal",
    "open_master_qcs",
    "expect_text"
   ],
-  "ms": 10637
+  "ms": 17794
  },
  "plan": {
-  "title": "Vendor rejects counter offer and buyer QCS shows rejection",
+  "title": "Vendor Rejects Counter Offer",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start a new multi-stage event so the RFQ stage can be configured."
+    "note": "Open the eRFX creation flow for the RFQ event."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Counter Offer Rejection Test"
+     "title": "PRD-KBSRC-615 Counter Rejection"
     },
     "note": "Provide the required event title."
    },
@@ -60,43 +61,43 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ rather than the default auction."
+    "note": "Configure the event with an RFQ stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the RFQ line item required for bidding."
+    "note": "Add a line item so the RFQ pricing sheet can be completed."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
+    "note": "Fill the RFQ pricing sheet before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule."
+    "note": "Commit a bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the vendor who will bid and receive the counter offer."
+    "note": "Invite one vendor to receive and answer the RFQ."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so the vendor can submit a quote."
+    "note": "Publish the RFQ so the vendor can bid."
    },
    {
     "step": "expect_published",
@@ -106,7 +107,7 @@
    {
     "step": "place_bid",
     "args": {},
-    "note": "Submit the vendor's original RFQ quote."
+    "note": "Submit the invited vendor's original bid, which is required before sending a counter offer."
    },
    {
     "step": "expect_bid_submitted",
@@ -116,39 +117,59 @@
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's comparison grid for the submitted bid."
+    "note": "Open the buyer's comparison grid containing the vendor bid."
    },
    {
     "step": "place_counter_offer",
     "args": {
      "price": 90
     },
-    "note": "Send a buyer counter offer against the vendor's live bid."
+    "note": "Send a buyer counter offer to the vendor."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Confirm the QCS records the pending counter offer."
+    "note": "Confirm the counter offer is marked as initiated for the vendor."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open this event's RFQ pricing round where the pending counter offer should be available."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the vendor and reject the pending counter offer"
+     "need": "reject the pending counter offer in the supplier portal as the vendor"
     },
-    "note": "No catalog step can reject a counter offer from the vendor side."
+    "note": "The catalog has no vendor-side reject-counter-offer action."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer's QCS after the vendor rejects the offer."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Return to the buyer's RFQ QCS after the vendor rejection."
+    "note": "Reopen the buyer's RFQ Master QCS to inspect the counter-offer outcome."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Last Counter Offer Rejected",
-     "present": true
+     "text": "Last Counter Offer Rejected"
     },
-    "note": "Verify the vendor's QCS column shows the required rejection tag."
+    "note": "Assert that the vendor's QCS tag shows the rejected counter-offer result."
    }
   ]
  }

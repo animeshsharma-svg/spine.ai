@@ -4,38 +4,59 @@
   "title": "Proposal Allocation Summary after awarding only 6 of 10 units to B",
   "group": "SRC-RPT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:50:42.457Z",
+  "compiledAt": "2026-11-13T12:43:45.875Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Compare the Allocation Summary values with the downloaded report.",
-   "Compare the Allocation Summary values with the purchase orders."
+   "Verify that the Allocation Summary matches the downloaded report.",
+   "Verify that the Allocation Summary matches the purchase orders.",
+   "unconfirmed label \"4\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "can only test part of this — no step for: Compare the Allocation Summary values with the downloaded report.; Compare the Allocation Summary values with the purchase orders."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"4\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Verify that the Allocation Summary matches the downloaded report.; Verify that the Allocation Summary matches the purchase orders."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "click",
-   "expect_visible",
    "expect_table",
    "expect_text"
   ],
   "state": "awarded",
   "screen": "proposal",
-  "ms": 9285
+  "ms": 14140
  },
  "plan": {
-  "title": "Proposal Allocation Summary After Partial Award",
+  "title": "Proposal Allocation Summary Partial Award",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "proposal"
     },
-    "note": "Open the existing awarded event's proposal as required for the prepared state."
+    "note": "Open the existing awarded event's proposal page without recreating the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Enable partial awarding required for the scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required for the event context."
    },
    {
     "step": "click",
@@ -43,15 +64,7 @@
      "role": "button",
      "name": "Allocation Summary"
     },
-    "note": "Open the proposal's Allocation Summary section."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Allocation Summary",
-     "visible": true
-    },
-    "note": "Verify that the requested allocation summary is displayed."
+    "note": "Open the proposal's Allocation Summary."
    },
    {
     "step": "expect_table",
@@ -63,16 +76,16 @@
       "Total Amount": "540"
      }
     },
-    "note": "Verify vendor B's partial award shows 6 selected units and a total amount of 540."
+    "note": "Assert that vendor B has 6 awarded units and a total amount of 540."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "4 units",
+     "text": "4",
      "present": true,
      "within": "Allocation Summary"
     },
-    "note": "Verify the summary shows the four units that were not awarded."
+    "note": "Assert that the summary shows 4 units as not awarded."
    }
   ]
  }

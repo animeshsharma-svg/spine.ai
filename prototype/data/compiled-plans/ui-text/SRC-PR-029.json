@@ -4,21 +4,21 @@
   "title": "Use part of the open quantity (6 of 10) of a PR line in the event",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:31:09.853Z",
+  "compiledAt": "2026-11-13T12:26:13.782Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select an open PR line specifically by its displayed Qty Open value of 10; select_pr can target a named PR or number of line items but not a quantity value."
+   "The catalog has no dedicated assertion for the PR page's exact in-progress and open quantity fields after publishing; do_on_screen must inspect and verify those values interactively."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 10 step(s) that would open a blank event or replace the PR's items",
-   "can only test part of this — no step for: Select an open PR line specifically by its displayed Qty Open value of 10; select_pr can target a named PR or number of line items but not a quantity value."
+   "can only test part of this — no step for: The catalog has no dedicated assertion for the PR page's exact in-progress and open quantity fields after publishing; do_on_screen must inspect and verify those values interactively."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 18,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -28,6 +28,8 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
    "set_sheet_cell",
    "expect_sheet_cell",
    "set_title",
@@ -35,12 +37,12 @@
    "invite_vendor",
    "publish",
    "expect_published",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 15974
+  "ms": 19768
  },
  "plan": {
-  "title": "SRC-PR-029 Partial PR Quantity Event",
+  "title": "SRC-PR-029 Partial PR Quantity in Event",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -78,36 +80,51 @@
     "step": "fill_sheet"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and prevent publish from being blocked by this setting."
+   },
+   {
     "step": "set_sheet_cell",
     "args": {
      "row": 1,
      "column": "Quantity Requested",
      "value": "6"
     },
-    "note": "Set the event quantity to 6 units for the first PR line."
+    "note": "Change the event quantity from the PR's open quantity of 10 to 6."
    },
    {
     "step": "expect_sheet_cell",
     "args": {
      "row": 1,
      "column": "Quantity Requested",
-     "equals": "6"
+     "equals": "6",
+     "kept": true
     },
-    "note": "Verify that the event sheet retained the requested quantity of 6."
+    "note": "Confirm the event sheet retained the requested quantity of 6."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-PR-029 Partial Quantity RFQ"
-    },
-    "note": "Provide the mandatory event title required for publication."
+    "args": {},
+    "note": "Provide the mandatory event title before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required 30-minute event schedule."
+    "note": "Commit the required 30-minute schedule."
    },
    {
     "step": "invite_vendor",
@@ -116,22 +133,25 @@
       "Vendor A"
      ]
     },
-    "note": "Add the specifically named Vendor A participant."
+    "note": "Add the vendor named in the test case."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ using the configured partial quantity."
+    "note": "Publish the event using the configured partial PR quantity."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publication produced a real project page."
+    "note": "Confirm publication completed and a real project page was created."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the final PR screen has no crash, server error, null values, or raw identifiers."
+    "step": "expect_text",
+    "args": {
+     "text": "Purchase Requisitions",
+     "present": true
+    },
+    "note": "Assert that the final screen is the Purchase Requisitions area where the quantity result was inspected."
    }
   ]
  }

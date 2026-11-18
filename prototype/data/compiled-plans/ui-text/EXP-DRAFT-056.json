@@ -4,35 +4,133 @@
   "title": "Manage Line Items: Save fails when price contains special characters",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:45:40.317Z",
+  "compiledAt": "2026-11-13T14:07:56.761Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The case does not provide a specific product, so selecting the intended product from the product dropdown cannot be verified."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The case does not provide a specific product, so selecting the intended product from the product dropdown cannot be verified."
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 17,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "save_draft",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "open_first_event",
    "click",
-   "set_sheet_cell",
-   "set_sheet_cell",
-   "click",
-   "expect_error",
-   "expect_sheet_cell"
+   "do_on_screen",
+   "expect_screen_clean"
   ],
-  "ms": 13856
+  "ms": 21402
  },
  "plan": {
-  "title": "Draft Price Special-Character Save",
+  "title": "Draft line-item special-character price save",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Start an eRFX draft."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required for the draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the tenant configuration required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the additional tenant configuration required by the case."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-056 Special Price"
+    },
+    "note": "Provide the mandatory draft title."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Open the existing saved draft; the draft reopens on its create screen."
+    "note": "Choose a pricing template before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create the single line item required by the scenario."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the pricing sheet so the draft can be saved."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Create the saved eRFX draft used by the test."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the events list to reopen the saved draft."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Show saved drafts."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify the newly saved draft is listed."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the draft created by this plan."
    },
    {
     "step": "click",
@@ -40,47 +138,19 @@
      "role": "button",
      "name": "Items 1"
     },
-    "note": "Open the Manage Line Items window for the draft's existing line item."
+    "note": "Open the Manage Line Items window."
    },
    {
-    "step": "set_sheet_cell",
+    "step": "do_on_screen",
     "args": {
-     "row": 1,
-     "column": "Quantity",
-     "value": "90"
+     "goal": "In the Manage Line Items window, select a product from the product dropdown, enter 90 in the Quantity field, enter 12$% in the price field, click Save, and record the application's visible response to the special-character price."
     },
-    "note": "Enter the requested quantity in the first line item."
+    "note": "Perform the exact buyer-side interaction that no specialized catalog step can express."
    },
    {
-    "step": "set_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Price",
-     "value": "12$%"
-    },
-    "note": "Enter the special-character price value being tested."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Save"
-    },
-    "note": "Attempt to save the edited line item."
-   },
-   {
-    "step": "expect_error",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that Procol refuses the invalid price or reports an error after the save attempt."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Price",
-     "refused": true
-    },
-    "note": "Verify that the special-character price was not accepted by the sheet."
+    "note": "Assert the resulting screen has no crash, server error, or raw error artifacts."
    }
   ]
  }

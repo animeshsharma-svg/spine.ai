@@ -3,31 +3,38 @@
   "caseId": "PRD-KBPR-020",
   "title": "Purchase Items and Create Project buttons show the number of selected items",
   "group": "PRD-KBPR",
-  "compiledAt": "2026-11-10T06:48:38.310Z",
+  "compiledAt": "2026-11-13T15:40:44.527Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Purchase Items 3\" (expect_text) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"Purchase Items 3\" (click) — not among the labels known from the app nor in the case"
+  ],
   "warnings": [
    "added open_create — every create test has to start somewhere",
    "added set_title — publishing without a title is refused",
    "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused"
+   "added set_title — publishing without a title is refused",
+   "coverage partial: unconfirmed label \"Purchase Items 3\" (expect_text) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"Purchase Items 3\" (click) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_create",
    "set_title",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
-   "do_on_screen",
-   "expect_visible"
+   "expect_text",
+   "click",
+   "expect_text"
   ],
-  "ms": 10084
+  "ms": 13540
  },
  "plan": {
-  "title": "PR selected item counts on sourcing actions",
+  "title": "PR selected item counts",
   "steps": [
    {
     "step": "open_create",
@@ -41,36 +48,43 @@
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the purchase requisitions screen, the required starting point for a PR-based event flow."
+    "note": "Open the purchase requisitions screen from the PR setup."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Only open purchase requisitions can be selected for sourcing."
+    "note": "Use the Open tab because only open PRs can be sourced into a project."
    },
    {
     "step": "select_pr",
     "args": {
      "items": 3
     },
-    "note": "Select a purchase requisition containing three line items so both action buttons should reflect a count of 3."
+    "note": "Select three line items and enable the Purchase Items action."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_text",
     "args": {
-     "goal": "Read the Purchase Items button and verify it displays 3 selected items, click Purchase Items, then read the Create Project button in the side panel and verify it also displays 3 items; stop with the side panel showing the Create Project control"
+     "text": "Purchase Items 3"
     },
-    "note": "No catalog assertion directly reads the numeric labels on these two PR action buttons, so inspect and verify both counts in the buyer's current screen."
+    "note": "Verify the Purchase Items button displays the count of three selected items."
    },
    {
-    "step": "expect_visible",
+    "step": "click",
     "args": {
-     "text": "Create Project",
-     "visible": true
+     "role": "button",
+     "name": "Purchase Items 3"
     },
-    "note": "Confirm the side panel remains open with the Create Project control visible after the count check."
+    "note": "Open the purchase-items side panel without starting the project yet."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Create Project 3"
+    },
+    "note": "Verify the side-panel Create Project button also displays three selected items."
    }
   ]
  }

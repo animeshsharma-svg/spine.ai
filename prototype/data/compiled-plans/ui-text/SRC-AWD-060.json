@@ -4,27 +4,19 @@
   "title": "Proposal tabs",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:24:42.335Z",
+  "compiledAt": "2026-11-13T11:44:04.327Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Showing a non-bidding invited vendor's \"Reason for not participating\" row, because the prepared state contains the two bidding vendors and no known non-bidder.",
-   "Navigating from the Events list by searching the closed RFQ title, because prepared-state cases must open directly on Master QCS.",
-   "unconfirmed label \"10\" (expect_text) — not among the labels known from the app nor in the case",
-   "unconfirmed label \"Vendor A\" (expect_text) — not among the labels known from the app nor in the case"
+   "Verify that every invited non-bidding vendor has a non-empty Reason for not participating value in the Participants tab."
   ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "coverage partial: unconfirmed label \"10\" (expect_text) — not among the labels known from the app nor in the case",
-   "coverage partial: unconfirmed label \"Vendor A\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Showing a non-bidding invited vendor's \"Reason for not participating\" row, because the prepared state contains the two bidding vendors and no known non-bidder.; Navigating from the Events list by searching the closed RFQ title, because prepared-state cases must open directly on Master QCS."
+   "can only test part of this — no step for: Verify that every invited non-bidding vendor has a non-empty Reason for not participating value in the Participants tab."
   ],
   "source": "llm",
   "steps": 21,
   "stepNames": [
    "open_prepared",
-   "require_setting",
    "start_awarding",
    "allocate_award",
    "expect_award_counters",
@@ -33,21 +25,22 @@
    "click",
    "expect_text",
    "click",
+   "expect_visible",
+   "click",
+   "expect_api_value",
+   "expect_table",
+   "click",
    "expect_text",
    "click",
    "expect_text",
-   "expect_text",
+   "expect_table",
    "click",
    "expect_text",
-   "click",
-   "expect_text",
-   "expect_text",
-   "click",
-   "expect_text"
+   "expect_table"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 19407
+  "ms": 21344
  },
  "plan": {
   "title": "SRC-AWD-060 Proposal tabs",
@@ -57,15 +50,7 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ directly on Master QCS."
-   },
-   {
-    "step": "require_setting",
-    "args": {
-     "key": "rfx_project_enabled",
-     "value": "On"
-    },
-    "note": "Enable eRFX projects as required by the case configuration."
+    "note": "Open the prepared closed RFQ directly on Master QCS, as required for this case state."
    },
    {
     "step": "start_awarding",
@@ -78,7 +63,7 @@
      "vendor": "Vendor B",
      "quantity": 10
     },
-    "note": "Allocate all 10 requested units to Vendor B."
+    "note": "Allocate all 10 units to Vendor B."
    },
    {
     "step": "expect_award_counters",
@@ -87,7 +72,7 @@
      "vendors": "1/2",
      "proposal": 900
     },
-    "note": "Verify the full 10-unit allocation to Vendor B at 90 per unit totals 900 and only one of two bidders is awarded."
+    "note": "Verify that one line is selected, one of two vendors is awarded, and Vendor B's 10 × 90 proposal totals 900."
    },
    {
     "step": "click",
@@ -110,14 +95,15 @@
      "role": "button",
      "name": "Document"
     },
-    "note": "Open the Document tab."
+    "note": "Open the Document proposal tab."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Letter of Award"
+     "text": "Letter of Award",
+     "present": true
     },
-    "note": "Verify the Document tab content is shown."
+    "note": "Verify that the document content is displayed."
    },
    {
     "step": "click",
@@ -128,11 +114,13 @@
     "note": "Open the Overview tab."
    },
    {
-    "step": "expect_text",
+    "step": "expect_visible",
     "args": {
-     "text": "Overview"
+     "role": "button",
+     "name": "Overview",
+     "visible": true
     },
-    "note": "Verify the Overview tab is active and rendered."
+    "note": "Verify that the Overview tab is active and visible."
    },
    {
     "step": "click",
@@ -140,21 +128,27 @@
      "role": "button",
      "name": "Allocation Summary"
     },
-    "note": "Open the allocation summary."
+    "note": "Open the Allocation Summary tab."
    },
    {
-    "step": "expect_text",
+    "step": "expect_api_value",
     "args": {
-     "text": "Vendor B"
+     "key": "vendorName",
+     "within": "Allocation Summary"
     },
-    "note": "Verify Vendor B appears in the allocation summary."
+    "note": "Verify that the allocation summary identifies the awarded vendor."
    },
    {
-    "step": "expect_text",
+    "step": "expect_table",
     "args": {
-     "text": "10"
+     "within": "Allocation Summary",
+     "row": "Vendor B",
+     "cells": {
+      "Total Items selected": "10",
+      "Total Amount": "900"
+     }
     },
-    "note": "Verify the summary shows the 10 allocated items."
+    "note": "Verify Vendor B has all 10 items and the expected total."
    },
    {
     "step": "click",
@@ -162,14 +156,15 @@
      "role": "button",
      "name": "Comparison Sheets"
     },
-    "note": "Open the comparison sheets tab."
+    "note": "Open the Comparison Sheets tab."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Master QCS"
+     "text": "Master QCS",
+     "present": true
     },
-    "note": "Verify the comparison sheets show the Master QCS data."
+    "note": "Verify that the comparison sheets show the Master QCS."
    },
    {
     "step": "click",
@@ -177,21 +172,23 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the proposal participants tab."
+    "note": "Open the Participants tab."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Vendor A"
+     "text": "Reason for not participating",
+     "present": true
     },
-    "note": "Verify the other bidder is listed among participants."
+    "note": "Verify that the participant table exposes the non-participation reason column."
    },
    {
-    "step": "expect_text",
+    "step": "expect_table",
     "args": {
-     "text": "Vendor B"
+     "within": "Participants",
+     "min": 1
     },
-    "note": "Verify the awarded vendor is listed among participants."
+    "note": "Verify that participant rows are rendered."
    },
    {
     "step": "click",
@@ -199,14 +196,26 @@
      "role": "button",
      "name": "Order Allocation"
     },
-    "note": "Open the order allocation tab."
+    "note": "Open the Order Allocation tab."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Order Allocation"
+     "text": "Order Allocation",
+     "present": true
     },
-    "note": "Verify the order allocation view is rendered."
+    "note": "Verify that the order allocation view opened."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "within": "Order Allocation",
+     "row": "Vendor B",
+     "cells": {
+      "Qty Awarded": "10"
+     }
+    },
+    "note": "Verify that the order allocation shows all 10 units assigned to Vendor B."
    }
   ]
  }

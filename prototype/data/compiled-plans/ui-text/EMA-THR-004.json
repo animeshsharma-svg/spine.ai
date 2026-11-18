@@ -4,50 +4,62 @@
   "title": "If the original request email cannot be found, the reply goes on the action email itself",
   "group": "EMA-THR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:58:56.936Z",
+  "compiledAt": "2026-11-13T14:24:26.688Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Delete or move the sent approval request from the approval mailbox's Sent folder",
-   "Log in to Asha's mailbox and open the Procol approval request email",
-   "Click the email's Approve button to create an action email addressed to the approval mailbox",
-   "Send the unchanged Action:Approve email",
-   "Wait for Procol to read the mailbox",
-   "Verify Asha receives a has-been-recorded reply threaded on the action email"
+   "Delete or move the original approval request from the approval mailbox's Sent folder",
+   "Open Asha's mailbox and the Procol approval request email",
+   "Click the email's Approve button and send the generated Action:Approve email unchanged",
+   "Wait for Procol to process the approval mailbox reply",
+   "Verify that Asha receives a has-been-recorded reply threaded on the action email"
   ],
   "warnings": [
-   "can only test part of this — no step for: Delete or move the sent approval request from the approval mailbox's Sent folder; Log in to Asha's mailbox and open the Procol approval request email; Click the email's Approve button to create an action email addressed to the approval mailbox; Send the unchanged Action:Approve email; Wait for Procol to read the mailbox; Verify Asha receives a has-been-recorded reply threaded on the action email"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Delete or move the original approval request from the approval mailbox's Sent folder; Open Asha's mailbox and the Procol approval request email; Click the email's Approve button and send the generated Action:Approve email unchanged; Wait for Procol to process the approval mailbox reply; Verify that Asha receives a has-been-recorded reply threaded on the action email"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
+   "require_setting",
    "ask_tester",
-   "expect_no_error"
+   "expect_text"
   ],
-  "ms": 8881
+  "ms": 13800
  },
  "plan": {
-  "title": "EMA-THR-004 Email Approval Fallback",
+  "title": "EMA-THR-004 Email Approval Fallback Thread",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named approval event as the closest available setup step."
+    "note": "Open the specific event involved in the approval workflow; this is the closest available buyer-side preparation step."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required company email-approval configuration before opening the event."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "use Asha's mailbox to delete the original sent approval request, open the Procol approval email, approve it, send the unchanged Action:Approve email, wait for processing, and verify the has-been-recorded reply is threaded on the action email"
+     "need": "delete or move the original approval request from the approval mailbox Sent folder, sign in as Asha, approve the request by sending the unchanged Action:Approve email, wait for processing, and verify the has-been-recorded reply is threaded on that action email"
     },
-    "note": "The catalog cannot access mailboxes, send approval emails, wait for mailbox ingestion, or verify email threading."
+    "note": "The catalog has no mailbox, email-button, send-mail, wait-for-mailbox-processing, or email-thread verification capability."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the available Procol event screen remains usable after the tester's email workflow."
+    "step": "expect_text",
+    "args": {
+     "text": "has been recorded"
+    },
+    "note": "Check for the expected confirmation text if the tester leaves the processed approval reply visible."
    }
   ]
  }

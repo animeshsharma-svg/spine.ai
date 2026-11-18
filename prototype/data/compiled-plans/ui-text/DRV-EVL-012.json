@@ -4,17 +4,17 @@
   "title": "QCS L1 highlight works when hide_tna_bid_from_qcs is Off",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-12T13:36:19.922Z",
+  "compiledAt": "2026-11-13T13:36:20.842Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the displayed bid is specifically a TNA bid.",
-   "Verify that the TNA bid's row is visually highlighted as L1."
+   "Directly verify that the displayed bid is classified as a TNA bid in the QCS",
+   "Directly verify that the Vendor A row is visually highlighted as L1"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Verify that the displayed bid is specifically a TNA bid.; Verify that the TNA bid's row is visually highlighted as L1."
+   "can only test part of this — no step for: Directly verify that the displayed bid is classified as a TNA bid in the QCS; Directly verify that the Vendor A row is visually highlighted as L1"
   ],
   "source": "llm",
   "steps": 5,
@@ -22,22 +22,22 @@
    "open_prepared",
    "require_setting",
    "expect_qcs_vendors",
-   "expect_qcs_ranks",
-   "expect_qcs_cell"
+   "expect_qcs_cell",
+   "expect_qcs_ranks"
   ],
   "state": "bid",
   "screen": "master_qcs",
-  "ms": 8776
+  "ms": 14797
  },
  "plan": {
-  "title": "QCS TNA L1 Ranking",
+  "title": "QCS L1 Highlight for TNA Bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared live RFQ directly on the buyer's Master QCS screen."
+    "note": "Open the prepared live RFQ directly on Master QCS."
    },
    {
     "step": "require_setting",
@@ -45,32 +45,36 @@
      "key": "hide_tna_bid_from_qcs",
      "value": "Off"
     },
-    "note": "Enable the tenant configuration required for TNA bids to appear in QCS ranking."
+    "note": "Ensure TNA bids are configured to appear in QCS ranking."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
      "count": 1,
+     "vendors": [
+      "Vendor A"
+     ],
      "realNames": true
     },
-    "note": "Assert that the submitted bid appears as a real vendor column in QCS."
-   },
-   {
-    "step": "expect_qcs_ranks",
-    "args": {
-     "order": "lowest",
-     "atLeast": 1
-    },
-    "note": "Assert that the available bid is ranked according to the lowest landed amount."
+    "note": "Verify Vendor A appears as a real vendor column in QCS."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "Rank",
-     "vendor": 1,
+     "vendor": "Vendor A",
      "number": 1
     },
-    "note": "Assert that the displayed bid has Rank 1."
+    "note": "Verify Vendor A is ranked L1."
+   },
+   {
+    "step": "expect_qcs_ranks",
+    "args": {
+     "by": "RFQ Amount",
+     "order": "lowest",
+     "atLeast": 1
+    },
+    "note": "Verify QCS ranking follows the lowest landed-price amount."
    }
   ]
  }

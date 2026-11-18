@@ -3,46 +3,46 @@
   "caseId": "PRD-KBSRC-038",
   "title": "Add a Creator column (e.g. Price Cap) and fill it as buyer",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:09:33.458Z",
+  "compiledAt": "2026-11-13T14:32:46.424Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Filling the selected Creator column with buyer-entered values, because the test case does not specify what value to enter."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Filling the selected Creator column with buyer-entered values, because the test case does not specify what value to enter."
+  ],
   "source": "llm",
-  "steps": 13,
+  "steps": 11,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
    "select_template",
    "add_line_items",
-   "click",
    "expect_options",
    "click",
    "expect_options",
    "click",
-   "expect_text",
-   "do_on_screen",
-   "expect_text"
+   "expect_sheet_columns",
+   "expect_sheet_cells"
   ],
-  "ms": 15642
+  "ms": 14115
  },
  "plan": {
-  "title": "Add and fill a Creator column",
+  "title": "Add and edit a Creator column",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the multi-stage event creation flow."
+    "note": "Open the eRFX event creation screen."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "Creator Column Test"
-    },
-    "note": "Provide the required event title for a create test."
+    "args": {},
+    "note": "Provide the mandatory event title required for a valid creation flow."
    },
    {
     "step": "compose_stages",
@@ -51,45 +51,40 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ so the pricing sheet is the subject under test."
+    "note": "Configure the event as an RFQ so the RFQ pricing sheet is shown."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template before adding line items or columns."
+    "note": "Apply a pricing template before adding line items and columns."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the line item needed for the sheet column to have editable cells."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Add Columns"
-    },
-    "note": "Open the sheet's additional-column menu."
+    "note": "Create a data row in the RFQ sheet for the Creator column."
    },
    {
     "step": "expect_options",
     "args": {
+     "role": "button",
+     "name": "Add Columns",
      "options": [
       "Creator",
       "Participant"
      ],
      "only": true
     },
-    "note": "Verify that the first column-category menu offers exactly Creator and Participant."
+    "note": "Verify that Add Columns offers exactly the Creator and Participant groups."
    },
    {
     "step": "click",
     "args": {
-     "text": "Creator"
+     "role": "menuitem",
+     "name": "Creator"
     },
-    "note": "Open the Creator-column choices."
+    "note": "Open the Creator column choices."
    },
    {
     "step": "expect_options",
@@ -104,35 +99,33 @@
      ],
      "only": true
     },
-    "note": "Verify the Creator list contains all six required column options."
+    "note": "Verify that the Creator list contains all six expected column types."
    },
    {
     "step": "click",
     "args": {
      "text": "Price Cap"
     },
-    "note": "Select a representative Creator column from the required list."
+    "note": "Select a representative Creator column to add to the sheet."
    },
    {
-    "step": "expect_text",
+    "step": "expect_sheet_columns",
     "args": {
-     "text": "Price Cap"
+     "columns": [
+      "Price Cap"
+     ]
     },
-    "note": "Verify that the selected Creator column is visible on the RFQ sheet."
+    "note": "Assert that the selected Creator column appears in the RFQ sheet."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_sheet_cells",
     "args": {
-     "goal": "as the buyer, fill the first row of the new Price Cap column with a valid value and stop on the RFQ sheet showing the entered value retained"
+     "row": 1,
+     "editable": [
+      "Price Cap"
+     ]
     },
-    "note": "Fill the newly added Creator column using the buyer session; the test case does not specify a particular value."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Price Cap"
-    },
-    "note": "Confirm the populated sheet still shows the selected Creator column header."
+    "note": "Assert that the buyer can edit the new Creator column's cell."
    }
   ]
  }

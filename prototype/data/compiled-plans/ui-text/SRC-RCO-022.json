@@ -4,44 +4,48 @@
   "title": "Recreate Order: Cancel",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:10:22.774Z",
+  "compiledAt": "2026-11-13T12:37:18.645Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the Events list is exactly unchanged and that no newly created event was added after cancelling."
+   "Directly prove that the Events list is unchanged and that no new event was created after cancelling."
   ],
   "warnings": [
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Assert that the Events list is exactly unchanged and that no newly created event was added after cancelling."
+   "can only test part of this — no step for: Directly prove that the Events list is unchanged and that no new event was created after cancelling."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "event_menu",
    "expect_visible",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
    "select",
    "click",
    "expect_visible",
-   "expect_events_list"
+   "go_to",
+   "expect_event_in_list",
+   "expect_event_status"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 16688
+  "ms": 26803
  },
  "plan": {
-  "title": "Recreate Order Cancel",
+  "title": "Cancel Recreate Order",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary instead of creating or searching for an event."
+    "note": "Open the prepared closed RFQ event without creating or searching for another event."
    },
    {
     "step": "require_setting",
@@ -49,14 +53,15 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure eRFX projects are enabled as required by the setup."
+    "note": "Enable the required eRFX project capability for the buyer tenant."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open the Recreate Order dialog from the event's stage settings."
+    "note": "Open the RFQ Settings menu and choose Recreate Order."
    },
    {
     "step": "expect_visible",
@@ -68,20 +73,54 @@
     "note": "Verify that the Recreate Order pop-up opened."
    },
    {
+    "step": "expect_text",
+    "args": {
+     "text": "Product Sheet",
+     "present": true
+    },
+    "note": "Verify the pop-up includes Product Sheet."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Auction Configurations",
+     "present": true
+    },
+    "note": "Verify the pop-up includes Auction Configurations."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery Date",
+     "present": true
+    },
+    "note": "Verify the pop-up includes Delivery Date."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Schedule this event?",
+     "present": true
+    },
+    "note": "Verify the scheduling control is present."
+   },
+   {
     "step": "select",
     "args": {
      "label": "End time",
-     "option": "60 Mins"
+     "option": "60 Mins",
+     "within": "Recreate Order"
     },
-    "note": "Change the recreate schedule's end-time option to 60 Mins."
+    "note": "Change the recreated event's end-time setting to 60 Mins."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Cancel"
+     "name": "Cancel",
+     "within": "dialog"
     },
-    "note": "Cancel the recreate operation without submitting it."
+    "note": "Cancel recreation without submitting or creating an event."
    },
    {
     "step": "expect_visible",
@@ -90,12 +129,26 @@
      "name": "Recreate Order",
      "visible": false
     },
-    "note": "Verify that cancelling closes the pop-up."
+    "note": "Verify the Recreate Order pop-up closed after cancellation."
    },
    {
-    "step": "expect_events_list",
+    "step": "go_to",
+    "args": {
+     "screen": "events_list"
+    },
+    "note": "Return to the Events list to check that the original event remains available."
+   },
+   {
+    "step": "expect_event_in_list",
     "args": {},
-    "note": "Verify that the Events list rendered successfully after cancellation."
+    "note": "Verify the prepared closed RFQ still appears in the Events list after cancellation."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Closed"
+    },
+    "note": "Verify the existing RFQ retains its closed status."
    }
   ]
  }

@@ -4,33 +4,72 @@
   "title": "Increase Event Time: Increase Event Time using 30‑minute preset updates end time",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:47:39.083Z",
+  "compiledAt": "2026-11-13T14:14:26.076Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
-   "extend_submission_time",
+   "extend_time",
    "expect_toast"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 6853
+  "ms": 14082
  },
  "plan": {
-  "title": "Increase RFQ Event Time by 30 Minutes",
+  "title": "Extend Live RFQ by 30 Minutes",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ event required for this test."
+    "note": "Open the prepared live RFQ on its buyer summary page."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required for the RFQ project."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the requested tenant configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Apply the requested live-event withdrawal configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the requested vendor-masking configuration."
    },
    {
     "step": "go_to",
@@ -38,22 +77,25 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage page where the submission-time setting is available."
+    "note": "Open the RFQ stage."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the Responses tab specified by the scenario."
+    "note": "Reach the Responses tab specified by the case before opening Settings."
    },
    {
-    "step": "extend_submission_time",
+    "step": "extend_time",
     "args": {
-     "by": "30 minutes",
-     "stage": "rfq"
+     "which": "submission",
+     "option": "preset",
+     "preset": "30 minutes",
+     "stage": "rfq",
+     "expect": "saved"
     },
-    "note": "Open Increase Event Time, select the 30-minute preset, confirm it, and verify the end time increased by exactly 30 minutes."
+    "note": "Open RFQ Settings, choose the 30-minute Increase Event Time preset, confirm it, and verify the end time increases by exactly 30 minutes."
    },
    {
     "step": "expect_toast",
@@ -61,7 +103,7 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Verify the required success toast appeared after saving the extension."
+    "note": "Assert the confirmation toast required by the case."
    }
   ]
  }

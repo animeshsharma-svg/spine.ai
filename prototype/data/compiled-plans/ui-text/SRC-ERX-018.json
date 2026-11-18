@@ -4,43 +4,52 @@
   "title": "A section-wise scoring template only fits Vendor Assessment",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:17:27.753Z",
+  "compiledAt": "2026-11-13T12:02:27.901Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Selecting a section-wise scoring template in a non-Vendor Assessment RFI section and observing the product's refusal"
+  ],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Selecting a section-wise scoring template in a non-Vendor Assessment RFI section and observing the product's refusal"
+  ],
   "source": "llm",
-  "steps": 12,
+  "steps": 7,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
-   "select_template",
-   "switch_stage",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "switch_stage",
-   "do_on_screen",
+   "ask_tester",
    "expect_message"
   ],
-  "ms": 11490
+  "ms": 11542
  },
  "plan": {
-  "title": "Section-wise scoring template rejected outside Vendor Assessment",
+  "title": "Section-wise template rejected outside Vendor Assessment",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation flow."
+    "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the required project title for the create flow."
+    "note": "Provide the mandatory project title before configuring the event."
    },
    {
     "step": "compose_stages",
@@ -50,57 +59,21 @@
       "rfq"
      ]
     },
-    "note": "Configure the requested Technical and RFQ stages."
+    "note": "Create the requested Technical and RFQ stages."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfp"
     },
-    "note": "Configure the Technical stage where the section selection is tested."
+    "note": "Move to the Technical stage where the RFI sections are configured."
    },
    {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the available technical-stage template before accessing its sections."
-   },
-   {
-    "step": "switch_stage",
+    "step": "ask_tester",
     "args": {
-     "stage": "rfq"
+     "need": "select a section-wise scoring template in a non-Vendor Assessment RFI section and verify Procol refuses it"
     },
-    "note": "Move to the pricing stage to add the project line item required for per-line-item technical sections."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the RFQ pricing template before adding items."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Create a line item so a per-line-item RFI/RFP section exists."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet required by the create flow."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfp"
-    },
-    "note": "Return to the Technical stage and its per-line-item questionnaire sections."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "On the Technical stage, open a per-line-item RFI/RFP section outside Vendor Assessment, attempt to select a section-wise scoring template, and stop with the refusal message visible: \"Section-wise scoring templates can only be selected in the Vendor Assessment section.\""
-    },
-    "note": "Perform the section-specific template selection that no dedicated catalog step can express."
+    "note": "The catalog cannot target a template within a specific RFI section, so the tester must perform this interaction."
    },
    {
     "step": "expect_message",
@@ -108,7 +81,7 @@
      "kind": "error",
      "text": "Section-wise scoring templates can only be selected in the Vendor Assessment section."
     },
-    "note": "Assert the exact refusal message from the attempted selection."
+    "note": "Assert the refusal message required by the case."
    }
   ]
  }

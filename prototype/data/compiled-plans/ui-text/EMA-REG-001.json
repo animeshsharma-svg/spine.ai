@@ -4,52 +4,124 @@
   "title": "Approving and rejecting inside the app still work as before",
   "group": "EMA-REG",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:56:57.853Z",
+  "compiledAt": "2026-11-13T14:21:59.987Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create and submit the named event into the two-step approval workflow as Ravi",
-   "Sign in as Asha and approve the event from its event page",
-   "Reject another event as the approver without a comment and verify the app's refusal message",
-   "Reject the event with a comment and verify that the rejection succeeds",
-   "Switch among Ravi, Asha, Bikram, Chetan, Deepa, and the outside address with their separate accounts or mailboxes"
+   "Log in as Ravi and submit the named event for approval through the approval workflow",
+   "Log in as Asha and approve the event from its event page",
+   "On another event, reject without a comment and verify the app's refusal message, then reject with a comment and verify it succeeds",
+   "Use the specified Ravi, Asha, Bikram, Chetan, Deepa, and outsider mailbox identities and connected approval mailbox"
   ],
   "warnings": [
-   "can only test part of this — no step for: Create and submit the named event into the two-step approval workflow as Ravi; Sign in as Asha and approve the event from its event page; Reject another event as the approver without a comment and verify the app's refusal message; Reject the event with a comment and verify that the rejection succeeds; Switch among Ravi, Asha, Bikram, Chetan, Deepa, and the outside address with their separate accounts or mailboxes"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Log in as Ravi and submit the named event for approval through the approval workflow; Log in as Asha and approve the event from its event page; On another event, reject without a comment and verify the app's refusal message, then reject with a comment and verify it succeeds; Use the specified Ravi, Asha, Bikram, Chetan, Deepa, and outsider mailbox identities and connected approval mailbox"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 13,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
    "ask_tester",
-   "expect_text"
+   "expect_no_error"
   ],
-  "ms": 10084
+  "ms": 21458
  },
  "plan": {
-  "title": "EMA-REG-001 In-App Approval Regression",
+  "title": "In-App Approval Regression",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the closest available event setup for the approval regression."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the company setting required for email approvals."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow prerequisite."
+   },
+   {
+    "step": "set_title",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named existing event so the tester can continue from the event page."
+    "note": "Use the test case's event title."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a template required before adding line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the event's required line item."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Populate the pricing sheet so the event can be completed."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule required for publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the participant required for a usable event."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the prepared event; this is the closest catalog action to submitting it into the workflow."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Assert the event was created successfully before the unavailable approval actions."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Ravi, create and submit the named event for the two-step approval workflow, then sign in as Asha and approve it and test rejecting another event first without a comment and then with a comment, verifying the refusal and successful rejection outcomes"
+     "need": "log in with the specified requester and approver identities, submit this event for approval, approve it as Asha, and on another event reject once without a comment and once with a comment while recording the app's refusal and success results"
     },
-    "note": "The required approval workflow, user impersonation, and comment-validation actions are not available as catalog steps."
+    "note": "The catalog has no step for approval-workflow submission, approver identity switching, or in-app approval/rejection actions."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Approve",
-     "present": true
-    },
-    "note": "Provide a final screen assertion that the approval interface is visible after the tester's actions."
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm no application error is visible after the tester completes the approval actions."
    }
   ]
  }

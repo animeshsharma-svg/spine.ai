@@ -3,42 +3,122 @@
   "caseId": "PRD-KBSRC-354",
   "title": "Cost Breakdown Time starts automatically when submission time ends",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:16:07.466Z",
+  "compiledAt": "2026-11-13T14:40:36.673Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "No catalog step directly verifies that the CBD timer started automatically rather than through another transition.",
-   "No catalog step directly verifies that the vendor can break down the total bid across individual line items."
+   "Directly verify that the Cost Breakdown Time timer is actively running rather than only observing its visible label.",
+   "Verify or complete the vendor's line-item cost breakdown form because no dedicated cost-breakdown step exists."
   ],
   "warnings": [
-   "can only test part of this — no step for: No catalog step directly verifies that the CBD timer started automatically rather than through another transition.; No catalog step directly verifies that the vendor can break down the total bid across individual line items."
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Directly verify that the Cost Breakdown Time timer is actively running rather than only observing its visible label.; Verify or complete the vendor's line-item cost breakdown form because no dedicated cost-breakdown step exists."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 17,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "expect_bid_submitted",
    "close_event",
    "expect_text",
    "switch_portal",
    "vendor_open_event",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 10766
+  "ms": 29608
  },
  "plan": {
-  "title": "Automatic Cost Breakdown Time Start",
+  "title": "Automatic Cost Breakdown Time",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create an auction event that can be driven to the end of its submission window."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Automatic CBD Time Test"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "auction"
+     ]
+    },
+    "note": "Ensure the event uses an auction stage."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Open the existing live cost-breakdown auction from the prepared environment."
+    "note": "Apply the auction pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create multiple line items so the vendor can be prompted to break down the total bid across them."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the auction pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit a live submission window; natural closure will be used rather than force-ending it."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the vendor who will submit the total bid and receive the CBD prompt."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Make the auction live."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the auction reached a real published event page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor bid was accepted."
    },
    {
     "step": "close_event",
     "args": {
-     "natural": true
+     "natural": true,
+     "maxWaitMinutes": 36
     },
-    "note": "Wait for the submission window to end naturally, which should trigger the CBD phase."
+    "note": "Wait for the submission window to end naturally so any automatic CBD phase can begin."
    },
    {
     "step": "expect_text",
@@ -46,21 +126,21 @@
      "text": "Cost Breakdown Time",
      "present": true
     },
-    "note": "Verify the buyer screen shows the Cost Breakdown Time phase."
+    "note": "Check the buyer screen exposes the CBD phase after submission closes."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier-portal session."
+    "note": "Inspect the invited vendor's separate supplier-portal view."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the auction's pricing screen where the vendor should receive the CBD prompt."
+    "note": "Open the auction's pricing round where the vendor should see the post-submission prompt."
    },
    {
     "step": "expect_text",
@@ -68,7 +148,15 @@
      "text": "Cost Breakdown Time",
      "present": true
     },
-    "note": "Verify the vendor screen shows the CBD phase running."
+    "note": "Check the vendor screen identifies the automatically started CBD phase."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "break down",
+     "present": true
+    },
+    "note": "Check the vendor is prompted to distribute or break down the total bid across line items."
    }
   ]
  }

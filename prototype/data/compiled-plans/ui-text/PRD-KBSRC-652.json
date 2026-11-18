@@ -3,42 +3,185 @@
   "caseId": "PRD-KBSRC-652",
   "title": "Buyer enables Vendor Masking on a live RFQ event",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:28:27.683Z",
+  "compiledAt": "2026-11-13T14:49:58.802Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot explicitly assert that all real vendor names are absent from every event screen or QCS field; it can only check that Vendor 1 and Vendor 2 appear."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The catalog cannot explicitly assert that all real vendor names are absent from every event screen or QCS field; it can only check that Vendor 1 and Vendor 2 appear."
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 22,
   "stepNames": [
-   "open_event",
-   "do_on_screen",
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "open_participants",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "go_to",
+   "click",
+   "expect_options",
+   "click",
+   "open_master_qcs",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 18776
+  "ms": 18141
  },
  "plan": {
-  "title": "Enable Vendor Masking on Live RFQ",
+  "title": "Enable vendor masking on live RFQ",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open an existing live RFQ event suitable for the masking workflow."
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the multi-stage event creation flow."
    },
    {
-    "step": "do_on_screen",
+    "step": "set_title",
     "args": {
-     "goal": "open the live RFQ event's Actions menu, select Enable Vendor Masking, and stop when the event screen or Master QCS shows Vendor 1, Vendor 2, and subsequent vendor aliases instead of real vendor names"
+     "title": "Vendor Masking Live RFQ"
     },
-    "note": "Perform the unsupported masking action and verify the resulting masked vendor identities on screen."
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event as an RFQ rather than the default auction."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item so the RFQ has a bid sheet."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 2
+    },
+    "note": "Invite at least two participating vendors."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ so it is live."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached its published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Have the first participating vendor submit a bid."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the first bid was accepted."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the live RFQ Participants list for the remaining vendor."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {},
+    "note": "Submit a buyer-side bid for the second participating vendor."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the second bid was accepted."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Go to the RFQ response screen where the Actions control is available."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Actions"
+    },
+    "note": "Open the response Actions menu."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "options": [
+      "Enable Vendor Masking"
+     ]
+    },
+    "note": "Verify that enabling Vendor Masking is offered."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Enable Vendor Masking"
+    },
+    "note": "Enable vendor masking for the live RFQ."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison view to inspect the masked vendor labels."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Vendor 1",
-     "present": true
+     "text": "Vendor 1"
     },
-    "note": "Assert that the masked vendor alias is visibly rendered."
+    "note": "Confirm the first vendor is represented by the numbered alias Vendor 1."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendor 2"
+    },
+    "note": "Confirm the second vendor is represented by the numbered alias Vendor 2."
    }
   ]
  }

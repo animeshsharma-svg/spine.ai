@@ -4,22 +4,30 @@
   "title": "A live RFQ: \"Settings\" opens its menu",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:14:18.221Z",
+  "compiledAt": "2026-11-13T14:11:04.477Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
    "go_to",
    "open_event_settings",
    "expect_options"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 6184
+  "ms": 20169
  },
  "plan": {
   "title": "Live RFQ Settings Menu Options",
@@ -29,19 +37,59 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ as the buyer."
+    "note": "Open the already prepared live RFQ summary as required for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects for the live RFQ flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the tenant configuration specified by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Apply the tenant configuration specified by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the tenant configuration specified by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage named in the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses tab before opening Settings."
+    "note": "Open the Responses tab before inspecting Settings."
    },
    {
     "step": "open_event_settings",
     "args": {},
-    "note": "Open the event Settings menu."
+    "note": "Open the live event's Settings menu."
    },
    {
     "step": "expect_options",
@@ -59,7 +107,7 @@
      ],
      "only": true
     },
-    "note": "Assert that the Settings menu contains exactly the expected actions."
+    "note": "Assert that the Settings menu contains exactly the expected actions and no additional options."
    }
   ]
  }

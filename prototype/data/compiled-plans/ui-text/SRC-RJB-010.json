@@ -4,39 +4,51 @@
   "title": "Reject Bid is not offered after the event closed",
   "group": "SRC-RJB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:49:32.397Z",
+  "compiledAt": "2026-11-13T12:42:48.362Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
-   "expect_visible"
+   "require_setting",
+   "expect_count"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 6465
+  "ms": 10697
  },
  "plan": {
-  "title": "Reject bid unavailable after closure",
+  "title": "Reject Bid unavailable after RFQ closure",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared closed RFQ directly on the buyer's Responses view."
+    "note": "Open the prepared closed RFQ directly on the buyer's Responses screen."
    },
    {
-    "step": "expect_visible",
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX project configuration required by the closed RFQ setup."
+   },
+   {
+    "step": "expect_count",
     "args": {
      "role": "button",
      "name": "Reject",
-     "visible": false
+     "count": 0
     },
-    "note": "Assert that the Reject bid action is not offered after the event has closed."
+    "note": "Verify that no Reject Bid action is offered after the event has closed."
    }
   ]
  }

@@ -3,27 +3,27 @@
   "caseId": "PRD-KBSRC-059",
   "title": "Bids cannot be unlocked before the submission window closes",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:10:42.811Z",
+  "compiledAt": "2026-11-13T14:34:28.257Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly verify that the bid values remain hidden after attempting to unlock bids"
+   "Directly verify the backend unlock operation was not performed or inspect bid visibility beyond the UI's hidden-bids message."
   ],
   "warnings": [
-   "can only test part of this — no step for: Directly verify that the bid values remain hidden after attempting to unlock bids"
+   "can only test part of this — no step for: Directly verify the backend unlock operation was not performed or inspect bid visibility beyond the UI's hidden-bids message."
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "open_event",
    "go_to",
-   "open_event_settings",
-   "expect_settings_menu"
+   "expect_menu_item",
+   "expect_text"
   ],
-  "ms": 8361
+  "ms": 17058
  },
  "plan": {
-  "title": "Block Unlock Bids Before Deadline",
+  "title": "Block Unlocking Bids Before Deadline",
   "steps": [
    {
     "step": "open_event",
@@ -35,22 +35,23 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the Responses tab as required by the case."
+    "note": "Navigate to the Responses tab specified by the case."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the event Settings menu containing Unlock Bids."
-   },
-   {
-    "step": "expect_settings_menu",
+    "step": "expect_menu_item",
     "args": {
-     "absent": [
-      "Unlock Bids"
-     ],
-     "tooltips": false
+     "item": "Unlock Bids",
+     "enabled": false
     },
-    "note": "Assert that Unlock Bids is not offered before the submission deadline, proving the action cannot be started in this state."
+    "note": "Verify the Settings menu offers Unlock Bids only as disabled before the deadline."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bids of participated vendors will be visible once the event duration is over.",
+     "present": true
+    },
+    "note": "Confirm the Responses view still indicates that bids remain hidden until the event ends."
    }
   ]
  }

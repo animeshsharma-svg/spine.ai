@@ -4,44 +4,57 @@
   "title": "Participation per line count matches active un-negotiated ranked bids",
   "group": "DRV-EVT",
   "sheet": "derived-track-each-vendor-s-participation-status",
-  "compiledAt": "2026-11-12T13:36:47.110Z",
+  "compiledAt": "2026-11-13T13:37:24.077Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "The Participants-tab participation counter value per line",
-   "Verification that the counter includes ranked bids whose btp is not in_active or negotiated",
-   "Verification of the R-CAL-051-2 calculation formula"
+   "Observe the participation status counter in the live RFQ Participants tab.",
+   "Verify the per-line participation calculation against R-CAL-051-2.",
+   "Verify that ranked-status bids with BTP status in_active or negotiated are excluded from the count."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: The Participants-tab participation counter value per line; Verification that the counter includes ranked bids whose btp is not in_active or negotiated; Verification of the R-CAL-051-2 calculation formula"
+   "cannot test this case yet — no step can observe: Observe the participation status counter in the live RFQ Participants tab.; Verify the per-line participation calculation against R-CAL-051-2.; Verify that ranked-status bids with BTP status in_active or negotiated are excluded from the count."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "expect_visible"
+   "expect_participant_count",
+   "go_to",
+   "expect_responses"
   ],
   "state": "bid",
   "screen": "participants",
-  "ms": 8187
+  "ms": 15167
  },
  "plan": {
-  "title": "Participation Counter Formula",
+  "title": "Participation Count for Ranked Bids",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the prepared live RFQ directly on the buyer's Participants tab."
+    "note": "Open the prepared live RFQ directly on its Participants tab."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_participant_count",
     "args": {
-     "text": "Participants",
-     "visible": true
+     "atLeast": 1
     },
-    "note": "Confirm that the intended Participants screen rendered, although the catalog has no assertion for the counter's calculated value."
+    "note": "Confirm that the prepared RFQ has at least one participant, providing the closest available participant-list check."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the Responses view, where the catalog can observe the stage participation summary."
+   },
+   {
+    "step": "expect_responses",
+    "args": {},
+    "note": "Assert that the buyer's response grid and participation summary render, without claiming the unavailable per-line status formula."
    }
   ]
  }

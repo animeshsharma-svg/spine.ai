@@ -3,19 +3,18 @@
   "caseId": "PRD-RFQ-020",
   "title": "Vendor Bid Submission: refused for a user without the Vendor role",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:30:22.309Z",
+  "compiledAt": "2026-11-13T14:51:36.864Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Signing in as and attempting bid submission with a user who has no Vendor role without tester-provided access",
-   "Submitting a quote by Excel upload",
-   "Submitting or revising a quote through quick-fill"
+   "Submit a vendor bid through Excel upload or quick-fill and verify the role-based result"
   ],
   "warnings": [
-   "can only test part of this — no step for: Signing in as and attempting bid submission with a user who has no Vendor role without tester-provided access; Submitting a quote by Excel upload; Submitting or revising a quote through quick-fill"
+   "resolved: “Sign in as a user without the Vendor role and verify that manual, Excel, and quick-fill bid submission is refused or abs” — vendor_bid types the price on the open portal and reports what the sheet and Submit did (attempt{vendor_bid} for a refusal)",
+   "can only test part of this — no step for: Submit a vendor bid through Excel upload or quick-fill and verify the role-based result"
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 17,
   "stepNames": [
    "open_create",
    "set_title",
@@ -31,26 +30,28 @@
    "switch_portal",
    "vendor_open_event",
    "vendor_bid",
+   "expect_bid_submitted",
+   "vendor_bid",
    "expect_bid_submitted"
   ],
-  "ms": 10869
+  "ms": 21458
  },
  "plan": {
-  "title": "Vendor role bid submission access",
+  "title": "Vendor Role Bid Submission Access",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create a controlled RFQ event for the role comparison."
+    "note": "Create an RFQ event that can be used for both role checks."
    },
    {
     "step": "set_title",
     "args": {
      "title": "Vendor Role Bid Access Test"
     },
-    "note": "Provide the required event title before publishing."
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -59,7 +60,7 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ, which supports vendor quote submission."
+    "note": "Configure the event as an RFQ."
    },
    {
     "step": "select_template",
@@ -71,26 +72,26 @@
     "args": {
      "count": 1
     },
-    "note": "Add one product for the quote sheet."
+    "note": "Add one product for the bid sheet."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet so the event can be published."
+    "note": "Complete the RFQ pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule."
+    "note": "Commit a bidding schedule so the event can be published."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor needed for the Vendor-role comparison."
+    "note": "Invite the QA Vendor account that will perform the positive-role check."
    },
    {
     "step": "publish",
@@ -100,28 +101,28 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event is a real published project before testing access."
+    "note": "Confirm the event reached a usable project page."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the same-tenant user with no Vendor role, attempt manual bid submission for this event, and report whether Procol refuses or does not offer the action"
+     "need": "sign in as a user without the Vendor role on this tenant and attempt manual, Excel, and quick-fill bid submission, recording whether Procol refuses or omits each action"
     },
-    "note": "The catalog cannot sign in as an arbitrary non-Vendor user or perform that role-specific permission comparison."
+    "note": "The catalog has no step for obtaining or using a non-Vendor user's session."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Switch to the invited Vendor's supplier session for the control case."
+    "note": "Switch to the invited Vendor portal session for the positive comparison."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the published RFQ in the Vendor portal at its pricing round."
+    "note": "Open this event's RFQ bid sheet as the Vendor."
    },
    {
     "step": "vendor_bid",
@@ -133,7 +134,19 @@
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the Vendor-role user can successfully submit the bid."
+    "note": "Assert that the Vendor's quote was accepted."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Submit a revised quote as the same Vendor."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the Vendor can submit the revision."
    }
   ]
  }

@@ -1,57 +1,58 @@
 {
  "meta": {
   "caseId": "DRV-AUC-012",
-  "title": "Request Best Offer is disabled when auction is already closed or awarded",
+  "title": "Dummy quotes are correctly evaluated when ranking triggers precisely as the bidding window closes",
   "group": "DRV-AUC",
   "sheet": "derived-allow-a-buyer-to-convert-an-active-rfq-w",
-  "compiledAt": "2026-11-12T13:31:23.420Z",
+  "compiledAt": "2026-11-13T13:25:48.991Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "allow_duplicate_product_code config setup via step (handled by company setting runner)",
-   "the exact prepared RFQ having duplicate product codes in this sandbox state"
+   "The catalog cannot guarantee that the selected existing live RFQ contains two line items with the same product code."
   ],
   "warnings": [
-   "can only test part of this — no step for: allow_duplicate_product_code config setup via step (handled by company setting runner); the exact prepared RFQ having duplicate product codes in this sandbox state"
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: The catalog cannot guarantee that the selected existing live RFQ contains two line items with the same product code."
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
+   "require_setting",
    "attempt"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 74202
+  "ms": 1242
  },
  "plan": {
-  "title": "DRV-AUC-012 Conversion with duplicate product code in RFQ is refused",
+  "title": "Duplicate product code blocks RFQ conversion",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ"
+    "note": "the API built this case's state"
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the event settings menu"
+    "step": "require_setting",
+    "args": {
+     "key": "allow_duplicate_product_code",
+     "value": "Off"
+    },
+    "note": "Ensure duplicate product codes are disallowed for this tenant before testing conversion."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "menuitem",
-      "name": "Convert to Auction"
-     },
-     "because": "Duplicate product code detected",
-     "expect": "refused"
+     "step": "convert_to_auction",
+     "expect": "refused",
+     "because": "Duplicate product code detected"
     },
-    "note": "Attempt to convert to auction and assert refusal"
+    "note": "Attempt the RFQ-to-Auction conversion and require the duplicate-product-code refusal message."
    }
   ]
  }

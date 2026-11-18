@@ -3,50 +3,65 @@
   "caseId": "PRD-RFQ-002",
   "title": "Allow Partial Bidding (rfq.bid.allow_partial) = ON",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:29:38.827Z",
+  "compiledAt": "2026-11-13T14:50:28.299Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Set tenant setting rfq.bid.allow_partial to ON as a Tenant Admin.",
-   "Select or verify the required configurable RFQ templates with line terms, global terms, and formulas because no template names are provided and the catalog cannot inspect template capabilities beyond selection.",
-   "Submit a vendor bid for only a subset of RFQ line items; vendor_bid fills every price cell and has no partial-line selection argument.",
-   "Compare the ON behaviour with the setting OFF or prove that the two tenant configurations differ.",
-   "Verify the stated split-award and multiple-PO business impact."
+   "Submit and verify a vendor bid containing only a subset of RFQ line items",
+   "Confirm the tenant is on the Growth or Enterprise plan",
+   "Verify that the selected RFQ template specifically provides line terms, global terms, and formulas"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Set tenant setting rfq.bid.allow_partial to ON as a Tenant Admin.; Select or verify the required configurable RFQ templates with line terms, global terms, and formulas because no template names are provided and the catalog cannot inspect template capabilities beyond selection.; Submit a vendor bid for only a subset of RFQ line items; vendor_bid fills every price cell and has no partial-line selection argument.; Compare the ON behaviour with the setting OFF or prove that the two tenant configurations differ.; Verify the stated split-award and multiple-PO business impact."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Submit and verify a vendor bid containing only a subset of RFQ line items; Confirm the tenant is on the Growth or Enterprise plan; Verify that the selected RFQ template specifically provides line terms, global terms, and formulas"
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 16,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
    "select_template",
+   "expect_template_selected",
    "add_line_items",
    "fill_sheet",
    "set_schedule",
    "invite_vendor",
    "publish",
-   "expect_published"
+   "expect_published",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_visible"
   ],
-  "ms": 11373
+  "ms": 16699
  },
  "plan": {
-  "title": "RFQ Partial Bidding Setting",
+  "title": "RFQ Partial Bidding Enabled",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start an eRFX create flow for the closest expressible RFQ setup."
+    "note": "Start a buyer-side eRFX event because the case concerns an RFQ."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfq.bid.allow_partial",
+     "value": "On"
+    },
+    "note": "Enable the setting whose bid-submission behavior is under test."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title so the RFQ can be published."
+    "args": {
+     "title": "RFQ Partial Bidding Test"
+    },
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -55,55 +70,78 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ rather than the default auction stage."
+    "note": "Configure the event as an RFQ rather than the default auction."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfq"
     },
-    "note": "Make the RFQ stage current before configuring its template and sheet."
+    "note": "Move to the RFQ stage before configuring its template and sheet."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply the first available RFQ template; the specific configurable template characteristics cannot be asserted."
+    "note": "Apply an available RFQ template before adding line items."
+   },
+   {
+    "step": "expect_template_selected",
+    "note": "Confirm that the RFQ stage has a template applied."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Create multiple RFQ lines so a subset bid would be meaningful if that behavior were supported by a catalog step."
+    "note": "Create multiple line items so a subset bid could be distinguished from a full bid."
    },
    {
     "step": "fill_sheet",
-    "args": {},
-    "note": "Populate the RFQ pricing sheet so the event can be published."
+    "note": "Complete the RFQ pricing sheet so the event can be published."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule."
+    "note": "Commit a bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add a participant required for publishing the RFQ."
+    "note": "Invite a vendor whose bid behavior can be inspected."
    },
    {
     "step": "publish",
-    "args": {},
-    "note": "Publish the closest reachable multi-line RFQ state."
+    "note": "Publish the RFQ so the vendor can access its bid sheet."
    },
    {
     "step": "expect_published",
-    "args": {},
-    "note": "Assert that the RFQ reached a real published project page."
+    "note": "Confirm the RFQ reached a real published project page."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Open the invited vendor's supplier-portal session."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the RFQ pricing round where partial bidding would need to be performed."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote",
+     "visible": true
+    },
+    "note": "Confirm the vendor bid submission control is available; the catalog cannot use it to submit only selected line items."
    }
   ]
  }

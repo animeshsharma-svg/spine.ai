@@ -4,17 +4,22 @@
   "title": "A live RFQ: the \"Participants\" tab opens",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T01:46:21.172Z",
+  "compiledAt": "2026-11-13T14:11:24.635Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 7,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "click",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_navigated",
    "expect_visible",
    "expect_visible",
@@ -22,39 +27,56 @@
   ],
   "state": "live",
   "screen": "participants",
-  "ms": 8952
+  "ms": 8925
  },
  "plan": {
-  "title": "EXP-LIVERFQ-009 — Participants tab opens",
+  "title": "Live RFQ Participants Tab Opens",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Required first step for the prepared live RFQ state and opens the event's Participants view."
+    "note": "Open the prepared live RFQ directly on its Participants tab."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Navigate to the RFQ Responses tab so the Participants tab control can be exercised."
+    "note": "Enable eRFX projects for the live RFQ context."
    },
    {
-    "step": "click",
+    "step": "require_setting",
     "args": {
-     "role": "tab",
-     "name": "Participants"
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
     },
-    "note": "Open the Participants tab as described by the test case."
+    "note": "Apply the requested tenant configuration for hiding Withdraw."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal during the live submission period as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the requested vendor-masking configuration."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "participants"
     },
-    "note": "Assert that the Participants tab opened successfully."
+    "note": "Assert that the Participants screen opened and is ready."
    },
    {
     "step": "expect_visible",
@@ -63,7 +85,7 @@
      "name": "Add Weight Params",
      "visible": true
     },
-    "note": "Assert participant-specific content is rendered."
+    "note": "Confirm that the Participants content rendered a known participant-management control."
    },
    {
     "step": "expect_visible",
@@ -72,12 +94,12 @@
      "name": "Show only selected vendors",
      "visible": true
     },
-    "note": "Assert the participant filtering control is present."
+    "note": "Confirm that the participant filtering control is present."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Assert that no application error is shown after opening the tab."
+    "note": "Verify that the Participants tab opened without an application error."
    }
   ]
  }

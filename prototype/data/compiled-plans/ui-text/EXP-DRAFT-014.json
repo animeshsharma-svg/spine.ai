@@ -4,25 +4,25 @@
   "title": "A saved eRFX draft: \"Terms & Conditions\" opens the \"Edit Terms & Conditions\" window",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:40:19.325Z",
+  "compiledAt": "2026-11-13T14:03:50.483Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Prove comprehensively that no event data changes until Upload, Cancel, or Done is pressed"
+   "Verify that nothing on the event changes until Upload, Cancel, or Done is pressed."
   ],
   "warnings": [
-   "can only test part of this — no step for: Prove comprehensively that no event data changes until Upload, Cancel, or Done is pressed"
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Verify that nothing on the event changes until Upload, Cancel, or Done is pressed."
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 12,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "save_draft",
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_events_list",
    "filter_events",
    "open_first_event",
    "click",
@@ -31,66 +31,58 @@
    "expect_visible",
    "expect_visible"
   ],
-  "ms": 13067
+  "ms": 9941
  },
  "plan": {
-  "title": "Saved eRFX Draft Terms Window",
+  "title": "Draft Terms & Conditions window",
   "steps": [
-   {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Start an eRFX draft creation flow."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "EXP-DRAFT-014 Terms Test"
-    },
-    "note": "Provide the required draft title."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply a template so the draft has a configured stage."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add a line item to make the draft representative and expose the Terms & Conditions control."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet before saving the draft."
-   },
-   {
-    "step": "save_draft",
-    "args": {},
-    "note": "Create the saved, unpublished eRFX draft required by the case."
-   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the events list to reopen the saved draft."
+    "note": "Open Events so the saved draft can be reached from the Drafts tab."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-addition setting."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage-addition setting."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify the events list rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show saved unpublished drafts."
+    "note": "Show saved drafts."
    },
    {
     "step": "open_first_event",
     "args": {
-     "tab": "Drafts",
-     "containing": "EXP-DRAFT-014 Terms Test"
+     "tab": "Drafts"
     },
-    "note": "Open the draft created by this plan."
+    "note": "Open the first saved draft; drafts reopen on their create screen."
    },
    {
     "step": "click",
@@ -98,14 +90,14 @@
      "role": "button",
      "name": "Terms & Conditions"
     },
-    "note": "Open the terms editor without submitting any changes."
+    "note": "Open the draft's Terms & Conditions editor."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Edit Terms & Conditions"
     },
-    "note": "Verify that the expected terms editing window opened."
+    "note": "Verify the expected editor window opened."
    },
    {
     "step": "expect_visible",
@@ -114,7 +106,7 @@
      "name": "Upload",
      "visible": true
     },
-    "note": "Verify the window provides an Upload action."
+    "note": "Verify the editor offers Upload."
    },
    {
     "step": "expect_visible",
@@ -123,7 +115,7 @@
      "name": "Cancel",
      "visible": true
     },
-    "note": "Verify the window provides a Cancel action."
+    "note": "Verify the editor offers Cancel."
    },
    {
     "step": "expect_visible",
@@ -132,7 +124,7 @@
      "name": "Done",
      "visible": true
     },
-    "note": "Verify the window provides a Done action."
+    "note": "Verify the editor offers Done."
    }
   ]
  }

@@ -4,65 +4,79 @@
   "title": "Reverse auction where every price drop needs approval",
   "group": "SRC-REV",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:11:49.392Z",
+  "compiledAt": "2026-11-13T12:41:36.528Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Vendor A price drop pending buyer approval flow",
-   "Buyer side approval of vendor's revised bid price",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "The prepared event is not a live reverse auction with the company setting that requires approval for every price decrease, so the exact pending-before-approval and rank-update behavior for that configuration cannot be independently asserted."
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "can only test part of this — no step for: The prepared event is not a live reverse auction with the company setting that requires approval for every price decrease, so the exact pending-before-approval and rank-update behavior for that configuration cannot be independently asserted."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "switch_portal",
    "vendor_open_event",
    "vendor_bid",
    "switch_portal",
-   "go_to"
+   "do_on_screen",
+   "expect_screen_clean"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 10563
+  "ms": 22372
  },
  "plan": {
-  "title": "Reverse auction price drop needing approval",
+  "title": "Reverse Auction Bid Revision Approval",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
-     "screen": "vendor"
+     "screen": "responses"
     },
-    "note": "Open vendor portal session"
+    "note": "Open the prepared event's buyer Responses screen as required for this state."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the separate Vendor A supplier-portal session while keeping the buyer session open."
    },
    {
     "step": "vendor_open_event",
-    "args": {},
-    "note": "Open the live reverse auction"
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the prepared live pricing round in the vendor portal."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 90
     },
-    "note": "Lower bid from 100 to 90"
+    "note": "Submit Vendor A's revised lower price of 90."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Switch back to buyer side"
+    "note": "Return to the buyer's Responses screen."
    },
    {
-    "step": "go_to",
+    "step": "do_on_screen",
     "args": {
-     "screen": "responses"
+     "goal": "on the buyer Responses screen, verify that Vendor A's revised price of 90 is pending approval, approve it with a remark, and stop when the screen shows the approved bid and updated ranking"
     },
-    "note": "Open Responses to view pending revised bid"
+    "note": "Perform the buyer-only approval workflow and observe the pending, approved, and ranking outcomes that have no dedicated catalog step."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the final buyer screen rendered without an error, crash, undefined value, or raw identifier."
    }
   ]
  }

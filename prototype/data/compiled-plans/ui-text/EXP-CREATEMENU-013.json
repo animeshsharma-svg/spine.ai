@@ -4,35 +4,65 @@
   "title": "Events list and the Create Event menu: \"Technical Offer RFP-23185 Withdrawn about 2h ago 1/38 SK\" opens the stage page",
   "group": "EXP-CREATEMENU",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:34:51.955Z",
+  "compiledAt": "2026-11-13T13:59:04.614Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_event",
-   "expect_url_contains"
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_navigated"
   ],
-  "ms": 6161
+  "ms": 9957
  },
  "plan": {
-  "title": "Open withdrawn technical event",
+  "title": "Open withdrawn technical offer stage page",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "Technical Offer RFP-23185 Withdrawn about 2h ago 1/38 SK"
     },
-    "note": "Open the specifically named withdrawn event from the events list."
+    "note": "Open the specifically named withdrawn event from the Events list."
    },
    {
-    "step": "expect_url_contains",
+    "step": "require_setting",
     "args": {
-     "text": "/project/"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Verify that navigation reached the event's project/stage page URL."
+    "note": "Ensure RFX project events are enabled for the configured test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "boq_in_erfx_allowed",
+     "value": "On"
+    },
+    "note": "Apply the case's required BOQ permission configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "scheduled_events_enabled",
+     "value": "On"
+    },
+    "note": "Apply the case's required scheduled-events configuration."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "stage"
+    },
+    "note": "Verify that the selected event opens a project stage page."
    }
   ]
  }

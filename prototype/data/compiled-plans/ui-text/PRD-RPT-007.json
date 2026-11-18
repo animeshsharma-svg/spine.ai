@@ -3,44 +3,34 @@
   "caseId": "PRD-RPT-007",
   "title": "QCS / Comparative Reports: refused for a user without the Buyer role",
   "group": "PRD-RPT",
-  "compiledAt": "2026-11-10T06:59:49.534Z",
+  "compiledAt": "2026-11-13T15:49:32.350Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and as a Buyer on the same tenant, then attempt QCS and comparative reports and compare refused or absent access with Buyer availability"
+   "Sign in as a user without the Buyer role and verify QCS/comparative reports are refused or absent, then repeat as a Buyer in the same tenant and verify the actions are available."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer on the same tenant, then attempt QCS and comparative reports and compare refused or absent access with Buyer availability"
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify QCS/comparative reports are refused or absent, then repeat as a Buyer in the same tenant and verify the actions are available."
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
-   "open_event",
-   "open_master_qcs",
+   "open_prepared",
+   "expect_visible",
    "ask_tester",
-   "expect_visible"
+   "expect_screen_clean"
   ],
-  "ms": 14179
+  "ms": 12116
  },
  "plan": {
-  "title": "QCS Report Role Permissions",
+  "title": "QCS report access by role",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open an existing event suitable for QCS/report access."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Reach the QCS screen that is the subject of the permission check."
-   },
-   {
-    "step": "ask_tester",
+    "step": "open_prepared",
     "args": {
-     "need": "sign in as a user without the Buyer role and as a Buyer on the same tenant, then attempt QCS and comparative reports and verify refusal or absence for the non-Buyer and availability for the Buyer"
+     "screen": "master_qcs"
     },
-    "note": "Role-specific sessions and comparative report attempts cannot be performed by the catalog."
+    "note": "Reach a prepared Master QCS screen that can serve as the closest available context for QCS/report actions."
    },
    {
     "step": "expect_visible",
@@ -49,7 +39,19 @@
      "name": "Download Report",
      "visible": true
     },
-    "note": "Assert the known report control is available in the Buyer comparison view after the tester completes the role comparison."
+    "note": "Confirm the prepared QCS screen exposes the known report control, without claiming this proves role-based access."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as a user without the Buyer role, attempt to obtain QCS and comparative reports, then repeat as a Buyer in the same tenant and compare whether the actions are refused, absent, or available"
+    },
+    "note": "The catalog cannot authenticate or compare users with different roles."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert the resulting screen remains observable and free of crashes after the tester's role-based comparison."
    }
   ]
  }

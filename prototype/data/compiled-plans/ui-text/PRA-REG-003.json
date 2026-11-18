@@ -4,62 +4,67 @@
   "title": "Other PR list actions still work",
   "group": "PRA-REG",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:06:28.077Z",
+  "compiledAt": "2026-11-13T14:29:43.635Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Successful execution and resulting state of the Add PO & Close action",
-   "Successful execution and resulting state of the short close action",
-   "Uploading PRs and validating the upload result",
-   "Downloading PRs and validating the downloaded file"
+   "Verify that Add PO & Close completes the correct purchase-order and PR state changes",
+   "Verify that short close completes the correct PR state changes",
+   "Verify the downloaded file's expected contents because the case does not specify a filename or required data"
   ],
   "warnings": [
-   "can only test part of this — no step for: Successful execution and resulting state of the Add PO & Close action; Successful execution and resulting state of the short close action; Uploading PRs and validating the upload result; Downloading PRs and validating the downloaded file"
+   "can only test part of this — no step for: Verify that Add PO & Close completes the correct purchase-order and PR state changes; Verify that short close completes the correct PR state changes; Verify the downloaded file's expected contents because the case does not specify a filename or required data"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 10,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
+   "expect_visible",
    "click",
    "expect_options",
+   "click",
    "expect_visible",
-   "expect_visible",
-   "purchase_items",
-   "expect_pr_items"
+   "click",
+   "expect_download"
   ],
-  "ms": 15579
+  "ms": 14018
  },
  "plan": {
-  "title": "PR list actions",
+  "title": "PR list actions regression",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen, the subject of the case."
+    "note": "Open Purchase Requisitions as the starting screen."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Verify the PR-1 source is on the Open tab."
+    "note": "Stay on the Open tab, where PR-1 is expected to be available."
    },
    {
     "step": "select_pr",
+    "args": {},
+    "note": "Select one open PR item and enable its row actions."
+   },
+   {
+    "step": "expect_visible",
     "args": {
-     "pr": "PR-1"
+     "text": "Purchase Items",
+     "visible": true
     },
-    "note": "Select the specified PR item so its actions become available."
+    "note": "Assert that Purchase Items is available for the selected PR."
    },
    {
     "step": "click",
     "args": {
-     "role": "button",
-     "name": "Actions"
+     "text": "Actions"
     },
-    "note": "Open the selected PR's actions menu."
+    "note": "Open the selected PR's Actions menu."
    },
    {
     "step": "expect_options",
@@ -69,7 +74,14 @@
       "Short Close"
      ]
     },
-    "note": "Assert that the two requested PR actions are offered."
+    "note": "Assert that the expected close actions are offered."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Upload PRs"
+    },
+    "note": "Invoke the PR upload control if it is available on the current PR list screen."
    },
    {
     "step": "expect_visible",
@@ -77,25 +89,19 @@
      "text": "Upload PRs",
      "visible": true
     },
-    "note": "Check that the PR upload control is visible on the list screen."
+    "note": "Assert that the upload control is present on the PR list."
    },
    {
-    "step": "expect_visible",
+    "step": "click",
     "args": {
-     "text": "Download",
-     "visible": true
+     "text": "Download"
     },
-    "note": "Check that a download control is visible on the list screen."
+    "note": "Invoke the PR list download control."
    },
    {
-    "step": "purchase_items",
+    "step": "expect_download",
     "args": {},
-    "note": "Use Purchase Items for the selected PR."
-   },
-   {
-    "step": "expect_pr_items",
-    "args": {},
-    "note": "Assert that the resulting event create screen contains the selected PR's items."
+    "note": "Assert that a download occurred, without assuming an unspecified filename or contents."
    }
   ]
  }

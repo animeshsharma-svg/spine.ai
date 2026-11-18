@@ -4,52 +4,58 @@
   "title": "Submit the proposal with \"Supply / Service Scope\" empty",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:24:16.358Z",
+  "compiledAt": "2026-11-13T11:43:22.511Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Fill every required field except Supply / Service Scope on the proposal form"
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Fill every required field except Supply / Service Scope on the proposal form"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 6,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
    "start_awarding",
    "allocate_award",
+   "expect_award_counters",
    "click",
-   "click",
+   "expect_navigated",
+   "do_on_screen",
    "expect_field_error"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 50544
+  "ms": 14292
  },
  "plan": {
-  "title": "Submit proposal with Supply Service Scope empty",
+  "title": "SRC-AWD-052 — Proposal scope required",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS on the closed RFQ prepared state"
+    "note": "Open the prepared closed RFQ directly on Master QCS."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Start awarding to proceed to proposal creation"
+    "note": "Enter the award allocation flow for the closed event."
    },
    {
     "step": "allocate_award",
     "args": {
-     "vendor": 2,
-     "quantity": 10,
-     "line": 1
+     "vendor": "Vendor B",
+     "quantity": 10
     },
-    "note": "Allocate line to Vendor B"
+    "note": "Allocate all 10 requested units to Vendor B as required by the case."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "1/2",
+     "proposal": 900
+    },
+    "note": "Verify that one line is selected, one of the two bidding vendors is awarded, and the proposal value is 10 × 90."
    },
    {
     "step": "click",
@@ -57,23 +63,29 @@
      "role": "button",
      "name": "Create Proposal"
     },
-    "note": "Open the proposal form"
+    "note": "Open the proposal form after allocating the award."
    },
    {
-    "step": "click",
+    "step": "expect_navigated",
     "args": {
-     "role": "button",
-     "name": "Submit Proposal"
+     "screen": "proposal"
     },
-    "note": "Try submitting the proposal with Supply / Service Scope empty"
+    "note": "Confirm that the proposal page opened."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the buyer's proposal form, fill every required field except Supply / Service Scope, leave Supply / Service Scope empty, click Submit Proposal, and stop when the form shows the required-field validation for Supply / Service Scope."
+    },
+    "note": "Complete the proposal while deliberately leaving the target required field blank, then submit it."
    },
    {
     "step": "expect_field_error",
     "args": {
      "field": "Supply / Service Scope",
-     "message": "is a required field"
+     "message": "required"
     },
-    "note": "Assert that Supply / Service Scope is reported as required"
+    "note": "Assert that the empty Supply / Service Scope field is highlighted with a required-field error."
    }
   ]
  }

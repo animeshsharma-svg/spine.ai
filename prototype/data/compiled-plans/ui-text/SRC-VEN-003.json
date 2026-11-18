@@ -4,59 +4,75 @@
   "title": "Vendor view when live, already bid",
   "group": "SRC-VEN",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:22:25.594Z",
+  "compiledAt": "2026-11-13T13:14:12.269Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the vendor's exact rank if shown by the company (depends on tenant config for ranking visibility)"
+   "The vendor's revision count cannot be asserted with a dedicated catalog step.",
+   "Whether the company displays the vendor's rank conditionally cannot be determined without a conditional assertion or a known rank control label."
   ],
   "warnings": [
-   "added open_prepared(responses) — the API built this case's state",
-   "can only test part of this — no step for: Verify the vendor's exact rank if shown by the company (depends on tenant config for ranking visibility)"
+   "can only test part of this — no step for: The vendor's revision count cannot be asserted with a dedicated catalog step.; Whether the company displays the vendor's rank conditionally cannot be determined without a conditional assertion or a known rank control label."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
-   "expect_text"
+   "expect_api_value",
+   "expect_visible",
+   "expect_screen_clean"
   ],
   "state": "two_bids",
   "screen": "responses",
-  "ms": 14365
+  "ms": 15531
  },
  "plan": {
-  "title": "SRC-VEN-003 — Vendor view when live, already bid",
+  "title": "SRC-VEN-003 Vendor live bid view",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared RFQ with two bids while preserving the buyer session."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Sign into the supplier portal as the vendor"
+    "note": "Switch to Vendor A's separate supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the RFQ event on the vendor portal"
+    "note": "Open the prepared RFQ's pricing round in the vendor portal."
    },
    {
-    "step": "expect_text",
+    "step": "expect_api_value",
     "args": {
-     "text": "Submitted",
-     "present": true
+     "key": "bidPrice"
     },
-    "note": "Assert the vendor sees their submitted bid state"
+    "note": "Assert that Vendor A's current bid is shown in the vendor view."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Edit",
+     "visible": true
+    },
+    "note": "Check for the vendor's edit/revise control, using the closest generic assertion for this unconfirmed label."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the vendor screen rendered without errors or malformed data."
    }
   ]
  }

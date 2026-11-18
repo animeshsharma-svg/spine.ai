@@ -4,42 +4,54 @@
   "title": "Prepare the categories and subcategories used in all cases",
   "group": "PRA-SET",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:06:20.434Z",
+  "compiledAt": "2026-11-13T14:29:48.212Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in as the admin user",
-   "Open the category/product master",
-   "Create or verify FOOD STORE with FRUITS and SEA FOOD",
-   "Create or verify ENGG STORE with TOOLS",
-   "Create or verify GENERAL STORE",
-   "Verify that each category and subcategory has at least one active product"
+   "Signing in as the admin user without an available admin credential"
   ],
   "warnings": [
-   "can only test part of this — no step for: Log in as the admin user; Open the category/product master; Create or verify FOOD STORE with FRUITS and SEA FOOD; Create or verify ENGG STORE with TOOLS; Create or verify GENERAL STORE; Verify that each category and subcategory has at least one active product"
+   "can only test part of this — no step for: Signing in as the admin user without an available admin credential"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "require_setting",
    "ask_tester",
+   "do_on_screen",
    "expect_screen_clean"
   ],
-  "ms": 7845
+  "ms": 13202
  },
  "plan": {
-  "title": "Prepare category and product master data",
+  "title": "Prepare category master data",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team-category filtering configuration before setup."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the admin, open the category/product master, and create or verify the specified categories, subcategories, and at least one active product for each"
+     "need": "sign in as the admin user of the test company"
     },
-    "note": "No catalog step can perform or observe category and product master-data setup."
+    "note": "The catalog cannot authenticate as another user without the admin credential."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "open the category and product master, ensure FOOD STORE has FRUITS and SEA FOOD subcategories, ensure ENGG STORE has TOOLS, ensure GENERAL STORE exists, and ensure each category and subcategory has at least one active product; stop on the master screen showing the configured categories, subcategories, and active products"
+    },
+    "note": "Perform and verify the category, subcategory, and active-product setup in the buyer portal."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Final assertion required by the catalog, but it only checks that the resulting screen has no visible errors and does not establish the requested master-data state."
+    "note": "Confirm the final master-data screen has no visible errors or unresolved rendering issues."
    }
   ]
  }

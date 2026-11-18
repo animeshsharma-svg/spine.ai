@@ -4,42 +4,64 @@
   "title": "Reviewing with an outside address bounces back the same way",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:01.485Z",
+  "compiledAt": "2026-11-13T14:19:15.685Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Log in to Asha's mailbox and open the Procol approval email",
-   "Click Review, add the external recipient and comment, and send without changing the subject",
-   "Wait for Procol to process the mailbox message",
-   "Verify that no review was created in the approval workflow"
+   "Connect or verify the company's approval mailbox and two-step email approval workflow",
+   "Sign in to Asha's mailbox and open the Procol approval request",
+   "Click Review, enter the comment and outsider.qa@gmail.com as the recipient, and send without changing the subject",
+   "Wait for Procol to process the mailbox reply",
+   "Observe the bounce-back message stating that the outside address is not part of the organisation on Procol",
+   "Verify that no review is created as a result of the email"
   ],
   "warnings": [
-   "can only test part of this — no step for: Log in to Asha's mailbox and open the Procol approval email; Click Review, add the external recipient and comment, and send without changing the subject; Wait for Procol to process the mailbox message; Verify that no review was created in the approval workflow"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Connect or verify the company's approval mailbox and two-step email approval workflow; Sign in to Asha's mailbox and open the Procol approval request; Click Review, enter the comment and outsider.qa@gmail.com as the recipient, and send without changing the subject; Wait for Procol to process the mailbox reply; Observe the bounce-back message stating that the outside address is not part of the organisation on Procol; Verify that no review is created as a result of the email"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "open_event",
+   "require_setting",
    "ask_tester",
    "expect_text"
   ],
-  "ms": 12355
+  "ms": 13535
  },
  "plan": {
-  "title": "External email review bounce-back",
+  "title": "EMA-CON-002 External Review Bounce-Back",
   "steps": [
+   {
+    "step": "open_event",
+    "args": {
+     "title": "QA Email Approval - Office Chairs Nov"
+    },
+    "note": "Open the existing event that was sent for approval."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the email-approval configuration required by the case."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "log in to Asha's mailbox, open the Procol approval request, click Review, enter a comment and outsider.qa@gmail.com as the recipient without changing the subject, send it, wait for Procol to process the mailbox, and leave the bounce-back visible"
+     "need": "access Asha's mailbox, open the Procol approval email, send the review with outsider.qa@gmail.com as the recipient, wait for processing, and verify the external-recipient bounce-back and that no review is created"
     },
-    "note": "The catalog has no mailbox or email-sending workflow, so the tester must perform the external-recipient review flow."
+    "note": "Mailbox access and email review processing are not available through the catalog."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "We could not send your review because outsider.qa@gmail.com is not part of your organisation on Procol"
+     "text": "Overview",
+     "present": true
     },
-    "note": "Assert the expected bounce-back message is visible after the tester completes the email flow."
+    "note": "Confirm the buyer event page remains available after the tester's mailbox action; this does not assert the email bounce itself."
    }
   ]
  }

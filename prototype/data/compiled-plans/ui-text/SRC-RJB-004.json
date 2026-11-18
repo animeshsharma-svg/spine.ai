@@ -4,55 +4,56 @@
   "title": "Reject the vendor's own bid without \"Allow seller to bid again\"",
   "group": "SRC-RJB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:12:26.572Z",
+  "compiledAt": "2026-11-13T12:42:14.470Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The RFQ being in evaluation rather than the prepared closed-two-bid state",
-   "Directly assert that Allow seller to bid again remains unticked in the rejection dialog",
-   "Verify Vendor A can never bid again after extending the event time",
-   "Verify the bid cannot be awarded through an award attempt"
+   "Prove Vendor A can never submit another bid after the event is extended, because the catalog cannot both extend this prepared closed/evaluation state and attempt a future rebid from the rejected vendor."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "resolved: “Verify Vendor A's supplier portal view shows the rejection reason” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "can only test part of this — no step for: The RFQ being in evaluation rather than the prepared closed-two-bid state; Directly assert that Allow seller to bid again remains unticked in the rejection dialog; Verify Vendor A can never bid again after extending the event time; Verify the bid cannot be awarded through an award attempt"
+   "can only test part of this — no step for: Prove Vendor A can never submit another bid after the event is extended, because the catalog cannot both extend this prepared closed/evaluation state and attempt a future rebid from the rejected vendor."
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 22,
   "stepNames": [
    "open_prepared",
    "require_setting",
+   "expect_api_value",
    "click",
+   "expect_visible",
    "expect_text",
    "fill",
+   "expect_value",
+   "toggle",
    "expect_text",
    "click",
    "expect_toast",
    "expect_text",
-   "event_menu",
-   "expect_text",
-   "go_to",
+   "open_master_qcs",
    "expect_qcs_vendors",
    "expect_qcs_ranks",
+   "event_menu",
+   "expect_text",
    "switch_portal",
    "vendor_open_event",
+   "expect_text",
    "expect_text"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 22426
+  "ms": 29751
  },
  "plan": {
-  "title": "Reject Bid Without Rebid Permission",
+  "title": "Reject Vendor Bid Without Rebid Permission",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ Responses screen with Vendor A and Vendor B bids."
+    "note": "Open the prepared RFQ's buyer Responses tab, which is the required starting screen."
    },
    {
     "step": "require_setting",
@@ -60,7 +61,15 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project configuration for the case."
+    "note": "Enable the required eRFX project configuration before accessing the prepared RFQ."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName",
+     "within": "Responses"
+    },
+    "note": "Confirm the response view identifies Vendor A as the vendor whose bid will be rejected."
    },
    {
     "step": "click",
@@ -69,14 +78,23 @@
      "name": "Reject",
      "within": "Vendor A"
     },
-    "note": "Open the rejection dialog for Vendor A's bid."
+    "note": "Open the reject-bid dialog for Vendor A's bid."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "visible": true
+    },
+    "note": "Verify that the rejection dialog opened."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Are you sure you want to reject this bid by Vendor A"
+     "text": "Are you sure you want to reject this bid by Vendor A",
+     "present": true
     },
-    "note": "Confirm the dialog targets Vendor A's bid."
+    "note": "Verify the dialog names Vendor A and asks for rejection confirmation."
    },
    {
     "step": "fill",
@@ -87,11 +105,28 @@
     "note": "Enter the required rejection remark."
    },
    {
+    "step": "expect_value",
+    "args": {
+     "label": "Reason for rejecting bid",
+     "value": "Price not valid — QA"
+    },
+    "note": "Confirm the exact rejection reason is present in the dialog."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Allow seller to bid again",
+     "on": false
+    },
+    "note": "Leave rebidding permission disabled for Vendor A."
+   },
+   {
     "step": "expect_text",
     "args": {
-     "text": "Supplier would not be allowed to bid again. This action cannot be undone."
+     "text": "Supplier would not be allowed to bid again. This action cannot be undone.",
+     "present": true
     },
-    "note": "Verify the dialog warns that rebidding will be blocked when the option is left unticked."
+    "note": "Verify the warning for blocking the supplier from bidding again."
    },
    {
     "step": "click",
@@ -100,7 +135,7 @@
      "name": "Reject Bid",
      "within": "dialog"
     },
-    "note": "Confirm the rejection without enabling seller rebidding."
+    "note": "Confirm the rejection."
    },
    {
     "step": "expect_toast",
@@ -108,36 +143,20 @@
      "kind": "success",
      "text": "You have blocked the supplier from bidding again."
     },
-    "note": "Verify Procol confirms the supplier was blocked from bidding again."
+    "note": "Verify Procol confirms that Vendor A was blocked from rebidding."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Price not valid — QA"
+     "text": "Price not valid — QA",
+     "present": true
     },
-    "note": "Verify the rejection reason is visible after the rejection."
+    "note": "Verify the rejected response shows the saved reason on the buyer's screen."
    },
    {
-    "step": "event_menu",
-    "args": {
-     "item": "Rejected Bids",
-     "stage": "rfq"
-    },
-    "note": "Open the RFQ's Rejected Bids view."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Rejection Remark: Price not valid — QA"
-    },
-    "note": "Verify the rejected-bid record contains the submitted remark."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "master_qcs"
-    },
-    "note": "Navigate to Master QCS to inspect the post-rejection comparison."
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the comparison grid to verify Vendor A is removed from ranking and award consideration."
    },
    {
     "step": "expect_qcs_vendors",
@@ -148,14 +167,31 @@
      ],
      "realNames": true
     },
-    "note": "Verify Vendor A has left the QCS and Vendor B is the remaining vendor column."
+    "note": "Verify only Vendor B remains as a ranked vendor in Master QCS."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "atLeast": 1
+     "atLeast": 1,
+     "order": "lowest"
     },
-    "note": "Verify the remaining vendor's ranking is still present after Vendor A's rejection."
+    "note": "Verify the remaining Vendor B bid is ranked as the best available bid."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Rejected Bids",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage's Rejected Bids view."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejection Remark: Price not valid — QA",
+     "present": true
+    },
+    "note": "Verify the Rejected Bids list records the exact rejection remark."
    },
    {
     "step": "switch_portal",
@@ -163,21 +199,30 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Switch to Vendor A's supplier portal to inspect the vendor-side result."
+    "note": "Switch to Vendor A's supplier portal view."
    },
    {
     "step": "vendor_open_event",
     "args": {
-     "overview": true
+     "stage": "pricing"
     },
-    "note": "Open the prepared event overview as Vendor A."
+    "note": "Open the rejected RFQ in Vendor A's pricing view."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "rejected"
+     "text": "Price not valid — QA",
+     "present": true
     },
-    "note": "Check that Vendor A's portal indicates the bid was rejected."
+    "note": "Verify Vendor A can see the rejection reason in the supplier portal."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Rejected",
+     "present": true
+    },
+    "note": "Verify the vendor portal marks Vendor A's bid as rejected."
    }
   ]
  }

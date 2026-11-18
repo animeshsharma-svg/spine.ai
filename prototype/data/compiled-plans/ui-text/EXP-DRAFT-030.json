@@ -4,7 +4,7 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"Participants\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:44:16.526Z",
+  "compiledAt": "2026-11-13T14:05:22.753Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -13,7 +13,7 @@
    "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 17,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -24,25 +24,26 @@
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_schedule",
    "save_draft",
    "expect_no_error",
    "open_events_list",
    "filter_events",
    "expect_event_in_list",
-   "open_event",
+   "open_first_event",
    "expect_visible"
   ],
-  "ms": 11691
+  "ms": 15912
  },
  "plan": {
-  "title": "EXP-DRAFT-030 Participants hidden on saved eRFX draft",
+  "title": "EXP-DRAFT-030 Participants Hidden in Draft",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project creation screen."
+    "note": "Open the eRFX creation screen."
    },
    {
     "step": "require_setting",
@@ -50,7 +51,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation for the test tenant."
+    "note": "Enable eRFX project creation for the draft."
    },
    {
     "step": "require_setting",
@@ -58,7 +59,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Apply the configuration under test so vendor addition is locked during event creation."
+    "note": "Set the condition under test so vendor addition is locked during event creation."
    },
    {
     "step": "require_setting",
@@ -66,14 +67,14 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the requested tenant configuration before creating the draft."
+    "note": "Apply the additional configuration specified for this scenario."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "EXP-DRAFT-030 Participants Hidden"
+     "title": "EXP-DRAFT-030 Participants Lock Off"
     },
-    "note": "Provide the mandatory title for the draft."
+    "note": "Give the draft a searchable title."
    },
    {
     "step": "compose_stages",
@@ -82,56 +83,68 @@
       "rfq"
      ]
     },
-    "note": "Configure the draft as an eRFX project with an RFQ stage."
+    "note": "Create an eRFX draft with an RFQ stage rather than the default auction stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the draft can be saved."
+    "note": "Apply a pricing template required for the draft setup."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the minimum line item needed for a valid saved draft."
+    "note": "Add a line item so the draft has a valid pricing configuration."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet before saving."
+    "note": "Complete the pricing sheet before saving the draft."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule so the draft setup is complete."
    },
    {
     "step": "save_draft",
     "args": {},
-    "note": "Save the eRFX project as an unpublished draft."
+    "note": "Save the configured eRFX as an unpublished draft."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the draft save completed without an application error."
+    "note": "Confirm the draft save did not produce an application error."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the Events list to access the saved draft through the requested flow."
+    "note": "Navigate to the events list to reopen the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab."
+    "note": "Show saved drafts."
    },
    {
     "step": "expect_event_in_list",
-    "args": {},
-    "note": "Verify that the draft created by this plan appears in Drafts."
+    "args": {
+     "title": "EXP-DRAFT-030 Participants Lock Off"
+    },
+    "note": "Confirm the created draft is present in the Drafts tab."
    },
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open the plan's saved draft from the Drafts list."
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-030 Participants Lock Off"
+    },
+    "note": "Open the draft under test from the Drafts list."
    },
    {
     "step": "expect_visible",
@@ -140,7 +153,7 @@
      "name": "Participants",
      "visible": false
     },
-    "note": "Assert that Participants is not offered on the reopened eRFX draft when vendor addition is locked off."
+    "note": "Assert that Participants is not offered on the reopened draft when vendor addition is locked off."
    }
   ]
  }

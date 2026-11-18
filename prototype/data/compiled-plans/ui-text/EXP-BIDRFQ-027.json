@@ -4,18 +4,20 @@
   "title": "A live RFQ with a vendor's bid: \"Are you sure you want to create a new version?\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:39:31.802Z",
+  "compiledAt": "2026-11-13T13:47:32.852Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "A direct before-and-after comparison of the event status and bidding times after cancellation is not available on the prepared Responses screen.",
+   "A direct before-and-after comparison of the bid's exact vendor identity and bid value is not available; the plan verifies the response remains present after cancellation."
+  ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "resolved: “Exact event status and bidding times remain unchanged after cancellation” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API",
-   "resolved: “The specific vendor identity remains unchanged because the prepared vendor name is not supplied” — remember + expect_remembered compare a value across elements, screens or portals (as numbers with as/delta); expect_api_value compares with the API"
+   "can only test part of this — no step for: A direct before-and-after comparison of the event status and bidding times after cancellation is not available on the prepared Responses screen.; A direct before-and-after comparison of the bid's exact vendor identity and bid value is not available; the plan verifies the response remains present after cancellation."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 13,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -24,29 +26,26 @@
    "require_setting",
    "require_setting",
    "expect_responses",
-   "expect_api_value",
    "click",
    "expect_visible",
-   "expect_text",
    "click",
    "expect_visible",
-   "expect_responses",
-   "expect_api_value",
-   "expect_screen_clean"
+   "expect_navigated",
+   "expect_responses"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 14174
+  "ms": 21884
  },
  "plan": {
-  "title": "Cancel Create New Version",
+  "title": "Cancel Create New Version Confirmation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses screen with one vendor bid."
+    "note": "Open the prepared live RFQ Responses tab with one vendor bid; this must be the first event navigation step."
    },
    {
     "step": "require_setting",
@@ -54,7 +53,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX projects as required for the RFQ scenario."
    },
    {
     "step": "require_setting",
@@ -62,7 +61,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Keep RFQ counter offers visible as required."
+    "note": "Keep counter offers available on RFQs as required by the case configuration."
    },
    {
     "step": "require_setting",
@@ -70,7 +69,7 @@
      "key": "disable_reject_bid_in_bidding_time",
      "value": "Off"
     },
-    "note": "Apply the required bid-rejection configuration."
+    "note": "Use the required buyer bid-rejection configuration."
    },
    {
     "step": "require_setting",
@@ -78,7 +77,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Apply the required buyer bid-edit configuration."
+    "note": "Use the required buyer bid-editing configuration."
    },
    {
     "step": "require_setting",
@@ -86,21 +85,14 @@
      "key": "is_counter_offer_percent_bid_allowed",
      "value": "On"
     },
-    "note": "Apply the required percentage counter-offer configuration."
+    "note": "Use the required percentage counter-offer configuration."
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 1
     },
-    "note": "Record that the existing vendor response is present before the versioning attempt."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "bidPrice"
-    },
-    "note": "Record the existing bid price before opening the confirmation."
+    "note": "Establish that the vendor's bid response is present before opening the version confirmation."
    },
    {
     "step": "click",
@@ -108,24 +100,16 @@
      "role": "button",
      "name": "Create New Version"
     },
-    "note": "Open the new-version confirmation window."
+    "note": "Open the Create New Version confirmation without confirming the version creation."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
+     "name": "Are you sure you want to create a new version?",
      "visible": true
     },
-    "note": "Verify that the confirmation window opened."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Are you sure you want to create a new version?",
-     "present": true,
-     "within": "dialog"
-    },
-    "note": "Verify the confirmation message shown to the buyer."
+    "note": "Verify that the expected confirmation window opened."
    },
    {
     "step": "click",
@@ -134,34 +118,30 @@
      "name": "Cancel",
      "within": "dialog"
     },
-    "note": "Cancel version creation without confirming."
+    "note": "Cancel version creation as required by the scenario."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "dialog",
+     "name": "Are you sure you want to create a new version?",
      "visible": false
     },
-    "note": "Verify that the confirmation window closed."
+    "note": "Verify that the confirmation window closes after Cancel."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Verify that cancellation leaves the buyer on the existing Responses screen."
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 1
     },
-    "note": "Verify that the existing response remains after cancellation."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "bidPrice"
-    },
-    "note": "Verify that the existing bid remains after cancellation."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the Responses screen remains healthy with no error or crash."
+    "note": "Verify that the existing vendor response remains after cancellation, indicating no bid was removed or replaced."
    }
   ]
  }

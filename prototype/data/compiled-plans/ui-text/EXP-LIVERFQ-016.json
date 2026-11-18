@@ -4,96 +4,139 @@
   "title": "A live RFQ: \"Extend Submission Time\" opens the \"Increase Event Time\" window",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:45:42.642Z",
+  "compiledAt": "2026-11-13T14:12:01.808Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 9,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
-   "click",
-   "expect_visible",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
+   "event_menu",
    "expect_text",
-   "expect_text",
-   "expect_text",
+   "expect_options",
    "expect_visible",
    "expect_visible"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 18528
+  "ms": 17947
  },
  "plan": {
-  "title": "Live RFQ Extend Submission Time window opens",
+  "title": "Live RFQ Extend Submission Time Window",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Start on the prepared live RFQ event summary"
+    "note": "Open the prepared live RFQ without creating or searching for another event."
    },
    {
-    "step": "open_event_settings",
-    "args": {},
-    "note": "Open the event Settings gear menu"
-   },
-   {
-    "step": "click",
+    "step": "require_setting",
     "args": {
-     "role": "menuitem",
-     "name": "Extend Submission Time"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Click Extend Submission Time in the settings menu"
+    "note": "Enable eRFX projects as required for the live RFQ."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the requested tenant configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Apply the requested live-event withdrawal configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the requested vendor-masking configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage named in the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab where the Settings action is available."
+   },
+   {
+    "step": "event_menu",
+    "args": {
+     "item": "Extend Submission Time",
+     "stage": "rfq"
+    },
+    "note": "Open the Increase Event Time window without confirming a time change."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Increase Event Time"
+    },
+    "note": "Verify that the expected time-extension window opened."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "options": [
+      "15 minutes",
+      "30 minutes",
+      "an hour",
+      "Custom",
+      "Fixed time"
+     ],
+     "within": "dialog"
+    },
+    "note": "Verify all required preset and custom time options are offered."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Increase Event Time",
+     "role": "button",
+     "name": "Cancel",
+     "within": "dialog",
      "visible": true
     },
-    "note": "Assert the Increase Event Time window opened"
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "15 minutes"
-    },
-    "note": "Assert preset 15 minutes is shown"
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "30 minutes"
-    },
-    "note": "Assert preset 30 minutes is shown"
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "an hour"
-    },
-    "note": "Assert preset an hour is shown"
+    "note": "Verify the dialog provides a Cancel button."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
-     "name": "Cancel"
+     "name": "Ok",
+     "within": "dialog",
+     "visible": true
     },
-    "note": "Assert Cancel button is present"
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Ok"
-    },
-    "note": "Assert Ok button is present"
+    "note": "Verify the dialog provides an Ok button while no confirmation has been made."
    }
   ]
  }

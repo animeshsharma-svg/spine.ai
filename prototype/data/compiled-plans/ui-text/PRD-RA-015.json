@@ -3,109 +3,56 @@
   "caseId": "PRD-RA-015",
   "title": "Dynamic Time Extension: refused for a user without the Buyer role",
   "group": "PRD-RA",
-  "compiledAt": "2026-11-10T01:37:11.475Z",
+  "compiledAt": "2026-11-13T14:57:49.623Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure or inspect Dynamic Time Extension, including its last-moment bid auto-extension settings",
-   "Sign in as a user without the Buyer role and repeat as a Buyer on the same tenant to compare availability"
+   "Sign in as a user without the Buyer role and repeat as a Buyer on the same Growth tenant",
+   "Configure and execute Dynamic Time Extension for an auction, including its last-moment bid auto-extension behavior",
+   "Verify whether the action is refused or absent for the non-Buyer and available to the Buyer",
+   "Verify the tenant's Growth plan and record whether RBAC intentionally grants the capability to additional roles"
   ],
   "warnings": [
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "added set_title — publishing without a title is refused",
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "can only test part of this — no step for: Configure or inspect Dynamic Time Extension, including its last-moment bid auto-extension settings; Sign in as a user without the Buyer role and repeat as a Buyer on the same tenant to compare availability"
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and repeat as a Buyer on the same Growth tenant; Configure and execute Dynamic Time Extension for an auction, including its last-moment bid auto-extension behavior; Verify whether the action is refused or absent for the non-Buyer and available to the Buyer; Verify the tenant's Growth plan and record whether RBAC intentionally grants the capability to additional roles"
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 4,
   "stepNames": [
    "open_create",
    "set_title",
-   "configure_single_stage",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
    "ask_tester",
    "expect_no_error"
   ],
-  "ms": 10131
+  "ms": 19618
  },
  "plan": {
-  "title": "Dynamic Time Extension RBAC",
+  "title": "Dynamic Time Extension Role Access",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Reach the single-stage auction creation flow as the closest available auction context."
+    "note": "Reach the auction creation screen as the closest available setup for the requested auction capability."
    },
    {
-    "step": "set_title",
-    "args": {
-     "title": "Dynamic Time Extension RBAC Test"
-    },
-    "note": "Provide the mandatory event title for the auction setup."
-   },
-   {
-    "step": "configure_single_stage",
-    "args": {
-     "eventType": "auction"
-    },
-    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
-   },
-   {
-    "step": "select_template",
-    "note": "Apply the auction pricing template required before adding line items."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the minimum auction line item required for a valid setup."
-   },
-   {
-    "step": "fill_sheet",
-    "note": "Complete the auction pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a short auction schedule so a live auction context can be reached."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the minimum participant required to publish the auction."
-   },
-   {
-    "step": "publish",
-    "note": "Publish the auction to provide the closest available live context for dynamic extension testing."
-   },
-   {
-    "step": "expect_published",
-    "note": "Confirm the auction reached a real published event page before the tester performs the role-specific checks."
+    "step": "set_title"
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Buyer user and verify Dynamic Time Extension is refused or absent, then sign in as a Buyer on the same tenant and verify the action is available"
+     "need": "sign in as the non-Buyer and Buyer users on the same Growth tenant, attempt Dynamic Time Extension for an auction with last-moment bid auto-extension, and report whether the action is absent or refused for the non-Buyer and available to the Buyer"
     },
-    "note": "The catalog cannot configure Dynamic Time Extension or authenticate as the two required role personas."
+    "note": "Role-specific sign-in and Dynamic Time Extension configuration are not expressible by catalog steps."
    },
    {
     "step": "expect_no_error",
-    "note": "Confirm the application remains stable after the tester's role-specific investigation."
+    "args": {},
+    "note": "Assert that the reachable auction setup remains free of an application error after the tester's role comparison."
    }
   ]
  }

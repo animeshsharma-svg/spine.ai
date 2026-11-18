@@ -4,53 +4,76 @@
   "title": "The Assign list is asked for only the ticked items",
   "group": "PRA-EXT",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:02:01.913Z",
+  "compiledAt": "2026-11-13T14:25:55.345Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Selecting the individual DGOLF-4081 item checkbox rather than the PR row",
-   "Clicking the PR item's Assign action",
-   "Inspecting the users-search request to verify that it names the ticked item"
+   "Inspect the users search request and verify that it names the ticked DGOLF-4081 item."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Selecting the individual DGOLF-4081 item checkbox rather than the PR row; Clicking the PR item's Assign action; Inspecting the users-search request to verify that it names the ticked item"
+   "can only test part of this — no step for: Inspect the users search request and verify that it names the ticked DGOLF-4081 item."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 7,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
-   "expect_no_error"
+   "do_on_screen",
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 72893
+  "ms": 16799
  },
  "plan": {
-  "title": "PR Assign Request Selection",
+  "title": "Assign Request Uses Ticked PR Item",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team-filtering configuration before accessing PRs."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen."
+    "note": "Open the Purchase Requisitions screen required for this PR-based case."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Use the Open tab, where PR items can be acted on."
+    "note": "Only open PRs can be selected for the assignment flow."
    },
    {
     "step": "select_pr",
     "args": {
      "pr": "DGOLF-4081"
     },
-    "note": "Closest available selection step for the named PR/item."
+    "note": "Tick the case's named PR/item so the Assign action carries the intended selection."
    },
    {
-    "step": "expect_no_error",
+    "step": "do_on_screen",
+    "args": {
+     "goal": "click Assign for the selected DGOLF-4081 item and stop when the users search screen or assignment control is open"
+    },
+    "note": "Exercise the Assign flow for the selected item; the resulting network request still requires manual inspection."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "inspect the users search request and verify that it names only the ticked DGOLF-4081 item"
+    },
+    "note": "The request's payload is the case subject, which no catalog assertion can observe here."
+   },
+   {
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the available PR selection flow did not show an application error."
+    "note": "End with a screen assertion after the manual network inspection step."
    }
   ]
  }

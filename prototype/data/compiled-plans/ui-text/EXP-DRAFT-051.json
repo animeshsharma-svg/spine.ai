@@ -4,52 +4,86 @@
   "title": "Manage Line Items: Save fails when Quantity is negative",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:45:16.322Z",
+  "compiledAt": "2026-11-13T14:07:22.934Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The catalog cannot guarantee that the first draft opened is specifically a saved eRFX draft rather than another draft type."
+  ],
+  "warnings": [
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: The catalog cannot guarantee that the first draft opened is specifically a saved eRFX draft rather than another draft type."
+  ],
   "source": "llm",
-  "steps": 9,
+  "steps": 13,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
    "click",
+   "do_on_screen",
    "fill",
    "fill",
-   "attempt",
+   "click",
    "expect_error"
   ],
-  "ms": 13652
+  "ms": 22361
  },
  "plan": {
-  "title": "Reject Negative Quantity in Draft Items",
+  "title": "Negative Quantity Draft Save",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list so the saved draft can be reached from the Drafts tab."
+    "note": "Open the Events list to reach the saved drafts."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-addition configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage configuration."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered before navigating to drafts."
+    "note": "Confirm the Events list rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the saved eRFX drafts."
+    "note": "Show saved draft events."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first saved draft; the draft reopens on its create screen."
+    "note": "Open the first available draft, since no draft title is provided."
    },
    {
     "step": "click",
@@ -57,44 +91,45 @@
      "role": "button",
      "name": "Items 1"
     },
-    "note": "Open the Manage Line Items window for the draft's existing item."
+    "note": "Open the Manage Line Items window for the existing item."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "select a product from the product dropdown in the Manage Line Items window and leave the selected product visible"
+    },
+    "note": "The case requires selecting a product but does not identify which product; this action lets the buyer complete that unspecified on-screen choice."
    },
    {
     "step": "fill",
     "args": {
      "label": "Quantity",
-     "value": "-5",
-     "within": "Manage Line Items"
+     "value": "-5"
     },
-    "note": "Enter the invalid negative quantity specified by the case."
+    "note": "Enter the invalid negative quantity from the case."
    },
    {
     "step": "fill",
     "args": {
      "label": "Price",
-     "value": "1200",
-     "within": "Manage Line Items"
+     "value": "1200"
     },
-    "note": "Enter the specified price for the line item before attempting to save."
+    "note": "Enter the requested price before attempting to save."
    },
    {
-    "step": "attempt",
+    "step": "click",
     "args": {
-     "step": "click",
-     "args": {
-      "role": "button",
-      "name": "Save",
-      "within": "Manage Line Items"
-     }
+     "role": "button",
+     "name": "Save"
     },
-    "note": "Attempt to save the line item; the save must be refused because the quantity is negative."
+    "note": "Attempt to save the line item changes."
    },
    {
     "step": "expect_error",
     "args": {
-     "contains": "Please fill valid quantity"
+     "contains": "valid quantity"
     },
-    "note": "Assert that Procol reports the quantity validation error."
+    "note": "Assert that saving is refused with the quantity validation error."
    }
   ]
  }

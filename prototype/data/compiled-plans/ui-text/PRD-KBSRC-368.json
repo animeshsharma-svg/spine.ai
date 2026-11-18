@@ -3,32 +3,38 @@
   "caseId": "PRD-KBSRC-368",
   "title": "Re-open closed line items with a new duration",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:18:00.373Z",
+  "compiledAt": "2026-11-13T14:41:39.194Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the selected line items become active for bidding again with the newly entered duration.",
+   "Verify the backend-applied duration for each reopened line item."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Assert that the selected line items become active for bidding again with the newly entered duration.; Verify the backend-applied duration for each reopened line item."
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
    "open_event_settings",
    "expect_visible",
    "click",
+   "expect_text",
    "do_on_screen",
-   "expect_screen_clean"
+   "expect_no_error"
   ],
-  "ms": 12293
+  "ms": 18598
  },
  "plan": {
-  "title": "Re-open closed line items",
+  "title": "Re-open ended line items",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
-     "screen": "summary"
+     "screen": "responses"
     },
-    "note": "Open the prepared serial-bidding auction with at least one ended line item."
+    "note": "Open the prepared buyer view for the serial bidding auction with an ended line item."
    },
    {
     "step": "open_event_settings",
@@ -42,7 +48,7 @@
      "name": "Reopen Line Items",
      "visible": true
     },
-    "note": "Verify the reopen action is offered for the prepared event state."
+    "note": "Verify that reopening ended line items is offered."
    },
    {
     "step": "click",
@@ -50,19 +56,27 @@
      "role": "menuitem",
      "name": "Reopen Line Items"
     },
-    "note": "Open the line-item reopening drawer."
+    "note": "Open the reopen line items drawer."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Re-Open Line Items",
+     "present": true
+    },
+    "note": "Verify that the reopen drawer is displayed."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "in the Reopen Line Items drawer, enter the requested new duration for each expired line item, select the line item or items to reopen, click Re-Open, and stop when the selected items are shown active for bidding again"
+     "goal": "In the Re-Open Line Items drawer, enter a new duration for each eligible ended line item, select at least one ended line item, click Re-Open, and stop when the drawer shows the successful reopen result."
     },
-    "note": "Perform and verify the drawer workflow, including duration entry, selection, confirmation, and the resulting active bidding state."
+    "note": "Perform the duration entry, line selection, and reopen action that no catalog domain step can express precisely."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the resulting screen has no error, crash, or invalid rendering after reopening."
+    "note": "Confirm the reopen operation did not produce an application error."
    }
   ]
  }

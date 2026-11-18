@@ -3,19 +3,16 @@
   "caseId": "PRD-KBSRC-375",
   "title": "Traffic lights are assigned per the configured conditions",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:18:24.687Z",
+  "compiledAt": "2026-11-13T14:42:09.890Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that each vendor's displayed traffic-light colour matches the configured price or rank condition/band."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
-   "invite_vendor now asks for 2 vendors — the plan places 2 bids, and a vendor can bid only once",
-   "can only test part of this — no step for: Verify that each vendor's displayed traffic-light colour matches the configured price or rank condition/band."
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders"
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -33,19 +30,20 @@
    "expect_bid_submitted",
    "go_to",
    "expect_responses",
-   "expect_screen_clean"
+   "do_on_screen",
+   "expect_visible"
   ],
-  "ms": 11065
+  "ms": 21367
  },
  "plan": {
-  "title": "Traffic Light Vendor Response Assignment",
+  "title": "Traffic Light Conditions by Vendor",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Start the single-stage auction creation flow."
+    "note": "Open the single-stage creation flow required for configuring a traffic-light auction."
    },
    {
     "step": "configure_single_stage",
@@ -56,31 +54,31 @@
      "rangeLower": 80,
      "rangeUpper": 120
     },
-    "note": "Configure the auction with traffic-light conditions and explicit lower and upper bounds."
+    "note": "Configure the auction's traffic-light conditions with explicit lower and upper bounds."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Traffic Light Conditions Verification"
+     "title": "Traffic Light Conditions QA"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the auction pricing template before adding items."
+    "note": "Apply the first available pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item for vendor bidding."
+    "note": "Add one product for the vendors to bid on."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the auction pricing sheet."
+    "note": "Complete the pricing sheet so the auction can be published."
    },
    {
     "step": "set_schedule",
@@ -94,7 +92,7 @@
     "args": {
      "count": 2
     },
-    "note": "Invite the product's available QA vendors."
+    "note": "Invite two vendors so every participant can submit a bid."
    },
    {
     "step": "publish",
@@ -104,50 +102,65 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the auction reached a published live event page."
+    "note": "Confirm the auction reached a published project page."
    },
    {
     "step": "place_bid",
     "args": {
-     "price": 90
+     "vendor": 1,
+     "price": 70
     },
-    "note": "Submit a vendor bid inside the configured traffic-light range."
+    "note": "Have the first vendor submit a price below the configured range."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the vendor bid was accepted."
+    "note": "Confirm the first vendor's submission was accepted."
    },
    {
     "step": "place_bid",
     "args": {
+     "vendor": 2,
      "price": 130
     },
-    "note": "Submit a second vendor bid outside the configured range to provide contrasting response conditions."
+    "note": "Have the second vendor submit a price above the configured range."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the second vendor bid was accepted."
+    "note": "Confirm the second vendor's submission was accepted."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's auction responses view."
+    "note": "Open the buyer's auction Responses view, the subject under test."
    },
    {
     "step": "expect_responses",
     "args": {
-     "count": 2
+     "count": 2,
+     "direct": 2,
+     "stage": "auction"
     },
-    "note": "Verify that both submitted vendor responses are visible to the buyer."
+    "note": "Verify that all invited vendors have submitted responses before checking their traffic-light status."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Confirm the responses screen has no rendering errors or invalid values."
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the buyer's auction Responses view, inspect every submitted vendor response and verify that each displayed traffic-light colour matches the configured lower and upper conditions for that vendor's submitted price or rank; stop when all vendor colours have been checked."
+    },
+    "note": "Perform the colour-to-condition comparison on the response cards, which has no dedicated domain assertion."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Responses",
+     "visible": true
+    },
+    "note": "Assert that the final screen remains the buyer's Responses view."
    }
   ]
  }

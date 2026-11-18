@@ -4,26 +4,22 @@
   "title": "Change the exchange rate after bids",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T12:58:08.680Z",
+  "compiledAt": "2026-11-13T11:54:40.428Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Directly verify the exchange-rate update API request or its backend refusal status after bids have been placed."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Directly verify the exchange-rate update API request or its backend refusal status after bids have been placed."
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
   "steps": 16,
   "stepNames": [
    "open_create",
-   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
@@ -36,28 +32,21 @@
    "expect_published",
    "place_bid",
    "expect_bid_submitted",
+   "switch_portal",
    "do_on_screen",
    "expect_message"
   ],
-  "ms": 16074
+  "ms": 22638
  },
  "plan": {
-  "title": "Change Exchange Rate After Bid",
+  "title": "Reject exchange-rate changes after bidding",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Start the single-stage event creation flow."
-   },
-   {
-    "step": "require_setting",
-    "args": {
-     "phrase": "multi-currency",
-     "value": "On"
-    },
-    "note": "Ensure the test company supports multi-currency exchange rates before creating the event."
+    "note": "Open the single-stage event creation flow used by the case."
    },
    {
     "step": "configure_single_stage",
@@ -65,33 +54,33 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set the event type to RFQ as required by the scenario."
+    "note": "Set the event type to RFQ as required before configuring the pricing event."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-CUR-004 Exchange Rate After Bid"
+     "title": "SRC-CUR-004 Exchange Rate Test"
     },
     "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the RFQ pricing template so the product sheet is available."
+    "note": "Apply the RFQ pricing template so the sourcing sheet is available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB",
+     "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add the specified product and quantity."
+    "note": "Add the CYLINDER line item with the requested quantity."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete remaining required pricing-sheet fields."
+    "note": "Complete the remaining required pricing-sheet fields."
    },
    {
     "step": "set_sheet_cell",
@@ -100,7 +89,7 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the required delivery location for the first line item."
+    "note": "Set the requested delivery location on the first line item."
    },
    {
     "step": "set_schedule",
@@ -114,34 +103,43 @@
     "args": {
      "count": 1
     },
-    "note": "Invite a QA test vendor so the event can receive a bid."
+    "note": "Invite a QA vendor so the event can receive a bid."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ event."
+    "note": "Publish the RFQ to make it live."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event is live on a real project page."
+    "note": "Verify that publishing reached a real project page."
    },
    {
     "step": "place_bid",
-    "args": {},
-    "note": "Place a vendor bid so exchange rates should become locked."
+    "args": {
+     "price": 100
+    },
+    "note": "Place the required vendor bid before attempting the exchange-rate edit."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the bid was accepted before attempting the rate change."
+    "note": "Verify that the bid was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Ensure the exchange-rate action is performed from the buyer portal."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the buyer-side live multi-currency RFQ with a bid already placed, open the exchange-rate editor, attempt to change the exchange rate, and stop when the product shows the refusal for changing rates after bids."
+     "goal": "On the buyer's live multi-currency event with the bid already placed, open the exchange-rate editor, attempt to change the exchange rate, and stop when the screen shows the refusal 'Exchange rates cannot be updated after bids have been placed.'"
     },
-    "note": "No catalog step directly edits exchange rates, so perform the buyer-side rate-change attempt while preserving the post-bid state."
+    "note": "Perform and observe the exchange-rate edit, which has no dedicated domain step."
    },
    {
     "step": "expect_message",
@@ -149,7 +147,7 @@
      "kind": "error",
      "text": "Exchange rates cannot be updated after bids have been placed."
     },
-    "note": "Assert the exact refusal message required by the case."
+    "note": "Assert the exact refusal message requested by the case."
    }
   ]
  }

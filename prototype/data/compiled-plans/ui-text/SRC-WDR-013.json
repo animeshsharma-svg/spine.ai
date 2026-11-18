@@ -4,29 +4,37 @@
   "title": "Withdraw an event that is a draft project (option is labelled \"Cancel Event\") with a reason",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:23:14.435Z",
+  "compiledAt": "2026-11-13T13:16:41.165Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the draft project's menu specifically offers an option labelled \"Cancel Event\".",
-   "Verify that this prepared draft moves from Drafts to History and is absent from Drafts by its specific title.",
-   "Verify that an originating purchase request line returns to Open."
+   "The draft Settings action is specifically labelled \"Cancel Event\".",
+   "If the draft originated from a purchase request, verifying that its PR line returns to Open."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the draft project's menu specifically offers an option labelled \"Cancel Event\".; Verify that this prepared draft moves from Drafts to History and is absent from Drafts by its specific title.; Verify that an originating purchase request line returns to Open."
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The draft Settings action is specifically labelled \"Cancel Event\".; If the draft originated from a purchase request, verifying that its PR line returns to Open."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "withdraw_event",
    "expect_withdrawn",
    "event_menu",
-   "expect_text"
+   "expect_text",
+   "filter_events",
+   "expect_event_in_list",
+   "expect_event_status"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 13785
+  "ms": 16425
  },
  "plan": {
   "title": "Withdraw draft project with reason",
@@ -36,7 +44,23 @@
     "args": {
      "screen": "draft"
     },
-    "note": "Open the existing prepared draft project on its draft screen."
+    "note": "Open the prebuilt draft project directly on its draft screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure withdrawal is exposed for the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX draft projects are enabled for this case."
    },
    {
     "step": "withdraw_event",
@@ -44,27 +68,45 @@
      "scope": "project",
      "reason": "QA test withdraw"
     },
-    "note": "Withdraw the draft project with the required remark."
+    "note": "Withdraw the draft project and provide the required remark."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Assert that Procol records the project as withdrawn."
+    "note": "Verify Procol records the project as withdrawn."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Order Activity"
     },
-    "note": "Open the project's activity drawer to inspect the withdrawal record."
+    "note": "Open the activity drawer to inspect the withdrawal record."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "QA test withdraw",
-     "present": true
+     "text": "QA test withdraw"
     },
-    "note": "Assert that the withdrawal reason appears in the activity record."
+    "note": "Verify the withdrawal reason is recorded in Order Activity."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Open History, where withdrawn projects should appear."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify this plan's withdrawn project appears in History."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Withdrawn"
+    },
+    "note": "Verify the History row has the Withdrawn status."
    }
   ]
  }

@@ -4,30 +4,55 @@
   "title": "Clone a closed event",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:23:26.492Z",
+  "compiledAt": "2026-11-13T12:06:47.312Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The catalog has no dedicated clone-event step or explicit assertion for the Clone Project action; the refusal is exercised through the generic event menu action."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The catalog has no dedicated clone-event step or explicit assertion for the Clone Project action; the refusal is exercised through the generic event menu action."
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
+   "expect_event_status",
    "attempt"
   ],
-  "ms": 9184
+  "ms": 8820
  },
  "plan": {
-  "title": "Clone Closed Event Refusal",
+  "title": "Clone a Closed Event Refusal",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing event that the runner selects as a suitable closed event."
+    "note": "Open an existing event whose bidding is over so the plan can test cloning a closed event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allowed_to_clone_project",
+     "value": "On"
+    },
+    "note": "Enable clone eligibility for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Keep event withdrawal controls visible as required by the case configuration."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Closed"
+    },
+    "note": "Confirm that the opened event is closed before attempting the clone."
    },
    {
     "step": "attempt",
@@ -39,7 +64,7 @@
      "expect": "refused",
      "because": "Only active or withdrawn events can be cloned."
     },
-    "note": "Attempt to clone the closed event and require Procol's refusal message."
+    "note": "Attempt to clone the closed event and require Procol's expected refusal message."
    }
   ]
  }

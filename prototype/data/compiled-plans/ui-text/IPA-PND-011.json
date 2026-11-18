@@ -1,0 +1,105 @@
+{
+ "meta": {
+  "caseId": "IPA-PND-011",
+  "title": "Start Awarding is disabled while pending",
+  "group": "IPA-PND",
+  "sheet": "in-principle-approval",
+  "compiledAt": "2026-11-18T08:25:14.346Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "Force an awarding submission from an old tab and verify the same refusal without creating a proposal.",
+   "Reproduce the exact Project A fixture, including its completed technical stage and fourth invited non-quoting vendor, on the fixed prepared event."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Force an awarding submission from an old tab and verify the same refusal without creating a proposal.; Reproduce the exact Project A fixture, including its completed technical stage and fourth invited non-quoting vendor, on the fixed prepared event."
+  ],
+  "source": "llm",
+  "steps": 8,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "expect_disabled",
+   "hover",
+   "expect_text",
+   "attempt",
+   "expect_navigated",
+   "expect_count"
+  ],
+  "state": "ipa_pending",
+  "screen": "master_qcs",
+  "ms": 0
+ },
+ "plan": {
+  "title": "IPA-PND-011 Pending approval blocks awarding",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared pending-approval event as its already signed-in owner."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "in_principle_approval_price_recovery",
+     "value": "On"
+    },
+    "note": "Ensure the required company feature is enabled before checking the pending-approval gate."
+   },
+   {
+    "step": "expect_disabled",
+    "args": {
+     "control": "Start Awarding"
+    },
+    "note": "Assert the subject control is present but greyed out, rather than treating absence as a refusal."
+   },
+   {
+    "step": "hover",
+    "args": {
+     "role": "button",
+     "name": "Start Awarding"
+    },
+    "note": "Reveal the reason awarding is unavailable."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Awarding is blocked while in-principle approval is pending"
+    },
+    "note": "Verify the exact expected tooltip wording."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Start Awarding"
+     },
+     "expect": "refused"
+    },
+    "note": "Confirm an ordinary click cannot start awarding; this does not simulate a stale-tab submission."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Verify the refused click leaves the owner on Master QCS instead of opening awarding or a proposal."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "role": "button",
+     "name": "Bid Selection Proposal",
+     "count": 0
+    },
+    "note": "Check that Master QCS offers no proposal button after the blocked action."
+   }
+  ]
+ }
+}

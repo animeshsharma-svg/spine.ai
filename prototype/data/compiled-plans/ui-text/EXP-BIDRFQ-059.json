@@ -4,7 +4,7 @@
   "title": "Withdrawing Order...: Withdrawing live RFQ is cancelled when the Cancel button is clicked",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:40:38.685Z",
+  "compiledAt": "2026-11-13T13:50:43.200Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -13,7 +13,7 @@
    "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 13,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -24,25 +24,24 @@
    "go_to",
    "go_to",
    "event_menu",
-   "expect_visible",
    "fill",
    "click",
    "expect_visible",
-   "expect_text"
+   "expect_event_status"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 12568
+  "ms": 15833
  },
  "plan": {
-  "title": "Cancel live RFQ withdrawal",
+  "title": "Cancel Live RFQ Withdrawal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with one vendor bid."
+    "note": "Open the prepared live RFQ with Vendor A's bid."
    },
    {
     "step": "require_setting",
@@ -58,7 +57,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Use the requested RFQ counter-offer configuration."
+    "note": "Apply the required RFQ counter-offer visibility configuration."
    },
    {
     "step": "require_setting",
@@ -66,7 +65,7 @@
      "key": "disable_reject_bid_in_bidding_time",
      "value": "Off"
     },
-    "note": "Use the requested bid-rejection configuration."
+    "note": "Apply the required bid-rejection configuration."
    },
    {
     "step": "require_setting",
@@ -74,7 +73,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Use the requested buyer bid-editing configuration."
+    "note": "Apply the required buyer bid-edit configuration."
    },
    {
     "step": "require_setting",
@@ -82,7 +81,7 @@
      "key": "is_counter_offer_percent_bid_allowed",
      "value": "On"
     },
-    "note": "Use the requested percentage counter-offer configuration."
+    "note": "Apply the required counter-offer percentage configuration."
    },
    {
     "step": "go_to",
@@ -90,14 +89,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage specified by the case."
+    "note": "Open the RFQ stage."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the Responses tab where the case exercises Settings."
+    "note": "Open the RFQ Responses tab where the Settings control is available."
    },
    {
     "step": "event_menu",
@@ -105,24 +104,15 @@
      "item": "Withdraw",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and choose Withdraw to show the withdrawal dialog."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Withdrawing Order...",
-     "visible": true
-    },
-    "note": "Confirm the expected withdrawal dialog opened."
+    "note": "Open the RFQ withdrawal dialog without confirming withdrawal."
    },
    {
     "step": "fill",
     "args": {
-     "label": "Enter reason",
+     "label": "Withdrawal Remarks",
      "value": "Changing mind"
     },
-    "note": "Enter the case's withdrawal reason before cancelling."
+    "note": "Enter the withdrawal reason required by the case."
    },
    {
     "step": "click",
@@ -136,18 +126,16 @@
     "step": "expect_visible",
     "args": {
      "role": "dialog",
-     "name": "Withdrawing Order...",
      "visible": false
     },
-    "note": "Verify that cancelling closes the withdrawal dialog."
+    "note": "Verify that the Withdrawing Order dialog closed."
    },
    {
-    "step": "expect_text",
+    "step": "expect_event_status",
     "args": {
-     "text": "Live",
-     "present": true
+     "status": "Live"
     },
-    "note": "Verify the RFQ remains live after cancellation."
+    "note": "Verify that the RFQ remains live and was not withdrawn."
    }
   ]
  }

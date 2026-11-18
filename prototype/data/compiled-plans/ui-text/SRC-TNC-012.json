@@ -4,7 +4,7 @@
   "title": "Single stage RFP, one clause Required: the vendor accepts both clauses",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:12:04.939Z",
+  "compiledAt": "2026-11-13T13:03:08.531Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -12,18 +12,21 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "inserted add_line_items before invite_vendor — the create screen locks Participants and Publish until a template is chosen and a product added",
    "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "inserted add_line_items before set_schedule — the create screen locks Participants and Publish until a template is chosen and a product added",
-   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item"
+   "inserted add_line_items before invite_vendor — the create screen locks Participants and Publish until a template is chosen and a product added",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "resolved: “Answer the single-stage RFP questionnaire as Vendor A before submitting it” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 22,
+  "steps": 20,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
@@ -31,22 +34,18 @@
    "fill_questionnaires",
    "assign_evaluator",
    "do_on_screen",
-   "set_schedule",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
-   "expect_text",
-   "expect_text",
    "toggle",
    "toggle",
    "click",
-   "click",
-   "expect_text"
+   "expect_bid_submitted"
   ],
-  "ms": 16077
+  "ms": 21917
  },
  "plan": {
   "title": "Single-stage RFP required and optional T&C acceptance",
@@ -59,21 +58,39 @@
     "note": "Open the single-stage event creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow the buyer to add a vendor during event creation."
+   },
+   {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfp"
     },
-    "note": "Set the event type to RFP."
+    "note": "Set the single-stage event type to RFP."
    },
    {
     "step": "set_title",
-    "args": {},
+    "args": {
+     "title": "SRC-TNC-012 Single Stage RFP"
+    },
     "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose a questionnaire template for the RFP."
+    "note": "Apply the first available questionnaire template."
    },
    {
     "step": "add_line_items",
@@ -83,19 +100,26 @@
    {
     "step": "fill_questionnaires",
     "args": {},
-    "note": "Fill the required technical questionnaire content."
+    "note": "Fill the required questionnaire fields on the RFP create screen."
    },
    {
     "step": "assign_evaluator",
     "args": {},
-    "note": "Assign the evaluator required for publishing a technical event."
+    "note": "Assign an evaluator so the RFP can be published."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the single-stage RFP create screen, open Terms & Conditions, add clauses \"Payment within 45 days\" and \"Delivery within 7 days\", set Payment within 45 days to Required, leave Delivery within 7 days as None, click Done, and stop when the create screen shows the configured terms"
+     "goal": "On the single-stage RFP create screen, open Terms & Conditions, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", set the first clause to Required and leave the second clause as None, click Done, and stop with the saved clause configuration visible"
     },
-    "note": "Configure the two event clauses and their required/none modes, which has no dedicated catalog step."
+    "note": "Configure the event-wise and stage-wise clauses, which has no dedicated catalog step."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one QA test vendor to the event."
    },
    {
     "step": "set_schedule",
@@ -105,56 +129,28 @@
     "note": "Commit the 30-minute schedule."
    },
    {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite one QA vendor to the event."
-   },
-   {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured single-stage RFP."
+    "note": "Publish the configured RFP event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a published project page."
+    "note": "Verify that publication reached a real project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Open the invited vendor's supplier portal session."
+    "note": "Open the invited vendor's supplier portal while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the published RFP technical round as the vendor."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Terms and Conditions"
-    },
-    "note": "Confirm the vendor can see the terms block."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Payment within 45 days"
-    },
-    "note": "Verify the required clause is shown to the vendor."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Delivery within 7 days"
-    },
-    "note": "Verify the optional/none clause is shown to the vendor."
+    "note": "Open this event's RFP questionnaire in the vendor portal."
    },
    {
     "step": "toggle",
@@ -162,7 +158,7 @@
      "label": "Payment within 45 days",
      "on": true
     },
-    "note": "Accept the required payment clause."
+    "note": "Accept the required clause."
    },
    {
     "step": "toggle",
@@ -170,15 +166,7 @@
      "label": "Delivery within 7 days",
      "on": true
     },
-    "note": "Accept the delivery clause as required by the scenario."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Quick Fill"
-    },
-    "note": "Fill the technical questionnaire so the vendor can submit."
+    "note": "Accept the optional clause as well."
    },
    {
     "step": "click",
@@ -186,14 +174,12 @@
      "role": "button",
      "name": "Submit"
     },
-    "note": "Submit the vendor's technical response after accepting both clauses."
+    "note": "Attempt to submit the vendor's technical response after accepting both clauses."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Submitted"
-    },
-    "note": "Confirm the vendor response was submitted successfully."
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Verify that the vendor response was submitted."
    }
   ]
  }

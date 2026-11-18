@@ -4,33 +4,35 @@
   "title": "Items from PRs with no common user show the empty message",
   "group": "PRA-MANY",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:02:20.962Z",
+  "compiledAt": "2026-11-13T14:26:13.803Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Select one item from each of two different PRs and search or filter for both PR-1 and PR-2",
-   "Open the Assign user picker for the selected items",
-   "Inspect every assignee option, including scrolling to the end",
-   "Assert that only super admins and process validators are listed",
-   "Assert that Food Buyer and Engg Buyer are absent",
-   "Assert the empty message \"No user can see all selected PRs. Assign them separately.\""
+   "unconfirmed label \"Food Buyer\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "unconfirmed label \"Engg Buyer\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 2 step(s) that would open a blank event or replace the PR's items",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 2 step(s) that would open a blank event or replace the PR's items",
-   "cannot test this case yet — no step can observe: Select one item from each of two different PRs and search or filter for both PR-1 and PR-2; Open the Assign user picker for the selected items; Inspect every assignee option, including scrolling to the end; Assert that only super admins and process validators are listed; Assert that Food Buyer and Engg Buyer are absent; Assert the empty message \"No user can see all selected PRs. Assign them separately.\""
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 3 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 3 step(s) that would open a blank event or replace the PR's items",
+   "coverage partial: unconfirmed label \"Food Buyer\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "coverage partial: unconfirmed label \"Engg Buyer\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 10,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
    "purchase_items",
    "choose_stages",
-   "expect_pr_items"
+   "expect_pr_items",
+   "require_setting",
+   "expect_text",
+   "expect_text",
+   "expect_text"
   ],
-  "ms": 10503
+  "ms": 11581
  },
  "plan": {
   "title": "PR assignee list with no common user",
@@ -56,6 +58,38 @@
    },
    {
     "step": "expect_pr_items"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team-category filtering configuration for this case."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "No user can see all selected PRs. Assign them separately.",
+     "present": true
+    },
+    "note": "Assert the expected empty-state message for the no-common-user scenario."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Food Buyer",
+     "present": false
+    },
+    "note": "Assert that Food Buyer is not offered as an assignee."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Engg Buyer",
+     "present": false
+    },
+    "note": "Assert that Engg Buyer is not offered as an assignee."
    }
   ]
  }

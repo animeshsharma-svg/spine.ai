@@ -4,54 +4,102 @@
   "title": "Two bids: award all 10 units to Vendor A (not the lowest); no approval flow",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:19:01.079Z",
+  "compiledAt": "2026-11-13T11:39:08.647Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
    "Whether the proposal asks for a reason when skipping the lowest bidder",
-   "Whether the event moves to History after the award"
+   "Whether the event moves to History after the final award"
   ],
   "warnings": [
-   "can only test part of this — no step for: Whether the proposal asks for a reason when skipping the lowest bidder; Whether the event moves to History after the award"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Whether the proposal asks for a reason when skipping the lowest bidder; Whether the event moves to History after the final award"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 15,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "expect_qcs_vendors",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
    "start_awarding",
    "allocate_award",
    "expect_award_counters",
-   "award_event",
+   "click",
+   "expect_navigated",
+   "fill_required",
+   "click",
    "expect_awarded",
    "create_po",
    "expect_po_items"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 10119
+  "ms": 27925
  },
  "plan": {
-  "title": "Award All Units to Non-Lowest Bidder",
+  "title": "Award all units to Vendor A",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ with two bids in Master QCS."
+    "note": "Open the prepared closed RFQ with Vendor A and Vendor B bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
+   },
+   {
+    "step": "expect_qcs_vendors",
+    "args": {
+     "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "realNames": true
+    },
+    "note": "Confirm both real bidder columns are present."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "number": 100
+    },
+    "note": "Confirm Vendor A is the non-lowest bidder at 100 per unit."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor B",
+     "number": 90
+    },
+    "note": "Confirm Vendor B has the lower bid."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Open the awarding page for the closed event."
+    "note": "Open the awarding screen for the closed event."
    },
    {
     "step": "allocate_award",
     "args": {
      "vendor": "Vendor A",
-     "quantity": 10
+     "quantity": 10,
+     "line": 1
     },
-    "note": "Allocate all 10 units to Vendor A, the non-lowest bidder."
+    "note": "Allocate all 10 units to Vendor A rather than the lowest bidder."
    },
    {
     "step": "expect_award_counters",
@@ -60,24 +108,45 @@
      "vendors": "1/2",
      "proposal": 1000
     },
-    "note": "Verify one line is selected, one of two vendors is awarded, and the proposal total is 10 × 100 = 1,000."
+    "note": "Verify one line is selected, exactly one of two vendors is awarded, and the proposal value is 10 × 100 = 1,000."
    },
    {
-    "step": "award_event",
+    "step": "click",
     "args": {
-     "vendor": "Vendor A"
+     "role": "button",
+     "name": "Create Proposal"
     },
-    "note": "Create and submit the proposal for the allocation to Vendor A."
+    "note": "Open the proposal page for the selected allocation."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Confirm the proposal page opened."
+   },
+   {
+    "step": "fill_required",
+    "args": {},
+    "note": "Complete any mandatory proposal fields before submission."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the award proposal without introducing an approval-flow action."
    },
    {
     "step": "expect_awarded",
     "args": {},
-    "note": "Verify the award proposal was created and submitted without an approval step."
+    "note": "Assert that the award proposal was submitted and the award is final."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete downstream award processing and create the purchase order."
+    "note": "Create the purchase order generated from the final award."
    },
    {
     "step": "expect_po_items",
@@ -85,7 +154,7 @@
      "count": 1,
      "quantity": 10
     },
-    "note": "Verify the PO contains the awarded line with all 10 units."
+    "note": "Verify one PO carries the awarded line with quantity 10."
    }
   ]
  }

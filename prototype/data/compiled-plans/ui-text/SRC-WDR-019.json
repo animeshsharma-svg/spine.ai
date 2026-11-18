@@ -4,34 +4,63 @@
   "title": "Withdraw is not offered on an awarded event with PO",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:23:26.941Z",
+  "compiledAt": "2026-11-13T13:17:06.776Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the associated purchase order is untouched."
+   "Directly verify that the award and purchase order remain untouched."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the associated purchase order is untouched."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Directly verify that the award and purchase order remain untouched."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "go_to",
    "expect_settings_menu"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 6337
+  "ms": 7555
  },
  "plan": {
-  "title": "Withdraw unavailable on awarded event",
+  "title": "Withdraw unavailable on awarded event with PO",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared awarded event with its existing purchase order."
+    "note": "Open the existing prepared awarded event with PO as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure event menus expose actions according to the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project behavior is enabled for the prepared event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate from the summary to the RFQ stage page containing the Settings menu."
    },
    {
     "step": "expect_settings_menu",
@@ -40,7 +69,7 @@
       "Withdraw"
      ]
     },
-    "note": "Assert that Withdraw is not offered in the event's current awarded state."
+    "note": "Assert that Withdraw is not offered for the awarded event."
    }
   ]
  }

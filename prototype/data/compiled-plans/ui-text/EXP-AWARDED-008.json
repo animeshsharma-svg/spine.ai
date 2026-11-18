@@ -4,26 +4,26 @@
   "title": "An awarded event: \"1 / 1 100%\" opens the \"Participation Summary 1 Invited 1 Seen 1 Bid Placed 0 Bid Not Placed 0 Unregistered Poc Bids\" window",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:12:49.004Z",
+  "compiledAt": "2026-11-13T13:43:28.994Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 8,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "click",
    "expect_visible",
-   "expect_text",
-   "expect_text",
-   "expect_text",
-   "expect_text",
    "expect_text"
   ],
   "state": "awarded",
   "screen": "responses",
-  "ms": 7341
+  "ms": 18650
  },
  "plan": {
   "title": "Awarded Event Participation Summary",
@@ -33,62 +33,39 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the awarded event directly on its Responses tab."
+    "note": "Open the awarded event's RFQ Responses screen, which already contains the 1 / 1 100% participation metric."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
    },
    {
     "step": "click",
     "args": {
      "text": "1 / 1 100%"
     },
-    "note": "Open the participation summary by clicking the progress indicator."
+    "note": "Open the participation summary from the response participation metric."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Participation Summary",
+     "role": "dialog",
+     "name": "Participation Summary",
      "visible": true
     },
-    "note": "Verify that the Participation Summary window opened."
+    "note": "Verify that the Participation Summary window opens."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "1 Invited",
-     "present": true
+     "text": "1 Invited 1 Seen 1 Bid Placed 0 Bid Not Placed 0 Unregistered Poc Bids",
+     "within": "dialog"
     },
-    "note": "Verify the invited count."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "1 Seen",
-     "present": true
-    },
-    "note": "Verify the seen count."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "1 Bid Placed",
-     "present": true
-    },
-    "note": "Verify the bid-placed count."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "0 Bid Not Placed",
-     "present": true
-    },
-    "note": "Verify the bid-not-placed count."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "0 Unregistered Poc Bids",
-     "present": true
-    },
-    "note": "Verify the unregistered POC bids count."
+    "note": "Verify the drawer reports the exact expected participation counts and categories."
    }
   ]
  }

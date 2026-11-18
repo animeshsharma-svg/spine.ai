@@ -4,16 +4,15 @@
   "title": "Automatic assignment also uses the new text",
   "group": "PRA-NTX",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-12T13:48:02.643Z",
+  "compiledAt": "2026-11-13T14:28:01.715Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create or upload a PR through a catalog-specific PR creation step and capture its generated PR number.",
-   "Sign in as the user assigned by automatic PR assignment and open the buyer-portal bell notifications.",
-   "Assert the unspecified new notification text and its single-PR or plus-more format with the generated PR number."
+   "Signing in as the automatically assigned user and opening their notification bell requires another user session.",
+   "The catalog has no assertion for the exact new notification wording or a dynamically captured PR number in the single/plus-more format."
   ],
   "warnings": [
-   "can only test part of this — no step for: Create or upload a PR through a catalog-specific PR creation step and capture its generated PR number.; Sign in as the user assigned by automatic PR assignment and open the buyer-portal bell notifications.; Assert the unspecified new notification text and its single-PR or plus-more format with the generated PR number."
+   "can only test part of this — no step for: Signing in as the automatically assigned user and opening their notification bell requires another user session.; The catalog has no assertion for the exact new notification wording or a dynamically captured PR number in the single/plus-more format."
   ],
   "source": "llm",
   "steps": 4,
@@ -21,12 +20,12 @@
    "require_setting",
    "do_on_screen",
    "ask_tester",
-   "expect_visible"
+   "expect_screen_clean"
   ],
-  "ms": 12654
+  "ms": 22675
  },
  "plan": {
-  "title": "Automatic PR Assignment Notification Text",
+  "title": "Automatic PR assignment notification text",
   "steps": [
    {
     "step": "require_setting",
@@ -34,29 +33,26 @@
      "phrase": "PR auto-assignment",
      "value": "On"
     },
-    "note": "Enable the company configuration required for automatic PR assignment before any other action."
+    "note": "Enable the company configuration required for automatic assignment."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "create or upload a new purchase request configured for automatic assignment, and stop when the PR is created and its assigned user and PR number are visible"
+     "goal": "create or upload a new purchase requisition that is automatically assigned; stop after the screen proves the PR was created and record its PR number"
     },
-    "note": "No catalog step creates or uploads a PR, so explore the buyer screen to establish the required auto-assigned test data."
+    "note": "No catalog step creates or uploads a PR, so use the buyer session to perform this setup."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the user assigned to the new PR, open the buyer-portal bell notifications, and verify the notification uses the new text with the PR number in single-PR or plus-more format"
+     "need": "sign in as the user assigned to the new PR, click the top-right bell, and verify that the notification uses the new text and includes the PR number in the single or plus-more format"
     },
-    "note": "The catalog cannot perform another user's login or verify the requested notification copy."
+    "note": "The assigned user's separate login and notification view are not available to catalog steps."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "Notifications",
-     "visible": true
-    },
-    "note": "Confirm the notification surface is visible after the tester opens the bell; this does not verify the requested wording."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the resulting notification screen is ready and has no crash or server error."
    }
   ]
  }

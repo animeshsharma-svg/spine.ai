@@ -1,0 +1,169 @@
+{
+ "meta": {
+  "caseId": "IPA-CRT-005",
+  "title": "\"Preparing RFQ 2…\" banner while it is being made",
+  "group": "IPA-CRT",
+  "sheet": "in-principle-approval",
+  "compiledAt": "2026-11-18T09:41:07.915Z",
+  "tier": "fast",
+  "coverage": "partial",
+  "gaps": [
+   "The fixed prepared event does not reproduce the completed technical stage, exact product and tax/discount details, or all four named invitees.",
+   "No catalog assertion measures automatic polling every few seconds for about a minute or controls delayed RFQ 2 creation to verify banner persistence until refresh.",
+   "unconfirmed label \"QA_Platform IPA 2-step\" (click) — not among the labels known from the app nor in the case"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"QA_Platform IPA 2-step\" (click) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: The fixed prepared event does not reproduce the completed technical stage, exact product and tax/discount details, or all four named invitees.; No catalog assertion measures automatic polling every few seconds for about a minute or controls delayed RFQ 2 creation to verify banner persistence until refresh."
+  ],
+  "source": "llm",
+  "steps": 16,
+  "stepNames": [
+   "open_prepared",
+   "require_setting",
+   "click",
+   "expect_visible",
+   "click",
+   "click",
+   "fill",
+   "click",
+   "act_as",
+   "do_on_screen",
+   "act_as",
+   "do_on_screen",
+   "act_as",
+   "expect_text",
+   "ask_tester",
+   "expect_screen_clean"
+  ],
+  "state": "closed_two_bids",
+  "screen": "master_qcs",
+  "ms": 0
+ },
+ "plan": {
+  "title": "IPA approval preparing RFQ 2 banner",
+  "steps": [
+   {
+    "step": "open_prepared",
+    "args": {
+     "screen": "master_qcs"
+    },
+    "note": "Open the prepared closed RFQ as the already authenticated event owner."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "in_principle_approval_price_recovery",
+     "value": "On"
+    },
+    "note": "Enable the required company feature before interacting with the event."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "In-Principle Approval"
+    },
+    "note": "Start the approval request."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Submit for In-Principle Approval"
+    },
+    "note": "Verify the submission pop-up opened."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "QA_Platform IPA 2-step",
+     "within": "dialog"
+    },
+    "note": "Select the workflow containing Rohan Mehta and Anita Rao rather than the default workflow."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Next",
+     "within": "dialog"
+    },
+    "note": "Reach the second page containing Closing Remarks and Submit."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Closing Remarks",
+     "value": "Requesting in-principle approval at L1 value so purchase can run RFQ 2",
+     "within": "dialog"
+    },
+    "note": "Enter the case's approval justification."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit",
+     "within": "dialog"
+    },
+    "note": "Submit the in-principle approval request."
+   },
+   {
+    "step": "act_as",
+    "args": {
+     "who": "Rohan Mehta"
+    },
+    "note": "Perform the first approval in the assigned approver's session."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Open this project's pending in-principle approval from the Approvals list or Master QCS link, click Approve and complete any required confirmation; stop when the approval page confirms Rohan Mehta's approval is recorded."
+    },
+    "note": "Use the approval page's own controls, not the award-approval flow."
+   },
+   {
+    "step": "act_as",
+    "args": {
+     "who": "Anita Rao"
+    },
+    "note": "Switch to the final approver."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Open this project's pending in-principle approval, click Approve and complete any required confirmation; stop immediately when Anita Rao's final approval is recorded."
+    },
+    "note": "Trigger RFQ 2 preparation without waiting for it to finish."
+   },
+   {
+    "step": "act_as",
+    "args": {
+     "who": "buyer"
+    },
+    "note": "Immediately return to Procol Support's Master QCS page."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "In-principle approval is approved. Preparing RFQ 2…"
+    },
+    "note": "Assert the actual preparation banner, not merely successful approval or eventual RFQ 2 creation."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "Verify polling every few seconds for about a minute and, with RFQ 2 creation delayed beyond that period, verify the preparation banner remains until refresh."
+    },
+    "note": "The catalog cannot measure this polling cadence or establish the delayed-completion condition; skipped assistance leaves this behavior untested."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check that the observed preparation flow leaves no page crash or rendering error; this does not substitute for the missing timing checks."
+   }
+  ]
+ }
+}

@@ -4,11 +4,11 @@
   "title": "Forward auction: auto title for two products of different families at one location",
   "group": "SRC-TTL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:21:37.042Z",
+  "compiledAt": "2026-11-13T13:12:06.073Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Selecting or independently asserting the forward/sell auction direction is not supported by the catalog."
+   "Product-name truncation with an ellipsis for names longer than 70 characters is not exercised by the specified products."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -19,19 +19,25 @@
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Selecting or independently asserting the forward/sell auction direction is not supported by the catalog."
+   "can only test part of this — no step for: Product-name truncation with an ellipsis for names longer than 70 characters is not exercised by the specified products."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 12,
   "stepNames": [
    "open_create",
    "set_title",
    "configure_single_stage",
    "select_template",
-   "do_on_screen",
-   "expect_value"
+   "add_line_items",
+   "set_sheet_cell",
+   "remember",
+   "add_line_items",
+   "set_sheet_cell",
+   "expect_value",
+   "remove_line_items",
+   "expect_remembered"
   ],
-  "ms": 17566
+  "ms": 23300
  },
  "plan": {
   "title": "Forward auction auto-title for mixed-family products",
@@ -41,7 +47,7 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the single-stage creation flow reached from Create Event > Single Stage."
    },
    {
     "step": "set_title"
@@ -49,21 +55,60 @@
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "auction"
+     "eventType": "auction",
+     "auctionSubtype": "rank",
+     "awarding": "lot"
     },
-    "note": "Switch the event type to Auction while leaving the title untouched."
+    "note": "Set the event type to Auction before selecting the auction template."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply the first available auction pricing template so the product sheet is available."
+    "args": {
+     "name": "Forward"
+    },
+    "note": "Select the forward/sell auction template so the pricing sheet is available."
    },
    {
-    "step": "do_on_screen",
+    "step": "add_line_items",
     "args": {
-     "goal": "Add the products CYLINDER WITH KEY & KNOB and BACK FILLING, selecting Plant Name as the delivery location for both, without typing a title, and leave the create screen showing the generated title."
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the two specified products and shared location using the buyer-side screen because no catalog step accepts different product searches in one event."
+    "note": "Add the first product from family F1."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name"
+    },
+    "note": "Set the first product's location and allow the automatic title to populate."
+   },
+   {
+    "step": "remember",
+    "args": {
+     "key": "single_product_title",
+     "label": "Enter the title of this event"
+    },
+    "note": "Capture the automatically generated title before adding the second product."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1,
+     "search": "BACK FILLING"
+    },
+    "note": "Add the second product from the different family F2."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Delivery location",
+     "value": "Plant Name"
+    },
+    "note": "Set the second product to the same location used by the first product."
    },
    {
     "step": "expect_value",
@@ -71,7 +116,23 @@
      "label": "Enter the title of this event",
      "value": "[Forward Auction] CYLINDER WITH KEY & KNOB & more - Plant Name"
     },
-    "note": "Assert that the untouched title field contains the expected mixed-family auto-title."
+    "note": "Assert the mixed-family auto-title uses the first product, '& more', and the shared location."
+   },
+   {
+    "step": "remove_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Remove the second product while the title remains automatically managed."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "single_product_title",
+     "label": "Enter the title of this event",
+     "same": true
+    },
+    "note": "Assert that removing the second product restores the earlier single-product auto-title."
    }
   ]
  }

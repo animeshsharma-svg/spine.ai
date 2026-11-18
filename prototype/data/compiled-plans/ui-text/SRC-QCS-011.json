@@ -4,7 +4,7 @@
   "title": "Savings before bidding ends",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:09:45.776Z",
+  "compiledAt": "2026-11-13T12:33:49.005Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -13,21 +13,24 @@
    "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "expect_qcs_vendors",
-   "expect_qcs_ranks",
+   "expect_qcs_cell",
+   "expect_qcs_cell",
    "expect_qcs_amounts",
+   "expect_qcs_amounts",
+   "expect_qcs_ranks",
    "expect_text"
   ],
   "state": "two_bids",
   "screen": "master_qcs",
-  "ms": 69473
+  "ms": 7218
  },
  "plan": {
-  "title": "Savings hidden before bidding ends",
+  "title": "Master QCS savings hidden while live",
   "steps": [
    {
     "step": "open_prepared",
@@ -42,15 +45,51 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure the required eRFX project configuration is enabled for the tenant."
+    "note": "Ensure the required eRFX project configuration is active."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
      "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
      "realNames": true
     },
-    "note": "Verify that both bidding vendors appear as real vendor columns."
+    "note": "Verify both bidding vendors appear as real vendor columns."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "number": 100
+    },
+    "note": "Verify Vendor A's bid rate."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor B",
+     "number": 90
+    },
+    "note": "Verify Vendor B's bid rate."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify Vendor A's line amount and total equal rate multiplied by quantity."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {
+     "vendor": "Vendor B"
+    },
+    "note": "Verify Vendor B's line amount and total equal rate multiplied by quantity."
    },
    {
     "step": "expect_qcs_ranks",
@@ -59,17 +98,7 @@
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Verify that the lower bid ranks better than the higher bid."
-   },
-   {
-    "step": "expect_qcs_amounts",
-    "args": {
-     "rate": "RFQ Rate",
-     "qty": "Qty Offer",
-     "amount": "RFQ Amount",
-     "total": "Sum Total"
-    },
-    "note": "Verify the per-line amounts and vendor totals are calculated correctly from rate and quantity."
+    "note": "Verify ranks follow the bid amounts, with the lower amount ranked first."
    },
    {
     "step": "expect_text",
@@ -77,7 +106,7 @@
      "text": "Savings will be visible after bidding ends",
      "present": true
     },
-    "note": "Verify that savings are not displayed before the live bidding window ends."
+    "note": "Confirm savings are explicitly unavailable while bidding is still live."
    }
   ]
  }

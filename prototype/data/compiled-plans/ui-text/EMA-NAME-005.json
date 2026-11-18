@@ -4,20 +4,24 @@
   "title": "Very long event name is shown in full",
   "group": "EMA-NAME",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:56:47.768Z",
+  "compiledAt": "2026-11-13T14:21:35.447Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Send the event through the approval workflow and access Asha's mailbox to open the Procol approval email.",
-   "Verify that the email layout is not visually broken beyond checking that the event name and Approve/Reject text are present."
+   "Access Asha's Outlook mailbox and open the Procol approval request email independently of the buyer portal",
+   "Verify that the entire 200-character name is rendered without email-layout breakage in the mailbox"
   ],
   "warnings": [
-   "can only test part of this — no step for: Send the event through the approval workflow and access Asha's mailbox to open the Procol approval email.; Verify that the email layout is not visually broken beyond checking that the event name and Approve/Reject text are present."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Access Asha's Outlook mailbox and open the Procol approval request email independently of the buyer portal; Verify that the entire 200-character name is rendered without email-layout breakage in the mailbox"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 15,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "select_template",
    "add_line_items",
@@ -26,35 +30,50 @@
    "invite_vendor",
    "publish",
    "expect_published",
-   "expect_api_value",
    "ask_tester",
    "expect_text",
    "expect_text",
    "expect_text"
   ],
-  "ms": 18776
+  "ms": 17582
  },
  "plan": {
-  "title": "EMA-NAME-005 — Very long event name approval email",
+  "title": "EMA-NAME-005 - 200-character event name approval email",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the event creation flow."
+    "note": "Open the eRFX event creation flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the email-approval configuration required for the scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Ensure the event is routed through the configured approval workflow."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "LongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventName12345"
+     "title": "EMA-NAME-005-VeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventName"
     },
     "note": "Enter the approximately 200-character event name under test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template so the event can be completed."
+    "note": "Apply the first available template so the event can be completed."
    },
    {
     "step": "add_line_items",
@@ -66,66 +85,60 @@
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet."
+    "note": "Complete the pricing sheet fields."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule."
+    "note": "Commit a valid event schedule before submission."
    },
    {
     "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Add the required participant before publishing."
+    "args": {},
+    "note": "Add the product's available vendor audience so the event can be submitted."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Create the valid event; this is the closest available catalog action to initiating the workflow."
+    "note": "Submit the completed event, which should initiate the configured approval workflow."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that the event was created successfully."
-   },
-   {
-    "step": "expect_api_value",
-    "args": {
-     "key": "title"
-    },
-    "note": "Verify that the created event retains the complete long title."
+    "note": "Confirm the event was created and reached its project page."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "send the created event through the approval workflow, sign in to Asha's mailbox, and open the Procol approval request email"
+     "need": "sign in as Asha in the connected Outlook mailbox, open the Procol approval request email for this event, and leave that email open"
     },
-    "note": "Mailbox access and the approval workflow are not available as catalog actions."
+    "note": "Mailbox access and opening the approval email require the approver's separate session."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "LongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventNameLongEventName12345"
+     "text": "EMA-NAME-005-VeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventNameVeryLongEventName",
+     "present": true
     },
-    "note": "Check that the full event name is visible in the opened approval email."
+    "note": "Check that the approval email visibly contains the long event name."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Approve"
+     "text": "Approve",
+     "present": true
     },
-    "note": "Check that the approval action remains visible."
+    "note": "Confirm the approval action remains visible in the email."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Reject"
+     "text": "Reject",
+     "present": true
     },
-    "note": "Check that the rejection action remains visible."
+    "note": "Confirm the rejection action remains visible in the email."
    }
   ]
  }

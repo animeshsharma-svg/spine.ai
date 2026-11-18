@@ -4,65 +4,65 @@
   "title": "Starting price below the highest RFQ global charge",
   "group": "SRC-CVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T12:58:21.648Z",
+  "compiledAt": "2026-11-13T11:55:25.966Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Setting a specific starting price below the largest other-charge during conversion"
+   "Assert the specific reuse options offered in the conversion popup."
   ],
   "warnings": [
-   "can only test part of this — no step for: Setting a specific starting price below the largest other-charge during conversion"
+   "can only test part of this — no step for: Assert the specific reuse options offered in the conversion popup."
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
-   "click",
-   "click",
-   "expect_error"
+   "go_to",
+   "convert_to_auction",
+   "do_on_screen",
+   "expect_message"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 12968
+  "ms": 15630
  },
  "plan": {
-  "title": "Starting price below highest RFQ global charge on convert to auction",
+  "title": "SRC-CVT-004 — Reject low starting price on RFQ conversion",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ event summary"
+    "note": "Open the prepared closed RFQ summary for the buyer-side conversion case."
    },
    {
-    "step": "open_event_settings",
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage page where conversion is available."
+   },
+   {
+    "step": "convert_to_auction",
     "args": {},
-    "note": "Open the event settings menu"
+    "note": "Open the RFQ-to-Auction conversion flow and continue to the converted auction create screen."
    },
    {
-    "step": "click",
+    "step": "do_on_screen",
     "args": {
-     "role": "menuitem",
-     "name": "Convert to Auction"
+     "goal": "On the converted auction create screen, set the starting price below the largest global charge among the RFQ bids, publish the auction, and stop when the application shows the refusal."
     },
-    "note": "Click Convert to Auction in the settings menu"
+    "note": "The catalog has no dedicated step for setting the converted auction starting price or publishing this specific invalid conversion configuration."
    },
    {
-    "step": "click",
+    "step": "expect_message",
     "args": {
-     "role": "button",
-     "name": "Continue"
+     "kind": "error",
+     "text": "Starting price cannot be less than the maximum global charge of RFQ bids"
     },
-    "note": "Continue with the conversion options"
-   },
-   {
-    "step": "expect_error",
-    "args": {
-     "contains": "Starting price cannot be less than the maximum global charge of RFQ bids"
-    },
-    "note": "Assert that setting an invalid starting price is refused with the correct message"
+    "note": "Verify the exact expected refusal message."
    }
   ]
  }

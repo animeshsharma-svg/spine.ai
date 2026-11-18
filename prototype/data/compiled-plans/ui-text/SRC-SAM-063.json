@@ -4,48 +4,80 @@
   "title": "Extend Submission Time when the event moves from evaluation to awarded",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:13:47.940Z",
+  "compiledAt": "2026-11-13T12:50:16.728Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Transitioning the exact event state from evaluation to awarded within the same run"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Transitioning the exact event state from evaluation to awarded within the same run"
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
+   "require_setting",
+   "expect_settings_menu",
+   "close_event",
+   "award_event",
+   "expect_awarded",
    "expect_settings_menu"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 14839
+  "ms": 15967
  },
  "plan": {
-  "title": "SRC-SAM-063 — Extend Submission Time when the event moves from evaluation to awarded",
+  "title": "Extend Submission Time: Evaluation to Awarded",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared event summary page"
+    "note": "the API built this case's state"
    },
    {
-    "step": "open_event_settings",
-    "note": "Open the event settings menu to inspect actions available in the current state"
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "expect_settings_menu",
     "args": {
-     "offered": [
+     "enabled": [
       "Extend Submission Time"
      ]
     },
-    "note": "Assert the settings menu options"
+    "note": "Verify that extending submission time is offered and clickable during evaluation."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "End the bidding round so the event can proceed to award."
+   },
+   {
+    "step": "award_event",
+    "args": {},
+    "note": "Submit the award for the closed RFQ."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Confirm the award proposal was created and submitted."
+   },
+   {
+    "step": "expect_settings_menu",
+    "args": {
+     "greyed": [
+      "Extend Submission Time"
+     ]
+    },
+    "note": "Verify that extending submission time is greyed out after award and that the product provides the reason tooltip."
    }
   ]
  }

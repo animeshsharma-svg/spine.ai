@@ -4,48 +4,87 @@
   "title": "Master QCS of a closed RFQ: \"Project Details\" opens the Project Details page",
   "group": "EXP-CLOSEDQCS",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:24:28.423Z",
+  "compiledAt": "2026-11-13T13:51:50.352Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "click",
    "expect_navigated",
    "click",
-   "expect_navigated"
+   "expect_url_contains"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 7021
+  "ms": 11416
  },
  "plan": {
-  "title": "Closed RFQ Master QCS Project Details navigation",
+  "title": "Closed RFQ Master QCS Project Details Navigation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ on its project summary page."
+    "note": "Open the prepared closed RFQ summary page without recreating or searching for the event."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "tab",
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required for the prepared RFQ."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
+    },
+    "note": "Apply the required partial-awarding configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "restrict_unlock_bid_before_evaluation",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-unlock configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_over_awarding_allowed",
+     "value": "Off"
+    },
+    "note": "Prevent awarding beyond the requested quantity as required."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "tab",
      "name": "Master QCS"
     },
-    "note": "Open the event's Master QCS tab."
+    "note": "Open the Master QCS view specified by the case."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Confirm the Master QCS screen is ready before testing its Project Details control."
+    "note": "Verify that the Master QCS screen opened."
    },
    {
     "step": "click",
@@ -53,15 +92,14 @@
      "role": "tab",
      "name": "Project Details"
     },
-    "note": "Activate the Project Details tab as specified by the case."
+    "note": "Activate the Project Details control from Master QCS."
    },
    {
-    "step": "expect_navigated",
+    "step": "expect_url_contains",
     "args": {
-     "screen": "summary",
-     "path": "/details"
+     "text": "/details"
     },
-    "note": "Confirm the Project Details page opened and the URL contains the project details route."
+    "note": "Verify that navigation reached the project details route."
    }
   ]
  }

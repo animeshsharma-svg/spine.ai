@@ -4,41 +4,49 @@
   "title": "Vendor view when bid rejected (blocked)",
   "group": "SRC-VEN",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:21:06.348Z",
+  "compiledAt": "2026-11-13T13:14:28.359Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The specific rejection reason text is not provided by the case, so its exact display cannot be asserted.",
-   "The buyer-side action that rejects and blocks the bid is not expressible; this plan relies on the prepared rejected-and-blocked state."
+   "The specific rejection reason cannot be asserted because the test case does not provide the expected reason text and no catalog step can inspect an unspecified dynamic reason."
   ],
   "warnings": [
-   "can only test part of this — no step for: The specific rejection reason text is not provided by the case, so its exact display cannot be asserted.; The buyer-side action that rejects and blocks the bid is not expressible; this plan relies on the prepared rejected-and-blocked state."
+   "can only test part of this — no step for: The specific rejection reason cannot be asserted because the test case does not provide the expected reason text and no catalog step can inspect an unspecified dynamic reason."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "vendor_open_event",
    "expect_text",
    "expect_visible"
   ],
-  "ms": 10342
+  "ms": 16090
  },
  "plan": {
-  "title": "Vendor sees rejected blocked RFQ",
+  "title": "Vendor view after rejected bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "vendor"
     },
-    "note": "Open the prepared vendor-portal view for the RFQ in which Vendor A was rejected and blocked."
+    "note": "Open the prepared vendor-portal state for the RFQ with Vendor A's rejected and blocked bid."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the RFQ in the supplier portal at its pricing round."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Rejected"
+     "text": "Rejected",
+     "present": true
     },
-    "note": "Verify the vendor portal visibly identifies the bid or round as rejected."
+    "note": "Verify the vendor portal shows the bid as rejected."
    },
    {
     "step": "expect_visible",
@@ -47,7 +55,7 @@
      "name": "Submit Quote",
      "visible": false
     },
-    "note": "Verify the blocked vendor has no visible way to submit another quote."
+    "note": "Verify the blocked vendor has no way to submit another quote."
    }
   ]
  }

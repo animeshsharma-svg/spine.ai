@@ -4,39 +4,42 @@
   "title": "Three-dots menu of a project that is live with every vendor bid",
   "group": "SRC-PRJ",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:08:20.684Z",
+  "compiledAt": "2026-11-13T12:31:30.183Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Conditionally record whether Send Reminders is hidden or offered with no vendors to remind."
+   "unconfirmed label \"0 Pending\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Conditionally record whether Send Reminders is hidden or offered with no vendors to remind."
+   "coverage partial: unconfirmed label \"0 Pending\" (expect_text) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
    "expect_menu_item",
-   "expect_menu_item"
+   "expect_menu_item",
+   "event_menu",
+   "expect_text"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 12636
+  "ms": 11415
  },
  "plan": {
-  "title": "Live RFQ project menu options",
+  "title": "Live RFQ three-dots menu",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the existing prepared live RFQ project summary as the buyer."
+    "note": "Open the prepared live RFQ in the buyer portal with both vendors already bid."
    },
    {
     "step": "require_setting",
@@ -44,7 +47,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "Off"
     },
-    "note": "Ensure the tenant configuration allows Withdraw Project to appear."
+    "note": "Ensure Withdraw Project is available in the project menu."
    },
    {
     "step": "require_setting",
@@ -52,7 +55,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure eRFX project functionality is enabled for the prepared RFQ event."
+    "note": "Ensure the event is supported as an eRFX project."
    },
    {
     "step": "expect_menu_item",
@@ -60,14 +63,29 @@
      "item": "Withdraw Project",
      "enabled": true
     },
-    "note": "Assert that the project three-dots menu offers an enabled Withdraw Project action."
+    "note": "Assert the three-dots project menu offers an enabled Withdraw Project action."
    },
    {
     "step": "expect_menu_item",
     "args": {
+     "item": "Send Reminders",
+     "enabled": true
+    },
+    "note": "Assert the menu offers Send Reminders for the live project."
+   },
+   {
+    "step": "event_menu",
+    "args": {
      "item": "Send Reminders"
     },
-    "note": "Check whether Send Reminders is offered in the project menu; the catalog cannot also accept the hidden-or-no-reminders alternative conditionally."
+    "note": "Open the reminders drawer to verify that there are no vendors pending reminders."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "0 Pending"
+    },
+    "note": "Assert the reminders drawer reports no pending vendor reminders."
    }
   ]
  }

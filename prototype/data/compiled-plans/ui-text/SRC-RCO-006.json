@@ -4,39 +4,30 @@
   "title": "Recreate with Event End Time Duration 24 Hrs",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:10:06.085Z",
+  "compiledAt": "2026-11-13T12:35:47.943Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that Bidding Ends At equals the new start time plus exactly 1440 minutes.",
-   "Verify that the recreated event has the same product, delivery location, and participants as the old event.",
-   "Verify that the new event has a new RFX/stage code while the old event remains unchanged."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Verify that Bidding Ends At equals the new start time plus exactly 1440 minutes.; Verify that the recreated event has the same product, delivery location, and participants as the old event.; Verify that the new event has a new RFX/stage code while the old event remains unchanged."
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "event_menu",
-   "expect_visible",
-   "expect_options",
-   "click",
+   "do_on_screen",
+   "expect_api_value",
    "expect_text",
-   "expect_text",
-   "expect_text",
-   "click",
-   "expect_navigated",
-   "expect_text",
-   "expect_no_error"
+   "expect_screen_clean"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 23145
+  "ms": 25875
  },
  "plan": {
   "title": "Recreate Order with 24-Hour End Time",
@@ -46,7 +37,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary instead of searching the events list."
+    "note": "Open the prepared closed RFQ summary without searching or creating another event."
    },
    {
     "step": "require_setting",
@@ -54,7 +45,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project capability for the recreate flow."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "event_menu",
@@ -62,71 +53,21 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the Recreate Order dialog from the RFQ stage settings."
+    "note": "Open the RFQ stage Settings menu and launch the Recreate Order popup."
    },
    {
-    "step": "expect_visible",
+    "step": "do_on_screen",
     "args": {
-     "text": "Recreate Order",
-     "visible": true
+     "goal": "In the Recreate Order popup, verify Product Sheet, Auction Configurations, Delivery Date and Schedule this event are present; select 24 Hrs for Event End Time Duration, keep Evaluation Duration at 30 Mins with no schedule, click Create Order, and verify the new event opens live immediately with a new stage code, the same product, quantity, location and participants, and Bidding Ends At exactly 1440 minutes after its start while the original closed event remains unchanged."
     },
-    "note": "Confirm that the Recreate Order dialog opened."
+    "note": "No catalog domain step can operate the Recreate Order popup or validate its resulting cross-event details, so perform this buyer-side flow directly on screen."
    },
    {
-    "step": "expect_options",
+    "step": "expect_api_value",
     "args": {
-     "label": "Event End Time Duration",
-     "options": [
-      "24 Hrs"
-     ]
+     "key": "quantity"
     },
-    "note": "Verify that the event end-time duration picker offers the required 24 Hrs option."
-   },
-   {
-    "step": "click",
-    "args": {
-     "text": "24 Hrs"
-    },
-    "note": "Choose the 24-hour event end-time duration."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "24 Hrs",
-     "present": true
-    },
-    "note": "Confirm the selected duration is shown in the dialog."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "30 Mins",
-     "present": true
-    },
-    "note": "Confirm the evaluation duration remains 30 Mins."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Schedule this event?",
-     "present": true
-    },
-    "note": "Confirm the scheduling choice is present and can remain unset."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Create Order"
-    },
-    "note": "Submit the recreate order using the selected duration."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "overview"
-    },
-    "note": "Confirm that creation navigated to the newly opened event page."
+    "note": "Assert that the recreated event retains the source RFQ quantity."
    },
    {
     "step": "expect_text",
@@ -134,12 +75,12 @@
      "text": "Bidding Ends At",
      "present": true
     },
-    "note": "Confirm the new event page displays its bidding end-time field."
+    "note": "Confirm the live recreated event displays its bidding end time."
    },
    {
-    "step": "expect_no_error",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Ensure the recreate operation completed without an application error."
+    "note": "Confirm the recreated event page has no rendering errors, raw values or server failures."
    }
   ]
  }

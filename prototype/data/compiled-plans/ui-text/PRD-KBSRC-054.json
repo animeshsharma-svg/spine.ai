@@ -3,43 +3,252 @@
   "caseId": "PRD-KBSRC-054",
   "title": "View-Only Mode blocks counter offers, quote edits and surrogate bids until disabled",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:10:31.888Z",
+  "compiledAt": "2026-11-13T14:34:05.853Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "A dedicated assertion for the View-Only Mode toggle state and the individual availability of Counter Offer, Edit Quote, and surrogate bid controls after enabling and disabling it."
+   "unconfirmed label \"Disable View-Only Mode\" (expect_visible) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"Disable View-Only Mode\" (click) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "can only test part of this — no step for: A dedicated assertion for the View-Only Mode toggle state and the individual availability of Counter Offer, Edit Quote, and surrogate bid controls after enabling and disabling it."
+   "coverage partial: unconfirmed label \"Disable View-Only Mode\" (expect_visible) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"Disable View-Only Mode\" (click) — not among the labels known from the app nor in the case",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 28,
   "stepNames": [
    "open_event",
-   "do_on_screen",
-   "expect_no_error"
+   "click",
+   "click",
+   "click",
+   "expect_visible",
+   "open_master_qcs",
+   "attempt",
+   "open_participants",
+   "attempt",
+   "switch_portal",
+   "vendor_open_event",
+   "attempt",
+   "switch_portal",
+   "click",
+   "click",
+   "click",
+   "expect_visible",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_text",
+   "switch_portal",
+   "open_participants",
+   "place_surrogate_bid",
+   "expect_bid_submitted",
+   "open_master_qcs",
+   "place_counter_offer",
+   "expect_counter_offer_sent"
   ],
-  "ms": 13460
+  "ms": 21716
  },
  "plan": {
-  "title": "View-Only Mode Blocks Buyer Actions",
+  "title": "View-Only Mode action blocking",
   "steps": [
    {
     "step": "open_event",
-    "args": {},
-    "note": "Open an existing published event with vendor quotes, matching the case setup."
+    "note": "Open an existing published RFQ with vendor quotes so all three actions can be exercised."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "On the published RFQ with vendor quotes, open Actions and enable View-Only Mode; verify on screen that sending a counter offer, editing a quote, and placing a surrogate bid are unavailable; disable View-Only Mode through the same action and verify that those three actions are available again; stop on the screen showing the restored actions."
+     "role": "button",
+     "name": "Actions"
     },
-    "note": "No catalog domain step can toggle View-Only Mode or independently verify all three capability changes, so perform the complete buyer-side sequence on screen."
+    "note": "Open the event actions menu."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the UI interaction completed without an application error."
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Enable View-Only Mode"
+    },
+    "note": "Enable the mode under test."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Actions"
+    },
+    "note": "Reopen the actions menu to verify the mode is enabled."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "menuitem",
+     "name": "Disable View-Only Mode",
+     "visible": true
+    },
+    "note": "Confirm the menu now offers disabling View-Only Mode."
+   },
+   {
+    "step": "open_master_qcs",
+    "note": "Open the comparison grid containing the existing vendor quote."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_counter_offer",
+     "args": {
+      "price": 90
+     },
+     "expect": "refused"
+    },
+    "note": "Verify a counter offer is refused while View-Only Mode is enabled."
+   },
+   {
+    "step": "open_participants",
+    "note": "Open the published RFQ participants list for the surrogate-bid check."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "place_surrogate_bid",
+     "args": {
+      "price": 100
+     },
+     "expect": "refused"
+    },
+    "note": "Verify a surrogate bid is refused while View-Only Mode is enabled."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier portal to test quote editing."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the RFQ pricing round with the vendor's existing quote."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "vendor_bid",
+     "args": {
+      "price": 90
+     },
+     "expect": "refused"
+    },
+    "note": "Verify the vendor cannot revise its quote while View-Only Mode is enabled."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console to disable the mode."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Actions"
+    },
+    "note": "Open the actions menu."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Disable View-Only Mode"
+    },
+    "note": "Disable View-Only Mode."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Actions"
+    },
+    "note": "Reopen the actions menu to verify the mode is disabled."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "menuitem",
+     "name": "Enable View-Only Mode",
+     "visible": true
+    },
+    "note": "Confirm the menu now offers enabling View-Only Mode again."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Return to the vendor portal to retry quote editing."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Reopen the RFQ pricing round."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Verify the vendor can revise its quote after View-Only Mode is disabled."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Submitted",
+     "present": true
+    },
+    "note": "Confirm the revised vendor quote was submitted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console for the remaining retries."
+   },
+   {
+    "step": "open_participants",
+    "note": "Open the participants list for the surrogate-bid retry."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Verify a surrogate bid is available after View-Only Mode is disabled."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "note": "Confirm the surrogate bid was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "note": "Return to the comparison grid for the counter-offer retry."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "price": 90
+    },
+    "note": "Verify a counter offer is available after View-Only Mode is disabled."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "note": "Confirm the counter offer was sent."
    }
   ]
  }

@@ -4,20 +4,25 @@
   "title": "Bulk counter offer with only one bid",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:38:08.192Z",
+  "compiledAt": "2026-11-13T12:18:57.998Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "expect_menu_item"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 6157
+  "ms": 6494
  },
  "plan": {
   "title": "Bulk counter offer disabled with one bid",
@@ -27,16 +32,32 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses screen with exactly one bid."
+    "note": "Open the prepared live RFQ Responses screen with exactly one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure counter offers are shown on RFQ rounds."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX project flow required by the case."
    },
    {
     "step": "expect_menu_item",
     "args": {
      "item": "Send Bulk Counter Offer",
-     "enabled": false,
-     "stage": "rfq"
+     "stage": "rfq",
+     "enabled": false
     },
-    "note": "Assert that Send Bulk Counter Offer is present but greyed out because more than one bid is required."
+    "note": "Assert the bulk counter offer option is present but greyed out because one bid is insufficient, including the product's tooltip explanation."
    }
   ]
  }

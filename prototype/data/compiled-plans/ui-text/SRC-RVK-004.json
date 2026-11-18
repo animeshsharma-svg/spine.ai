@@ -4,28 +4,27 @@
   "title": "Reverse auction: the vendor revokes its bid while bidding is on",
   "group": "SRC-RVK",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:52:01.671Z",
+  "compiledAt": "2026-11-13T12:45:18.343Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the revoked bid leaves ranking and cannot be awarded."
+   "Vendor-side click and confirmation of Revoke for the submitted bid",
+   "Dedicated assertion that the buyer marks the bid revoked, removes it from ranking, and prevents it from being awarded"
   ],
   "warnings": [
-   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "resolved: “Perform and confirm the vendor's Revoke action in the supplier portal.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "can only test part of this — no step for: Assert that the revoked bid leaves ranking and cannot be awarded."
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Vendor-side click and confirmation of Revoke for the submitted bid; Dedicated assertion that the buyer marks the bid revoked, removes it from ranking, and prevents it from being awarded"
   ],
   "source": "llm",
-  "steps": 22,
+  "steps": 25,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
-   "configure_single_stage",
+   "compose_stages",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -33,56 +32,68 @@
    "invite_vendor",
    "publish",
    "expect_published",
+   "expect_bid_submitted",
+   "ask_tester",
    "switch_portal",
    "vendor_open_event",
    "expect_text",
-   "ask_tester",
    "switch_portal",
+   "open_events_list",
+   "expect_events_list",
+   "open_event",
    "go_to",
-   "expect_text",
-   "open_master_qcs",
    "expect_text",
    "event_menu",
    "expect_text",
-   "expect_text"
+   "open_master_qcs"
   ],
-  "ms": 13643
+  "ms": 20800
  },
  "plan": {
-  "title": "SRC-RVK-004 Reverse Auction Vendor Revoke",
+  "title": "Reverse auction vendor bid revocation",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "single-stage"
+     "path": "erfx"
     },
-    "note": "Start a single-stage auction create flow."
+    "note": "Create the reverse auction in the eRFX flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "set_title",
     "args": {
      "title": "SRC-RVK-004 Reverse Auction"
     },
-    "note": "Provide the required event title."
+    "note": "A title is required to publish and to identify the event in the buyer list."
    },
    {
-    "step": "configure_single_stage",
+    "step": "compose_stages",
     "args": {
-     "eventType": "auction"
+     "stages": [
+      "auction"
+     ]
     },
-    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
+    "note": "Configure the event as an auction."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available auction template."
+    "note": "Apply the auction pricing template before adding items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one line item for the auction bid."
+    "note": "Add the auction line item."
    },
    {
     "step": "fill_sheet",
@@ -94,106 +105,115 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding window."
+    "note": "Commit a live bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor representing Vendor A."
+    "note": "Invite the QA vendor who will submit the bid."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the live reverse auction."
+    "note": "Publish the reverse auction."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a published project page."
+    "note": "Confirm the event reached a published project page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor bid was accepted before attempting revocation."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "in the vendor portal, open the live reverse auction, click Revoke on the bid of 100, and confirm the revocation"
+    },
+    "note": "No catalog step performs the vendor's Revoke action."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the separate supplier portal while keeping the buyer session open."
+    "note": "Return to the vendor portal to inspect the post-revocation vendor view."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open this event's live pricing round as the invited vendor."
+    "note": "Open this event's pricing round in the vendor portal."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Submitted"
+     "text": "Revoked",
+     "present": true
     },
-    "note": "Verify the vendor portal shows the bid as submitted before revocation."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "as the invited vendor, click Revoke on the submitted bid and confirm the revocation"
-    },
-    "note": "The catalog has no vendor-portal step for revoking a submitted bid."
+    "note": "Check for the vendor-side revoked status if the portal renders it."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's session for post-revocation checks."
+    "note": "Return to the buyer console while preserving the buyer session."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Reach the buyer's Events list as required by the scenario."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the list and its Live, History, Drafts, and Recurring navigation rendered."
+   },
+   {
+    "step": "open_event",
+    "args": {},
+    "note": "Open the event created and bid on in this plan."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's Responses view for the event."
+    "note": "Open the buyer's Responses view."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Revoked"
+     "text": "Revoked",
+     "present": true
     },
-    "note": "Check that the buyer's response view marks the bid as revoked."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer's comparison grid after revocation."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Revoked"
-    },
-    "note": "Check for revoked-bid evidence in Master QCS."
+    "note": "Check whether the buyer-side response view displays a revoked marker."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Order Activity"
     },
-    "note": "Open the event activity drawer to inspect the revocation record."
+    "note": "Open the stage activity drawer to inspect the revocation record."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Activity"
+     "text": "revoked",
+     "present": true
     },
-    "note": "Verify the Order Activity drawer opened."
+    "note": "Check whether Order Activity records the bid revocation."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Revoked"
-    },
-    "note": "Check that the activity view contains a revoked-bid record."
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open Master QCS as requested by the scenario; the step confirms the comparison grid rendered."
    }
   ]
  }

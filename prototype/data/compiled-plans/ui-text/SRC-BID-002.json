@@ -4,12 +4,15 @@
   "title": "An upcoming event can be seen but not bid on",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:25:11.505Z",
+  "compiledAt": "2026-11-13T11:44:39.462Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the bid sheet cells themselves are read-only at the cell level."
+  ],
   "warnings": [
-   "resolved: “Verify the exact upcoming event start time value displayed in the vendor portal.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+   "resolved: “Assert the exact upcoming start time shown in the vendor portal.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Assert that the bid sheet cells themselves are read-only at the cell level."
   ],
   "source": "llm",
   "steps": 5,
@@ -22,17 +25,17 @@
   ],
   "state": "upcoming",
   "screen": "summary",
-  "ms": 16405
+  "ms": 9809
  },
  "plan": {
-  "title": "Upcoming vendor bid is blocked",
+  "title": "Upcoming RFQ blocks vendor bidding",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared upcoming RFQ without recreating or searching for it."
+    "note": "Open the API-prepared upcoming RFQ without creating or searching for another event."
    },
    {
     "step": "switch_portal",
@@ -46,7 +49,7 @@
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the upcoming RFQ's pricing round in the vendor portal."
+    "note": "Open the prepared upcoming RFQ from the vendor's event list and show its pricing sheet."
    },
    {
     "step": "attempt",
@@ -57,14 +60,14 @@
      },
      "expect": "refused"
     },
-    "note": "Try to enter and submit a price; this must be refused because the event has not started."
+    "note": "Try to enter and submit a bid before the event starts; this must produce a refusal or leave submission unavailable."
    },
    {
     "step": "expect_disabled",
     "args": {
      "control": "Submit Quote"
     },
-    "note": "Assert that the vendor cannot submit the quote before the scheduled start time."
+    "note": "Confirm the vendor cannot submit a quote while the RFQ is upcoming."
    }
   ]
  }

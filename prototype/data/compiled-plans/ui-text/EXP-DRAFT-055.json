@@ -4,50 +4,141 @@
   "title": "Manage Line Items: Save fails when price is negative",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:45:36.066Z",
+  "compiledAt": "2026-11-13T14:07:51.914Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The catalog does not document the exact Manage Line Items price field or the specific save-failure behavior for a negative price; the plan uses the unconfirmed label \"Price\" and a generic error assertion."
+  ],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: The catalog does not document the exact Manage Line Items price field or the specific save-failure behavior for a negative price; the plan uses the unconfirmed label \"Price\" and a generic error assertion."
+  ],
   "source": "llm",
-  "steps": 7,
+  "steps": 20,
   "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
    "open_events_list",
-   "expect_events_list",
    "filter_events",
    "open_first_event",
    "click",
-   "do_on_screen",
+   "expect_visible",
+   "fill",
+   "fill",
+   "click",
    "expect_error"
   ],
-  "ms": 13535
+  "ms": 20973
  },
  "plan": {
-  "title": "Negative Price in Draft Line Items",
+  "title": "Negative price blocks draft line-item save",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX create screen to build the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-addition configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required stage configuration before creating the draft."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-055 Negative Price"
+    },
+    "note": "A title is required to save and later reopen the draft."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Use an RFQ pricing stage so the draft has a price column."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template before adding the line item."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Create the single line item that the draft will contain."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the initial pricing sheet so the draft can be saved."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid schedule for the draft."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the eRFX draft that will be reopened for the Manage Line Items test."
+   },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to reach the saved draft."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Navigate to the events list to locate the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show saved eRFX drafts."
+    "note": "Show saved drafts only."
    },
    {
     "step": "open_first_event",
     "args": {
-     "tab": "Drafts"
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-055 Negative Price"
     },
-    "note": "Open the saved draft's create screen."
+    "note": "Open the draft created by this plan."
    },
    {
     "step": "click",
@@ -55,19 +146,47 @@
      "role": "button",
      "name": "Items 1"
     },
-    "note": "Open the Manage Line Items window for the draft."
+    "note": "Open the Manage Line Items window for the single line item."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_visible",
     "args": {
-     "goal": "In the Manage Line Items window, select a product, enter 90 in Quantity, enter -100 in the Price field, click Save, and stop when the screen shows that saving the negative price was refused."
+     "text": "Manage Line Items",
+     "visible": true
     },
-    "note": "Perform the line-item edits and Save action that no dedicated catalog step can express."
+    "note": "Confirm the requested Manage Line Items window is open."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Quantity",
+     "value": "90",
+     "within": "Manage Line Items"
+    },
+    "note": "Enter the quantity specified by the case."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Price",
+     "value": "-100",
+     "within": "Manage Line Items"
+    },
+    "note": "Enter the negative price that should be rejected."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Save",
+     "within": "Manage Line Items"
+    },
+    "note": "Attempt to save the invalid line-item values."
    },
    {
     "step": "expect_error",
     "args": {},
-    "note": "Assert that Procol reported an error instead of saving the negative price."
+    "note": "Assert that saving the negative price produces an application error."
    }
   ]
  }

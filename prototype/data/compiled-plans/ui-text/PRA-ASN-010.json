@@ -4,50 +4,62 @@
   "title": "Change the assignee to another allowed user",
   "group": "PRA-ASN",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:00:40.100Z",
+  "compiledAt": "2026-11-13T14:25:27.898Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Click the PR-1 row's Assignee cell and select Fruits Buyer (User B) to reassign the PR item."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Click the PR-1 row's Assignee cell and select Fruits Buyer (User B) to reassign the PR item."
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "do_on_screen",
+   "ask_tester",
    "expect_text"
   ],
-  "ms": 8794
+  "ms": 13223
  },
  "plan": {
-  "title": "Reassign PR item to another allowed user",
+  "title": "Reassign PR item to User B",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team-filtering configuration before navigating."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open Purchase Requisitions as the PR manager."
+    "note": "Open Purchase Requisitions, the required starting screen for this PR assignment case."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab where PR-1 should be available."
+    "note": "Stay on the Open PR tab as required by the scenario."
    },
    {
-    "step": "do_on_screen",
+    "step": "ask_tester",
     "args": {
-     "goal": "Search for PR-1 in the Open Purchase Requisitions list, open the PR-1 line item's Assignee cell, select Fruits Buyer (User B), and stop with the row showing Fruits Buyer as the assignee"
+     "need": "find PR-1, open its Assignee cell, and select Fruits Buyer (User B)"
     },
-    "note": "Perform the reassignment interaction that has no dedicated catalog step."
+    "note": "No catalog step can search the PR list or change an item's assignee."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Fruits Buyer",
-     "present": true
+     "text": "User B"
     },
-    "note": "Assert that the reassigned row displays User B as Fruits Buyer."
+    "note": "Verify that the PR row now displays User B as the assignee."
    }
   ]
  }

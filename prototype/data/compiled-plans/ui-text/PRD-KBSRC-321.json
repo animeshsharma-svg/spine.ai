@@ -3,26 +3,25 @@
   "caseId": "PRD-KBSRC-321",
   "title": "Rank Based: show rank for individual items",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:13:27.238Z",
+  "compiledAt": "2026-11-13T14:37:32.517Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Reliably verify that each rank indicator is attached to its corresponding line item rather than only asserting multiple Rank labels are present",
-   "Verify the exact numeric rank for each individual line item"
+   "Assert that a rank is shown against every individual line item rather than only against the Sum Total."
   ],
   "warnings": [
-   "can only test part of this — no step for: Reliably verify that each rank indicator is attached to its corresponding line item rather than only asserting multiple Rank labels are present; Verify the exact numeric rank for each individual line item"
+   "can only test part of this — no step for: Assert that a rank is shown against every individual line item rather than only against the Sum Total."
   ],
   "source": "llm",
   "steps": 15,
   "stepNames": [
    "open_create",
    "configure_single_stage",
+   "do_on_screen",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
-   "toggle",
    "set_schedule",
    "invite_vendor",
    "publish",
@@ -30,19 +29,19 @@
    "switch_portal",
    "vendor_open_event",
    "vendor_bid",
-   "expect_count"
+   "expect_text"
   ],
-  "ms": 9127
+  "ms": 22097
  },
  "plan": {
-  "title": "Rank-Based Auction: Individual Item Vendor Ranks",
+  "title": "Rank Based Auction Shows Item-Level Vendor Rank",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Start the single-stage auction creation flow where auction strategy and awarding mode are configured."
+    "note": "Open the single-stage creation flow required for configuring auction strategy and awarding mode."
    },
    {
     "step": "configure_single_stage",
@@ -51,39 +50,38 @@
      "auctionSubtype": "rank",
      "awarding": "line_item"
     },
-    "note": "Configure a rank-based auction with partial awarding across multiple vendors."
+    "note": "Configure a rank-based auction that may be partially awarded to multiple vendors."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the auction configuration screen, enable the control labeled \"Show rank to vendor for individual item\" and stop with the control visibly enabled"
+    },
+    "note": "The catalog has no dedicated step for this configuration control, so perform the buyer-side on-screen action before continuing."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Individual Item Rank Auction"
+     "title": "Item Level Rank Auction"
     },
-    "note": "Provide the required event title before publishing."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the pricing template before adding line items."
+    "note": "Apply the first available pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 2
+     "count": 3
     },
-    "note": "Create multiple line items so individual-item ranking can be observed."
+    "note": "Create several line items so item-level rank visibility can be observed."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet required for publication."
-   },
-   {
-    "step": "toggle",
-    "args": {
-     "label": "Show rank to vendor for individual item",
-     "on": true
-    },
-    "note": "Enable the setting under test."
+    "note": "Complete the pricing sheet for all line items."
    },
    {
     "step": "set_schedule",
@@ -97,7 +95,7 @@
     "args": {
      "count": 1
     },
-    "note": "Add the vendor who will submit the bid."
+    "note": "Invite the QA vendor who will submit the bid."
    },
    {
     "step": "publish",
@@ -107,36 +105,36 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a published project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor's supplier-portal session."
+    "note": "Move to the invited vendor session to verify the vendor-facing result."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the auction's pricing round in the vendor portal."
+    "note": "Open the auction bid sheet in the supplier portal."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Submit a bid across the auction's line items."
+    "note": "Submit a bid across the several line items."
    },
    {
-    "step": "expect_count",
+    "step": "expect_text",
     "args": {
      "text": "Rank",
-     "min": 2
+     "present": true
     },
-    "note": "Check that the vendor view displays multiple rank indicators, consistent with one rank being shown per line item."
+    "note": "Confirm the vendor screen exposes rank information after bidding, although the catalog cannot prove it is attached to every individual item."
    }
   ]
  }

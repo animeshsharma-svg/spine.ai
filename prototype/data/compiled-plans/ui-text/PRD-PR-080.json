@@ -3,55 +3,41 @@
   "caseId": "PRD-PR-080",
   "title": "PR Approval: step 1 \"Budget Check\" blocks if exceeded",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:39:06.745Z",
+  "compiledAt": "2026-11-13T15:22:00.578Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Create and submit a purchase requisition whose GL-code budget is exceeded, run the approval workflow to step 1 Budget Check, and verify the item is blocked there with no later step active."
+   "Submit an employee purchase requisition with an item whose GL-code budget is exceeded",
+   "Configure or trigger the Budget Check failure for the requisition",
+   "Advance the requisition workflow to step 1 Budget Check",
+   "Assert the workflow is blocked at Budget Check and that no later step becomes active",
+   "the plan has no assertion step — nothing the case checks can be observed"
   ],
   "warnings": [
-   "can only test part of this — no step for: Create and submit a purchase requisition whose GL-code budget is exceeded, run the approval workflow to step 1 Budget Check, and verify the item is blocked there with no later step active."
+   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 2,
   "stepNames": [
    "open_purchase_requisitions",
-   "ask_tester",
-   "expect_text",
-   "expect_text"
+   "pr_tab"
   ],
-  "ms": 16073
+  "ms": 13331
  },
  "plan": {
-  "title": "PR Approval Budget Check Blocks Exceeded Item",
+  "title": "PR Budget Check Blocks Approval",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Provides the closest available entry point to the purchase requisition area; it does not create, submit, or trigger the approval workflow."
+    "note": "Closest available navigation to the Purchase Requisitions area, but it does not create or submit the requisition or expose its approval workflow."
    },
    {
-    "step": "ask_tester",
+    "step": "pr_tab",
     "args": {
-     "need": "create and submit a purchase requisition with an exceeded GL-code budget, let approval reach step 1 Budget Check, and stop when the workflow shows the item blocked with no later step active"
+     "tab": "Open"
     },
-    "note": "The catalog has no step for creating the employee submission, configuring an exceeded budget, or advancing and inspecting the approval workflow."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Budget Check",
-     "present": true
-    },
-    "note": "Checks that the workflow screen identifies the expected step after the tester performs the unavailable setup and progression."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "blocked",
-     "present": true
-    },
-    "note": "Checks for the expected blocked outcome shown in the workflow."
+    "note": "Shows open requisitions that might be eligible for sourcing, but does not observe budget-check status or workflow blocking."
    }
   ]
  }

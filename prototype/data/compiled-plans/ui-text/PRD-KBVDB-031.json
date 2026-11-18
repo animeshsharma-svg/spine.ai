@@ -3,25 +3,22 @@
   "caseId": "PRD-KBVDB-031",
   "title": "Sum Total reduced by a Percentage",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:55:03.796Z",
+  "compiledAt": "2026-11-13T15:45:59.409Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Enable or verify Cost Breakdown Mode with a Sum Total on the auction bid sheet",
-   "Open the dropdown next to Fixed Value and select Percentage",
-   "Enter a percentage discount such as 10%",
-   "Click Revise Bid",
-   "Assert that the current bid equals the Sum Total reduced by the entered percentage"
+   "Configure the auction in Cost Breakdown Mode with a Sum Total.",
+   "Directly assert that the discount was applied specifically to the Sum Total field rather than only verifying the resulting bid total."
   ],
   "warnings": [
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
    "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
    "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "cannot test this case yet — no step can observe: Enable or verify Cost Breakdown Mode with a Sum Total on the auction bid sheet; Open the dropdown next to Fixed Value and select Percentage; Enter a percentage discount such as 10%; Click Revise Bid; Assert that the current bid equals the Sum Total reduced by the entered percentage"
+   "can only test part of this — no step for: Configure the auction in Cost Breakdown Mode with a Sum Total.; Directly assert that the discount was applied specifically to the Sum Total field rather than only verifying the resulting bid total."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "set_title",
@@ -35,24 +32,29 @@
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "expect_visible"
+   "vendor_bid",
+   "vendor_open_event",
+   "select",
+   "fill",
+   "click",
+   "expect_api_value"
   ],
-  "ms": 10040
+  "ms": 23422
  },
  "plan": {
-  "title": "Auction Sum Total Percentage Discount",
+  "title": "Auction percentage discount on Sum Total",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Create the auction needed for the vendor-side bid-sheet setup."
+    "note": "Open the single-stage creation screen for the auction."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Percentage Discount Sum Total Test"
+     "title": "Percentage Discount Sum Total QA"
     },
     "note": "Provide the required event title."
    },
@@ -71,33 +73,34 @@
    {
     "step": "add_line_items",
     "args": {
-     "count": 1
+     "count": 1,
+     "quantity": "1"
     },
-    "note": "Add a line item so the auction has a bid sheet."
+    "note": "Create one controlled line item with quantity 1 so a 100 bid has an expected total of 100 before discount."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the auction pricing sheet."
+    "note": "Complete the auction pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding window."
+    "note": "Commit a live bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor whose portal will be opened."
+    "note": "Invite the QA vendor needed to submit and revise the bid."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the auction so the vendor can access its live bid sheet."
+    "note": "Publish the auction."
    },
    {
     "step": "expect_published",
@@ -109,23 +112,60 @@
     "args": {
      "to": "vendor"
     },
-    "note": "Open the invited vendor's supplier-portal session."
+    "note": "Move to the invited vendor's supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Reach the vendor's live auction pricing sheet, the closest available screen for the requested behavior."
+    "note": "Open the live auction pricing round in the vendor portal."
    },
    {
-    "step": "expect_visible",
+    "step": "vendor_bid",
+    "args": {
+     "price": 100
+    },
+    "note": "Submit the initial bid of 100, establishing the controlled baseline."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Reopen the pricing round so the vendor can revise the live bid."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "Fixed Value",
+     "option": "Percentage"
+    },
+    "note": "Select Percentage from the discount mode dropdown."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Discount",
+     "value": "10"
+    },
+    "note": "Enter the requested 10 percent discount; the catalog does not confirm the exact rendered field label."
+   },
+   {
+    "step": "click",
     "args": {
      "role": "button",
-     "name": "Submit Quote",
-     "visible": true
+     "name": "Revise Bid"
     },
-    "note": "Assert that the vendor bid sheet is rendered, while acknowledging that the catalog cannot observe the requested percentage-discount controls or revised current bid."
+    "note": "Submit the percentage-based bid revision."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidTotal",
+     "within": "Current Bid"
+    },
+    "note": "Verify that the revised current bid total is 90, the expected 10 percent reduction from the controlled baseline of 100."
    }
   ]
  }

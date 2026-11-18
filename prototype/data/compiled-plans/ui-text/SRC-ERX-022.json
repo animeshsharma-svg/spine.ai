@@ -4,42 +4,45 @@
   "title": "Save as draft with participants and T&C added",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:18:46.515Z",
+  "compiledAt": "2026-11-13T12:02:50.783Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact T&C clause text and its persistence cannot be asserted because the case does not specify the clause text and no catalog assertion targets an arbitrary clause."
+   "Assert that the same participant identities are present after reopening the draft.",
+   "Assert that the same T&C clause content is preserved after reopening the draft."
   ],
   "warnings": [
-   "can only test part of this — no step for: The exact T&C clause text and its persistence cannot be asserted because the case does not specify the clause text and no catalog assertion targets an arbitrary clause."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Assert that the same participant identities are present after reopening the draft.; Assert that the same T&C clause content is preserved after reopening the draft."
   ],
   "source": "llm",
   "steps": 19,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_title",
-   "compose_stages",
    "select_template",
    "add_line_items",
    "fill_sheet",
    "invite_vendor",
    "do_on_screen",
-   "remember",
-   "remember",
    "save_draft",
-   "expect_no_error",
    "open_events_list",
    "filter_events",
    "expect_event_in_list",
    "expect_event_status",
-   "open_event",
-   "expect_remembered",
-   "expect_remembered"
+   "open_first_event",
+   "expect_no_error",
+   "expect_text",
+   "expect_text"
   ],
-  "ms": 76738
+  "ms": 18047
  },
  "plan": {
-  "title": "Save eRFX Draft with Participants and T&C",
+  "title": "Save eRFX draft with participants and T&C",
   "steps": [
    {
     "step": "open_create",
@@ -49,65 +52,64 @@
     "note": "Open the eRFX project create screen."
    },
    {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the required project title so the draft can be saved and reopened."
+    "step": "require_setting",
+    "args": {
+     "key": "allow_draft_project_creation",
+     "value": "On"
+    },
+    "note": "Enable saving sourcing projects as drafts for this case."
    },
    {
-    "step": "compose_stages",
+    "step": "require_setting",
     "args": {
-     "stages": [
-      "auction"
-     ]
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Keep the default single Auction stage for the eRFX project."
+    "note": "Enable the eRFX project creation path."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the required event title before saving."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a pricing template before adding the item."
+    "note": "Apply a pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the requested line item."
+    "note": "Add the event's item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet for the line item."
+    "note": "Complete the pricing sheet for the item."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Add two QA vendors as the draft participants."
+    "note": "Add two QA test vendors as participants."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "add one T&C clause to the event and stop on the create screen showing the added clause"
+     "goal": "add one T&C clause on the eRFX create screen and leave the Terms and Conditions section showing the added clause"
     },
-    "note": "Add the T&C clause, which has no dedicated catalog action."
-   },
-   {
-    "step": "remember",
-    "args": {
-     "key": "participants_before_save",
-     "text": "Participants"
-    },
-    "note": "Record the visible participant section before saving for comparison after reopening."
-   },
-   {
-    "step": "remember",
-    "args": {
-     "key": "terms_before_save",
-     "text": "Terms & Conditions"
-    },
-    "note": "Record the visible Terms & Conditions section before saving."
+    "note": "Add the requested T&C clause, which has no dedicated catalog step."
    },
    {
     "step": "save_draft",
@@ -115,54 +117,56 @@
     "note": "Save the configured event as a draft."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm that saving the draft did not show an application error."
-   },
-   {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to locate the saved draft."
+    "note": "Navigate to the events list to locate the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab where the saved event should appear."
+    "note": "Show draft events."
    },
    {
     "step": "expect_event_in_list",
     "args": {},
-    "note": "Assert that this plan's newly saved event appears in Drafts."
+    "note": "Verify that this plan's event appears in Drafts."
    },
    {
     "step": "expect_event_status",
     "args": {
      "status": "Draft"
     },
-    "note": "Assert that the event is labeled Draft in the list."
+    "note": "Verify the event has Draft status."
    },
    {
-    "step": "open_event",
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Reopen the draft event from the Drafts list."
+   },
+   {
+    "step": "expect_no_error",
     "args": {},
-    "note": "Reopen this plan's draft on its create screen."
+    "note": "Verify reopening the draft did not produce an application error."
    },
    {
-    "step": "expect_remembered",
+    "step": "expect_text",
     "args": {
-     "key": "participants_before_save",
-     "same": true
+     "text": "Participants",
+     "present": true
     },
-    "note": "Compare the reopened participant section with its pre-save content."
+    "note": "Verify the reopened draft still exposes its participant section."
    },
    {
-    "step": "expect_remembered",
+    "step": "expect_text",
     "args": {
-     "key": "terms_before_save",
-     "same": true
+     "text": "Terms and Conditions",
+     "present": true
     },
-    "note": "Compare the reopened Terms & Conditions section with its pre-save content."
+    "note": "Verify the reopened draft still exposes its T&C section."
    }
   ]
  }

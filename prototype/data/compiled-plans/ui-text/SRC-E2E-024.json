@@ -4,23 +4,24 @@
   "title": "Material PR → eRFX Auction-only project → split award → PO",
   "group": "SRC-E2E",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:15:56.247Z",
+  "compiledAt": "2026-11-13T12:00:28.801Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Allocate exactly 6 units to the first vendor and 4 units to the second vendor through a dedicated catalog assertion",
-   "Assert the resulting split award amounts of 510, 352, and total 862",
-   "Assert that the purchase requisition line is marked ordered"
+   "Select an open PR line specifically by material type and exactly 10 units.",
+   "Verify that the created POs individually contain quantities of 6 and 4 for Vendor A and Vendor B."
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 9 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "invite_vendor now names Vendor A, Vendor B — a later step expects that vendor on the event",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "can only test part of this — no step for: Allocate exactly 6 units to the first vendor and 4 units to the second vendor through a dedicated catalog assertion; Assert the resulting split award amounts of 510, 352, and total 862; Assert that the purchase requisition line is marked ordered"
+   "can only test part of this — no step for: Select an open PR line specifically by material type and exactly 10 units.; Verify that the created POs individually contain quantities of 6 and 4 for Vendor A and Vendor B."
   ],
   "source": "llm",
-  "steps": 31,
+  "steps": 38,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -30,8 +31,10 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "set_title",
-   "expect_api_value",
    "set_schedule",
    "invite_vendor",
    "publish",
@@ -44,9 +47,14 @@
    "expect_bid_submitted",
    "close_event",
    "open_master_qcs",
-   "expect_qcs_vendors",
    "expect_qcs_ranks",
    "start_awarding",
+   "allocate_award",
+   "allocate_award",
+   "expect_award_counters",
+   "click",
+   "click",
+   "expect_awarded",
    "approve_award",
    "create_po",
    "expect_po_items",
@@ -54,10 +62,10 @@
    "filter_events",
    "expect_event_in_list"
   ],
-  "ms": 28212
+  "ms": 25332
  },
  "plan": {
-  "title": "SRC-E2E-024 Material PR Auction Split Award to PO",
+  "title": "Material PR to Split Auction Award and PO",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -95,33 +103,56 @@
     "step": "fill_sheet"
    },
    {
-    "step": "set_title",
+    "step": "require_setting",
     "args": {
-     "title": "SRC-E2E-024 Material PR Auction Split Award to PO"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Enable eRFX project creation for the PR workflow."
    },
    {
-    "step": "expect_api_value",
+    "step": "require_setting",
     "args": {
-     "key": "quantity",
-     "within": "Items"
+     "key": "is_partial_awarding_enabled",
+     "value": "On"
     },
-    "note": "Verify the retained PR quantity is shown in the event item area."
+    "note": "Enable split awards across vendors."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Material PR Split Award Auction"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit the 30-minute schedule requested by the case."
+    "note": "Commit the requested 30-minute schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "count": 2
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
+     "names": [
+      "Vendor A",
+      "Vendor B"
+     ]
     },
-    "note": "Invite two vendors so both bidding identities can participate."
+    "note": "Invite the two named vendors needed for the bidding and split award."
    },
    {
     "step": "publish",
@@ -131,28 +162,28 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publication reached a real project page."
+    "note": "Verify that publication reached a real project page."
    },
    {
     "step": "place_bid",
     "args": {
-     "vendor": 1,
+     "vendor": "Vendor A",
      "price": 100
     },
-    "note": "Submit Vendor A's initial bid of 100."
+    "note": "Submit Vendor A's initial bid."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the initial bid was accepted by the vendor portal."
+    "note": "Verify Vendor A's initial bid was accepted."
    },
    {
     "step": "place_bid",
     "args": {
-     "vendor": 1,
+     "vendor": "Vendor A",
      "price": 85
     },
-    "note": "Submit Vendor A's revision to 85 using the same vendor."
+    "note": "Submit Vendor A's revised bid."
    },
    {
     "step": "expect_bid_submitted",
@@ -162,10 +193,10 @@
    {
     "step": "place_bid",
     "args": {
-     "vendor": 2,
+     "vendor": "Vendor B",
      "price": 88
     },
-    "note": "Submit Vendor B's bid of 88."
+    "note": "Submit Vendor B's bid."
    },
    {
     "step": "expect_bid_submitted",
@@ -175,69 +206,115 @@
    {
     "step": "close_event",
     "args": {},
-    "note": "Close the auction before QCS and awarding."
+    "note": "Close the auction before awarding."
    },
    {
     "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the comparison grid after bidding has closed."
-   },
-   {
-    "step": "expect_qcs_vendors",
     "args": {
-     "count": 2
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
     },
-    "note": "Verify both bidding vendors appear as real vendor columns."
+    "note": "Open the comparison grid with both bidding vendors."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "by": "Auction Amount",
+     "by": "RFQ Amount",
      "order": "lowest",
      "atLeast": 2
     },
-    "note": "Verify the lower final bid ranks ahead of the higher bid."
+    "note": "Verify the lowest bid ranks first, making Vendor A rank 1 at 85."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding flow from Master QCS."
+    "note": "Enter the awarding flow for the closed auction."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor A",
+     "quantity": 6,
+     "line": 1
+    },
+    "note": "Allocate 6 units to Vendor A."
+   },
+   {
+    "step": "allocate_award",
+    "args": {
+     "vendor": "Vendor B",
+     "quantity": 4,
+     "line": 1
+    },
+    "note": "Allocate the remaining 4 units to Vendor B."
+   },
+   {
+    "step": "expect_award_counters",
+    "args": {
+     "items": "1/1",
+     "vendors": "2/2",
+     "proposal": 862
+    },
+    "note": "Verify both vendors are selected and the split proposal total is 862."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Create Proposal"
+    },
+    "note": "Create the split-award proposal."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Proposal"
+    },
+    "note": "Submit the proposal for approval."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify that the award proposal was created and submitted."
    },
    {
     "step": "approve_award",
     "args": {
-     "remark": "Approved for the split award from the material PR."
+     "remark": "Approved split award for the PR line."
     },
     "note": "Approve the submitted proposal with the required remark."
    },
    {
     "step": "create_po",
     "args": {},
-    "note": "Complete the approved award and create the purchase orders."
+    "note": "Complete approval and create the purchase orders."
    },
    {
     "step": "expect_po_items",
     "args": {
      "count": 2
     },
-    "note": "Verify that two PO lines were created across the awarded vendors."
+    "note": "Verify that the resulting POs carry the awarded line items."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the events list to verify the final event state."
+    "note": "Return to the events list to verify the final lifecycle state."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "History"
     },
-    "note": "Open the History tab after completion."
+    "note": "Open the History tab after award and PO creation."
    },
    {
     "step": "expect_event_in_list",
     "args": {},
-    "note": "Verify this plan's event appears in History."
+    "note": "Verify that this event moved into History."
    }
   ]
  }

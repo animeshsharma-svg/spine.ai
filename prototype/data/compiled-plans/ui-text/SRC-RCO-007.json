@@ -4,22 +4,29 @@
   "title": "Recreate with a Custom end time of 90 minutes",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:41:59.260Z",
+  "compiledAt": "2026-11-13T12:35:42.723Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Directly assert that the recreated event ends exactly 90 minutes after its start."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Directly assert that the recreated event ends exactly 90 minutes after its start."
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
    "do_on_screen",
-   "expect_no_error"
+   "expect_navigated"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 9447
+  "ms": 11020
  },
  "plan": {
   "title": "Recreate Order with 90-Minute Custom End Time",
@@ -29,27 +36,36 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ directly as the buyer."
+    "note": "Open the prepared closed RFQ summary as required for this case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting for the case."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order",
-     "stage": "rfq"
+     "item": "Recreate Order"
     },
-    "note": "Open the RFQ Settings menu and launch the Recreate Order dialog."
+    "note": "Open the Recreate Order pop-up from the stage settings menu."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "In the Recreate Order dialog, choose Custom under Event End Time Duration, enter 90 minutes, click Create Order, and stop when the recreated event screen proves its end time is 90 minutes after its start"
+     "goal": "In the Recreate Order pop-up, verify Product Sheet, Auction Configurations, Delivery Date and Schedule this event are shown; choose Custom under Event End Time Duration, enter 90 minutes, click Create Order, and stop on the newly recreated event showing the configured schedule."
     },
-    "note": "Perform the custom duration entry and creation, verifying the resulting event schedule on screen."
+    "note": "Perform the custom 90-minute recreation workflow that has no dedicated catalog action."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the recreated order completed without an application error."
+    "step": "expect_navigated",
+    "args": {
+     "screen": "create"
+    },
+    "note": "Assert that Create Order navigated to the recreated event's create screen."
    }
   ]
  }

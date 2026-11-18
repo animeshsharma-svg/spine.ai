@@ -4,19 +4,20 @@
   "title": "Create a Single Stage reverse auction from an open asset PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:08:07.625Z",
+  "compiledAt": "2026-11-13T12:28:26.739Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that Account Assignment A is retained and carried to the purchase order.",
-   "Verify that the PR line moves to In Progress with this event's number.",
-   "Verify that the published event explicitly shows it came from a PR."
+   "Choosing the Single Stage event mode from the Purchase Requisition flow and configuring its reverse-auction settings through the single-stage configuration drawer",
+   "Verifying that the asset line's Account Assignment A is carried through to a purchase order",
+   "Verifying the PR line moves specifically to In Progress with this event number",
+   "Verifying the published event explicitly displays that it originated from a PR",
+   "Verifying the PR-filled delivery location is locked on the create sheet; the available sheet assertion does not establish that PR delivery locations are read-only"
   ],
   "warnings": [
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
-   "resolved: “Verify the exact single-stage mode selection and reverse-auction configuration on the PR-created event, because the PR f” — require_setting switches that company setting before the case and back after",
-   "can only test part of this — no step for: Verify that Account Assignment A is retained and carried to the purchase order.; Verify that the PR line moves to In Progress with this event's number.; Verify that the published event explicitly shows it came from a PR."
+   "can only test part of this — no step for: Choosing the Single Stage event mode from the Purchase Requisition flow and configuring its reverse-auction settings through the single-stage configuration drawer; Verifying that the asset line's Account Assignment A is carried through to a purchase order; Verifying the PR line moves specifically to In Progress with this event number; Verifying the published event explicitly displays that it originated from a PR; Verifying the PR-filled delivery location is locked on the create sheet; the available sheet assertion does not establish that PR delivery locations are read-only"
   ],
   "source": "llm",
   "steps": 19,
@@ -31,20 +32,20 @@
    "fill_sheet",
    "require_setting",
    "require_setting",
-   "set_title",
+   "expect_template_selected",
    "expect_sheet_cells",
-   "expect_api_value",
-   "expect_api_value",
-   "invite_vendor",
+   "set_title",
    "set_schedule",
+   "invite_vendor",
    "publish",
    "expect_published",
+   "open_event_settings",
    "expect_menu_item"
   ],
-  "ms": 19206
+  "ms": 26712
  },
  "plan": {
-  "title": "Create Single-Stage Reverse Auction from Asset PR",
+  "title": "Create auction from open asset PR",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -56,10 +57,7 @@
     }
    },
    {
-    "step": "select_pr",
-    "args": {
-     "items": 1
-    }
+    "step": "select_pr"
    },
    {
     "step": "purchase_items"
@@ -95,14 +93,12 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation and publishing."
+    "note": "Allow vendors to be added during event creation and avoid the publish restriction described in the case."
    },
    {
-    "step": "set_title",
-    "args": {
-     "title": "SRC-PR-045 Asset Reverse Auction"
-    },
-    "note": "Provide the mandatory event title before publishing."
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Assert that the auction stage has a template applied before configuring its sheet."
    },
    {
     "step": "expect_sheet_cells",
@@ -110,28 +106,22 @@
      "row": 1,
      "readonly": [
       "Product",
-      "Product Variant",
-      "Quantity Requested",
-      "Delivery location"
+      "Quantity Requested"
      ]
     },
-    "note": "Verify the PR-derived item, variant, quantity, and delivery location are locked on the sheet."
+    "note": "Verify key PR-populated product and quantity fields are read-only on the sheet."
    },
    {
-    "step": "expect_api_value",
-    "args": {
-     "key": "quantity",
-     "within": "Line Items"
-    },
-    "note": "Check that the PR quantity is displayed on the created event."
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title required before publishing."
    },
    {
-    "step": "expect_api_value",
+    "step": "set_schedule",
     "args": {
-     "key": "unit",
-     "within": "Line Items"
+     "minutes": 30
     },
-    "note": "Check that the PR unit is displayed on the created event."
+    "note": "Commit the requested 30-minute schedule."
    },
    {
     "step": "invite_vendor",
@@ -144,30 +134,27 @@
     "note": "Add the two vendors explicitly named in the case."
    },
    {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit the required immediate 30-minute schedule."
-   },
-   {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed auction event."
+    "note": "Publish the completed PR-derived auction event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publishing reached a real project page."
+    "note": "Confirm that publishing reached a real project page."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the published event's Settings menu to inspect the PR-specific recreation action."
    },
    {
     "step": "expect_menu_item",
     "args": {
      "item": "Recreate Order",
-     "enabled": false,
-     "stage": "auction"
+     "enabled": false
     },
-    "note": "Verify that an event created from a PR cannot use Recreate Order."
+    "note": "Verify that Recreate Order is greyed out on the published PR-derived event."
    }
   ]
  }

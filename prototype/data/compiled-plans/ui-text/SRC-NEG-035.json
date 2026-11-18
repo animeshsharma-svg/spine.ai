@@ -4,50 +4,45 @@
   "title": "Counter offer during evaluation time on one of the two lines; the vendor does not answer",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:05:03.268Z",
+  "compiledAt": "2026-11-13T12:20:10.744Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "An RFQ in evaluation with exactly two lines where Vendor A quoted 100 and 50; the prepared state is a closed RFQ with one line and two bids.",
-   "Checking that only line 1 of a two-line counter-offer is changed while line 2 remains unchanged.",
-   "Observing the vendor's non-response separately from the pending counter-offer state in the requested two-line evaluation scenario."
+   "An existing RFQ in evaluation with two lines where Vendor A quoted 100 and 50",
+   "Selecting only line 1 in the counter-offer sheet and changing 100 to 90 during evaluation",
+   "Verifying the vendor leaves the counter offer unanswered and that it remains pending",
+   "Verifying Vendor A cannot revise any line while the counter offer is pending",
+   "Verifying Master QCS totals for the requested two-line evaluation event"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: An RFQ in evaluation with exactly two lines where Vendor A quoted 100 and 50; the prepared state is a closed RFQ with one line and two bids.; Checking that only line 1 of a two-line counter-offer is changed while line 2 remains unchanged.; Observing the vendor's non-response separately from the pending counter-offer state in the requested two-line evaluation scenario."
+   "cannot test this case yet — no step can observe: An existing RFQ in evaluation with two lines where Vendor A quoted 100 and 50; Selecting only line 1 in the counter-offer sheet and changing 100 to 90 during evaluation; Verifying the vendor leaves the counter offer unanswered and that it remains pending; Verifying Vendor A cannot revise any line while the counter offer is pending; Verifying Master QCS totals for the requested two-line evaluation event"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
+   "expect_responses",
    "open_master_qcs",
-   "place_counter_offer",
-   "expect_counter_offer_sent",
-   "switch_portal",
-   "vendor_open_event",
-   "expect_visible",
-   "vendor_open_event",
-   "attempt",
-   "switch_portal",
-   "open_master_qcs",
+   "expect_qcs_vendors",
    "expect_qcs_amounts"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 20342
+  "ms": 18907
  },
  "plan": {
-  "title": "Counter offer remains pending during evaluation",
+  "title": "SRC-NEG-035 Counter Offer During Evaluation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ Responses screen as required for this case."
+    "note": "Open the closest available prepared buyer response state without inventing an event or title."
    },
    {
     "step": "require_setting",
@@ -55,7 +50,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Ensure counter offers are available on RFQ rounds."
+    "note": "Configure the tenant so RFQ counter offers are offered."
    },
    {
     "step": "require_setting",
@@ -63,95 +58,32 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure the RFQ project flow is enabled."
+    "note": "Configure the tenant so eRFX projects are enabled."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 2
+    },
+    "note": "Assert that the prepared state has two vendor response columns, which is the closest available response evidence."
    },
    {
     "step": "open_master_qcs",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Open the comparison grid containing Vendor A's own bid before raising the counter offer."
+    "args": {},
+    "note": "Open the buyer comparison grid for the prepared bid state."
    },
    {
-    "step": "place_counter_offer",
+    "step": "expect_qcs_vendors",
     "args": {
-     "vendor": "Vendor A",
-     "price": 90
+     "count": 2,
+     "realNames": true
     },
-    "note": "Send the closest expressible buyer counter offer against Vendor A's bid."
-   },
-   {
-    "step": "expect_counter_offer_sent",
-    "args": {
-     "vendor": "Vendor A"
-    },
-    "note": "Verify Procol marks the counter offer as initiated for Vendor A."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "vendor",
-     "vendor": "Vendor A"
-    },
-    "note": "View the offer from Vendor A's supplier session while keeping the buyer session available."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "overview": true
-    },
-    "note": "Open the prepared event overview where a pending counter offer is visible."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Accept Counter Offer",
-     "visible": true
-    },
-    "note": "Verify the vendor sees the pending offer and leave it unanswered."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "stage": "pricing"
-    },
-    "note": "Open the vendor pricing round to test that revision is unavailable while the counter offer is pending."
-   },
-   {
-    "step": "attempt",
-    "args": {
-     "step": "vendor_bid",
-     "args": {
-      "price": 95
-     },
-     "expect": "refused"
-    },
-    "note": "Attempt a vendor revision and require Procol to refuse it."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "buyer"
-    },
-    "note": "Return to the buyer's event page."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Return to the buyer comparison grid after the vendor has not accepted the offer."
+    "note": "Assert that the comparison grid has two real vendor columns."
    },
    {
     "step": "expect_qcs_amounts",
-    "args": {
-     "vendor": "Vendor A"
-    },
-    "note": "Verify the displayed current price arithmetic remains internally consistent after the pending counter offer."
+    "args": {},
+    "note": "Assert the prepared grid's line amounts and totals are internally calculated."
    }
   ]
  }

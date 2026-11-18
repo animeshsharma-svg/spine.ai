@@ -346,7 +346,7 @@ async function withdrawEvent(api: any, eventGroupUuid: string, onLine?: (l: stri
  * version beside a newer, published one. The original stops being the latest the moment the version
  * exists (versioning/methods.rb latest?); a copy that will not publish still leaves that true, and is said.
  */
-async function amendEvent(
+export async function amendEvent(
   api: any,
   eventGroupUuid: string,
   title: string,

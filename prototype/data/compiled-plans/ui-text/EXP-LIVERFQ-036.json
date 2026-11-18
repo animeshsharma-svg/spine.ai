@@ -4,15 +4,25 @@
   "title": "Recreate Order: Create Order with default values succeeds",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:46:16.584Z",
+  "compiledAt": "2026-11-13T14:13:42.374Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The requested starting condition of a live RFQ with no bids; the prepared live state has one submitted bid."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The requested starting condition of a live RFQ with no bids; the prepared live state has one submitted bid."
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "event_menu",
    "click",
    "expect_toast",
@@ -20,7 +30,7 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 6262
+  "ms": 14459
  },
  "plan": {
   "title": "Recreate live RFQ order with defaults",
@@ -30,15 +40,46 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ on the buyer's summary page."
+    "note": "Open the prepared live RFQ summary without searching or creating another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration for hidden withdrawal controls."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal during live submission time as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order",
-     "stage": "rfq"
+     "item": "Recreate Order"
     },
-    "note": "Open the RFQ Settings menu and choose Recreate Order, leaving its window open."
+    "note": "Open the Recreate Order window from the event's Settings menu."
    },
    {
     "step": "click",
@@ -46,7 +87,7 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Submit the Recreate Order window without changing its default values."
+    "note": "Submit the recreate-order window using its default values."
    },
    {
     "step": "expect_toast",
@@ -54,15 +95,16 @@
      "kind": "success",
      "text": "New Order Created"
     },
-    "note": "Verify that order creation succeeded with the expected toast."
+    "note": "Verify the expected success confirmation."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Recreate Order",
+     "role": "dialog",
+     "name": "Recreate Order",
      "visible": false
     },
-    "note": "Verify that the Recreate Order window closed after successful creation."
+    "note": "Verify that the Recreate Order window closes after successful creation."
    }
   ]
  }

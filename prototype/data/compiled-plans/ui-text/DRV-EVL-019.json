@@ -4,44 +4,55 @@
   "title": "QCS L1 highlight disabled after line item is withdrawn",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-12T13:36:39.724Z",
+  "compiledAt": "2026-11-13T13:36:46.524Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Withdraw a line item from the lot via the Settings menu",
-   "Assert that the withdrawn line item is absent from the ranking table",
-   "Assert that no L1 highlight is shown for the withdrawn line item"
+   "Withdraw a single line item from an RFQ through the Settings menu; the available withdrawal steps only withdraw an entire project or stage.",
+   "Verify that the withdrawn line item is absent from the ranking table and has no L1 highlight because the catalog cannot establish or identify an individually withdrawn line item."
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — no step can observe: Withdraw a line item from the lot via the Settings menu; Assert that the withdrawn line item is absent from the ranking table; Assert that no L1 highlight is shown for the withdrawn line item"
+   "cannot test this case yet — no step can observe: Withdraw a single line item from an RFQ through the Settings menu; the available withdrawal steps only withdraw an entire project or stage.; Verify that the withdrawn line item is absent from the ranking table and has no L1 highlight because the catalog cannot establish or identify an individually withdrawn line item."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "open_master_qcs"
+   "go_to",
+   "open_master_qcs",
+   "expect_screen_clean"
   ],
   "state": "withdrawn",
   "screen": "summary",
-  "ms": 9996
+  "ms": 11924
  },
  "plan": {
-  "title": "QCS L1 highlight after line-item withdrawal",
+  "title": "QCS withdrawn line item L1 highlight",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ summary as the required starting point."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage where its event controls and QCS are available."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Reach the comparison grid, which is the closest available screen for inspecting QCS rankings."
+    "note": "Reach the Master QCS screen, the closest available screen for the requested ranking observation."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the Master QCS screen rendered without errors, without claiming the unavailable withdrawn-line behavior."
    }
   ]
  }

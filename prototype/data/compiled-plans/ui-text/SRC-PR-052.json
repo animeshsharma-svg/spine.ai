@@ -4,61 +4,95 @@
   "title": "The PR line comes back to Open when the event is withdrawn",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:33:25.877Z",
+  "compiledAt": "2026-11-13T12:29:25.430Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Verify the specific PR line identified by its PR number is back on Open with its full original quantity restored"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify the specific PR line identified by its PR number is back on Open with its full original quantity restored"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "withdraw_event",
    "expect_withdrawn",
-   "do_on_screen",
-   "expect_text"
+   "go_to",
+   "pr_tab",
+   "expect_table"
   ],
   "state": "pr_rfq",
   "screen": "summary",
-  "ms": 11406
+  "ms": 30535
  },
  "plan": {
-  "title": "PR line reopens after event withdrawal",
+  "title": "SRC-PR-052 — Withdrawn PR quantity returns to Open",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared PR-based event without searching the events list."
+    "note": "Open the already prepared PR-linked RFQ summary, as required for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure the Withdraw action is available on the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX project behavior is enabled for the prepared event."
    },
    {
     "step": "withdraw_event",
     "args": {
-     "scope": "project",
+     "scope": "stage",
+     "stage": "rfq",
      "reason": "QA test"
     },
-    "note": "Withdraw the project using the required remark."
+    "note": "Withdraw the RFQ stage using the requested remark."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Verify Procol records the event as withdrawn."
+    "note": "Verify Procol records the RFQ stage as withdrawn."
    },
    {
-    "step": "do_on_screen",
+    "step": "go_to",
     "args": {
-     "goal": "open Purchase Requisitions on the buyer side, stay on the Open tab, search for this event's source PR number, and verify that the PR line shows Order withdrawn and its full quantity is open again"
+     "screen": "path",
+     "path": "/purchase-requisitions"
     },
-    "note": "Verify the source PR reflects the withdrawal and quantity reopening on the buyer-side PR screen."
+    "note": "Navigate to the Purchase Requisitions list after withdrawal."
    },
    {
-    "step": "expect_text",
+    "step": "pr_tab",
     "args": {
-     "text": "Order withdrawn",
-     "present": true
+     "tab": "Open"
     },
-    "note": "Assert the withdrawal status is visible on the PR screen."
+    "note": "Open the tab where restored PR quantities should appear."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "within": "Purchase Requisitions",
+     "min": 1
+    },
+    "note": "Verify the Open requisitions table rendered with at least one row; the catalog cannot assert the specific PR number or restored quantity."
    }
   ]
  }

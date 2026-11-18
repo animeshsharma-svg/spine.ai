@@ -4,51 +4,83 @@
   "title": "Publish a version without Addendum Remarks",
   "group": "SRC-VER",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:21:46.108Z",
+  "compiledAt": "2026-11-13T13:15:17.688Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "The exact Addendum Remarks field-level validation message or a subsequent successful publish after entering remarks"
+  ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+   "the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "the new version is published again before bidding (set_schedule + publish + expect_published) — bids on the old version are read-only",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The exact Addendum Remarks field-level validation message or a subsequent successful publish after entering remarks"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "create_new_version",
-   "publish",
-   "expect_error"
+   "attempt",
+   "set_schedule",
+   "publish"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10034
+  "ms": 20051
  },
  "plan": {
-  "title": "Publish version without Addendum Remarks",
+  "title": "Version publish requires addendum remarks",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the existing published live RFQ with no bids."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_event_versioning_enabled",
+     "value": "On"
+    },
+    "note": "Enable creation of a new version for the published project."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled for the prepared RFQ."
    },
    {
     "step": "create_new_version",
     "args": {},
-    "note": "Create and confirm the new version so it opens in edit mode."
+    "note": "Create the editable version copy from the published project."
    },
    {
-    "step": "publish",
-    "args": {},
-    "note": "Attempt to publish the version without entering Addendum Remarks."
+    "step": "attempt",
+    "args": {
+     "step": "publish",
+     "expect": "refused"
+    },
+    "note": "Attempt to publish while leaving Addendum Remarks empty and require positive refusal evidence."
    },
    {
-    "step": "expect_error",
-    "args": {},
-    "note": "Assert that publication is refused because the required remarks are empty."
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    }
+   },
+   {
+    "step": "publish"
    }
   ]
  }

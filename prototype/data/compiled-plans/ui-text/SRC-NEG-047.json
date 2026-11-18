@@ -4,32 +4,36 @@
   "title": "Vendor tries to accept after the evaluation time ended",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:05:39.993Z",
+  "compiledAt": "2026-11-13T12:21:22.742Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Place the counter offer specifically near the end of the evaluation period",
-   "Wait until the evaluation period ends before attempting acceptance"
+   "Create a pending counter offer near the end of the evaluation period and wait until evaluation ends before attempting acceptance.",
+   "Prove that acceptance is refused specifically because evaluation ended rather than because no pending counter offer exists."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Place the counter offer specifically near the end of the evaluation period; Wait until the evaluation period ends before attempting acceptance"
+   "cannot test this case yet — no step can observe: Create a pending counter offer near the end of the evaluation period and wait until evaluation ends before attempting acceptance.; Prove that acceptance is refused specifically because evaluation ended rather than because no pending counter offer exists."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
-   "place_counter_offer",
+   "expect_api_value",
+   "expect_api_value",
+   "switch_portal",
+   "vendor_open_event",
    "attempt",
-   "open_prepared",
+   "switch_portal",
+   "open_master_qcs",
    "expect_qcs_cell"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 19808
+  "ms": 26186
  },
  "plan": {
   "title": "Counter offer acceptance after evaluation ends",
@@ -39,7 +43,7 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ evaluation state on the buyer's Responses tab."
+    "note": "Open the prepared RFQ response screen containing the case's bids."
    },
    {
     "step": "require_setting",
@@ -58,38 +62,64 @@
     "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "place_counter_offer",
+    "step": "expect_api_value",
     "args": {
+     "key": "vendorName",
+     "within": "Responses"
+    },
+    "note": "Confirm the prepared event identifies the primary vendor whose bid is being considered."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice",
+     "within": "Responses"
+    },
+    "note": "Record the primary vendor's original bid price before the unavailable acceptance flow."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Send a counter offer to Vendor A's normal bid; the case does not specify a counter price, so the step's default is used."
+    "note": "Move to Vendor A's separate supplier-portal session while keeping the buyer session available."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the prepared event overview where a pending counter offer would be accepted."
    },
    {
     "step": "attempt",
     "args": {
      "step": "accept_counter_offer",
-     "args": {
-      "vendor": "Vendor A"
-     },
      "expect": "refused"
     },
-    "note": "Attempt acceptance from Vendor A's supplier portal and require evidence that the counter offer is no longer accepted."
+    "note": "Attempt the vendor acceptance and require refusal; the prepared state cannot establish that the refusal is specifically due to elapsed evaluation time."
    },
    {
-    "step": "open_prepared",
+    "step": "switch_portal",
     "args": {
-     "screen": "master_qcs"
+     "to": "buyer"
     },
-    "note": "Return to the prepared Master QCS to inspect the original bid after the refused acceptance."
+    "note": "Return to the buyer's event page to inspect the original bid."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's comparison grid to read the bid value."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
      "row": "RFQ Rate",
-     "vendor": "Vendor A",
-     "number": 100
+     "vendor": 1,
+     "key": "bidPrice"
     },
-    "note": "Verify Vendor A's original rate remains 100 after the failed acceptance."
+    "note": "Verify the original primary-vendor rate remains present in the buyer's comparison grid."
    }
   ]
  }

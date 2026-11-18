@@ -4,7 +4,7 @@
   "title": "Select without vendor codes",
   "group": "SRC-SEL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:03:25.301Z",
+  "compiledAt": "2026-11-13T12:53:34.587Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -14,15 +14,17 @@
    "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "do_on_screen",
-   "expect_toast"
+   "expect_message"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 8967
+  "ms": 11640
  },
  "plan": {
   "title": "Reject quote selection without vendor codes",
@@ -35,19 +37,35 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "do_on_screen",
+    "step": "require_setting",
     "args": {
-     "goal": "on the buyer's RFQ in evaluation screen, select Quote for Vendor B without a vendor code and stop when the application refuses the action"
+     "key": "allow_po_without_vendor_code",
+     "value": "Off"
     },
-    "note": "Perform the buyer-side Select Quote action that has no dedicated catalog step."
+    "note": "Require vendor codes before attempting quote selection."
    },
    {
-    "step": "expect_toast",
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the setup."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the RFQ in evaluation, select Quote for Vendor B without entering vendor codes and stop when the screen shows the refusal message."
+    },
+    "note": "Perform the buyer-only Select Quote action that has no dedicated catalog step."
+   },
+   {
+    "step": "expect_message",
     "args": {
      "kind": "error",
      "text": "Please enter vendor codes for all products"
     },
-    "note": "Verify the required refusal message is shown."
+    "note": "Assert the required vendor-code refusal."
    }
   ]
  }

@@ -3,48 +3,40 @@
   "caseId": "PRD-RFP-027",
   "title": "Department/Location-Based Evaluator Mapping: not available on the Growth plan",
   "group": "PRD-RFP",
-  "compiledAt": "2026-11-10T01:40:13.423Z",
+  "compiledAt": "2026-11-13T15:00:34.507Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Sign in as the Tenant Admin on the Growth-plan tenant and the Enterprise-plan tenant when their tenant identities or company IDs are not provided",
-   "Verify the Growth plan refuses or omits Department/Location-Based Evaluator Mapping",
-   "Open and use Department/Location-Based Evaluator Mapping to auto-route evaluation by department or location",
-   "Compare the same mapping workflow across Growth and Enterprise plans",
-   "Inspect or change the tenant subscription capability setting that gates this feature"
+   "Whether Department/Location-Based Evaluator Mapping is absent or refused on a Growth tenant and usable on an Enterprise tenant, including the required tenant-admin sign-ins and repeated workflow"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Sign in as the Tenant Admin on the Growth-plan tenant and the Enterprise-plan tenant when their tenant identities or company IDs are not provided; Verify the Growth plan refuses or omits Department/Location-Based Evaluator Mapping; Open and use Department/Location-Based Evaluator Mapping to auto-route evaluation by department or location; Compare the same mapping workflow across Growth and Enterprise plans; Inspect or change the tenant subscription capability setting that gates this feature"
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Whether Department/Location-Based Evaluator Mapping is absent or refused on a Growth tenant and usable on an Enterprise tenant, including the required tenant-admin sign-ins and repeated workflow"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 5,
   "stepNames": [
    "open_create",
-   "set_title",
    "compose_stages",
-   "switch_stage",
-   "select_template",
-   "fill_questionnaires",
-   "expect_visible"
+   "set_title",
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 11019
+  "ms": 13996
  },
  "plan": {
-  "title": "Department/Location Evaluator Mapping Plan Gating",
+  "title": "Evaluator Mapping Plan Availability by Tenant Plan",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    },
-    "note": "Reach the closest supported screen for configuring a technical evaluation."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "Department Location Evaluator Mapping Check"
-    },
-    "note": "Provide the required title for the technical-event setup."
+    }
    },
    {
     "step": "compose_stages",
@@ -52,33 +44,22 @@
      "stages": [
       "rfp"
      ]
-    },
-    "note": "Configure an RFP stage, the closest supported context for evaluator configuration."
+    }
    },
    {
-    "step": "switch_stage",
+    "step": "set_title"
+   },
+   {
+    "step": "ask_tester",
     "args": {
-     "stage": "rfp"
+     "need": "sign in as the tenant admin on the Growth and Enterprise tenants, attempt Department/Location-Based Evaluator Mapping on both, and verify that Growth refuses or omits it while Enterprise allows it"
     },
-    "note": "Make the technical stage current before configuring its evaluator flow."
+    "note": "The catalog cannot reach or observe this plan-gated evaluator-mapping capability across the two tenant plans."
    },
    {
-    "step": "select_template",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Apply a technical-stage template so the evaluator configuration can be reached."
-   },
-   {
-    "step": "fill_questionnaires",
-    "args": {},
-    "note": "Populate the technical evaluation sections required for the evaluator setup."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Add Evaluator",
-     "visible": true
-    },
-    "note": "Confirm the standard evaluator control is visible; this does not assert department/location-based routing."
+    "note": "Confirm the browser remains usable after the tester completes or skips the missing verification."
    }
   ]
  }

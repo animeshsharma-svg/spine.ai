@@ -4,42 +4,51 @@
   "title": "Items selected on different pages of the PR list are all counted",
   "group": "PRA-MANY",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:02:32.499Z",
+  "compiledAt": "2026-11-13T14:26:30.771Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "do_on_screen",
    "expect_visible"
   ],
-  "ms": 12197
+  "ms": 16968
  },
  "plan": {
-  "title": "Cross-page PR assignment selection",
+  "title": "PR assignment across pages",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required team-category filtering configuration for the PR list."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen as the starting point for the PR selection flow."
+    "note": "Open the Purchase Requisitions screen, the required entry point for this case."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Ensure the test operates on open PRs, where assignment is available."
+    "note": "Keep the PR list on the Open tab."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the Open Purchase Requisitions list, select PR-1 on page 1, navigate to page 2, select PR-2, click the Assign button next to Upload PRs, and verify that the Search a user list represents both selected PRs together rather than only the current page, matching the no-common-user behavior"
+     "goal": "On the Open Purchase Requisitions list, select the PR-1 item on page 1, move to page 2, select the PR-2 item, click the Assign person icon next to Upload PRs, and stop with the Search a user dialog showing the combined assignment list for both selected PRs."
     },
-    "note": "Perform the cross-page selection and inspect the combined assignment-user list, which no dedicated catalog step can express."
+    "note": "Perform the cross-page selection and assignment flow that no dedicated catalog step models."
    },
    {
     "step": "expect_visible",
@@ -47,7 +56,7 @@
      "label": "Search a user",
      "visible": true
     },
-    "note": "Assert that the assignment dialog opened with the expected user-search control."
+    "note": "Confirm the Assign flow opened the user-search interface after both PRs were selected."
    }
   ]
  }

@@ -4,41 +4,49 @@
   "title": "Master QCS of a vendor-masked company",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:09:27.213Z",
+  "compiledAt": "2026-11-13T12:35:01.866Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"Vendor A\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "unconfirmed label \"Vendor B\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "coverage partial: unconfirmed label \"Vendor A\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "coverage partial: unconfirmed label \"Vendor B\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
-   "expect_qcs_vendors",
+   "expect_text",
+   "expect_text",
    "expect_text",
    "expect_text",
    "expect_qcs_cell",
    "expect_qcs_cell",
    "expect_qcs_cell",
-   "expect_qcs_cell"
+   "expect_qcs_cell",
+   "expect_qcs_amounts"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 10354
+  "ms": 17813
  },
  "plan": {
-  "title": "Masked Vendor Master QCS",
+  "title": "Masked Vendor Names in Master QCS",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the existing closed RFQ directly on its Master QCS screen."
+    "note": "Open the existing closed RFQ directly in Master QCS."
    },
    {
     "step": "require_setting",
@@ -46,7 +54,7 @@
      "key": "is_vendor_masking_allowed_for_everyone",
      "value": "On"
     },
-    "note": "Enable vendor-name masking for the company."
+    "note": "Enable vendor name masking for everyone in the company."
    },
    {
     "step": "require_setting",
@@ -57,44 +65,34 @@
     "note": "Ensure eRFX projects are enabled as required by the case."
    },
    {
-    "step": "expect_qcs_vendors",
-    "args": {
-     "count": 2,
-     "realNames": false
-    },
-    "note": "Assert that both bidder columns are present without requiring unmasked company names."
-   },
-   {
     "step": "expect_text",
     "args": {
      "text": "Vendor 1"
     },
-    "note": "Verify the first vendor is displayed using a masked generic label."
+    "note": "Verify the first vendor is displayed with a masked label."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Vendor 2"
     },
-    "note": "Verify the second vendor is displayed using a masked generic label."
+    "note": "Verify the second vendor is displayed with a masked label."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "expect_text",
     "args": {
-     "row": "Rank",
-     "vendor": 1,
-     "number": 2
+     "text": "Vendor A",
+     "present": false
     },
-    "note": "Check that the first vendor's rank reflects the higher bid."
+    "note": "Verify the first vendor's real identity is not exposed."
    },
    {
-    "step": "expect_qcs_cell",
+    "step": "expect_text",
     "args": {
-     "row": "Rank",
-     "vendor": 2,
-     "number": 1
+     "text": "Vendor B",
+     "present": false
     },
-    "note": "Check that the lower bid is ranked first."
+    "note": "Verify the second vendor's real identity is not exposed."
    },
    {
     "step": "expect_qcs_cell",
@@ -103,7 +101,7 @@
      "vendor": 1,
      "equals": "100"
     },
-    "note": "Verify the first vendor's displayed price."
+    "note": "Verify the first masked vendor's bid price."
    },
    {
     "step": "expect_qcs_cell",
@@ -112,7 +110,30 @@
      "vendor": 2,
      "equals": "90"
     },
-    "note": "Verify the second vendor's displayed price."
+    "note": "Verify the second masked vendor's bid price."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 1,
+     "number": 2
+    },
+    "note": "Verify the higher bid is ranked second."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": 2,
+     "number": 1
+    },
+    "note": "Verify the lower bid is ranked first."
+   },
+   {
+    "step": "expect_qcs_amounts",
+    "args": {},
+    "note": "Verify each line amount and total equal rate multiplied by quantity."
    }
   ]
  }

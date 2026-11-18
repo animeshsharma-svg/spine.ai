@@ -4,15 +4,20 @@
   "title": "Recreate Order is offered on a live RFQ with no bid yet",
   "group": "SRC-SAM",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:53:30.393Z",
+  "compiledAt": "2026-11-13T12:45:48.919Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_menu_item",
    "event_menu",
    "expect_visible",
@@ -21,32 +26,42 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9812
+  "ms": 9195
  },
  "plan": {
-  "title": "Recreate Order available on live RFQ",
+  "title": "Recreate Order on Live RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ without creating or searching for another event."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case setup."
    },
    {
     "step": "expect_menu_item",
     "args": {
      "item": "Recreate Order",
-     "enabled": true
+     "enabled": true,
+     "stage": "rfq"
     },
-    "note": "Assert Recreate Order is present and clickable in the current RFQ Settings menu."
+    "note": "Assert Recreate Order is present and clickable in the RFQ Settings menu."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Click Recreate Order and leave its confirmation window open."
+    "note": "Click Recreate Order to verify the action can be opened."
    },
    {
     "step": "expect_visible",
@@ -54,7 +69,7 @@
      "role": "dialog",
      "visible": true
     },
-    "note": "Assert that selecting Recreate Order opens a dialog/window."
+    "note": "Assert the Recreate Order window opened."
    },
    {
     "step": "click",
@@ -62,7 +77,7 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the Recreate Order window so no order is changed."
+    "note": "Cancel the window so the event is not changed."
    },
    {
     "step": "expect_visible",
@@ -70,7 +85,7 @@
      "role": "dialog",
      "visible": false
     },
-    "note": "Assert the dialog closed after cancellation."
+    "note": "Assert the Recreate Order window closed without confirming changes."
    }
   ]
  }

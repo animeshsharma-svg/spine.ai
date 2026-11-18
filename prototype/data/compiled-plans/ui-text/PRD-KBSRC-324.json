@@ -3,29 +3,28 @@
   "caseId": "PRD-KBSRC-324",
   "title": "Traffic Light: group vendors by Price or by Rank",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:13:45.043Z",
+  "compiledAt": "2026-11-13T14:37:44.839Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The band inputs change from price-based values to rank-based values when the grouping condition changes."
+   "The band inputs changing between price values and rank values after switching the grouping condition"
   ],
   "warnings": [
-   "added set_title — publishing without a title is refused",
-   "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: The band inputs change from price-based values to rank-based values when the grouping condition changes."
+   "can only test part of this — no step for: The band inputs changing between price values and rank values after switching the grouping condition"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_create",
-   "set_title",
    "configure_single_stage",
+   "set_title",
+   "expect_options",
    "select",
    "expect_value",
    "select",
    "expect_value"
   ],
-  "ms": 11227
+  "ms": 12321
  },
  "plan": {
   "title": "Traffic Light Grouping by Price or Rank",
@@ -35,21 +34,35 @@
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage auction creation screen."
-   },
-   {
-    "step": "set_title"
+    "note": "Open the single-stage auction configuration screen."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
      "auctionSubtype": "traffic_light",
-     "awarding": "lot",
-     "rangeLower": 1,
-     "rangeUpper": 5
+     "awarding": "lot"
     },
-    "note": "Configure a Traffic Light auction with valid bounds so its grouping controls are available."
+    "note": "Configure the event as a Traffic Light auction so its grouping control is available."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "Traffic Light Grouping Price Rank"
+    },
+    "note": "Provide the required event title for the create flow."
+   },
+   {
+    "step": "expect_options",
+    "args": {
+     "label": "Group traffic light by",
+     "options": [
+      "Price",
+      "Rank"
+     ],
+     "only": true
+    },
+    "note": "Assert that both grouping conditions are offered and no other grouping option is present."
    },
    {
     "step": "select",
@@ -57,7 +70,7 @@
      "label": "Group traffic light by",
      "option": "Price"
     },
-    "note": "Select Price as the grouping condition."
+    "note": "Set the grouping condition to Price."
    },
    {
     "step": "expect_value",
@@ -73,7 +86,7 @@
      "label": "Group traffic light by",
      "option": "Rank"
     },
-    "note": "Change the grouping condition to Rank."
+    "note": "Switch the grouping condition to Rank."
    },
    {
     "step": "expect_value",
@@ -81,7 +94,7 @@
      "label": "Group traffic light by",
      "value": "Rank"
     },
-    "note": "Verify that Rank is selected."
+    "note": "Verify that Rank is selected after switching."
    }
   ]
  }

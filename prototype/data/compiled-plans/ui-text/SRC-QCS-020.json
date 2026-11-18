@@ -4,39 +4,46 @@
   "title": "A vendor never sees other vendors' prices",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:09:24.696Z",
+  "compiledAt": "2026-11-13T12:34:44.053Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Inspecting every vendor-portal history view for Vendor B’s price or identity",
+   "Explicitly inspect the vendor-side bid history.",
+   "Conditionally verify the displayed rank only when the company shows ranks.",
+   "Prove absence of Vendor B's price in every vendor-portal location beyond the pricing view and overview.",
    "unconfirmed label \"Vendor B\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
    "coverage partial: unconfirmed label \"Vendor B\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Inspecting every vendor-portal history view for Vendor B’s price or identity"
+   "can only test part of this — no step for: Explicitly inspect the vendor-side bid history.; Conditionally verify the displayed rank only when the company shows ranks.; Prove absence of Vendor B's price in every vendor-portal location beyond the pricing view and overview."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
    "switch_portal",
    "vendor_open_event",
    "expect_api_value",
-   "expect_text"
+   "expect_api_value",
+   "expect_text",
+   "expect_screen_clean",
+   "vendor_open_event",
+   "expect_text",
+   "expect_screen_clean"
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 9303
+  "ms": 15741
  },
  "plan": {
-  "title": "Vendor bid privacy in RFQ",
+  "title": "Vendor bid isolation on RFQ",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared RFQ event with two bids."
+    "note": "Open the prepared RFQ with two bids without creating or searching for another event."
    },
    {
     "step": "switch_portal",
@@ -44,22 +51,28 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Use Vendor A’s separate supplier-portal session while leaving the buyer session available."
+    "note": "Continue in Vendor A's separate supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared RFQ pricing round in Vendor A’s portal."
+    "note": "Open the prepared RFQ's pricing round on the vendor portal."
    },
    {
     "step": "expect_api_value",
     "args": {
-     "key": "bidPrice",
-     "within": "RFQ"
+     "key": "vendorName"
     },
-    "note": "Confirm Vendor A’s own bid figure is visible in the pricing view."
+    "note": "Verify the pricing screen identifies Vendor A as the current vendor."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "bidPrice"
+    },
+    "note": "Verify the vendor-side pricing screen shows Vendor A's own bid figure."
    },
    {
     "step": "expect_text",
@@ -67,7 +80,32 @@
      "text": "Vendor B",
      "present": false
     },
-    "note": "Assert that Vendor B’s identity is not shown anywhere on the opened vendor-side pricing screen."
+    "note": "Assert that the pricing view does not expose the other bidder's identity or related bid information."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check that the vendor pricing screen renders without data-leak indicators such as raw or malformed competitor data."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Inspect the vendor-facing event overview for competitor information."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Vendor B",
+     "present": false
+    },
+    "note": "Assert that the overview also does not expose Vendor B."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check that the vendor overview renders cleanly."
    }
   ]
  }

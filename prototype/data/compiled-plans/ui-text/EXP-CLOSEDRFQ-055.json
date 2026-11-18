@@ -4,16 +4,13 @@
   "title": "Withdrawing Order...: The event cannot be withdrawn with an empty reason",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:42:28.395Z",
+  "compiledAt": "2026-11-13T13:57:14.166Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The exact validation message or alternate result shown after submitting the empty withdrawal reason is not specified by the case and cannot be asserted precisely."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: The exact validation message or alternate result shown after submitting the empty withdrawal reason is not specified by the case and cannot be asserted precisely."
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
   "steps": 9,
@@ -26,21 +23,21 @@
    "go_to",
    "go_to",
    "withdraw_event",
-   "expect_visible"
+   "expect_message"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 13067
+  "ms": 13324
  },
  "plan": {
-  "title": "Closed RFQ withdrawal requires reason",
+  "title": "Closed RFQ withdrawal requires a reason",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared closed RFQ instead of creating or searching for another event."
+    "note": "Open the existing prepared closed RFQ summary; the event is already created and bidding has ended."
    },
    {
     "step": "require_setting",
@@ -48,7 +45,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects required for the prepared RFQ event."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "require_setting",
@@ -56,7 +53,7 @@
      "key": "is_allowed_to_add_surrogate_bid_post_expiry",
      "value": "Off"
     },
-    "note": "Use the required tenant setting for post-expiry surrogate bidding behavior."
+    "note": "Apply the required post-expiry surrogate-bid configuration."
    },
    {
     "step": "require_setting",
@@ -64,7 +61,7 @@
      "key": "can_buyer_edit_bid",
      "value": "On"
     },
-    "note": "Enable the buyer bid-edit setting required by the case configuration."
+    "note": "Apply the required buyer bid-edit configuration."
    },
    {
     "step": "require_setting",
@@ -80,14 +77,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage named in the scenario."
+    "note": "Open the RFQ stage specified by the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Reach the Responses tab before opening Settings, matching the requested flow."
+    "note": "Open the RFQ Responses tab before accessing the event actions."
    },
    {
     "step": "withdraw_event",
@@ -95,15 +92,15 @@
      "scope": "project",
      "noReason": true
     },
-    "note": "Attempt project withdrawal with no remark to test that the empty reason is refused."
+    "note": "Attempt project withdrawal with the reason deliberately left empty; this checks Procol's required-remark refusal and records the resulting validation or blocked action."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_message",
     "args": {
-     "text": "Withdrawing Order...",
-     "visible": true
+     "kind": "any",
+     "text": "reason"
     },
-    "note": "Verify the withdrawal window remains visible after the empty-reason submission."
+    "note": "Assert that the application shows a validation or refusal message referring to the missing withdrawal reason."
    }
   ]
  }

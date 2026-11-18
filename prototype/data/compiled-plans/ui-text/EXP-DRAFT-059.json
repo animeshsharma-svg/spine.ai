@@ -4,42 +4,60 @@
   "title": "Configuration for Event: Technical Stage selection updates and saves successfully",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:45:22.268Z",
+  "compiledAt": "2026-11-13T14:08:10.600Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The catalog has no dedicated assertion for the Configuration for Event setting's persisted value beyond the resulting stage tab."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "dropped expect_stages — this plan opens an existing event, it does not create one",
-   "moved open_event to the front — the steps after it act on that event's page",
-   "dropped expect_stages — this plan opens an existing event, it does not create one",
-   "moved open_event to the front — the steps after it act on that event's page",
-   "can only test part of this — no step for: The catalog has no dedicated assertion for the Configuration for Event setting's persisted value beyond the resulting stage tab."
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused",
+   "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "added open_create — every create test has to start somewhere",
+   "added set_title — publishing without a title is refused"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 16,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "compose_stages",
+   "set_title",
    "require_setting",
    "require_setting",
    "require_setting",
+   "open_events_list",
+   "expect_events_list",
+   "filter_events",
+   "open_first_event",
    "click",
    "expect_visible",
    "click",
    "click",
    "expect_visible",
-   "open_event"
+   "expect_stages"
   ],
-  "ms": 12138
+  "ms": 13526
  },
  "plan": {
-  "title": "Saved Draft Technical Stage Configuration",
+  "title": "Technical Stage selection saves on eRFX draft",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open the existing saved draft without inventing a draft title."
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    }
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp",
+      "rfq"
+     ]
+    }
+   },
+   {
+    "step": "set_title"
    },
    {
     "step": "require_setting",
@@ -55,7 +73,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Apply the tenant configuration required for the draft flow."
+    "note": "Apply the required vendor-lock configuration."
    },
    {
     "step": "require_setting",
@@ -63,7 +81,31 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the tenant configuration required by the case."
+    "note": "Apply the required new-stage configuration."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open the Events list to reach the saved draft."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify the events list is available before navigating to Drafts."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Switch to the Drafts tab containing the saved eRFX draft."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts"
+    },
+    "note": "Open the first saved draft; this returns to its create screen."
    },
    {
     "step": "click",
@@ -71,7 +113,7 @@
      "role": "button",
      "name": "RFQ"
     },
-    "note": "Open the RFQ stage's Configuration for Event window."
+    "note": "Open the event configuration window from the RFQ stage control."
    },
    {
     "step": "expect_visible",
@@ -80,23 +122,24 @@
      "name": "Configuration for Event",
      "visible": true
     },
-    "note": "Confirm the configuration window opened."
+    "note": "Confirm the Configuration for Event window opened."
    },
    {
     "step": "click",
     "args": {
-     "role": "radio",
-     "name": "Technical Stage"
+     "text": "Technical Stage",
+     "within": "dialog"
     },
-    "note": "Select the Technical Stage event configuration."
+    "note": "Select the Technical Stage configuration option."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Save"
+     "name": "Save",
+     "within": "dialog"
     },
-    "note": "Save the selected technical-stage configuration."
+    "note": "Save the selected Technical Stage configuration."
    },
    {
     "step": "expect_visible",
@@ -108,9 +151,13 @@
     "note": "Verify the configuration window closes after saving."
    },
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Reopen the saved draft to check the resulting stage configuration."
+    "step": "expect_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    },
+    "note": "Verify the saved configuration is reflected as a Technical Stage tab."
    }
   ]
  }

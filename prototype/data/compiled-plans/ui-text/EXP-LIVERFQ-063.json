@@ -4,19 +4,19 @@
   "title": "Edit Evaluation Time: Edit Evaluation Time with non‑numeric characters in time field (if time input is free text)",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:46:37.686Z",
+  "compiledAt": "2026-11-13T14:16:09.400Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact free-text time portion field and the precise \"ab:cd\" HH:MM parsing behavior cannot be addressed; extend_time only models a custom evaluation-time amount, including letter input."
+   "The catalog has no dedicated step for entering `ab:cd` into the time portion of the custom evaluation end-time picker or asserting the exact resulting validation behavior."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: The exact free-text time portion field and the precise \"ab:cd\" HH:MM parsing behavior cannot be addressed; extend_time only models a custom evaluation-time amount, including letter input."
+   "can only test part of this — no step for: The catalog has no dedicated step for entering `ab:cd` into the time portion of the custom evaluation end-time picker or asserting the exact resulting validation behavior."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -24,21 +24,25 @@
    "require_setting",
    "require_setting",
    "go_to",
-   "extend_time"
+   "go_to",
+   "event_menu",
+   "fill",
+   "click",
+   "expect_error"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 13208
+  "ms": 13001
  },
  "plan": {
-  "title": "Edit Evaluation Time Rejects Non-Numeric Input",
+  "title": "Edit Evaluation Time Rejects Non-Numeric Time",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary; the event already exists in the required live state."
+    "note": "Open the prepared live RFQ instead of creating or searching for an event."
    },
    {
     "step": "require_setting",
@@ -46,7 +50,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX projects as required by the test configuration."
    },
    {
     "step": "require_setting",
@@ -54,7 +58,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "On"
     },
-    "note": "Apply the requested withdrawal-visibility configuration."
+    "note": "Apply the required tenant configuration."
    },
    {
     "step": "require_setting",
@@ -62,7 +66,7 @@
      "key": "disable_withdraw_during_submission_time",
      "value": "Off"
     },
-    "note": "Apply the requested live-event withdrawal configuration."
+    "note": "Allow the live-event configuration required by the scenario."
    },
    {
     "step": "require_setting",
@@ -70,25 +74,51 @@
      "key": "is_vendor_masking_allowed_for_everyone",
      "value": "On"
     },
-    "note": "Apply the requested vendor-masking configuration."
+    "note": "Apply the required vendor-masking configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage referenced by the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses tab before opening evaluation-time controls."
+    "note": "Navigate to the Responses tab before opening Settings."
    },
    {
-    "step": "extend_time",
+    "step": "event_menu",
     "args": {
-     "which": "evaluation",
-     "option": "custom",
-     "amount": "ab:cd",
-     "unit": "minutes",
-     "expect": "refused"
+     "item": "Edit Evaluation Time",
+     "stage": "rfq"
     },
-    "note": "Attempt to enter the non-numeric evaluation-time value and assert that Procol refuses it."
+    "note": "Open the Edit Evaluation Time window from the RFQ Settings menu."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "End time",
+     "value": "ab:cd"
+    },
+    "note": "Attempt to enter the case's non-numeric time value in the custom end-time field."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Ok"
+    },
+    "note": "Submit the edited evaluation time so the application can report its response."
+   },
+   {
+    "step": "expect_error",
+    "args": {},
+    "note": "Assert that the invalid non-numeric time input is refused with an application error."
    }
   ]
  }

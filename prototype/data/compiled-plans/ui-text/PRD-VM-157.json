@@ -3,36 +3,36 @@
   "caseId": "PRD-VM-157",
   "title": "Vendor Onboarding (WF-VM-001): end-to-end order of steps",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T03:17:00.131Z",
+  "compiledAt": "2026-11-13T15:13:20.904Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Trigger a vendor submitting an onboarding form",
-   "Run the automatic Form Completeness Check step",
-   "Complete Finance Approval as the Finance Controller",
-   "Complete Legal / Compliance Review as Legal / Compliance",
-   "Complete Category Manager Endorsement as the Category Manager",
-   "Run the automatic Vendor Activation step",
-   "Verify the workflow history shows all five steps in order with each actor and outcome",
-   "Verify the vendor status changes to Active",
-   "Verify SAP MDG synchronization is triggered when integration is enabled"
+   "Triggering submission of the vendor onboarding form",
+   "Completing Form Completeness Check as an automated system step",
+   "Completing Finance Approval with Finance Controller approval",
+   "Completing Legal / Compliance Review with Legal / Compliance approval",
+   "Completing Category Manager Endorsement with Category Manager approval",
+   "Completing Vendor Activation as an automated system step",
+   "Verifying the workflow steps execute in the required order with no out-of-sequence steps",
+   "Verifying workflow history records each step, actor, and outcome in order",
+   "Verifying that SAP MDG synchronization was triggered when integration is enabled"
   ],
   "warnings": [
    "added place_bid — the test is about bidding and no bid step was planned",
    "added publish — a bid needs a published event to bid on",
    "added place_bid — the test is about bidding and no bid step was planned",
    "added publish — a bid needs a published event to bid on",
-   "can only test part of this — no step for: Trigger a vendor submitting an onboarding form; Run the automatic Form Completeness Check step; Complete Finance Approval as the Finance Controller; Complete Legal / Compliance Review as Legal / Compliance; Complete Category Manager Endorsement as the Category Manager; Run the automatic Vendor Activation step; Verify the workflow history shows all five steps in order with each actor and outcome; Verify the vendor status changes to Active; Verify SAP MDG synchronization is triggered when integration is enabled"
+   "can only test part of this — no step for: Triggering submission of the vendor onboarding form; Completing Form Completeness Check as an automated system step; Completing Finance Approval with Finance Controller approval; Completing Legal / Compliance Review with Legal / Compliance approval; Completing Category Manager Endorsement with Category Manager approval; Completing Vendor Activation as an automated system step; Verifying the workflow steps execute in the required order with no out-of-sequence steps; Verifying workflow history records each step, actor, and outcome in order; Verifying that SAP MDG synchronization was triggered when integration is enabled"
   ],
   "source": "llm",
   "steps": 4,
   "stepNames": [
    "ask_tester",
-   "expect_screen_clean",
+   "expect_text",
    "publish",
    "place_bid"
   ],
-  "ms": 9884
+  "ms": 10625
  },
  "plan": {
   "title": "Vendor Onboarding Workflow Order",
@@ -40,14 +40,17 @@
    {
     "step": "ask_tester",
     "args": {
-     "need": "trigger the vendor onboarding form, complete the three role-based approvals and automatic workflow steps in order, then verify the workflow history, Active vendor status, and SAP MDG sync"
+     "need": "trigger the vendor onboarding form and complete WF-VM-001 in order: Form Completeness Check, Finance Approval, Legal / Compliance Review, Category Manager Endorsement, and Vendor Activation, then leave the vendor record showing its final status"
     },
-    "note": "The catalog cannot perform or observe this onboarding workflow or its role-specific approvals and integration outcome."
+    "note": "No catalog step can trigger or execute this onboarding workflow or its role-based approvals."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Only checks that the resulting screen has no generic rendering or server errors; it does not verify the onboarding workflow subject."
+    "step": "expect_text",
+    "args": {
+     "text": "Active",
+     "present": true
+    },
+    "note": "Checks the expected final vendor status if the tester leaves the resulting vendor record on screen."
    },
    {
     "step": "publish"

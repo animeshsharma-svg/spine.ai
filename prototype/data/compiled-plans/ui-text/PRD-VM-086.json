@@ -3,34 +3,42 @@
   "caseId": "PRD-VM-086",
   "title": "Mandatory Document Types (vendor.documents.required) = default without PAN",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T02:57:04.568Z",
+  "compiledAt": "2026-11-13T15:10:20.628Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Change the vendor.documents.required tenant setting to only GST Certificate.",
-   "Import vendors directly from the enterprise's existing VMS/VRP as an Implementation Partner.",
-   "Observe and verify the mandatory document list before vendor profile approval, including that PAN is absent while GST Certificate remains required."
+   "Use VMS / VRP Import as an Implementation Partner and observe the mandatory document list before vendor profile approval, including confirmation that PAN is not required while GST Certificate remains required."
   ],
   "warnings": [
-   "can only test part of this — no step for: Change the vendor.documents.required tenant setting to only GST Certificate.; Import vendors directly from the enterprise's existing VMS/VRP as an Implementation Partner.; Observe and verify the mandatory document list before vendor profile approval, including that PAN is absent while GST Certificate remains required."
+   "can only test part of this — no step for: Use VMS / VRP Import as an Implementation Partner and observe the mandatory document list before vendor profile approval, including confirmation that PAN is not required while GST Certificate remains required."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "require_setting",
    "ask_tester",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 8990
+  "ms": 16972
  },
  "plan": {
-  "title": "Mandatory Vendor Document Types Without PAN",
+  "title": "Mandatory Vendor Documents Without PAN",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "vendor.documents.required",
+     "value": "GST Certificate"
+    },
+    "note": "Configure the tenant so only GST Certificate is required."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "set vendor.documents.required to only GST Certificate, import vendors from the enterprise VMS/VRP as an Implementation Partner, and open the vendor approval requirements to verify PAN is not required while GST Certificate remains required"
+     "need": "sign in as an Implementation Partner, import vendors through VMS / VRP Import, and leave the vendor approval screen showing the mandatory document types"
     },
-    "note": "The catalog cannot change this tenant setting, perform VMS/VRP import, or reach the vendor approval document requirements."
+    "note": "The catalog has no VMS/VRP import or implementation-partner workflow step."
    },
    {
     "step": "expect_text",
@@ -38,7 +46,15 @@
      "text": "GST Certificate",
      "present": true
     },
-    "note": "Assert the remaining mandatory document type is visible after the tester completes the unavailable workflow."
+    "note": "Check that the remaining required document is visible."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "PAN",
+     "present": false
+    },
+    "note": "Check that PAN is no longer shown as a mandatory document."
    }
   ]
  }

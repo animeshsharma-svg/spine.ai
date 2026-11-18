@@ -4,16 +4,17 @@
   "title": "Revoke after the vendor already answered",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:03:05.642Z",
+  "compiledAt": "2026-11-13T12:17:49.434Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Directly revoke an already accepted counter offer and verify the specific refusal message \"No active counter offer found to modify\" from the stale buyer page."
+  ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "can only test part of this — no step for: Directly revoke an already accepted counter offer and verify the specific refusal message \"No active counter offer found to modify\" from the stale buyer page."
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -24,12 +25,11 @@
    "accept_counter_offer",
    "expect_counter_offer_accepted",
    "attempt",
-   "open_master_qcs",
    "expect_qcs_cell"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 21305
+  "ms": 20852
  },
  "plan": {
   "title": "Revoke accepted counter offer",
@@ -39,7 +39,7 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Opens the prepared RFQ Responses screen with Vendor A's normal bid and the second bid."
+    "note": "Open the prepared RFQ responses screen with Vendor A and Vendor B bids."
    },
    {
     "step": "require_setting",
@@ -47,7 +47,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Enables counter offers on RFQs."
+    "note": "Ensure counter offers are visible for RFQs."
    },
    {
     "step": "require_setting",
@@ -55,7 +55,7 @@
      "key": "counter_offer_modification_enabled",
      "value": "On"
     },
-    "note": "Enables the vendor counter-offer response flow."
+    "note": "Enable vendor counter-offer modification behavior required by the scenario."
    },
    {
     "step": "require_setting",
@@ -63,7 +63,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensures eRFX projects are enabled for the RFQ flow."
+    "note": "Ensure the eRFX project configuration required by the setup is active."
    },
    {
     "step": "place_counter_offer",
@@ -72,28 +72,28 @@
      "price": 90,
      "remark": "Best price please"
     },
-    "note": "Sends the buyer's counter offer on Vendor A's own bid."
+    "note": "Send the buyer's counter offer against Vendor A's normal bid."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Confirms the counter offer was initiated for Vendor A."
+    "note": "Verify the buyer grid marks Vendor A's counter offer as initiated."
    },
    {
     "step": "accept_counter_offer",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Has Vendor A accept the pending counter offer in the supplier portal."
+    "note": "Have Vendor A accept the pending counter offer in the supplier portal."
    },
    {
     "step": "expect_counter_offer_accepted",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Confirms the buyer's grid marks Vendor A's counter offer as accepted."
+    "note": "Verify the buyer grid records Vendor A's counter offer as accepted."
    },
    {
     "step": "attempt",
@@ -103,19 +103,10 @@
       "role": "button",
       "name": "Revoke Counter Offer"
      },
-     "because": "No active counter offer found to modify",
-     "expect": "refused"
+     "expect": "refused",
+     "because": "No active counter offer found to modify"
     },
-    "note": "Attempts the stale-page revoke action and requires Procol's refusal message."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Opens the comparison grid to verify the accepted bid remains available."
+    "note": "Attempt the unavailable post-acceptance revoke action and capture any refusal evidence the UI provides."
    },
    {
     "step": "expect_qcs_cell",
@@ -124,7 +115,7 @@
      "vendor": "Vendor A",
      "equals": "90"
     },
-    "note": "Checks that Vendor A's accepted price remains 90 after the refused revoke."
+    "note": "Verify Vendor A's accepted price remains 90 after the attempted revoke."
    }
   ]
  }

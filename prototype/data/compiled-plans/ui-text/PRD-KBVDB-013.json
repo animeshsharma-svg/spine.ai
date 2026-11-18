@@ -3,74 +3,92 @@
   "caseId": "PRD-KBVDB-013",
   "title": "Regretted item is crossed out in the buyer's QCS",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:53:49.471Z",
+  "compiledAt": "2026-11-13T15:44:40.662Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Directly assert that the regretted QCS line item is visually struck through."
+  ],
   "warnings": [
-   "resolved: “As the vendor, use Quick Fill → Regret Item for the selected line item and submit the regret.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
+   "can only test part of this — no step for: Directly assert that the regretted QCS line item is visually struck through."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 10,
   "stepNames": [
    "open_event",
    "switch_portal",
    "vendor_open_event",
-   "ask_tester",
+   "click",
+   "click",
+   "click",
+   "expect_bid_submitted",
    "switch_portal",
    "open_master_qcs",
-   "do_on_screen",
    "expect_text"
   ],
-  "ms": 13889
+  "ms": 31743
  },
  "plan": {
-  "title": "Regretted Item Crossed Out in Buyer QCS",
+  "title": "Regretted item in buyer QCS",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing event suitable for the regret and QCS flow."
+    "note": "Open an existing event suitable for vendor bidding and QCS inspection."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor portal for the vendor-side action."
+    "note": "Move to the invited vendor's supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open this event's pricing round in the vendor portal."
+    "note": "Open the event's pricing round and bid sheet as the vendor."
    },
    {
-    "step": "ask_tester",
+    "step": "click",
     "args": {
-     "need": "as the vendor, use Quick Fill → Regret Item for the target line item and submit the regret"
+     "role": "button",
+     "name": "Quick Fill"
     },
-    "note": "The catalog has no vendor regret-item action."
+    "note": "Open the vendor's Quick Fill actions."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Regret Item"
+    },
+    "note": "Mark the target line item as regretted."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Submit Quote"
+    },
+    "note": "Submit the vendor response containing the regretted item."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor submission was accepted."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer's event page."
+    "note": "Return to the buyer's console."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's comparison grid after the regret is submitted."
-   },
-   {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "on the buyer's Master QCS, verify that the regretted line item for that vendor is visibly crossed out; stop when the crossed-out item is shown"
-    },
-    "note": "Inspect the visual strike-through styling that no assertion step can directly express."
+    "note": "Open the buyer's quote comparison sheet."
    },
    {
     "step": "expect_text",
@@ -78,7 +96,7 @@
      "text": "Regretted",
      "present": true
     },
-    "note": "Confirm the QCS identifies the line as regretted."
+    "note": "Confirm the QCS exposes the regretted state for the line item, as the closest available observation to the required strikethrough."
    }
   ]
  }

@@ -3,60 +3,40 @@
   "caseId": "PRD-KBSRC-649",
   "title": "Hide Fields removes chosen columns from the QCS",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:28:08.906Z",
+  "compiledAt": "2026-11-13T14:49:40.661Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"Delivery Terms\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "unconfirmed label \"Delivery Terms\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Delivery Terms\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "coverage partial: unconfirmed label \"Delivery Terms\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
    "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 9,
   "stepNames": [
-   "open_event",
-   "open_master_qcs",
-   "expect_options",
+   "open_prepared",
    "click",
    "click",
-   "expect_visible",
    "click",
    "click",
-   "expect_visible",
-   "click",
-   "click",
-   "expect_visible",
-   "expect_visible"
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text"
   ],
-  "ms": 9512
+  "ms": 16963
  },
  "plan": {
-  "title": "Hide selected QCS fields",
+  "title": "Hide QCS fields",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open an existing event suitable for QCS inspection."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the quote comparison sheet where the target columns are displayed."
-   },
-   {
-    "step": "expect_options",
+    "step": "open_prepared",
     "args": {
-     "role": "button",
-     "name": "Hide fields",
-     "options": [
-      "GST",
-      "Quantity",
-      "Delivery Terms"
-     ]
+     "screen": "master_qcs"
     },
-    "note": "Verify the Hide Fields control offers all three columns to hide."
+    "note": "Open the prepared QCS containing the required columns."
    },
    {
     "step": "click",
@@ -64,79 +44,60 @@
      "role": "button",
      "name": "Hide fields"
     },
-    "note": "Reopen the field visibility menu before hiding GST."
+    "note": "Open the QCS field visibility controls."
    },
    {
     "step": "click",
     "args": {
-     "role": "menuitem",
-     "name": "GST"
+     "text": "GST"
     },
     "note": "Hide the GST column."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "GST",
-     "visible": false
-    },
-    "note": "Assert GST is no longer shown in the QCS."
-   },
-   {
     "step": "click",
     "args": {
-     "role": "button",
-     "name": "Hide fields"
-    },
-    "note": "Reopen the field visibility menu before hiding Quantity."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "menuitem",
-     "name": "Quantity"
+     "text": "Quantity"
     },
     "note": "Hide the Quantity column."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "Quantity",
-     "visible": false
-    },
-    "note": "Assert Quantity is no longer shown in the QCS."
-   },
-   {
     "step": "click",
     "args": {
-     "role": "button",
-     "name": "Hide fields"
-    },
-    "note": "Reopen the field visibility menu before hiding Delivery Terms."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "menuitem",
-     "name": "Delivery Terms"
+     "text": "Delivery Terms"
     },
     "note": "Hide the Delivery Terms column."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Delivery Terms",
-     "visible": false
+     "text": "GST",
+     "present": false
     },
-    "note": "Assert Delivery Terms is no longer shown in the QCS."
+    "note": "Verify GST is no longer shown in the QCS."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Price",
-     "visible": true
+     "text": "Quantity",
+     "present": false
     },
-    "note": "Assert another QCS column remains visible."
+    "note": "Verify Quantity is no longer shown in the QCS."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Delivery Terms",
+     "present": false
+    },
+    "note": "Verify Delivery Terms is no longer shown in the QCS."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Product",
+     "present": true
+    },
+    "note": "Verify another QCS column remains visible."
    }
   ]
  }

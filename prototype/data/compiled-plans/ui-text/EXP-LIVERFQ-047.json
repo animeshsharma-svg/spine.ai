@@ -4,16 +4,16 @@
   "title": "Increase Event Time: Cancel Increase Event Time leaves original end time unchanged",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:46:22.212Z",
+  "compiledAt": "2026-11-13T14:14:46.197Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The absence of a toast after cancellation cannot be asserted because the catalog has no negative toast-presence assertion."
+   "Assert that no toast appears after clicking Cancel."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: The absence of a toast after cancellation cannot be asserted because the catalog has no negative toast-presence assertion."
+   "can only test part of this — no step for: Assert that no toast appears after clicking Cancel."
   ],
   "source": "llm",
   "steps": 14,
@@ -35,7 +35,7 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 14591
+  "ms": 20120
  },
  "plan": {
   "title": "Cancel Increase Event Time",
@@ -45,7 +45,7 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ without creating or searching for another event."
+    "note": "Open the prepared live RFQ without searching for or creating another event."
    },
    {
     "step": "require_setting",
@@ -53,7 +53,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX projects as required by the test configuration."
    },
    {
     "step": "require_setting",
@@ -61,7 +61,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "On"
     },
-    "note": "Apply the required tenant configuration."
+    "note": "Apply the required withdrawal-visibility configuration."
    },
    {
     "step": "require_setting",
@@ -69,7 +69,7 @@
      "key": "disable_withdraw_during_submission_time",
      "value": "Off"
     },
-    "note": "Ensure live-event withdrawal behavior matches the case setup."
+    "note": "Apply the required live-event withdrawal configuration."
    },
    {
     "step": "require_setting",
@@ -92,22 +92,22 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Reach the Responses tab specified by the case."
+    "note": "Navigate to the RFQ Responses tab specified by the case."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "30 October 2026 03:43 AM"
     },
-    "note": "Confirm the original RFQ end time is visible before opening the dialog."
+    "note": "Confirm the original RFQ end time is visible before opening the extension dialog."
    },
    {
     "step": "remember",
     "args": {
-     "key": "original_end_time",
+     "key": "originalEndTime",
      "text": "30 October 2026 03:43 AM"
     },
-    "note": "Capture the original end time for comparison after cancellation."
+    "note": "Store the original end-time text for comparison after cancellation."
    },
    {
     "step": "event_menu",
@@ -115,16 +115,15 @@
      "item": "Extend Submission Time",
      "stage": "rfq"
     },
-    "note": "Open the Increase Event Time window from the RFQ Settings menu."
+    "note": "Open the RFQ's Increase Event Time window from Settings."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Increase Event Time",
+     "text": "Increase Event Time",
      "visible": true
     },
-    "note": "Verify that the Increase Event Time dialog opened."
+    "note": "Verify that the Increase Event Time window opened."
    },
    {
     "step": "click",
@@ -132,25 +131,23 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the time extension without saving changes."
+    "note": "Cancel the time-extension operation without saving changes."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Increase Event Time",
+     "text": "Increase Event Time",
      "visible": false
     },
-    "note": "Verify that cancellation closes the dialog."
+    "note": "Verify that cancelling closes the dialog."
    },
    {
     "step": "expect_remembered",
     "args": {
-     "key": "original_end_time",
-     "same": true,
-     "text": "30 October 2026 03:43 AM"
+     "key": "originalEndTime",
+     "same": true
     },
-    "note": "Verify that the RFQ end time remains unchanged after cancellation."
+    "note": "Verify that the RFQ end time remains exactly unchanged."
    }
   ]
  }

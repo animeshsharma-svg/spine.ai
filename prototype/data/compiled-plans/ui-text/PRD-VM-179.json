@@ -3,41 +3,51 @@
   "caseId": "PRD-VM-179",
   "title": "SAP MDG (Master Data Governance): vendor created/updated in Procol",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T03:48:25.917Z",
+  "compiledAt": "2026-11-13T15:15:01.158Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure the SAP MDG integration and its OAuth, endpoint, sync mode, batch size, and tenant gates.",
+   "Configure integration INT-001 with its SAP MDG endpoint, OAuth credentials, sync mode, and batch size.",
+   "Configure CONF-VM-002 mandatory vendor document types.",
    "Create or update a vendor in Procol with name, PAN, GSTIN, bank details, vendor code, status, and category.",
-   "Observe or verify the synchronization trigger and bidirectional exchange with SAP MDG/Oracle.",
-   "Compare the listed vendor master fields between Procol and the external system.",
-   "Verify that no integration error was recorded."
+   "Observe or verify that the SAP MDG/Oracle external system received or returned the vendor data.",
+   "Compare the vendor master fields between Procol and the external system.",
+   "Verify that no integration error was recorded for the synchronization."
   ],
   "warnings": [
-   "can only test part of this — no step for: Configure the SAP MDG integration and its OAuth, endpoint, sync mode, batch size, and tenant gates.; Create or update a vendor in Procol with name, PAN, GSTIN, bank details, vendor code, status, and category.; Observe or verify the synchronization trigger and bidirectional exchange with SAP MDG/Oracle.; Compare the listed vendor master fields between Procol and the external system.; Verify that no integration error was recorded."
+   "can only test part of this — no step for: Configure integration INT-001 with its SAP MDG endpoint, OAuth credentials, sync mode, and batch size.; Configure CONF-VM-002 mandatory vendor document types.; Create or update a vendor in Procol with name, PAN, GSTIN, bank details, vendor code, status, and category.; Observe or verify that the SAP MDG/Oracle external system received or returned the vendor data.; Compare the vendor master fields between Procol and the external system.; Verify that no integration error was recorded for the synchronization."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
+   "require_setting",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 16220
+  "ms": 21034
  },
  "plan": {
-  "title": "SAP MDG Vendor Master Sync",
+  "title": "SAP MDG Vendor Sync",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "integration.sap.pr.sync_mode",
+     "value": "Bi"
+    },
+    "note": "Set the stated bidirectional synchronization gate before attempting the trigger."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "configure the SAP MDG integration, create or update a vendor in Procol, compare all listed vendor master fields with the external Oracle system after synchronization, and verify that no integration error was recorded"
+     "need": "configure the SAP MDG integration and mandatory vendor document types, create or update the vendor in Procol, compare all listed vendor master fields with the external SAP MDG system, and verify that no integration error was recorded"
     },
-    "note": "No catalog step can access integration settings, vendor master records, the external SAP MDG/Oracle system, or integration error logs."
+    "note": "These integration, vendor-master, external-system, and cross-system comparison actions are not available in the catalog."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Check that the current screen remains free of visible application errors after the tester completes the unavailable integration verification."
+    "note": "Check that the current Procol screen has no visible application or server error after the tester-assisted work."
    }
   ]
  }

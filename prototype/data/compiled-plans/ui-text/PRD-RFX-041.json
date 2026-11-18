@@ -3,39 +3,51 @@
   "caseId": "PRD-RFX-041",
   "title": "Lock Vendor Addition & Per-Event Masking: refused for a user without the Buyer role",
   "group": "PRD-RFX",
-  "compiledAt": "2026-11-10T01:35:07.967Z",
+  "compiledAt": "2026-11-13T14:54:43.770Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and verify that Lock Vendor Addition & Per-Event Masking is refused or absent.",
-   "Repeat the action as a Buyer and verify that it is available.",
-   "Compare the two users' outcomes while accounting for tenant RBAC configuration."
+   "Sign in as a user without the Buyer role and as a Buyer, then verify that Lock Vendor Addition & Per-Event Masking is refused or absent for the former and available for the latter."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify that Lock Vendor Addition & Per-Event Masking is refused or absent.; Repeat the action as a Buyer and verify that it is available.; Compare the two users' outcomes while accounting for tenant RBAC configuration."
+   "added set_title — publishing without a title is refused",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer, then verify that Lock Vendor Addition & Per-Event Masking is refused or absent for the former and available for the latter."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "open_create",
+   "set_title",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_no_error"
   ],
-  "ms": 68414
+  "ms": 10422
  },
  "plan": {
-  "title": "Lock Vendor Addition & Per-Event Masking RBAC",
+  "title": "RBAC for Vendor Addition and Per-Event Masking",
   "steps": [
+   {
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Provides the closest available event-creation context, but does not observe the role-specific masking or vendor-locking control."
+   },
+   {
+    "step": "set_title"
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a non-Buyer and then as a Buyer in the same tenant, locate Lock Vendor Addition & Per-Event Masking, attempt the action with each user, and report whether it is refused, absent, or available and what RBAC configuration applies"
+     "need": "sign in as a non-Buyer and a Buyer on the same tenant, attempt Lock Vendor Addition & Per-Event Masking in both sessions, and record whether the action is refused or absent for the non-Buyer and available for the Buyer"
     },
-    "note": "The catalog cannot change tenant RBAC settings, access two differently authorized user sessions, or observe this tenant-level control."
+    "note": "The catalog cannot switch to or compare these user roles or operate the requested permission-controlled action."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Provide a final assertion after the tester-assisted exploration that the current screen has no crash or server error; this does not assert the RBAC behavior itself."
+    "note": "Checks that the session remains usable after the tester's comparison; it is not evidence of the requested RBAC behavior."
    }
   ]
  }

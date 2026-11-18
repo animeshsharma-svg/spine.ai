@@ -4,29 +4,30 @@
   "title": "Reject without a reason",
   "group": "SRC-RJB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:12:25.016Z",
+  "compiledAt": "2026-11-13T12:42:24.024Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly assert that Vendor A's bid remains active after the refused rejection; the available response assertion can confirm the response remains visible but not its active status."
+   "Open the RFQ specifically in evaluation; the prepared state available to this plan is not an evaluation-state event.",
+   "Directly assert that Vendor A's bid remains active after the refused rejection because no catalog assertion reads rejected-bid active status."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Directly assert that Vendor A's bid remains active after the refused rejection; the available response assertion can confirm the response remains visible but not its active status."
+   "can only test part of this — no step for: Open the RFQ specifically in evaluation; the prepared state available to this plan is not an evaluation-state event.; Directly assert that Vendor A's bid remains active after the refused rejection because no catalog assertion reads rejected-bid active status."
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "do_on_screen",
-   "expect_message",
-   "expect_responses"
+   "expect_visible",
+   "click",
+   "attempt"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 11687
+  "ms": 17510
  },
  "plan": {
   "title": "Reject Bid Without Reason",
@@ -36,7 +37,7 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ Responses tab containing Vendor A's submitted bid."
+    "note": "Open the prepared RFQ Responses screen, which is the closest available route to the named bid."
    },
    {
     "step": "require_setting",
@@ -44,32 +45,36 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project configuration before accessing the prepared RFQ."
+    "note": "Enable the required eRFX project configuration before accessing the event flow."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_visible",
     "args": {
-     "goal": "Open the Reject Bid control for Vendor A's bid, leave the rejection reason empty, confirm the rejection, and stop when the screen shows the refusal message."
+     "text": "Reject",
+     "visible": true
     },
-    "note": "Perform the buyer-side rejection attempt because no catalog step directly opens the reject dialog and confirms it without a reason."
+    "note": "Confirm that the bid-rejection control is available on the Responses screen."
    },
    {
-    "step": "expect_message",
+    "step": "click",
     "args": {
-     "kind": "error",
-     "text": "Please add a reason for rejecting this bid"
+     "text": "Reject",
+     "within": "Vendor A"
     },
-    "note": "Assert the required validation message is shown."
+    "note": "Open the rejection dialog for Vendor A's bid."
    },
    {
-    "step": "expect_responses",
+    "step": "attempt",
     "args": {
-     "vendors": [
-      "Vendor A"
-     ],
-     "atLeast": 1
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Reject Bid"
+     },
+     "because": "Please add a reason for rejecting this bid",
+     "expect": "refused"
     },
-    "note": "Confirm Vendor A's response remains present after the rejection was refused."
+    "note": "Confirm the empty rejection form is refused rather than submitting the rejection."
    }
   ]
  }

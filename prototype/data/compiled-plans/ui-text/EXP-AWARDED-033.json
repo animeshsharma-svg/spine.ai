@@ -4,15 +4,19 @@
   "title": "Recreate Order: Create Order with custom event duration of 0 minutes is rejected",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:16:03.353Z",
+  "compiledAt": "2026-11-13T13:45:14.226Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
    "click",
    "fill",
@@ -20,24 +24,33 @@
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 8828
+  "ms": 11736
  },
  "plan": {
-  "title": "Reject Zero-Minute Recreate Order",
+  "title": "Recreate Order Rejects Zero Duration",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the already awarded event's summary page."
+    "note": "Open the already awarded event's summary page as required for the prepared state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required eRFX project setting for the test tenant."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open the Recreate Order dialog from the event Settings menu."
+    "note": "Open the RFQ stage Settings menu and launch the Recreate Order window."
    },
    {
     "step": "click",
@@ -45,7 +58,7 @@
      "role": "radio",
      "name": "Custom"
     },
-    "note": "Select the custom duration option required by the case."
+    "note": "Select the custom event-duration option."
    },
    {
     "step": "fill",
@@ -65,7 +78,7 @@
      },
      "expect": "refused"
     },
-    "note": "Verify that submitting a zero-minute custom duration is rejected."
+    "note": "Submit the recreate-order form and require Procol to refuse the zero-minute duration."
    }
   ]
  }

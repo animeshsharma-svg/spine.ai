@@ -4,42 +4,42 @@
   "title": "Settings > Rejected Bids after one rejection",
   "group": "SRC-RJB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:12:51.466Z",
+  "compiledAt": "2026-11-13T12:43:06.192Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Ensure the selected RFQ is in evaluation with exactly one rejection for Vendor A and a specific rejection reason before opening the list."
+   "The rejected bid's dynamic rejection time",
+   "The exact rejection remark value because the case does not specify the reason",
+   "Whether re-bidding was allowed for the rejected bid"
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Ensure the selected RFQ is in evaluation with exactly one rejection for Vendor A and a specific rejection reason before opening the list."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The rejected bid's dynamic rejection time; The exact rejection remark value because the case does not specify the reason; Whether re-bidding was allowed for the rejected bid"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "event_menu",
    "expect_text",
-   "expect_text",
-   "expect_text",
+   "expect_api_value",
    "expect_text"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 12045
+  "ms": 15485
  },
  "plan": {
-  "title": "Rejected Bids list after one rejection",
+  "title": "Rejected Bids list after Vendor A rejection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared RFQ event in its buyer summary page."
    },
    {
     "step": "require_setting",
@@ -47,7 +47,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project configuration before navigating."
+    "note": "Enable the required eRFX project setting for the case."
    },
    {
     "step": "event_menu",
@@ -55,35 +55,30 @@
      "item": "Rejected Bids",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage's Rejected Bids view from Settings."
+    "note": "Open the RFQ stage's Rejected Bids view."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Rejected Bids"
     },
-    "note": "Confirm the rejected-bids view is open."
+    "note": "Assert that the rejected-bids view is open."
+   },
+   {
+    "step": "expect_api_value",
+    "args": {
+     "key": "vendorName",
+     "within": "Rejected Bids"
+    },
+    "note": "Verify that the rejected record identifies the prepared vendor, Vendor A."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Vendor A"
+     "text": "Rejection Remark:",
+     "within": "Rejected Bids"
     },
-    "note": "Check that the rejected vendor is listed when the selected event contains the expected rejection."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Rejection Remark:"
-    },
-    "note": "Check that the list exposes the rejection remark field."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Re-bidding"
-    },
-    "note": "Check that the list exposes whether re-bidding was allowed."
+    "note": "Assert that the record displays a rejection remark field."
    }
   ]
  }

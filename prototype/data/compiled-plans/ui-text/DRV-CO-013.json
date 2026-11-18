@@ -1,45 +1,85 @@
 {
  "meta": {
   "caseId": "DRV-CO-013",
-  "title": "Mobile app acceptance of counter offer creates same revision as web UI",
+  "title": "Vendor rejects the buyer's post-auction counter offer in the vendor portal",
   "group": "DRV-CO",
   "sheet": "derived-buyer-can-send-a-counter-offer-on-an-act",
-  "compiledAt": "2026-11-09T23:04:01.714Z",
+  "compiledAt": "2026-11-13T13:34:54.364Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Dedicated empty counter-price submission using the counter-offer domain flow",
+   "Confirmed validation wording and field label for the required numeric counter price"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Dedicated empty counter-price submission using the counter-offer domain flow; Confirmed validation wording and field label for the required numeric counter price"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "attempt"
+   "click",
+   "expect_visible",
+   "fill",
+   "click",
+   "expect_message"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 9400
+  "ms": 15383
  },
  "plan": {
-  "title": "Empty Counter Price Validation",
+  "title": "Empty counter price validation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the buyer's Responses view for the prepared live RFQ with an active vendor bid."
+    "note": "Open the prepared live RFQ Responses screen containing the vendor's active bid."
    },
    {
-    "step": "attempt",
+    "step": "click",
     "args": {
-     "step": "place_counter_offer",
-     "args": {
-      "price": ""
-     },
-     "expect": "refused",
-     "because": "valid numeric counter price"
+     "role": "button",
+     "name": "Counter Offer"
     },
-    "note": "Open the Counter Offer modal, leave the counter price empty, and submit; pass only if Procol shows a validation refusal requiring a valid numeric price."
+    "note": "Open the buyer's Counter Offer modal for the vendor bid."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Counter Offer",
+     "visible": true
+    },
+    "note": "Assert that the Counter Offer modal opened before attempting the invalid submission."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Price",
+     "value": "",
+     "within": "dialog"
+    },
+    "note": "Attempt to leave the counter price field empty; the field label is not confirmed by the catalog."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Send",
+     "within": "dialog"
+    },
+    "note": "Attempt to submit the empty counter offer."
+   },
+   {
+    "step": "expect_message",
+    "args": {
+     "kind": "error",
+     "text": "valid numeric counter price"
+    },
+    "note": "Check for the expected validation refusal requiring a valid numeric counter price."
    }
   ]
  }

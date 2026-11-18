@@ -4,45 +4,60 @@
   "title": "Consultant reply with no comment is not recorded",
   "group": "EMA-RPL",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:58:08.469Z",
+  "compiledAt": "2026-11-13T14:23:21.366Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Chetan signing into the approver's mailbox, sending an empty reply, waiting for mailbox processing, verifying the clear instruction, and confirming the consultation remains open in Procol"
+   "Access Chetan's approval mailbox and send a Reply with no comment",
+   "Wait for Procol to process the mailbox reply",
+   "Verify Chetan receives a clear response explaining what to do",
+   "Verify the blank reply is not recorded in Procol",
+   "Verify the consultation remains open"
   ],
   "warnings": [
-   "can only test part of this — no step for: Chetan signing into the approver's mailbox, sending an empty reply, waiting for mailbox processing, verifying the clear instruction, and confirming the consultation remains open in Procol"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Access Chetan's approval mailbox and send a Reply with no comment; Wait for Procol to process the mailbox reply; Verify Chetan receives a clear response explaining what to do; Verify the blank reply is not recorded in Procol; Verify the consultation remains open"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
+   "require_setting",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_no_error"
   ],
-  "ms": 9206
+  "ms": 10978
  },
  "plan": {
-  "title": "EMA-RPL-004 Consultant Reply Without Comment",
+  "title": "Consultant blank reply is not recorded",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the specific existing event associated with the approval workflow."
+    "note": "Open the named existing event to provide the closest available buyer-side context."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Configure the stated email-approval prerequisite before attempting the mailbox interaction."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Chetan, open the approver's mailbox, send an empty reply to the approval thread, wait 1-2 minutes, and verify the reply is not recorded, Chetan receives clear guidance, and the consultation remains open in Procol"
+     "need": "access Chetan's approval mailbox, send a blank Reply, wait for Procol to process it, and verify the response, recording state, and open consultation"
     },
-    "note": "The catalog cannot access individual mailboxes, send email replies, wait for the email worker, or inspect the consultation thread outcome."
+    "note": "The mailbox, email send, processing wait, and approval-thread outcome are outside the catalog and require the specified user and mailbox."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_no_error",
     "args": {},
-    "note": "Assert that the current Procol screen remains usable after the tester completes the unavailable flow."
+    "note": "Assert that the buyer-side event page remains free of an application error after the available flow context is established."
    }
   ]
  }

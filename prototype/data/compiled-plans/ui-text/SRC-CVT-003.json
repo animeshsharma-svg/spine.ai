@@ -4,74 +4,77 @@
   "title": "Convert to Auction — reuse nothing",
   "group": "SRC-CVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:22:21.717Z",
+  "compiledAt": "2026-11-13T11:55:19.070Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Inspect the conversion pop-up options for reusing RFQ quotes, participants and weights, then explicitly select reuse nothing",
+   "Fill the unspecified auction configuration fields on the converted auction"
+  ],
   "warnings": [
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "dropped expect_published — the API built this case's event; open_prepared opens its screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "dropped expect_published — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Inspect the conversion pop-up options for reusing RFQ quotes, participants and weights, then explicitly select reuse nothing; Fill the unspecified auction configuration fields on the converted auction"
   ],
   "source": "llm",
   "steps": 7,
   "stepNames": [
    "open_prepared",
-   "open_event_settings",
-   "do_on_screen",
-   "expect_line_items",
+   "require_setting",
+   "convert_to_auction",
+   "expect_no_error",
    "set_schedule",
    "invite_vendor",
    "publish"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 23190
+  "ms": 16333
  },
  "plan": {
-  "title": "Convert Closed RFQ to Auction Without Reuse",
+  "title": "Convert Closed RFQ Without Reuse",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ on the buyer's summary page."
+    "note": "Open the prepared closed RFQ instead of recreating or searching for the event."
    },
    {
-    "step": "open_event_settings",
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "convert_to_auction",
     "args": {},
-    "note": "Open the stage Settings menu containing Convert to Auction."
+    "note": "Open the RFQ conversion flow and continue to the converted auction create screen; the reuse choice itself is not observable through this step."
    },
    {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "In the Convert to Auction pop-up, select the option to reuse nothing, continue, fill the auction configuration, and stop on the converted auction create screen showing only the RFQ products and no reused participants"
-    },
-    "note": "The catalog has no dedicated assertion for the conversion pop-up's reuse options, so perform and verify the buyer-side selection directly on screen."
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Verify that the converted auction retains the RFQ product line item."
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the converted auction screen loaded without an application error."
    },
    {
     "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Set and commit the auction schedule."
+    "args": {},
+    "note": "Commit the auction schedule before publishing."
    },
    {
     "step": "invite_vendor",
     "args": {},
-    "note": "Add participants explicitly, verifying they were not reused by the conversion."
+    "note": "Add participants to the converted auction, as required when nothing is reused."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured auction."
+    "note": "Publish the converted auction."
    }
   ]
  }

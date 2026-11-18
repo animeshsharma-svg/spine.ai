@@ -4,16 +4,20 @@
   "title": "Send a counter offer while bidding is live",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:02:13.337Z",
+  "compiledAt": "2026-11-13T12:16:45.695Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "The exact Active Counter Offers participant count cannot be asserted with a catalog step.",
+   "The vendor's explicit reject action cannot be asserted because the catalog exposes only the vendor's Accept Counter Offer control."
+  ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The exact Active Counter Offers participant count cannot be asserted with a catalog step.; The vendor's explicit reject action cannot be asserted because the catalog exposes only the vendor's Accept Counter Offer control."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -21,8 +25,7 @@
    "place_counter_offer",
    "expect_counter_offer_sent",
    "expect_visible",
-   "expect_visible",
-   "open_participants",
+   "open_prepared",
    "expect_text",
    "switch_portal",
    "vendor_open_event",
@@ -31,17 +34,17 @@
   ],
   "state": "two_bids",
   "screen": "responses",
-  "ms": 17955
+  "ms": 19097
  },
  "plan": {
-  "title": "Live RFQ Counter Offer to Vendor A",
+  "title": "Send live RFQ counter offer",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses tab containing Vendor A's 100 bid and Vendor B's 90 bid."
+    "note": "Open the prepared live RFQ Responses tab containing Vendor A's and Vendor B's bids."
    },
    {
     "step": "require_setting",
@@ -49,7 +52,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Ensure counter offers are enabled on RFQ rounds."
+    "note": "Ensure the RFQ counter-offer control is enabled for the tenant."
    },
    {
     "step": "require_setting",
@@ -57,7 +60,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure the prepared RFQ project flow is enabled for the tenant."
+    "note": "Ensure eRFX projects are enabled as required by the setup."
    },
    {
     "step": "place_counter_offer",
@@ -66,14 +69,14 @@
      "price": 90,
      "remark": "Best price please"
     },
-    "note": "Send the buyer's counter offer on Vendor A's normal bid with the requested price and remark."
+    "note": "Send Vendor A a counter offer changing the quoted price from 100 to 90 with the required remark."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Verify Vendor A's bid is marked as having a counter offer initiated."
+    "note": "Assert that Vendor A's bid is marked as having a counter offer initiated."
    },
    {
     "step": "expect_visible",
@@ -82,21 +85,14 @@
      "name": "Revoke Counter Offer",
      "visible": true
     },
-    "note": "Verify the sent offer exposes the Revoke Counter Offer action."
+    "note": "Assert that the sent offer replaces the Counter Offer control with Revoke Counter Offer."
    },
    {
-    "step": "expect_visible",
+    "step": "open_prepared",
     "args": {
-     "role": "button",
-     "name": "Counter Offer",
-     "visible": false
+     "screen": "overview"
     },
-    "note": "Verify the original Counter Offer action is replaced after sending."
-   },
-   {
-    "step": "open_participants",
-    "args": {},
-    "note": "Open the live RFQ Participants panel to inspect the counter-offer status."
+    "note": "Open the event overview to inspect the participant summary after sending the counter offer."
    },
    {
     "step": "expect_text",
@@ -104,7 +100,7 @@
      "text": "Active Counter Offers",
      "present": true
     },
-    "note": "Verify the participants panel counts the sent offer as an active counter offer."
+    "note": "Assert that the participant summary exposes the Active Counter Offers category."
    },
    {
     "step": "switch_portal",
@@ -112,14 +108,14 @@
      "to": "vendor",
      "vendor": "Vendor A"
     },
-    "note": "Switch to Vendor A's supplier portal to verify the recipient-facing offer."
+    "note": "Switch to Vendor A's supplier-portal session to verify receipt of the counter offer."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "overview": true
     },
-    "note": "Open the prepared event overview in Vendor A's portal."
+    "note": "Open the prepared event's overview in the vendor portal."
    },
    {
     "step": "expect_visible",
@@ -128,7 +124,7 @@
      "name": "Accept Counter Offer",
      "visible": true
     },
-    "note": "Verify Vendor A can accept the received counter offer."
+    "note": "Assert that Vendor A is presented with the action to accept the pending counter offer."
    },
    {
     "step": "expect_text",
@@ -136,7 +132,7 @@
      "text": "Counter Offer",
      "present": true
     },
-    "note": "Verify the vendor portal visibly identifies the pending counter offer."
+    "note": "Assert that the vendor view identifies the pending counter offer."
    }
   ]
  }

@@ -4,16 +4,16 @@
   "title": "Recognise a stock material vs a cost-centre material",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:33:47.030Z",
+  "compiledAt": "2026-11-13T12:29:39.082Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Deterministically assert that the stock material has an empty Account Assignment Category while the cost-centre material shows K with a cost centre.",
-   "Verify that both materials generate a goods sheet.",
-   "Verify that the resulting purchase order carries the Account Assignment Category."
+   "Show and compare the Account Assignment Category values for stock and cost-centre material lines, including empty versus K with a cost centre",
+   "Assert that both selected materials create a goods sheet",
+   "Assert that the resulting purchase order carries the material category"
   ],
   "warnings": [
-   "can only test part of this — no step for: Deterministically assert that the stock material has an empty Account Assignment Category while the cost-centre material shows K with a cost centre.; Verify that both materials generate a goods sheet.; Verify that the resulting purchase order carries the Account Assignment Category."
+   "cannot test this case yet — no step can observe: Show and compare the Account Assignment Category values for stock and cost-centre material lines, including empty versus K with a cost centre; Assert that both selected materials create a goods sheet; Assert that the resulting purchase order carries the material category"
   ],
   "source": "llm",
   "steps": 4,
@@ -21,12 +21,12 @@
    "open_purchase_requisitions",
    "pr_tab",
    "do_on_screen",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 11901
+  "ms": 14110
  },
  "plan": {
-  "title": "PR material account assignment comparison",
+  "title": "PR material category recognition",
   "steps": [
    {
     "step": "open_purchase_requisitions",
@@ -38,22 +38,19 @@
     "args": {
      "tab": "Open"
     },
-    "note": "Ensure the comparison is performed on open requisitions, where sourcing is available."
+    "note": "Reach the Open PR tab where eligible requisitions are listed."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "show the Account Assignment Category column in the Open Purchase Requisitions list, compare an available stock material line with an available cost-centre material line, and record whether the stock category is empty and the cost-centre category is K with a cost centre"
+     "goal": "show the Account Assignment Category column, compare an open stock material with an open cost-centre material, confirm the stock category is empty and the cost-centre category is K with a cost centre, then verify both can make a goods sheet and that the resulting purchase order carries the category; stop on the screen proving the result"
     },
-    "note": "The catalog has no dedicated assertion for PR account-assignment columns, so inspect and compare the two required material lines on screen."
+    "note": "Use the buyer-side screen to perform the PR comparison and downstream checks that no catalog assertion can express."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Account Assignment Category",
-     "present": true
-    },
-    "note": "Assert that the required PR-list column is visible after the on-screen inspection."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the resulting screen has no crash, server error, or malformed values."
    }
   ]
  }

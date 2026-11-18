@@ -4,11 +4,11 @@
   "title": "All Vendors: Attempt to Save without selecting any vendor shows no error and closes dialog",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:39:24.912Z",
+  "compiledAt": "2026-11-13T14:02:17.683Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The create-screen Participants list remains unchanged after saving because no catalog assertion can compare its pre-save and post-save contents on this screen."
+   "Prove that the Participants list remains unchanged after saving with no vendor selected."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -17,27 +17,30 @@
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: The create-screen Participants list remains unchanged after saving because no catalog assertion can compare its pre-save and post-save contents on this screen."
+   "can only test part of this — no step for: Prove that the Participants list remains unchanged after saving with no vendor selected."
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 14,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "click",
-   "expect_visible",
-   "click",
    "click",
    "expect_visible",
+   "click",
+   "expect_count",
    "expect_no_error"
   ],
-  "ms": 23845
+  "ms": 16369
  },
  "plan": {
-  "title": "Single-stage RFQ All Vendors save with no selection",
+  "title": "Single-stage RFQ save with no vendor selected",
   "steps": [
    {
     "step": "open_create",
@@ -47,23 +50,48 @@
     "note": "Open the single-stage event creation screen."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Enable the required vendor-lock configuration before creating the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable the required read-only ceiling-price configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_tnc_mandatory_button",
+     "value": "Off"
+    },
+    "note": "Disable the mandatory T&Cs configuration required by the case."
+   },
+   {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "Set the event type to RFQ."
+    "note": "Configure the event as a single-stage RFQ."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "EXP-CREATESINGLE-025 No Vendor Save"
+     "title": "EXP-CREATESINGLE-025"
     },
-    "note": "Provide the required event title so the setup can reach the participant controls."
+    "note": "Provide the required event title so the setup can proceed."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the first available RFQ template."
+    "note": "Choose the first available RFQ template, corresponding to the Buy Template action."
    },
    {
     "step": "add_line_items",
@@ -80,15 +108,7 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the participant panel."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "All Vendors",
-     "visible": true
-    },
-    "note": "Verify the All Vendors control is available."
+    "note": "Open the Participants panel on the RFQ creation screen."
    },
    {
     "step": "click",
@@ -96,28 +116,37 @@
      "role": "button",
      "name": "All Vendors"
     },
-    "note": "Open the All Vendors window."
+    "note": "Open the All Vendors window without selecting any vendor."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "All Vendors",
+     "visible": true
+    },
+    "note": "Confirm that the All Vendors window is open before saving."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Save"
+     "name": "Save",
+     "within": "dialog"
     },
-    "note": "Save without selecting any vendor."
+    "note": "Save the empty vendor selection from within the All Vendors dialog."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_count",
     "args": {
      "role": "dialog",
-     "visible": false
+     "count": 0
     },
-    "note": "Verify that the All Vendors dialog closes."
+    "note": "Verify that the dialog closed after saving."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Verify that no application error is shown after saving."
+    "note": "Verify that no application error or validation error is shown."
    }
   ]
  }

@@ -3,47 +3,56 @@
   "caseId": "PRD-RA-028",
   "title": "Request for Best Offer in Auction: refused for a user without the Buyer role",
   "group": "PRD-RA",
-  "compiledAt": "2026-11-10T01:38:01.550Z",
+  "compiledAt": "2026-11-13T14:58:29.617Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a non-Buyer and then as a Buyer on the same tenant to compare Request Best Offers authorization and execute the action under each role"
+   "Sign in as a non-Buyer user on a Growth tenant and verify whether Request for Best Offer is refused or absent.",
+   "Repeat the action as a Buyer in the same tenant and verify that it is available.",
+   "Verify the tenant is on the Growth plan."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a non-Buyer and then as a Buyer on the same tenant to compare Request Best Offers authorization and execute the action under each role"
+   "can only test part of this — no step for: Sign in as a non-Buyer user on a Growth tenant and verify whether Request for Best Offer is refused or absent.; Repeat the action as a Buyer in the same tenant and verify that it is available.; Verify the tenant is on the Growth plan."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
+   "expect_menu_item",
    "ask_tester",
-   "expect_menu_item"
+   "expect_text"
   ],
-  "ms": 14146
+  "ms": 12479
  },
  "plan": {
-  "title": "Request Best Offer role authorization",
+  "title": "Request Best Offer Role Access",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing event that is suitable for checking auction actions."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "sign in as the non-Buyer user, verify Request Best Offers is refused or absent, then sign in as a Buyer and verify and execute Request Best Offers in the auction"
-    },
-    "note": "The catalog has no step for switching user roles or performing the same authorization check under two different users."
+    "note": "Open an existing auction event suitable for checking the Request for Best Offer action."
    },
    {
     "step": "expect_menu_item",
     "args": {
-     "item": "Request Best Offers",
-     "stage": "auction",
-     "enabled": true
+     "item": "Request Best Offers"
     },
-    "note": "Assert that the final Buyer session sees Request Best Offers enabled in the auction Settings menu."
+    "note": "Inspect whether the current user's auction Settings menu offers the action, without assuming the user's role."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "Use the same Growth-tenant auction to sign in as a non-Buyer, check whether Request for Best Offer is absent or refused, then repeat as a Buyer and check that the action is available."
+    },
+    "note": "Role-specific sign-in and comparison between the non-Buyer and Buyer are not available in the catalog."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Settings",
+     "present": true
+    },
+    "note": "Confirm the auction event page remains available after the tester's role comparison."
    }
   ]
  }

@@ -4,42 +4,64 @@
   "title": "When is_auction_on_base_price is true, Dutch strategy uses base price for bulk_price calculation",
   "group": "DRV-AUC",
   "sheet": "derived-a-buyer-can-select-an-auction-strategy-t",
-  "compiledAt": "2026-11-09T22:55:53.595Z",
+  "compiledAt": "2026-11-13T13:28:13.100Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Create a new auction event with base price 1200 from the requested starting condition",
-   "Select the Dutch auction strategy in the prepared draft flow",
-   "Leave bulk price fields empty and save the event",
-   "Verify the Overview tab shows Start Bulk Price: 1,200 derived from the base price"
+   "Create a new auction event from the buyer portal",
+   "Select the Dutch auction strategy",
+   "Leave bulk price fields empty and save",
+   "Verify that the Overview shows Start Bulk Price: 1,200 for the newly configured Dutch auction"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Create a new auction event with base price 1200 from the requested starting condition; Select the Dutch auction strategy in the prepared draft flow; Leave bulk price fields empty and save the event; Verify the Overview tab shows Start Bulk Price: 1,200 derived from the base price"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "cannot test this case yet — no step can observe: Create a new auction event from the buyer portal; Select the Dutch auction strategy; Leave bulk price fields empty and save; Verify that the Overview shows Start Bulk Price: 1,200 for the newly configured Dutch auction"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "expect_screen_clean"
+   "require_setting",
+   "go_to",
+   "expect_text"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 68059
+  "ms": 17631
  },
  "plan": {
-  "title": "Dutch Auction Base Price Bulk Calculation",
+  "title": "Dutch Base Price Bulk Calculation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "draft"
     },
-    "note": "Open the API-prepared draft event, as required for prepared-state cases."
+    "note": "Open the prepared draft state, which is the closest available starting point for the requested draft event."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Verify the reopened draft screen renders without errors; this does not validate the Dutch bulk-price calculation."
+    "step": "require_setting",
+    "args": {
+     "key": "is_auction_on_base_price",
+     "value": "true"
+    },
+    "note": "Enable the required tenant setting before inspecting the auction behavior."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "overview"
+    },
+    "note": "Navigate to the Overview screen where the derived Start Bulk Price would be displayed if the required auction state were available."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Start Bulk Price: 1,200",
+     "present": true
+    },
+    "note": "Attempt to observe the expected derived bulk price; this does not establish coverage because the Dutch auction setup cannot be performed."
    }
   ]
  }

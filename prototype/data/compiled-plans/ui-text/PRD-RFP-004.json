@@ -3,30 +3,30 @@
   "caseId": "PRD-RFP-004",
   "title": "Configurable Questionnaire Templates: refused for a user without the Buyer role",
   "group": "PRD-RFP",
-  "compiledAt": "2026-11-10T01:39:14.875Z",
+  "compiledAt": "2026-11-13T14:59:39.622Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and verify that configurable per-category technical questionnaire templates are refused or absent.",
-   "Repeat the action as a Buyer and verify that the configurable per-category technical questionnaire templates are available, including recording any tenant-specific RBAC grant."
+   "Sign in as a non-Buyer and a Buyer on the same tenant, verify refusal or absence for the non-Buyer, and verify availability for the Buyer."
   ],
   "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "added set_title — publishing without a title is refused",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "added set_title — publishing without a title is refused",
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify that configurable per-category technical questionnaire templates are refused or absent.; Repeat the action as a Buyer and verify that the configurable per-category technical questionnaire templates are available, including recording any tenant-specific RBAC grant."
+   "can only test part of this — no step for: Sign in as a non-Buyer and a Buyer on the same tenant, verify refusal or absence for the non-Buyer, and verify availability for the Buyer."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
    "open_create",
+   "ask_tester",
    "compose_stages",
    "set_title",
    "switch_stage",
-   "expect_template_menu",
-   "ask_tester",
-   "expect_visible"
+   "expect_template_menu"
   ],
-  "ms": 12817
+  "ms": 20969
  },
  "plan": {
   "title": "RFP Questionnaire Template Role Access",
@@ -36,7 +36,14 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX creation flow so the technical questionnaire template area can be reached."
+    "note": "Reach the eRFX create screen where technical questionnaire templates can be inspected."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as a non-Buyer and a Buyer on the same tenant, then verify that configurable technical questionnaire templates are refused or absent for the non-Buyer and available for the Buyer"
+    },
+    "note": "Role-specific sign-in and comparison are not supported by the catalog."
    },
    {
     "step": "compose_stages",
@@ -45,7 +52,7 @@
       "rfp"
      ]
     },
-    "note": "Configure a technical stage, which is the relevant context for questionnaire templates."
+    "note": "Configure a technical/RFP stage, which is the relevant stage for questionnaire templates."
    },
    {
     "step": "set_title"
@@ -55,7 +62,7 @@
     "args": {
      "stage": "rfp"
     },
-    "note": "Move to the technical stage where questionnaire templates are selected."
+    "note": "Make the technical stage current before inspecting its template options."
    },
    {
     "step": "expect_template_menu",
@@ -63,22 +70,7 @@
      "eventType": "rfp",
      "min": 1
     },
-    "note": "Inspect whether the RFP template menu is populated; this is only a closest available check and does not test role-based access."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "sign in as a non-Buyer and then as a Buyer in the same tenant, attempt to use configurable per-category technical questionnaire templates in each session, and record whether the action is refused or available"
-    },
-    "note": "User-role switching and the required refusal-versus-availability comparison are not expressible by catalog steps."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "text": "Select Templates",
-     "visible": true
-    },
-    "note": "Assert that the technical template control remains visible after the handoff; this does not establish the RBAC outcome."
+    "note": "Check that the technical template menu is populated, but this does not establish role-based access."
    }
   ]
  }

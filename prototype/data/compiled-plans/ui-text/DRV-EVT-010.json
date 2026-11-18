@@ -4,50 +4,59 @@
   "title": "Event seen status is not overwritten by post-closure visits in auction report",
   "group": "DRV-EVT",
   "sheet": "derived-track-each-vendor-s-participation-status",
-  "compiledAt": "2026-11-10T06:25:30.992Z",
+  "compiledAt": "2026-11-13T13:37:31.168Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Verify the vendor-specific participation report preserves the original live-window Seen record after a post-closure login",
-   "Compare pre-closure and post-closure participation timestamps or detect that a valid Seen timestamp was not overwritten"
+   "Simulate a vendor logging in after the auction has closed",
+   "Verify that post-closure visit timestamps do not overwrite the original live-window Seen timestamp"
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Verify the vendor-specific participation report preserves the original live-window Seen record after a post-closure login; Compare pre-closure and post-closure participation timestamps or detect that a valid Seen timestamp was not overwritten"
+   "can only test part of this — no step for: Simulate a vendor logging in after the auction has closed; Verify that post-closure visit timestamps do not overwrite the original live-window Seen timestamp"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "event_menu",
+   "expect_text",
    "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 17855
+  "ms": 7090
  },
  "plan": {
-  "title": "DRV-EVT-010 — Preserve vendor seen status after closure",
+  "title": "Preserve Seen Status After Closure",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared closed RFQ with a submitted bid, as required for this case."
+    "note": "Open the prepared closed RFQ event without creating or searching for another event."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Shared With"
+     "item": "Shared With",
+     "stage": "rfq"
     },
-    "note": "Open the participation summary associated with the event to inspect the available participation-status information."
+    "note": "Open the Participation Summary report for the RFQ stage."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Participation Summary"
+    },
+    "note": "Confirm that the participation report opened."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Seen"
     },
-    "note": "Assert that the participation summary exposes the Seen status, though this does not verify vendor-specific timestamp preservation."
+    "note": "Verify that the report still displays the Seen participation state."
    }
   ]
  }

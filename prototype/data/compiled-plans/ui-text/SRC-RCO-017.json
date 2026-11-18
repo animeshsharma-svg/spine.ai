@@ -4,44 +4,44 @@
   "title": "Recreate Order: Delivery date next month",
   "group": "SRC-RCO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:10:22.409Z",
+  "compiledAt": "2026-11-13T12:36:51.841Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Verify that the newly recreated event displays the selected next-month delivery date to vendors."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Verify that the newly recreated event displays the selected next-month delivery date to vendors."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "resolved: “There is no dedicated assertion for the newly created order's delivery date in the vendor portal; the plan compares the ” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "event_menu",
    "expect_text",
    "expect_text",
-   "expect_text",
-   "expect_text",
-   "do_on_screen",
-   "expect_no_error"
+   "pick_date",
+   "remember",
+   "click",
+   "expect_no_error",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_remembered"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 24220
+  "ms": 29055
  },
  "plan": {
-  "title": "Recreate closed RFQ with next-month delivery date",
+  "title": "Recreate Order with Next-Month Delivery Date",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared closed RFQ specified by the setup case."
    },
    {
     "step": "require_setting",
@@ -49,54 +49,85 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the eRFX capability required by the scenario."
+    "note": "Enable the required eRFX project configuration before accessing the closed RFQ flow."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open the stage Settings menu and choose Recreate Order."
+    "note": "Open the RFQ stage settings and launch the Recreate Order dialog."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Product Sheet"
+     "text": "Recreate Order",
+     "within": "dialog"
     },
-    "note": "Verify the Recreate Order dialog includes Product Sheet."
+    "note": "Verify that the Recreate Order pop-up opened."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Auction Configurations"
+     "text": "Delivery Date",
+     "within": "dialog"
     },
-    "note": "Verify the dialog includes Auction Configurations."
+    "note": "Verify that the dialog exposes the delivery-date field required by the case."
    },
    {
-    "step": "expect_text",
+    "step": "pick_date",
     "args": {
-     "text": "Delivery Date"
+     "label": "Delivery Date",
+     "date": "next month"
     },
-    "note": "Verify the dialog includes Delivery Date."
+    "note": "Select a delivery date in the following month."
    },
    {
-    "step": "expect_text",
+    "step": "remember",
     "args": {
-     "text": "Schedule this event?"
+     "key": "selected_delivery_date",
+     "label": "Delivery Date",
+     "within": "dialog"
     },
-    "note": "Verify the dialog includes the scheduling choice."
+    "note": "Capture the selected date so it can be compared with the vendor-facing view."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "select a Delivery Date in the next calendar month, create the order, and stop on the newly created event screen"
+     "role": "button",
+     "name": "Create Order",
+     "within": "dialog"
     },
-    "note": "Perform the relative next-month date selection and Create Order action, which has no dedicated catalog step."
+    "note": "Create the recreated order using the selected delivery date."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Confirm the recreate operation completed without an application error."
+    "note": "Verify that creating the order did not produce an application error."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Move to the invited vendor's supplier-portal session to inspect the vendor-facing result."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "overview": true
+    },
+    "note": "Open the newly recreated event's vendor overview."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "selected_delivery_date",
+     "label": "Delivery Date",
+     "same": true
+    },
+    "note": "Compare the vendor-facing delivery date with the date selected in the recreate dialog."
    }
   ]
  }

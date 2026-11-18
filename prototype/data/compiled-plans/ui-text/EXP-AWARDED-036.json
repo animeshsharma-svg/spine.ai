@@ -4,51 +4,64 @@
   "title": "Recreate Order: Create Order with non‑numeric characters in quantity field is rejected",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:16:10.766Z",
+  "compiledAt": "2026-11-13T13:45:24.939Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "event_menu",
    "do_on_screen",
    "expect_error"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 7412
+  "ms": 10713
  },
  "plan": {
-  "title": "Recreate Order Rejects Non-Numeric Quantity",
+  "title": "Reject Non-Numeric Quantity in Recreate Order",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared awarded event's summary page."
+    "note": "Open the existing awarded event's summary page."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure the required eRFX project configuration is enabled for the case."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open the Recreate Order window from the event Settings menu."
+    "note": "Open the RFQ stage Settings menu and launch the Recreate Order window."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "in the Recreate Order window, click Edit More Details, enter abc in the Quantity Requested* field, click Create Order, and stop when the screen proves the non-numeric quantity was rejected"
+     "goal": "In the Recreate Order window, click Edit More Details, enter abc in the Quantity Requested* field, click Create Order, and stop when the application visibly rejects the non-numeric quantity."
     },
-    "note": "Perform the detailed buyer-side form interaction that has no dedicated catalog step."
+    "note": "Perform the dialog-specific interaction and capture the application's rejection."
    },
    {
     "step": "expect_error",
     "args": {},
-    "note": "Assert that creating the order was refused with an application error."
+    "note": "Assert that the application refused the Create Order submission."
    }
   ]
  }

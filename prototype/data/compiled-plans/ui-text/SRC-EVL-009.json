@@ -4,26 +4,29 @@
   "title": "Find a recurring event — it is on the Recurring tab",
   "group": "SRC-EVL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:20:50.411Z",
+  "compiledAt": "2026-11-13T12:04:38.481Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "The event title to enter in Search Title is not provided.",
-   "Verifying that the named event is listed on the Recurring tab and shows its repeat pattern.",
-   "Verifying that the named event is absent from Live, History, and Drafts."
+   "Search for and identify the specific event because its title is not provided.",
+   "Assert that the identified event shows its expected repeat pattern because no pattern is provided and no recurring-row assertion can bind to an unspecified event.",
+   "Assert that the same identified event is absent from every other tab without a known title."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: The event title to enter in Search Title is not provided.; Verifying that the named event is listed on the Recurring tab and shows its repeat pattern.; Verifying that the named event is absent from Live, History, and Drafts."
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Search for and identify the specific event because its title is not provided.; Assert that the identified event shows its expected repeat pattern because no pattern is provided and no recurring-row assertion can bind to an unspecified event.; Assert that the same identified event is absent from every other tab without a known title."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_events_list",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "expect_table"
   ],
-  "ms": 8814
+  "ms": 14744
  },
  "plan": {
   "title": "Find event on Recurring tab",
@@ -31,26 +34,34 @@
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the events list where the recurring-event tabs and search are available."
+    "note": "Open the buyer's events list, which is the subject of the test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "scheduled_events_enabled",
+     "value": "On"
+    },
+    "note": "Ensure scheduled recurring events are enabled for the test company."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Verify the events list rendered without an error."
+    "note": "Verify the events list rendered without an error and includes the Create Event control."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Recurring"
     },
-    "note": "Navigate to the Recurring tab, the subject screen for the case."
+    "note": "Switch to the Recurring tab where the event should be listed."
    },
    {
     "step": "expect_table",
     "args": {
      "min": 1
     },
-    "note": "Verify that the recurring-events table contains at least one row as the closest available observation without the target title."
+    "note": "Assert that the Recurring tab contains at least one event row."
    }
   ]
  }

@@ -4,31 +4,34 @@
   "title": "How an awarded event looks",
   "group": "SRC-STS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:18:25.372Z",
+  "compiledAt": "2026-11-13T12:59:44.799Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact PO-link label and the assertion that the stage-header and events-list PO links are identical cannot be expressed without a confirmed label or a cross-screen comparison target.",
-   "Typing the dynamically displayed event title into Search Title cannot be expressed because generic fill has no remembered-value reference."
+   "Prove that the awarded status and PO link on the project page exactly match the corresponding values in the events-list row.",
+   "Assert the PO link using its exact control label, because the catalog does not define that label."
   ],
   "warnings": [
    "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen",
    "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: The exact PO-link label and the assertion that the stage-header and events-list PO links are identical cannot be expressed without a confirmed label or a cross-screen comparison target.; Typing the dynamically displayed event title into Search Title cannot be expressed because generic fill has no remembered-value reference."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Prove that the awarded status and PO link on the project page exactly match the corresponding values in the events-list row.; Assert the PO link using its exact control label, because the catalog does not define that label."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "expect_text",
-   "expect_visible",
+   "expect_text",
    "expect_events_list",
    "expect_event_status",
-   "expect_visible"
+   "expect_text"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 20505
+  "ms": 15604
  },
  "plan": {
   "title": "Awarded event status and PO visibility",
@@ -38,27 +41,36 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared awarded event with PO on its summary/project screen."
+    "note": "Open the prepared awarded event with PO on its project summary, as required for prepared-state cases."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case setup."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Awarded"
+     "text": "Awarded",
+     "present": true
     },
-    "note": "Assert that the project/stage view visibly shows the awarded status."
+    "note": "Check that the project/stage header visibly shows the awarded status."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "PO",
-     "visible": true
+     "present": true
     },
-    "note": "Check for the visible PO link or PO label on the project view; the exact label is not confirmed by the catalog."
+    "note": "Check that the project page visibly contains a purchase-order reference or link."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Assert that the events list rendered successfully with its required controls."
+    "note": "Confirm the Events list rendered successfully with its standard controls."
    },
    {
     "step": "expect_event_status",
@@ -68,12 +80,12 @@
     "note": "Assert that the prepared event's list row shows the awarded status."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "PO",
-     "visible": true
+     "present": true
     },
-    "note": "Check for the visible PO link or PO label on the events-list row."
+    "note": "Check that the events-list view visibly contains the purchase-order reference or link."
    }
   ]
  }

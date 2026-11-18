@@ -3,39 +3,43 @@
   "caseId": "PRD-PO-061",
   "title": "Vendor PO Acknowledgment: refused for a user without the Vendor role",
   "group": "PRD-PO",
-  "compiledAt": "2026-11-10T06:31:17.476Z",
+  "compiledAt": "2026-11-13T15:27:53.956Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open Vendor PO Acknowledgment for a purchase order with a committed delivery date and accept or flag it as a user without the Vendor role.",
-   "Repeat the acknowledgment action as a Vendor and compare whether the action is available.",
-   "Verify the tenant's RBAC configuration when access is granted to additional roles."
+   "Sign in as a user without the Vendor role and attempt to accept or flag a purchase order with a committed delivery date through Vendor PO Acknowledgment.",
+   "Repeat the same PO acknowledgment action as a Vendor and compare availability or refusal.",
+   "Verify or establish that the tenant is on the Growth plan."
   ],
   "warnings": [
-   "can only test part of this — no step for: Open Vendor PO Acknowledgment for a purchase order with a committed delivery date and accept or flag it as a user without the Vendor role.; Repeat the acknowledgment action as a Vendor and compare whether the action is available.; Verify the tenant's RBAC configuration when access is granted to additional roles."
+   "can only test part of this — no step for: Sign in as a user without the Vendor role and attempt to accept or flag a purchase order with a committed delivery date through Vendor PO Acknowledgment.; Repeat the same PO acknowledgment action as a Vendor and compare availability or refusal.; Verify or establish that the tenant is on the Growth plan."
   ],
   "source": "llm",
   "steps": 2,
   "stepNames": [
    "ask_tester",
-   "expect_screen_clean"
+   "expect_visible"
   ],
-  "ms": 10165
+  "ms": 9036
  },
  "plan": {
-  "title": "Vendor PO Acknowledgment Role Restriction",
+  "title": "Vendor PO Acknowledgment Role Access",
   "steps": [
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Vendor user and as a Vendor on the same tenant, open Vendor PO Acknowledgment for a purchase order with a committed delivery date, attempt to accept or flag it in both roles, and report whether the action is refused or absent for the non-Vendor user and available to the Vendor"
+     "need": "sign in as the non-Vendor user and then as the Vendor on the same tenant, attempt to accept or flag the committed-delivery-date purchase order through Vendor PO Acknowledgment in each session, and record whether the action is refused, absent, or available"
     },
-    "note": "The catalog cannot reach or assert the Vendor PO Acknowledgment portal flow or switch between these arbitrary user roles."
+    "note": "The catalog cannot access role-specific user sessions or perform the Vendor PO Acknowledgment action."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Assert that the session remains free of application errors after the tester's comparison."
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Continue with email",
+     "visible": true
+    },
+    "note": "Provides a known portal-screen assertion after the tester handoff if the portal is left at its sign-in checkpoint."
    }
   ]
  }

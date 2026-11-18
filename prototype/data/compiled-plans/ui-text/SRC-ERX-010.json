@@ -4,47 +4,46 @@
   "title": "Add two line items in the drawer",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:00:10.593Z",
+  "compiledAt": "2026-11-13T12:01:55.038Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "unconfirmed label \"KG\" (expect_text) — not among the labels known from the app nor in the case"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "coverage partial: unconfirmed label \"KG\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 17,
   "stepNames": [
    "open_create",
    "require_setting",
    "set_title",
    "select_template",
    "add_line_items",
-   "expect_text",
    "add_line_items",
    "expect_line_items",
-   "expect_text",
+   "set_sheet_cell",
+   "set_sheet_cell",
    "set_sheet_cell",
    "expect_sheet_cell",
    "expect_sheet_cell",
    "expect_sheet_cell",
-   "expect_text"
+   "expect_sheet_cell",
+   "expect_sheet_cell",
+   "expect_sheet_cell",
+   "expect_sheet_cell"
   ],
-  "ms": 21880
+  "ms": 17497
  },
  "plan": {
-  "title": "SRC-ERX-010 Add two line items",
+  "title": "SRC-ERX-010 — Add two line items",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open the eRFX project create screen, which starts with one Auction stage."
+    "note": "Open the eRFX project creation screen."
    },
    {
     "step": "require_setting",
@@ -57,14 +56,13 @@
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-ERX-010 Add two line items"
+     "title": "SRC-ERX-010 — Add two line items"
     },
-    "note": "Provide the mandatory event title before configuring the event."
+    "note": "Provide the mandatory event title required before saving or publishing."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Choose the pricing template before adding line items."
+    "note": "Choose the Auction pricing template before adding products."
    },
    {
     "step": "add_line_items",
@@ -73,14 +71,7 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Search for CYLINDER, add one row with quantity 10, and save it from the line-item drawer."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "CYLINDER"
-    },
-    "note": "Confirm the CYLINDER row is visible after adding it."
+    "note": "Add the CYLINDER product with quantity 10 and save the drawer entry."
    },
    {
     "step": "add_line_items",
@@ -89,21 +80,14 @@
      "search": "AAC",
      "quantity": "5"
     },
-    "note": "Search for AAC, add the second row with quantity 5, and save it from the line-item drawer."
+    "note": "Add the AAC product with quantity 5 and save the second drawer entry."
    },
    {
     "step": "expect_line_items",
     "args": {
      "count": 2
     },
-    "note": "Assert that the toolbar now reads Items 2."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "AAC"
-    },
-    "note": "Confirm the AAC row is visible in the sheet."
+    "note": "Verify the toolbar now reports exactly two line items."
    },
    {
     "step": "set_sheet_cell",
@@ -112,7 +96,34 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Set the CYLINDER row's delivery location to Plant Name (LOC-0001)."
+    "note": "Set the requested delivery location for the CYLINDER row."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location for the AAC row."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Unit",
+     "value": "KG"
+    },
+    "note": "Set the AAC row's requested unit to KG."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product",
+     "contains": "CYLINDER"
+    },
+    "note": "Verify the first sheet row contains the CYLINDER product."
    },
    {
     "step": "expect_sheet_cell",
@@ -121,7 +132,7 @@
      "column": "Quantity Requested",
      "equals": "10"
     },
-    "note": "Verify the CYLINDER quantity is 10."
+    "note": "Verify CYLINDER has quantity 10."
    },
    {
     "step": "expect_sheet_cell",
@@ -130,7 +141,16 @@
      "column": "Delivery location",
      "contains": "Plant Name (LOC-0001)"
     },
-    "note": "Verify the CYLINDER delivery location was saved."
+    "note": "Verify CYLINDER uses the requested plant location."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Product",
+     "contains": "AAC"
+    },
+    "note": "Verify the second sheet row contains the AAC product."
    },
    {
     "step": "expect_sheet_cell",
@@ -139,14 +159,25 @@
      "column": "Quantity Requested",
      "equals": "5"
     },
-    "note": "Verify the AAC quantity is 5."
+    "note": "Verify AAC has quantity 5."
    },
    {
-    "step": "expect_text",
+    "step": "expect_sheet_cell",
     "args": {
-     "text": "KG"
+     "row": 2,
+     "column": "Unit",
+     "equals": "KG"
     },
-    "note": "Verify the sheet displays the requested unit text for the AAC item."
+    "note": "Verify AAC uses the KG unit."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 2,
+     "column": "Delivery location",
+     "contains": "Plant Name (LOC-0001)"
+    },
+    "note": "Verify AAC uses the requested plant location."
    }
   ]
  }

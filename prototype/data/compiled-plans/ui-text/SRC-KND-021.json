@@ -4,42 +4,40 @@
   "title": "eRFX Auction project: reject a bid during evaluation",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:01:38.219Z",
+  "compiledAt": "2026-11-13T12:13:16.861Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Reliably select an existing eRFX Auction-only project by title and confirm it is in evaluation; the available event opener only chooses a fitting existing event.",
-   "A dedicated catalog action for rejecting a specific bid with a reason and verifying its removal from ranking."
+   "An existing eRFX Auction-only project in evaluation state; the prepared state is a live RFQ with bidding open.",
+   "Reject Vendor A's bid with a reason and verify that the bid leaves the ranking; no catalog step can perform or assert bid rejection."
   ],
   "warnings": [
-   "added open_prepared(responses) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Reliably select an existing eRFX Auction-only project by title and confirm it is in evaluation; the available event opener only chooses a fitting existing event.; A dedicated catalog action for rejecting a specific bid with a reason and verifying its removal from ranking."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "cannot test this case yet — no step can observe: An existing eRFX Auction-only project in evaluation state; the prepared state is a live RFQ with bidding open.; Reject Vendor A's bid with a reason and verify that the bid leaves the ranking; no catalog step can perform or assert bid rejection."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "do_on_screen",
+   "expect_visible",
    "event_menu",
-   "expect_text",
    "expect_text"
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 26454
+  "ms": 10691
  },
  "plan": {
-  "title": "Reject eRFX Auction Bid During Evaluation",
+  "title": "Reject auction bid during evaluation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "the API built this case's state"
+    "note": "Open the available prepared event's buyer Responses screen, which is the closest available response view."
    },
    {
     "step": "require_setting",
@@ -47,22 +45,23 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable the required eRFX project setting before accessing the event."
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_visible",
     "args": {
-     "goal": "On the buyer's Responses screen for the existing eRFX Auction-only project during evaluation, reject Vendor A's bid with a reason and stop when the bid is shown as rejected and no longer appears in the ranking."
+     "role": "button",
+     "name": "Reject",
+     "visible": true
     },
-    "note": "Perform the buyer-only rejection flow that has no dedicated catalog step."
+    "note": "Confirm that a Reject control is present on the response screen, without claiming the rejection itself was performed."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Rejected Bids",
-     "stage": "auction"
+     "item": "Rejected Bids"
     },
-    "note": "Open the auction stage's Rejected Bids view to verify the rejected bid is recorded."
+    "note": "Open the available Rejected Bids view from the event settings menu."
    },
    {
     "step": "expect_text",
@@ -70,15 +69,7 @@
      "text": "Rejected Bids",
      "present": true
     },
-    "note": "Assert that the Rejected Bids view opened."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Vendor A",
-     "present": true
-    },
-    "note": "Assert that Vendor A is listed among the rejected bids."
+    "note": "Assert that the Rejected Bids view opened, although the requested rejected bid cannot be created in the available state."
    }
   ]
  }

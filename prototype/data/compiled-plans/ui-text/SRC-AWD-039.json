@@ -4,34 +4,33 @@
   "title": "Vendor codes missing",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-13T11:31:32.084Z",
+  "compiledAt": "2026-11-13T11:42:19.216Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure or guarantee that the selected existing Vendor B record has no vendor code before awarding."
+   "Find and open the specifically named company/event because no title or identifier is provided.",
+   "Create or configure an event where Vendor B has no vendor code and the company requires vendor codes on award."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Configure or guarantee that the selected existing Vendor B record has no vendor code before awarding."
+   "can only test part of this — no step for: Find and open the specifically named company/event because no title or identifier is provided.; Create or configure an event where Vendor B has no vendor code and the company requires vendor codes on award."
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "open_master_qcs",
    "start_awarding",
-   "allocate_award",
    "attempt"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 21030
+  "ms": 20908
  },
  "plan": {
-  "title": "Award blocked when vendor code is missing",
+  "title": "Reject award without vendor codes",
   "steps": [
    {
     "step": "open_prepared",
@@ -46,38 +45,24 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project capability before accessing the existing event."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the comparison grid to begin the awarding flow."
+    "note": "Enable the required eRFX project setting before accessing the event flow."
    },
    {
     "step": "start_awarding",
     "args": {},
-    "note": "Enter the awarding screen where the line can be allocated."
-   },
-   {
-    "step": "allocate_award",
-    "args": {
-     "vendor": "Vendor B",
-     "line": 1
-    },
-    "note": "Allocate the event's line item to the named Vendor B without changing the vendor-code setup."
+    "note": "Enter the awarding screen so allocation can be attempted."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "click",
+     "step": "allocate_award",
      "args": {
-      "role": "button",
-      "name": "Create Proposal"
+      "vendor": 2
      },
      "expect": "refused",
      "because": "Please enter vendor codes for all products"
     },
-    "note": "Submit the award proposal and require Procol to refuse it with the missing vendor-code message."
+    "note": "Attempt allocation to the second vendor, representing Vendor B, and require the stated refusal."
    }
   ]
  }

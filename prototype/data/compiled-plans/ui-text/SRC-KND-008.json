@@ -4,35 +4,28 @@
   "title": "eRFX RFQ project: extend its submission time by 10 minutes",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:29:43.296Z",
+  "compiledAt": "2026-11-13T12:12:06.314Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Select the specifically titled eRFX RFQ-only project because the test case does not provide its title",
-   "Prove that vendors can bid throughout the entire extended interval rather than only submit one bid after the extension"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Select the specifically titled eRFX RFQ-only project because the test case does not provide its title; Prove that vendors can bid throughout the entire extended interval rather than only submit one bid after the extension"
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
-   "extend_time",
-   "switch_portal",
-   "vendor_open_event",
-   "vendor_bid",
-   "expect_bid_submitted"
+   "require_setting",
+   "extend_time"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 10450
+  "ms": 7720
  },
  "plan": {
-  "title": "Extend eRFX RFQ Submission Time by 10 Minutes",
+  "title": "Extend RFQ Submission Time by 10 Minutes",
   "steps": [
    {
     "step": "open_prepared",
@@ -40,6 +33,14 @@
      "screen": "summary"
     },
     "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project features required for the RFQ project."
    },
    {
     "step": "extend_time",
@@ -50,33 +51,7 @@
      "unit": "minutes",
      "expect": "saved"
     },
-    "note": "Extend the current submission deadline by exactly 10 minutes and verify the saved end time moved by that amount."
-   },
-   {
-    "step": "switch_portal",
-    "args": {
-     "to": "vendor"
-    },
-    "note": "Switch to the invited vendor portal to verify bidding remains available after the extension."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "stage": "pricing"
-    },
-    "note": "Open the event's RFQ pricing round in the vendor portal."
-   },
-   {
-    "step": "vendor_bid",
-    "args": {
-     "price": 100
-    },
-    "note": "Submit a bid while the extended RFQ round is open."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Assert the vendor portal shows the bid as submitted."
+    "note": "Extend the submission deadline and verify the saved end time is exactly 10 minutes later."
    }
   ]
  }

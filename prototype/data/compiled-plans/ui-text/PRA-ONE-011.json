@@ -4,50 +4,64 @@
   "title": "When more than 20 users can see the PR, typing finds the rest",
   "group": "PRA-ONE",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:05:09.128Z",
+  "compiledAt": "2026-11-13T14:29:00.489Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The exact allowed user's name to search for is not specified, so no catalog assertion can identify that user.",
+   "The exact user who cannot see PR-1 and the assertion that this user's name is absent are not specified and cannot be asserted by a named catalog step."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: The exact allowed user's name to search for is not specified, so no catalog assertion can identify that user.; The exact user who cannot see PR-1 and the assertion that this user's name is absent are not specified and cannot be asserted by a named catalog step."
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
    "do_on_screen",
    "expect_visible"
   ],
-  "ms": 9868
+  "ms": 13669
  },
  "plan": {
-  "title": "PRA-ONE-011 Assignee Search Beyond First 20",
+  "title": "PR Assignee Search Beyond 20 Users",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team-category visibility filtering before opening the requisitions screen."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open Purchase Requisitions as the starting screen for the PR assignment flow."
+    "note": "Open Purchase Requisitions, the required starting screen for a PR-based flow."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab, where PR-1 can be searched and assigned."
+    "note": "Stay on the Open tab, where PRs can be selected for assignment."
    },
    {
     "step": "select_pr",
     "args": {
      "pr": "PR-1"
     },
-    "note": "Select PR-1 so its assignment controls become available."
+    "note": "Select PR-1 so its line items are available for assignment."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the Open Purchase Requisitions screen, search for PR-1 if needed, select one PR-1 line item, click the Assign person icon next to Upload PRs, verify the Search a user picker initially shows at most 20 names, type the name of an allowed user who is not in the initial list, verify that user is found, and verify a user who cannot see PR-1 is not found; leave the picker showing the search result"
+     "goal": "Open the Assign user picker for the selected PR-1 item, verify that the initial list shows at most 20 names, then type the name of an allowed user who is not initially listed and verify that the user is found; also verify that a user who cannot see PR-1 is not found; stop with the Search a user box and its filtered result visible"
     },
-    "note": "Perform and observe the assignment picker interaction that no catalog domain step exposes."
+    "note": "Perform the assignment-picker interaction and check the result-set rules that no dedicated catalog step can express."
    },
    {
     "step": "expect_visible",
@@ -56,7 +70,7 @@
      "name": "Search a user",
      "visible": true
     },
-    "note": "Confirm the assignment picker and its search field remain visible after the search behavior is exercised."
+    "note": "Confirm the assignee search box remains visible after the search behavior is exercised."
    }
   ]
  }

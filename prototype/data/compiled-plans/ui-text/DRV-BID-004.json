@@ -1,69 +1,71 @@
 {
  "meta": {
   "caseId": "DRV-BID-004",
-  "title": "Quote Mode fields are disabled after bidding window closes",
+  "title": "Loading factor normalization is disabled when loading factor config is turned off",
   "group": "DRV-BID",
   "sheet": "derived-a-buyer-rejects-a-vendor-bid",
-  "compiledAt": "2026-11-09T22:57:50.654Z",
+  "compiledAt": "2026-11-13T13:29:12.170Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "A duplicate concurrent rejection call at the exact same millisecond cannot be forced beyond sequential execution in the UI test harness."
+  ],
+  "warnings": [
+   "can only test part of this — no step for: A duplicate concurrent rejection call at the exact same millisecond cannot be forced beyond sequential execution in the UI test harness."
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "click",
    "click",
-   "click",
-   "expect_message"
+   "attempt"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 61392
+  "ms": 11503
  },
  "plan": {
-  "title": "Reject Bid Duplicate Request",
+  "title": "Reject Bid with a duplicate request is refused",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses tab with the active vendor bid."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Reject"
-    },
-    "note": "Start rejecting the active bid."
+    "note": "Start on the prepared responses screen where Vendor A's bid is active"
    },
    {
     "step": "click",
     "args": {
      "role": "button",
      "name": "Reject",
-     "within": "dialog"
+     "within": "Vendor A"
     },
-    "note": "Confirm the first bid rejection in the confirmation dialog."
+    "note": "First rejection of Vendor A's bid"
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Reject"
+     "name": "Yes",
+     "within": "dialog"
     },
-    "note": "Immediately retry rejecting the same bid."
+    "note": "Confirm the first rejection"
    },
    {
-    "step": "expect_message",
+    "step": "attempt",
     "args": {
-     "kind": "error",
-     "text": "Bid not found"
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Reject",
+      "within": "Vendor A"
+     },
+     "because": "Bid not found",
+     "expect": "refused"
     },
-    "note": "Verify the duplicate rejection is refused with the required message."
+    "note": "Attempt second rejection on the same row, expecting refusal"
    }
   ]
  }

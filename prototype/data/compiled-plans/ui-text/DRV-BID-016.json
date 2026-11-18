@@ -1,10 +1,10 @@
 {
  "meta": {
   "caseId": "DRV-BID-016",
-  "title": "Vendor submits discount with a '#' character",
+  "title": "Commercial bid submission with a huge numerical value",
   "group": "DRV-BID",
   "sheet": "derived-vendors-can-submit-commercial-bids-manua",
-  "compiledAt": "2026-11-09T23:01:28.660Z",
+  "compiledAt": "2026-11-13T13:32:03.749Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -18,10 +18,11 @@
    "dropped expect_published — the API built this case's event; open_prepared opens its screen"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
    "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -36,10 +37,10 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 1173
+  "ms": 8046
  },
  "plan": {
-  "title": "Huge Commercial Bid Submission",
+  "title": "DRV-BID-016 Huge Commercial Bid",
   "steps": [
    {
     "step": "open_prepared",
@@ -58,21 +59,28 @@
     "note": "Configure the event as an RFQ rather than the default auction."
    },
    {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Configure the RFQ stage."
+   },
+   {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template before adding line items."
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one product line for the commercial bid."
+    "note": "Add one product for the vendor's unit-price submission."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet so the event can be published."
+    "note": "Complete the RFQ pricing sheet before publishing."
    },
    {
     "step": "set_schedule",
@@ -86,45 +94,45 @@
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor required to submit the quote."
+    "note": "Invite a QA vendor to the RFQ."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ and make it available to the vendor."
+    "note": "Publish the RFQ so the vendor can submit a bid."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Continue in the supplier portal as the invited QA vendor."
+    "note": "Move to the invited vendor's supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the live RFQ pricing round and its bid sheet."
+    "note": "Open the live RFQ pricing sheet as the vendor."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 999999999.99
     },
-    "note": "Enter and submit the huge unit price as the vendor."
+    "note": "Enter and submit the specified huge numerical unit price."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the vendor portal accepted the quote and shows the round as submitted."
+    "note": "Confirm the vendor portal accepted the quote."
    },
    {
     "step": "expect_api_value",
     "args": {
      "key": "bidPrice"
     },
-    "note": "Verify that the submitted bid price is displayed as 999999999.99 without truncation or overflow."
+    "note": "Verify the submitted bid price is displayed without truncation or overflow."
    }
   ]
  }

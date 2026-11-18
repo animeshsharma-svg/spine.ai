@@ -4,45 +4,81 @@
   "title": "Select with more than the requested quantity",
   "group": "SRC-SEL",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:03:26.451Z",
+  "compiledAt": "2026-11-13T12:53:32.301Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
-   "do_on_screen",
-   "expect_text"
+   "require_setting",
+   "require_setting",
+   "open_master_qcs",
+   "start_awarding",
+   "attempt"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 11693
+  "ms": 14365
  },
  "plan": {
-  "title": "Reject over-quantity quote selection",
+  "title": "Reject Over-Quantity Bid Selection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ in the buyer's Responses view."
+    "note": "Open the prepared RFQ with the two bids for the buyer-side selection flow."
    },
    {
-    "step": "do_on_screen",
+    "step": "require_setting",
     "args": {
-     "goal": "on the buyer's RFQ in evaluation, select Vendor B's quote, edit the selected quantity to 12, and attempt to submit or confirm the selection; stop when the screen shows the refusal message"
+     "key": "is_over_awarding_allowed",
+     "value": "Off"
     },
-    "note": "Perform the quote selection and over-quantity edit that no dedicated catalog step can express."
+    "note": "Disable over-awarding as required by the case."
    },
    {
-    "step": "expect_text",
+    "step": "require_setting",
     "args": {
-     "text": "You cannot select bid with more than requested quantity."
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Assert the exact refusal message for selecting more than the requested quantity."
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ]
+    },
+    "note": "Open the bid comparison grid containing both vendor quotes."
+   },
+   {
+    "step": "start_awarding",
+    "args": {},
+    "note": "Enter the quote-selection and awarding screen."
+   },
+   {
+    "step": "attempt",
+    "args": {
+     "step": "allocate_award",
+     "args": {
+      "vendor": "Vendor B",
+      "quantity": 12
+     },
+     "expect": "refused",
+     "because": "You cannot select bid with more than requested quantity"
+    },
+    "note": "Attempt to select more units than the requested quantity and require the expected refusal."
    }
   ]
  }

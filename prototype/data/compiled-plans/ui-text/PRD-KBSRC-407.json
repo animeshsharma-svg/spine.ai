@@ -3,19 +3,19 @@
   "caseId": "PRD-KBSRC-407",
   "title": "Ranked evaluation: T1, T2, T3",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:21:04.568Z",
+  "compiledAt": "2026-11-13T14:44:39.210Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure the technical stage to use ranked evaluation if that is a tenant setting or distinct setup requirement",
-   "Verify the exact Add Evaluation dialog and its OK action independently of evaluate_technical",
+   "Verify that the evaluator interaction is specifically initiated through the Add Evaluation control on the line item rather than the available technical evaluation flow.",
+   "Assert that the displayed T1 is associated with the intended line item using a dedicated line-item rank field.",
    "unconfirmed label \"T1\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "coverage partial: unconfirmed label \"T1\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Configure the technical stage to use ranked evaluation if that is a tenant setting or distinct setup requirement; Verify the exact Add Evaluation dialog and its OK action independently of evaluate_technical"
+   "can only test part of this — no step for: Verify that the evaluator interaction is specifically initiated through the Add Evaluation control on the line item rather than the available technical evaluation flow.; Assert that the displayed T1 is associated with the intended line item using a dedicated line-item rank field."
   ],
   "source": "llm",
   "steps": 17,
@@ -38,7 +38,7 @@
    "evaluate_technical",
    "expect_text"
   ],
-  "ms": 10791
+  "ms": 19809
  },
  "plan": {
   "title": "Ranked Technical Evaluation T1",
@@ -48,12 +48,12 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Start a multi-stage create flow that supports a technical stage."
+    "note": "Open the multi-stage event creation screen."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Ranked Evaluation T1 Test"
+     "title": "Ranked Technical Evaluation T1"
     },
     "note": "Provide the mandatory event title."
    },
@@ -64,7 +64,7 @@
       "rfp"
      ]
     },
-    "note": "Create a technical-only event so the evaluator acts on the technical response."
+    "note": "Create a technical stage for ranked evaluation."
    },
    {
     "step": "switch_stage",
@@ -76,19 +76,19 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply a technical template before adding the line item."
+    "note": "Apply the technical-stage template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Create the line item whose technical evaluation will receive the rank."
+    "note": "Add the line item whose technical evaluation will be scored."
    },
    {
     "step": "fill_questionnaires",
     "args": {},
-    "note": "Populate the technical questionnaire needed for a vendor response."
+    "note": "Populate the required technical questionnaire."
    },
    {
     "step": "assign_evaluator",
@@ -100,19 +100,19 @@
     "args": {
      "minutes": 3
     },
-    "note": "Commit the technical-stage schedule before publishing."
+    "note": "Commit the technical-stage schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one vendor to submit the technical response."
+    "note": "Invite a vendor to provide a technical response."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so the vendor can respond."
+    "note": "Publish the technical event."
    },
    {
     "step": "expect_published",
@@ -122,17 +122,17 @@
    {
     "step": "place_bid",
     "args": {},
-    "note": "Have the invited vendor submit the technical response."
+    "note": "Submit the vendor's technical response for evaluation."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the vendor response was accepted."
+    "note": "Confirm the technical response was submitted."
    },
    {
     "step": "close_event",
     "args": {},
-    "note": "Close the technical stage so evaluation becomes available."
+    "note": "Close the technical stage so evaluator scoring becomes available."
    },
    {
     "step": "evaluate_technical",
@@ -140,16 +140,17 @@
      "scores": [
       "T1"
      ],
-     "remark": "Technical response assigned rank T1."
+     "remark": "Technical rank assigned as T1."
     },
-    "note": "Assign the requested T1 rank and remark and submit the evaluation."
+    "note": "Assign the T1 ranked score, add the required remark, and submit the evaluation."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "T1"
+     "text": "T1",
+     "present": true
     },
-    "note": "Verify that the assigned T-rank is visible after saving the evaluation."
+    "note": "Verify that the assigned T1 rank is visible after saving the evaluation."
    }
   ]
  }

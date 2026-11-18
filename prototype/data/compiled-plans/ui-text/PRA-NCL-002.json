@@ -4,32 +4,49 @@
   "title": "Clicking a single-PR notification opens that PR",
   "group": "PRA-NCL",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:02:48.894Z",
+  "compiledAt": "2026-11-13T14:26:50.098Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "No catalog step directly identifies or asserts the notification bell, notification payload, or that the destination is specifically the PR detail route rather than another screen showing the PR number."
+   "Sign in as User A with the pre-existing PR-1 assignment notification."
   ],
   "warnings": [
-   "can only test part of this — no step for: No catalog step directly identifies or asserts the notification bell, notification payload, or that the destination is specifically the PR detail route rather than another screen showing the PR number."
+   "can only test part of this — no step for: Sign in as User A with the pre-existing PR-1 assignment notification."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "require_setting",
+   "ask_tester",
    "do_on_screen",
    "expect_text"
   ],
-  "ms": 9256
+  "ms": 11464
  },
  "plan": {
   "title": "Single PR notification opens PR detail",
   "steps": [
    {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required PR team-filtering configuration before the test."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as User A and leave the Buyer portal open with the notification \"PR No. PR-1 has been assigned to you\" available"
+    },
+    "note": "The catalog has no step to authenticate as the specified user or create the prerequisite notification."
+   },
+   {
     "step": "do_on_screen",
     "args": {
-     "goal": "As User A, open the top-right notification bell, click the notification saying \"PR No. PR-1 has been assigned to you\", and stop on the PR-1 detail page showing the PR number."
+     "goal": "on the Buyer portal, click the bell icon, open the notification for PR-1, click it, and stop on PR-1's PR detail page rather than the PR list"
     },
-    "note": "Performs the notification interaction and navigates to the requested PR while recording what the buyer screen proves."
+    "note": "Perform the notification interaction in the current buyer session and verify the resulting screen proves the requested navigation."
    },
    {
     "step": "expect_text",
@@ -37,7 +54,7 @@
      "text": "PR-1",
      "present": true
     },
-    "note": "Confirms the destination screen visibly contains the PR referenced by the notification."
+    "note": "Confirm the destination page visibly identifies the PR referenced by the notification."
    }
   ]
  }

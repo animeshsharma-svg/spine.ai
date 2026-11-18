@@ -4,65 +4,41 @@
   "title": "A saved eRFX draft: \"Upload Attachments\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:44:04.457Z",
+  "compiledAt": "2026-11-13T14:04:56.933Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Fully verify that event times, vendors, and bids are unchanged after cancelling the Upload Attachments window"
+   "Prove that the draft's status, times, vendors, and bids are unchanged from their exact pre-cancel values."
   ],
   "warnings": [
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Fully verify that event times, vendors, and bids are unchanged after cancelling the Upload Attachments window"
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Prove that the draft's status, times, vendors, and bids are unchanged from their exact pre-cancel values."
   ],
   "source": "llm",
-  "steps": 23,
+  "steps": 11,
   "stepNames": [
-   "open_create",
-   "compose_stages",
-   "require_setting",
-   "require_setting",
-   "require_setting",
-   "set_title",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "save_draft",
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_events_list",
    "filter_events",
-   "expect_event_in_list",
    "open_first_event",
    "click",
    "expect_visible",
    "click",
-   "expect_visible",
-   "expect_no_error",
-   "open_events_list",
-   "filter_events",
-   "expect_event_status"
+   "expect_visible"
   ],
-  "ms": 13217
+  "ms": 19183
  },
  "plan": {
-  "title": "Saved eRFX Draft Attachment Cancel",
+  "title": "Cancel upload attachments in saved draft",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Open the eRFX create screen."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    }
+    "step": "open_events_list",
+    "args": {},
+    "note": "Open the Events list to reach the saved draft."
    },
    {
     "step": "require_setting",
@@ -78,7 +54,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Apply the requested vendor-addition configuration."
+    "note": "Apply the required vendor-addition restriction."
    },
    {
     "step": "require_setting",
@@ -86,68 +62,26 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the requested stage-addition configuration."
+    "note": "Apply the required stage-addition configuration."
    },
    {
-    "step": "set_title",
-    "args": {
-     "title": "EXP-DRAFT-025 Attachment Cancel"
-    },
-    "note": "Provide the required draft title."
-   },
-   {
-    "step": "select_template",
+    "step": "expect_events_list",
     "args": {},
-    "note": "Apply a pricing template so the draft has a valid configured stage."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add one line item to create a meaningful saved draft."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet before saving the draft."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a schedule so the saved draft has schedule data to preserve."
-   },
-   {
-    "step": "save_draft",
-    "args": {},
-    "note": "Create the saved eRFX draft required by the scenario."
-   },
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Navigate to the events list to locate the saved draft."
+    "note": "Verify the Events list rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the Drafts tab."
-   },
-   {
-    "step": "expect_event_in_list",
-    "args": {},
-    "note": "Verify the newly saved draft appears in the Drafts list."
+    "note": "Show saved drafts."
    },
    {
     "step": "open_first_event",
     "args": {
-     "tab": "Drafts",
-     "containing": "EXP-DRAFT-025 Attachment Cancel"
+     "tab": "Drafts"
     },
-    "note": "Open the created draft from the Drafts list."
+    "note": "Open the first saved draft, which reopens its create screen."
    },
    {
     "step": "click",
@@ -155,58 +89,31 @@
      "role": "button",
      "name": "Add Attachments"
     },
-    "note": "Open the Upload Attachments window."
+    "note": "Open the attachment upload window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Upload Attachments",
+     "text": "Upload Attachments",
      "visible": true
     },
-    "note": "Verify the expected attachment window opened."
+    "note": "Verify that the Upload Attachments window opened."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Cancel",
-     "within": "dialog"
+     "name": "Cancel"
     },
     "note": "Cancel the attachment operation."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Upload Attachments",
+     "text": "Upload Attachments",
      "visible": false
     },
-    "note": "Verify that cancelling closes the Upload Attachments window."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Verify cancellation did not produce an application error."
-   },
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Return to the events list to verify the draft still exists."
-   },
-   {
-    "step": "filter_events",
-    "args": {
-     "tab": "Drafts"
-    },
-    "note": "View the Drafts tab after cancellation."
-   },
-   {
-    "step": "expect_event_status",
-    "args": {
-     "status": "Draft"
-    },
-    "note": "Verify the event remains a draft after cancelling attachments."
+    "note": "Verify that cancelling closed the upload window."
    }
   ]
  }

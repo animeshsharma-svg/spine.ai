@@ -4,35 +4,43 @@
   "title": "Recreate Order: The custom evaluation duration accepts a valid number and unit",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:40:15.524Z",
+  "compiledAt": "2026-11-13T13:49:08.925Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The case is internally contradictory: it asks to enter a valid value of 10 minutes, then leave the number field empty before clicking Create Order; the catalog cannot assert both a successful 10-minute creation and the final empty-field behavior in one unambiguous outcome.",
+   "The case simultaneously requires entering 10 and leaving the custom duration field empty; the plan tests the expected valid 10-minute submission rather than both contradictory final states.",
    "unconfirmed label \"10\" (fill) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
    "coverage partial: unconfirmed label \"10\" (fill) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: The case is internally contradictory: it asks to enter a valid value of 10 minutes, then leave the number field empty before clicking Create Order; the catalog cannot assert both a successful 10-minute creation and the final empty-field behavior in one unambiguous outcome."
+   "can only test part of this — no step for: The case simultaneously requires entering 10 and leaving the custom duration field empty; the plan tests the expected valid 10-minute submission rather than both contradictory final states."
   ],
   "source": "llm",
-  "steps": 11,
+  "steps": 17,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
    "event_menu",
    "expect_visible",
    "select",
    "fill",
-   "fill",
+   "expect_value",
    "select",
    "click",
-   "expect_toast"
+   "expect_toast",
+   "expect_visible"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 12738
+  "ms": 11871
  },
  "plan": {
   "title": "Recreate Order Custom Evaluation Duration",
@@ -42,7 +50,47 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary as required for prepared-state cases."
+    "note": "Open the prepared live RFQ with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required percentage counter-offer configuration."
    },
    {
     "step": "go_to",
@@ -57,22 +105,24 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the Responses tab where the stage Settings menu is available."
+    "note": "Open the RFQ Responses tab where the buyer accesses stage actions."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open the Recreate Order window from the RFQ stage Settings menu."
+    "note": "Open the Recreate Order window from the RFQ Settings menu."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Recreate Order",
+     "role": "dialog",
+     "name": "Recreate Order",
      "visible": true
     },
-    "note": "Confirm that the Recreate Order window is open."
+    "note": "Confirm the Recreate Order window opened."
    },
    {
     "step": "select",
@@ -80,7 +130,7 @@
      "label": "Evaluation Duration",
      "option": "Custom"
     },
-    "note": "Select the Custom evaluation-duration mode."
+    "note": "Select the custom evaluation-duration mode."
    },
    {
     "step": "fill",
@@ -88,23 +138,23 @@
      "placeholder": "10",
      "value": "10"
     },
-    "note": "Enter the requested custom duration value of 10."
+    "note": "Enter the valid custom evaluation duration of 10."
    },
    {
-    "step": "fill",
+    "step": "expect_value",
     "args": {
-     "placeholder": "10",
-     "value": ""
+     "label": "Evaluation Duration",
+     "value": "10"
     },
-    "note": "Apply the specified follow-up action that leaves the custom duration number field empty."
+    "note": "Confirm the custom duration field retains 10."
    },
    {
     "step": "select",
     "args": {
-     "label": "Evaluation Duration",
+     "label": "Evaluation Duration Unit",
      "option": "Min(s)"
     },
-    "note": "Keep or select Min(s) as the duration unit."
+    "note": "Keep the evaluation duration unit set to minutes."
    },
    {
     "step": "click",
@@ -112,15 +162,24 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Submit the Recreate Order dialog after the specified input sequence."
+    "note": "Submit the Recreate Order form."
    },
    {
     "step": "expect_toast",
     "args": {
-     "kind": "any",
+     "kind": "success",
      "text": "New Order Created"
     },
-    "note": "Assert the documented success message if the order is created."
+    "note": "Verify the order creation success message."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": false
+    },
+    "note": "Verify the window closes after successful creation."
    }
   ]
  }

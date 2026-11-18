@@ -3,50 +3,53 @@
   "caseId": "PRD-PR-031",
   "title": "Bulk Consolidate Across PRs: not available on plans below Growth",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:25:11.035Z",
+  "compiledAt": "2026-11-13T15:19:43.973Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Inspect whether Bulk Consolidate Across PRs is absent or refused on a tenant below Growth.",
-   "Verify that Bulk Consolidate Across PRs is available and works on a Growth tenant.",
-   "Switch between the unspecified lower-plan and Growth tenants because no tenant identifiers or plan-setting step is provided.",
-   "unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case"
+   "Switch or authenticate as a tenant on a plan below Growth and a tenant on Growth when no tenant identifiers are provided",
+   "Observe whether Bulk Consolidate Across PRs is absent or refused on the lower-plan tenant",
+   "Execute Bulk Consolidate Across PRs across multiple PRs and verify that it creates one consolidated event on Growth"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Inspect whether Bulk Consolidate Across PRs is absent or refused on a tenant below Growth.; Verify that Bulk Consolidate Across PRs is available and works on a Growth tenant.; Switch between the unspecified lower-plan and Growth tenants because no tenant identifiers or plan-setting step is provided."
+   "can only test part of this — no step for: Switch or authenticate as a tenant on a plan below Growth and a tenant on Growth when no tenant identifiers are provided; Observe whether Bulk Consolidate Across PRs is absent or refused on the lower-plan tenant; Execute Bulk Consolidate Across PRs across multiple PRs and verify that it creates one consolidated event on Growth"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_purchase_requisitions",
+   "pr_tab",
    "ask_tester",
-   "expect_visible"
+   "expect_screen_clean"
   ],
-  "ms": 11322
+  "ms": 12146
  },
  "plan": {
-  "title": "Bulk Consolidate Across PRs Plan Gating",
+  "title": "Bulk Consolidate Plan-Gating",
   "steps": [
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Opens the Purchase Requisitions area where cross-PR consolidation would be initiated."
+    "note": "Open the closest available screen for working with purchase requisitions."
+   },
+   {
+    "step": "pr_tab",
+    "args": {
+     "tab": "Open"
+    },
+    "note": "Show open PRs, which are the requisitions that can enter an event flow."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "provide access to a tenant below Growth and a Growth tenant, then verify Bulk Consolidate Across PRs is absent or refused on the lower-plan tenant and available and usable on the Growth tenant"
+     "need": "switch between the specified lower-plan and Growth tenants as the same buyer, verify the Bulk Consolidate Across PRs capability is absent or refused on the lower-plan tenant, then use it across multiple PRs on Growth and verify one consolidated event is created"
     },
-    "note": "The catalog has no step for this plan-gated bulk consolidation capability or for selecting tenants by plan."
+    "note": "The catalog has no plan-tier switching or Bulk Consolidate Across PRs action or assertion."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "text": "Purchase Items",
-     "visible": true
-    },
-    "note": "Confirms the Purchase Requisitions screen remains available after the tester-assisted comparison."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert the current screen remains usable after the tester-assisted investigation."
    }
   ]
  }

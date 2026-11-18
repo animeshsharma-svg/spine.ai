@@ -3,45 +3,133 @@
   "caseId": "PRD-RFQ-012",
   "title": "Counter Offers: refused for a user without the Buyer role",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:30:11.097Z",
+  "compiledAt": "2026-11-13T14:51:14.890Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and as a Buyer in the same tenant to compare Counter Offer availability or refusal under tenant RBAC."
+   "Sign in as a user without the Buyer role and as a Buyer in the same tenant, then compare whether Counter Offers are refused or available.",
+   "Counter Offer non-commercial terms according to the selected template; the catalog only supports entering a counter price and remark."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer in the same tenant to compare Counter Offer availability or refusal under tenant RBAC."
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer in the same tenant, then compare whether Counter Offers are refused or available.; Counter Offer non-commercial terms according to the selected template; the catalog only supports entering a counter price and remark."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 15,
   "stepNames": [
-   "open_prepared",
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "open_master_qcs",
    "ask_tester",
-   "expect_counter_offer_sent"
+   "expect_visible"
   ],
-  "ms": 10223
+  "ms": 19207
  },
  "plan": {
-  "title": "Counter Offer RBAC by Buyer Role",
+  "title": "PRD-RFQ-012 Counter Offer Role Access",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "open_create",
     "args": {
-     "screen": "responses"
+     "path": "erfx"
     },
-    "note": "Open a prepared event with a vendor bid so the Counter Offer action can be tested."
+    "note": "Create an RFQ event to provide a controlled event for the permission comparison."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "PRD-RFQ-012 Counter Offer Role Test"
+    },
+    "note": "Give the event a title required for publishing and later identification."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the event with the RFQ stage required for commercial bidding and counter offers."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply an RFQ template so the pricing sheet and its terms are available."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a product so a vendor can submit a bid."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet before scheduling and publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule required before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite a vendor whose bid will be used for the counter-offer context."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ so the vendor can bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Have the invited vendor submit a bid that can be countered."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor bid was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer comparison view where Counter Offer is available for an eligible vendor bid."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the user without the Buyer role, attempt a Counter Offer on the prepared vendor bid and record the refusal or absence, then sign in as a Buyer and send a Counter Offer"
+     "need": "sign in as the user without the Buyer role and as the Buyer in the same tenant, attempt Counter Offers on the template's commercial and non-commercial terms, and record whether each attempt is refused or available"
     },
-    "note": "Role-specific sign-in and RBAC comparison are not available as catalog actions."
+    "note": "The catalog cannot authenticate separate roles or exercise the full template-specific non-commercial counter-offer flow."
    },
    {
-    "step": "expect_counter_offer_sent",
-    "args": {},
-    "note": "Verify that the Buyer persona's Counter Offer was successfully sent."
+    "step": "expect_visible",
+    "args": {
+     "text": "Counter Offer",
+     "visible": true
+    },
+    "note": "Assert that the prepared bid comparison screen exposes the known Counter Offer context after the tester's role checks."
    }
   ]
  }

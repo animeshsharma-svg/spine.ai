@@ -4,22 +4,24 @@
   "title": "English (rising, with ceiling price) auction: the result after it ends",
   "group": "SRC-STR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:07:52.525Z",
+  "compiledAt": "2026-11-13T12:58:19.773Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the downloaded report exactly matches the on-screen Master QCS values and ranking."
+   "Verify that every value in the downloaded report exactly matches the corresponding Master QCS screen value."
   ],
   "warnings": [
    "added open_prepared(master_qcs) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Assert that the downloaded report exactly matches the on-screen Master QCS values and ranking."
+   "can only test part of this — no step for: Verify that every value in the downloaded report exactly matches the corresponding Master QCS screen value."
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "open_master_qcs",
    "expect_qcs_ranks",
    "click",
@@ -27,10 +29,10 @@
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 8789
+  "ms": 15627
  },
  "plan": {
-  "title": "English Auction Final Ranking and Report",
+  "title": "SRC-STR-014 English Auction Results",
   "steps": [
    {
     "step": "open_prepared",
@@ -40,16 +42,32 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "can_add_ceil_price",
+     "value": "On"
+    },
+    "note": "Enable ceiling-price support required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case configuration."
+   },
+   {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the buyer's Master QCS comparison grid."
+    "note": "Open the buyer’s Master QCS comparison grid for the finished auction."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
      "order": "highest"
     },
-    "note": "Assert that the English rising auction ranks bids from highest to lowest."
+    "note": "Assert that the English forward-auction ranking follows the highest bid."
    },
    {
     "step": "click",
@@ -62,7 +80,7 @@
    {
     "step": "expect_download",
     "args": {},
-    "note": "Assert that the report download completed."
+    "note": "Assert that the report download occurred."
    }
   ]
  }

@@ -3,45 +3,51 @@
   "caseId": "PRD-RFQ-030",
   "title": "RFQ to Auction Conversion: refused for a user without the Buyer role",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:30:58.047Z",
+  "compiledAt": "2026-11-13T14:52:00.719Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and as a Buyer on the same tenant to compare conversion availability",
-   "Verify or record whether tenant RBAC deliberately grants conversion to additional roles",
-   "Assert the non-Buyer conversion refusal/absence and the Buyer conversion success as a role-controlled comparison"
+   "Sign in as a user without the Buyer role and verify that user's role context",
+   "Repeat the conversion as a Buyer in a separate user session and compare the outcomes",
+   "Verify that the tenant is on the Growth plan"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and as a Buyer on the same tenant to compare conversion availability; Verify or record whether tenant RBAC deliberately grants conversion to additional roles; Assert the non-Buyer conversion refusal/absence and the Buyer conversion success as a role-controlled comparison"
+   "can only test part of this — no step for: Sign in as a user without the Buyer role and verify that user's role context; Repeat the conversion as a Buyer in a separate user session and compare the outcomes; Verify that the tenant is on the Growth plan"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
-   "ask_tester",
+   "expect_menu_item",
+   "convert_to_auction",
    "expect_no_error"
   ],
-  "ms": 14776
+  "ms": 14239
  },
  "plan": {
-  "title": "RFQ to Auction Conversion RBAC",
+  "title": "RFQ-to-Auction Conversion RBAC",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing RFQ event to provide the starting point for the conversion check."
+    "note": "Open a suitable existing RFQ event so the conversion action can be inspected."
    },
    {
-    "step": "ask_tester",
+    "step": "expect_menu_item",
     "args": {
-     "need": "sign in as the non-Buyer user and the Buyer user on the same tenant, try RFQ-to-Auction conversion for each, and report whether the action is refused, absent, or succeeds, including any RBAC configuration that grants it to other roles"
+     "item": "Convert to Auction"
     },
-    "note": "The required comparison depends on separate user roles and tenant permissions that the catalog cannot provision or switch between."
+    "note": "Check whether the current user's event menu offers the conversion action."
+   },
+   {
+    "step": "convert_to_auction",
+    "args": {},
+    "note": "Attempt the RFQ-to-Auction conversion for the current session."
    },
    {
     "step": "expect_no_error",
     "args": {},
-    "note": "Check that the final tester-performed Buyer conversion state did not show an application error."
+    "note": "Assert that the conversion attempt did not produce an application error for the current session."
    }
   ]
  }

@@ -4,20 +4,26 @@
   "title": "Savings Calculation: Cancel Savings Calculation without saving changes",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T01:46:23.301Z",
+  "compiledAt": "2026-11-13T14:09:38.530Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen"
+  ],
   "source": "llm",
-  "steps": 16,
+  "steps": 20,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
    "click",
-   "expect_visible",
+   "expect_text",
    "remember",
    "remember",
    "select",
@@ -25,11 +31,12 @@
    "click",
    "expect_visible",
    "click",
-   "expect_visible",
    "expect_remembered",
-   "expect_remembered"
+   "expect_remembered",
+   "click",
+   "expect_visible"
   ],
-  "ms": 14581
+  "ms": 22320
  },
  "plan": {
   "title": "Cancel Savings Calculation Without Saving",
@@ -37,26 +44,50 @@
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Open the Events list to reach the saved draft."
+    "note": "Open the Events list to locate the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required to access the saved eRFX draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the requested tenant configuration for the draft scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the requested tenant configuration for the draft scenario."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Confirm the Events list rendered successfully."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show saved eRFX drafts."
+    "note": "Switch to the Drafts tab as required by the case."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first saved draft shown in Drafts."
+    "note": "Open a saved eRFX draft without inventing a draft title."
    },
    {
     "step": "click",
@@ -67,28 +98,28 @@
     "note": "Open the Savings Calculation window."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
      "text": "Savings Calculation",
-     "visible": true
+     "present": true
     },
-    "note": "Confirm the savings window opened."
+    "note": "Verify that the Savings Calculation window opened."
    },
    {
     "step": "remember",
     "args": {
-     "key": "previous_measurement",
+     "key": "original_measure",
      "label": "How do you want to measure savings?"
     },
-    "note": "Record the draft's existing savings measurement setting."
+    "note": "Record the draft's existing savings measurement before making changes."
    },
    {
     "step": "remember",
     "args": {
-     "key": "previous_column",
+     "key": "original_column",
      "label": "Choose column to calculate savings on"
     },
-    "note": "Record the draft's existing savings column setting."
+    "note": "Record the draft's existing calculation column before making changes."
    },
    {
     "step": "select",
@@ -101,9 +132,9 @@
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "select any available option in the Column to calculate savings on dropdown, leaving the Savings Calculation window open"
+     "goal": "select any available option in the \"Choose column to calculate savings on\" dropdown, leaving the Savings Calculation window open"
     },
-    "note": "Choose an available savings column when the specific option is not supplied by the case."
+    "note": "Choose a column without inventing a dynamic option name."
    },
    {
     "step": "click",
@@ -111,7 +142,7 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the savings changes without saving."
+    "note": "Cancel the changes instead of saving them."
    },
    {
     "step": "expect_visible",
@@ -119,7 +150,7 @@
      "text": "Savings Calculation",
      "visible": false
     },
-    "note": "Verify the Savings Calculation window closed."
+    "note": "Verify that cancelling closes the Savings Calculation window."
    },
    {
     "step": "click",
@@ -127,33 +158,41 @@
      "role": "button",
      "name": "Savings"
     },
-    "note": "Reopen the savings settings to verify cancellation did not persist changes."
+    "note": "Reopen the drawer to verify that the cancelled changes were not persisted."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "original_measure",
+     "label": "How do you want to measure savings?",
+     "same": true
+    },
+    "note": "Confirm the original savings measurement is still selected."
+   },
+   {
+    "step": "expect_remembered",
+    "args": {
+     "key": "original_column",
+     "label": "Choose column to calculate savings on",
+     "same": true
+    },
+    "note": "Confirm the original calculation column is still selected."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel"
+    },
+    "note": "Close the verification drawer without making any further changes."
    },
    {
     "step": "expect_visible",
     "args": {
      "text": "Savings Calculation",
-     "visible": true
+     "visible": false
     },
-    "note": "Confirm the savings window reopened."
-   },
-   {
-    "step": "expect_remembered",
-    "args": {
-     "key": "previous_measurement",
-     "label": "How do you want to measure savings?",
-     "same": true
-    },
-    "note": "Verify the original measurement setting was preserved."
-   },
-   {
-    "step": "expect_remembered",
-    "args": {
-     "key": "previous_column",
-     "label": "Choose column to calculate savings on",
-     "same": true
-    },
-    "note": "Verify the original savings column setting was preserved."
+    "note": "Confirm the final drawer state is closed."
    }
   ]
  }

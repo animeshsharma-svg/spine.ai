@@ -4,68 +4,68 @@
   "title": "Draft project: cancel it from the menu",
   "group": "SRC-ERX",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:18:59.498Z",
+  "compiledAt": "2026-11-13T12:03:06.012Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the cancelled prepared draft is removed from the Drafts list."
+   "Observe the draft Settings or overflow menu specifically labeling the action Cancel Event.",
+   "Confirm that the cancelled draft is removed from the Drafts tab."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the cancelled prepared draft is removed from the Drafts list."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Observe the draft Settings or overflow menu specifically labeling the action Cancel Event.; Confirm that the cancelled draft is removed from the Drafts tab."
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_prepared",
-   "event_menu",
-   "expect_visible",
-   "click",
-   "expect_toast"
+   "require_setting",
+   "require_setting",
+   "withdraw_event",
+   "expect_withdrawn"
   ],
   "state": "draft",
   "screen": "draft",
-  "ms": 12983
+  "ms": 11674
  },
  "plan": {
-  "title": "Cancel Draft Project from Menu",
+  "title": "Cancel draft project from menu",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "draft"
     },
-    "note": "Open the prepared draft project directly, as required for prepared-state cases."
+    "note": "Open the API-prepared draft project; prepared-state rules require this as the first navigation step."
    },
    {
-    "step": "event_menu",
+    "step": "require_setting",
     "args": {
-     "item": "Cancel Event"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the draft project's menu and choose the Cancel Event action."
+    "note": "Enable eRFX project and draft management for the case."
    },
    {
-    "step": "expect_visible",
+    "step": "require_setting",
     "args": {
-     "role": "dialog",
-     "name": "Cancel Event",
-     "visible": true
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
     },
-    "note": "Verify that choosing Cancel Event opens its confirmation dialog."
+    "note": "Ensure withdrawal or cancellation actions are shown."
    },
    {
-    "step": "click",
+    "step": "withdraw_event",
     "args": {
-     "text": "Cancel Event",
-     "within": "dialog"
+     "scope": "project"
     },
-    "note": "Confirm cancellation using the dialog's Cancel Event control."
+    "note": "Use the closest supported project-level cancellation action on the draft."
    },
    {
-    "step": "expect_toast",
-    "args": {
-     "kind": "success"
-    },
-    "note": "Verify that Procol reports the cancellation succeeded."
+    "step": "expect_withdrawn",
+    "args": {},
+    "note": "Assert that Procol records the project as withdrawn after cancellation."
    }
   ]
  }

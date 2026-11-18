@@ -4,84 +4,56 @@
   "title": "Try to purchase a service line and a material line together (service grouping OFF)",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:07:08.400Z",
+  "compiledAt": "2026-11-13T12:25:38.718Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 6 step(s) that would open a blank event or replace the PR's items",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 6 step(s) that would open a blank event or replace the PR's items"
-  ],
+  "warnings": [],
   "source": "llm",
-  "steps": 10,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "select_pr",
-   "purchase_items",
-   "choose_stages",
-   "expect_pr_items",
-   "require_setting",
-   "hover",
-   "expect_message",
-   "do_on_screen"
+   "do_on_screen",
+   "expect_pr_items"
   ],
-  "ms": 16298
+  "ms": 11834
  },
  "plan": {
-  "title": "SRC-PR-022 Mixed Service and Material PR Lines",
+  "title": "Purchase service and material lines together",
   "steps": [
-   {
-    "step": "open_purchase_requisitions"
-   },
-   {
-    "step": "pr_tab",
-    "args": {
-     "tab": "Open"
-    }
-   },
-   {
-    "step": "select_pr"
-   },
-   {
-    "step": "purchase_items"
-   },
-   {
-    "step": "choose_stages",
-    "args": {}
-   },
-   {
-    "step": "expect_pr_items"
-   },
    {
     "step": "require_setting",
     "args": {
      "phrase": "service grouping",
      "value": "Off"
     },
-    "note": "Ensure the test company matches the required configuration."
+    "note": "Ensure the test company has service grouping disabled as required by the scenario."
    },
    {
-    "step": "hover",
-    "args": {
-     "role": "button",
-     "name": "Purchase Items"
-    },
-    "note": "Reveal any explanatory message for the enabled Purchase Items control."
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Open the Purchase Requisitions screen, the required entry point for a PR-based event."
    },
    {
-    "step": "expect_message",
+    "step": "pr_tab",
     "args": {
-     "kind": "tooltip"
+     "tab": "Open"
     },
-    "note": "Record whether the PR screen shows a tooltip or other message for Purchase Items."
+    "note": "Restrict the list to open requisitions that can be sourced."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "inspect the resulting event create screen, identify which sheet type opened, and verify that both the selected service line and material line arrived"
+     "goal": "On the Open Purchase Requisitions screen, select one service line and one material line together with service grouping off; inspect whether Purchase Items is enabled and any message or tooltip, click Purchase Items, and stop on the event create screen showing whether both selected lines arrived in the sheet."
     },
-    "note": "Checks the exact sheet and mixed-line contents, which no dedicated assertion step exposes."
+    "note": "The catalog has no step for selecting mixed service and material lines together or recording the resulting sheet contents, so perform and observe this exact interaction in the buyer session."
+   },
+   {
+    "step": "expect_pr_items",
+    "args": {},
+    "note": "Assert that the resulting PR-based event create screen contains purchase-requisition items."
    }
   ]
  }

@@ -3,155 +3,61 @@
   "caseId": "PRD-KBVDB-028",
   "title": "Vendor bids on the Sum Total in the auction and submits a locked cost breakdown",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:54:52.778Z",
+  "compiledAt": "2026-11-13T15:45:35.986Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Enable or verify Cost Breakdown Mode for the auction",
-   "Reduce the auction Sum Total and activate the specific Revise Bid flow",
-   "Wait for and observe the Cost Breakdown Time phase",
-   "Review the system-generated item-level cost breakdown",
-   "Click Submit Cost Breakdown and confirm it with Yes, Submit",
-   "Assert the cost breakdown success and justification confirmation message",
-   "Assert that item-level cost breakdown prices become locked after submission",
-   "Set up an auction with already-submitted RFQ quotes as the prerequisite state"
+   "Reducing the auction Sum Total and revising the bid, waiting for Cost Breakdown Time, reviewing the auto-filled breakdown, confirming Yes, Submit, and verifying that item prices become non-editable."
   ],
   "warnings": [
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
-   "cannot test this case yet — no step can observe: Enable or verify Cost Breakdown Mode for the auction; Reduce the auction Sum Total and activate the specific Revise Bid flow; Wait for and observe the Cost Breakdown Time phase; Review the system-generated item-level cost breakdown; Click Submit Cost Breakdown and confirm it with Yes, Submit; Assert the cost breakdown success and justification confirmation message; Assert that item-level cost breakdown prices become locked after submission; Set up an auction with already-submitted RFQ quotes as the prerequisite state"
+   "can only test part of this — no step for: Reducing the auction Sum Total and revising the bid, waiting for Cost Breakdown Time, reviewing the auto-filled breakdown, confirming Yes, Submit, and verifying that item prices become non-editable."
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 5,
   "stepNames": [
-   "open_create",
-   "compose_stages",
-   "set_title",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
+   "open_event",
    "switch_portal",
    "vendor_open_event",
-   "vendor_bid",
-   "expect_bid_submitted",
-   "vendor_bid",
-   "expect_bid_submitted"
+   "ask_tester",
+   "expect_text"
   ],
-  "ms": 10784
+  "ms": 14295
  },
  "plan": {
-  "title": "Vendor auction cost breakdown submission",
+  "title": "Auction Cost Breakdown Submission Lock",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Create the closest available auction state."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    }
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "Cost Breakdown Auction"
-    },
-    "note": "Provide the mandatory event title for publication."
-   },
-   {
-    "step": "select_template",
+    "step": "open_event",
     "args": {},
-    "note": "Apply the first available auction pricing template."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 2
-    },
-    "note": "Create multiple line items so the auction has an item-level sheet resembling a breakdown."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Populate the auction pricing sheet before scheduling and publishing."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a live auction schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite the QA vendor required to submit the auction bid."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the auction so the vendor can bid."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Assert that publication reached a real project page."
+    "note": "Open an existing event suitable for the live auction setup."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the supported supplier-portal session for the vendor-side portion."
+    "note": "Switch to the invited vendor portal where the auction bid is submitted."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the auction's pricing sheet in the vendor portal."
+    "note": "Open the auction pricing screen for the vendor."
    },
    {
-    "step": "vendor_bid",
+    "step": "ask_tester",
     "args": {
-     "price": 90
+     "need": "reduce the auction Sum Total bid, click Revise Bid, wait for Cost Breakdown Time, review the auto-filled line-item breakdown, click Submit Cost Breakdown, confirm Yes, Submit, and verify the item prices are no longer editable"
     },
-    "note": "Submit the closest supported equivalent of an initial reduced total bid."
+    "note": "The catalog has no step for Sum Total revision or Cost Breakdown Mode submission and locking."
    },
    {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Assert that the vendor bid was accepted by the supported bidding flow."
-   },
-   {
-    "step": "vendor_bid",
+    "step": "expect_text",
     "args": {
-     "price": 80
+     "text": "cost breakdown has been successfully submitted and justified"
     },
-    "note": "Use the supported same-vendor revision behavior as the closest approximation to clicking Revise Bid."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Assert that the revised ordinary bid was accepted; this does not assert a cost-breakdown submission."
+    "note": "Verify the expected successful-submission confirmation is visible after the tester completes the flow."
    }
   ]
  }

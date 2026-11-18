@@ -3,20 +3,20 @@
   "caseId": "PRD-KBVON-026",
   "title": "After login with onboarding not initiated, no live events may show",
   "group": "PRD-KBVON",
-  "compiledAt": "2026-11-10T04:13:46.202Z",
+  "compiledAt": "2026-11-13T15:16:51.940Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Configure or verify that buyer onboarding has not been initiated for the vendor.",
-   "Assert that the vendor dashboard contains zero live events or shows its empty-state message."
+   "Assert that the vendor dashboard contains no live events.",
+   "Verify that buyer onboarding has not been initiated for this vendor."
   ],
   "warnings": [
    "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
    "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
-   "cannot test this case yet — no step can observe: Configure or verify that buyer onboarding has not been initiated for the vendor.; Assert that the vendor dashboard contains zero live events or shows its empty-state message."
+   "can only test part of this — no step for: Assert that the vendor dashboard contains no live events.; Verify that buyer onboarding has not been initiated for this vendor."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "compose_stages",
@@ -30,12 +30,13 @@
    "publish",
    "expect_published",
    "switch_portal",
-   "expect_text"
+   "expect_text",
+   "expect_screen_clean"
   ],
-  "ms": 14237
+  "ms": 16009
  },
  "plan": {
-  "title": "Vendor dashboard has no live events before onboarding",
+  "title": "Vendor Dashboard Has No Live Events Before Onboarding",
   "steps": [
    {
     "step": "open_create",
@@ -89,14 +90,20 @@
     "args": {
      "to": "vendor"
     },
-    "note": "Sign in to the supplier portal as the QA vendor and reach the vendor dashboard."
+    "note": "Open the invited vendor's supplier-portal session and complete the available first-time sign-in flow."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Live"
+     "text": "Live",
+     "present": true
     },
-    "note": "Confirm the vendor portal is showing the Live events area, although the catalog cannot verify that it contains no events."
+    "note": "Confirm the vendor is on the live-events dashboard rather than remaining on the sign-in screen."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Check that the dashboard has no crash or server error while the empty-state detail remains unexpressible."
    }
   ]
  }

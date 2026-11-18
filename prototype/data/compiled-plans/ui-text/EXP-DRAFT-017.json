@@ -4,19 +4,36 @@
   "title": "A saved eRFX draft: \"Add T&CsAdded\" opens the \"Edit Terms & Conditions\" window",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:40:27.290Z",
+  "compiledAt": "2026-11-13T14:04:16.605Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that nothing on the event changes until a button in the Edit Terms & Conditions window is pressed."
+   "The catalog cannot verify that the underlying event remains unchanged until Upload, Cancel, or Done is pressed."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that nothing on the event changes until a button in the Edit Terms & Conditions window is pressed."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: The catalog cannot verify that the underlying event remains unchanged until Upload, Cancel, or Done is pressed."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 25,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "save_draft",
+   "expect_no_error",
+   "open_events_list",
+   "filter_events",
+   "expect_event_in_list",
+   "open_first_event",
    "click",
    "expect_visible",
    "expect_text",
@@ -27,17 +44,116 @@
    "expect_visible",
    "expect_visible"
   ],
-  "ms": 9209
+  "ms": 23954
  },
  "plan": {
-  "title": "Saved eRFX Draft Terms Window",
+  "title": "EXP-DRAFT-017 Add T&Cs window",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX create screen to build a controlled saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration that prevents vendor addition during event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the required tenant configuration for stage addition behavior."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-017 Add T&Cs"
+    },
+    "note": "Give the draft a known title so it can be found in Drafts."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the eRFX draft with an RFQ stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage before configuring its template and sheet."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template required for the draft and its line items."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one line item so the draft is a usable eRFX draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet before saving the draft."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the configured eRFX as a draft instead of publishing it."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm saving the draft did not produce an application error."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the events list to verify and reopen the saved draft."
+   },
+   {
+    "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first existing saved draft, as the case starts from a saved eRFX draft."
+    "note": "Show draft events."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Verify the plan's saved draft appears in the Drafts list."
+   },
+   {
+    "step": "open_first_event",
+    "args": {
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-017 Add T&Cs"
+    },
+    "note": "Reopen the created draft on its create screen."
    },
    {
     "step": "click",
@@ -45,7 +161,7 @@
      "role": "button",
      "name": "Add T&Cs"
     },
-    "note": "Open the draft's terms and conditions editor."
+    "note": "Open the terms and conditions editor requested by the case."
    },
    {
     "step": "expect_visible",
@@ -59,30 +175,34 @@
    {
     "step": "expect_text",
     "args": {
-     "text": "QA_Platform_live_clause_1791008534868"
+     "text": "QA_Platform_live_clause_1791008534868",
+     "present": true
     },
-    "note": "Verify the expected saved clause is shown."
+    "note": "Verify the expected named clause is shown."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Your evaluation for this event will depend on dde, Weighted Total along with the Gross Total."
+     "text": "Your evaluation for this event will depend on dde, Weighted Total along with the Gross Total.",
+     "present": true
     },
-    "note": "Verify the expected weighted-evaluation clause is shown."
+    "note": "Verify the expected weighted-total clause is shown."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Your evaluation for this event will depend on Gross Total."
+     "text": "Your evaluation for this event will depend on Gross Total.",
+     "present": true
     },
     "note": "Verify the expected gross-total clause is shown."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "By AD"
+     "text": "By AD",
+     "present": true
     },
-    "note": "Verify the expected attribution is shown."
+    "note": "Verify the expected author or attribution text is shown."
    },
    {
     "step": "expect_visible",
@@ -91,7 +211,7 @@
      "name": "Upload",
      "visible": true
     },
-    "note": "Verify the Upload action is available."
+    "note": "Verify the Upload action is available in the editor."
    },
    {
     "step": "expect_visible",
@@ -100,7 +220,7 @@
      "name": "Cancel",
      "visible": true
     },
-    "note": "Verify the Cancel action is available."
+    "note": "Verify the Cancel action is available in the editor."
    },
    {
     "step": "expect_visible",
@@ -109,7 +229,7 @@
      "name": "Done",
      "visible": true
     },
-    "note": "Verify the Done action is available without pressing it."
+    "note": "Verify the Done action is available in the editor."
    }
   ]
  }

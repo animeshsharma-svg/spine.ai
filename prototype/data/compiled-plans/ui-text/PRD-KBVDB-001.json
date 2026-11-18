@@ -3,80 +3,91 @@
   "caseId": "PRD-KBVDB-001",
   "title": "Vendor submits a Technical Stage response after choosing to participate",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:53:22.412Z",
+  "compiledAt": "2026-11-13T15:43:47.676Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The exact answer values for Vendor Assessments and Line Item Specifications are not provided, so the plan can only use the portal's Quick Fill action rather than assert the required content.",
-   "The exact confirmation's placement at the top of the screen cannot be asserted; the plan verifies the known Submitted confirmation text instead."
+   "The vendor's explicit click on the blue \"I will participate\" button.",
+   "The exact Vendor Assessments and Line Item Specifications fields and values because the case does not provide field values and no dedicated catalog step exposes those sections."
   ],
   "warnings": [
-   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
-   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
-   "can only test part of this — no step for: The exact answer values for Vendor Assessments and Line Item Specifications are not provided, so the plan can only use the portal's Quick Fill action rather than assert the required content.; The exact confirmation's placement at the top of the screen cannot be asserted; the plan verifies the known Submitted confirmation text instead."
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "can only test part of this — no step for: The vendor's explicit click on the blue \"I will participate\" button.; The exact Vendor Assessments and Line Item Specifications fields and values because the case does not provide field values and no dedicated catalog step exposes those sections."
   ],
   "source": "llm",
-  "steps": 22,
+  "steps": 21,
   "stepNames": [
    "open_create",
-   "compose_stages",
    "set_title",
+   "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
-   "expect_line_items",
    "fill_questionnaires",
    "assign_evaluator",
+   "switch_stage",
+   "select_template",
+   "fill_sheet",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
+   "expect_bid_submitted",
    "switch_portal",
    "vendor_open_event",
-   "click",
-   "vendor_open_event",
-   "select",
-   "click",
-   "click",
    "expect_text",
    "switch_portal",
    "expect_responses"
   ],
-  "ms": 21539
+  "ms": 23143
  },
  "plan": {
-  "title": "Vendor submits technical response",
+  "title": "Vendor technical response submission",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
-    }
+    },
+    "note": "Open the multi-stage event creation screen."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "PRD-KBVDB-001 Technical Response"
+    },
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
     "args": {
      "stages": [
-      "rfp"
+      "rfp",
+      "rfq"
      ]
-    }
+    },
+    "note": "Create a Technical Stage together with a pricing stage so the vendor technical-response submission flow is available."
    },
    {
-    "step": "set_title"
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "configure the rfp stage on its own tab"
    },
    {
-    "step": "select_template"
+    "step": "select_template",
+    "note": "rfp needs its own template"
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
-    }
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    }
+    },
+    "note": "Add one line item for the technical and pricing event."
    },
    {
     "step": "fill_questionnaires"
@@ -85,69 +96,61 @@
     "step": "assign_evaluator"
    },
    {
-    "step": "set_schedule"
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "configure the rfq stage on its own tab"
    },
    {
-    "step": "invite_vendor"
+    "step": "select_template",
+    "note": "rfq needs its own template"
    },
    {
-    "step": "publish"
+    "step": "fill_sheet"
    },
    {
-    "step": "expect_published"
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a live event schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Invite the QA vendor required for the response."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the live Technical Stage event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert the vendor submission was accepted by the portal."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Open the invited vendor's supplier-portal session."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "overview": true
-    },
-    "note": "Open the event card on the vendor dashboard and remain on Event Overview."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "I will participate"
-    },
-    "note": "Record the vendor's participation choice before entering the Technical Stage."
+    "note": "Return to the vendor portal to inspect the submitted technical round."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the Technical Stage response questionnaire."
-   },
-   {
-    "step": "select",
-    "args": {
-     "label": "Select an option",
-     "option": "manufacturer"
-    },
-    "note": "Choose a vendor response option for the technical questionnaire."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Quick Fill"
-    },
-    "note": "Fill the available vendor assessment and line-item specification fields using the portal's supported quick-fill action."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Submit"
-    },
-    "note": "Submit the completed Technical Stage response."
+    "note": "Open the event's Technical Stage in the vendor portal."
    },
    {
     "step": "expect_text",
@@ -155,21 +158,23 @@
      "text": "Submitted",
      "present": true
     },
-    "note": "Verify the vendor portal shows the known submitted confirmation state."
+    "note": "Verify the vendor portal shows the technical response as submitted."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "buyer"
     },
-    "note": "Return to the buyer console to verify the response was recorded."
+    "note": "Return to the buyer console to verify the recorded response."
    },
    {
     "step": "expect_responses",
     "args": {
-     "stage": "rfp"
+     "stage": "rfp",
+     "atLeast": 1,
+     "direct": 1
     },
-    "note": "Verify the buyer's Technical Stage Responses view contains the vendor response for evaluation."
+    "note": "Assert the buyer sees the vendor's direct Technical Stage response awaiting evaluation."
    }
   ]
  }

@@ -4,50 +4,99 @@
   "title": "Item with only a category (no subcategory) and a subcategory-only user",
   "group": "PRA-ONE",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:04:59.259Z",
+  "compiledAt": "2026-11-13T14:28:58.132Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "unconfirmed label \"User B\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "coverage partial: unconfirmed label \"User B\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 9,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "do_on_screen",
+   "select_pr",
+   "click",
+   "expect_visible",
+   "fill",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 8923
+  "ms": 17328
  },
  "plan": {
-  "title": "PR-7 Assignee Visibility for Category-Level Item",
+  "title": "PRA-ONE-010 Category-Level PR Assignee Visibility",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the PR team-category filtering required by the case."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open Purchase Requisitions as the PR manager."
+    "note": "Open the Purchase Requisitions screen."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab where PR-7 can be selected."
+    "note": "Stay on the Open PR tab where PR-7 can be selected."
    },
    {
-    "step": "do_on_screen",
+    "step": "select_pr",
     "args": {
-     "goal": "Search for PR-7, select its FOOD STORE line item with no subcategory, click Assign next to Upload PRs, type User B (Fruits Buyer) into the Search a user box, and verify User B is not listed while User A (Food Buyer) is listed"
+     "pr": "PR-7"
     },
-    "note": "Perform and observe the assignment-user search flow that has no dedicated catalog step."
+    "note": "Select the named PR-7 item and verify the sourcing actions become available."
+   },
+   {
+    "step": "click",
+    "args": {
+     "text": "Assign"
+    },
+    "note": "Open the assignee user search from the selected PR."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "label": "Search a user",
+     "visible": true
+    },
+    "note": "Verify the user search box opened."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Search a user",
+     "value": "User B"
+    },
+    "note": "Search for the subcategory-only user named in the case."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "User A (Food Buyer)",
+     "text": "User B",
+     "present": false
+    },
+    "note": "Assert that User B is not listed for the category-level PR."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "User A",
      "present": true
     },
-    "note": "Assert that the category-level Food Buyer is listed in the assignee results."
+    "note": "Assert that the category-level Food Buyer remains listed."
    }
   ]
  }

@@ -4,23 +4,27 @@
   "title": "Reminder email names the event",
   "group": "EMA-NAME",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:56:32.459Z",
+  "compiledAt": "2026-11-13T14:21:17.864Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Submit the event into the two-step approval workflow with Asha as step-one approver and Bikram as step-two approver",
-   "Wait for or trigger the approval reminder email",
-   "Open Asha's mailbox and verify the reminder email's formatting, including that the event name is bold"
+   "Submit the event into the configured two-step email approval workflow as Ravi.",
+   "Trigger or wait for the reminder email to be sent.",
+   "Open and inspect Asha's external mailbox through the catalog.",
+   "Verify that the event name is rendered in bold in the email."
   ],
   "warnings": [
-   "can only test part of this — no step for: Submit the event into the two-step approval workflow with Asha as step-one approver and Bikram as step-two approver; Wait for or trigger the approval reminder email; Open Asha's mailbox and verify the reminder email's formatting, including that the event name is bold"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Submit the event into the configured two-step email approval workflow as Ravi.; Trigger or wait for the reminder email to be sent.; Open and inspect Asha's external mailbox through the catalog.; Verify that the event name is rendered in bold in the email."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
-   "compose_stages",
    "select_template",
    "add_line_items",
    "fill_sheet",
@@ -32,10 +36,10 @@
    "expect_text",
    "expect_text"
   ],
-  "ms": 76798
+  "ms": 27154
  },
  "plan": {
-  "title": "EMA-NAME-002 — Approval reminder names event",
+  "title": "Approval Reminder Names Event",
   "steps": [
    {
     "step": "open_create",
@@ -45,37 +49,44 @@
     "note": "Start creating the event used by the reminder scenario."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required company email-approval configuration before preparing the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval-workflow configuration required by the case."
+   },
+   {
     "step": "set_title",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Set the exact event name that the reminder must contain."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Configure an RFQ stage for the event."
+    "note": "Use the case's exact event name so the reminder can be checked against it."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available pricing template so line items can be added."
+    "note": "Apply the first available template so the event can be configured."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required event line item."
+    "note": "Add the required line item for a publishable event."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
+    "note": "Complete the pricing sheet for the line item."
    },
    {
     "step": "set_schedule",
@@ -87,12 +98,12 @@
    {
     "step": "invite_vendor",
     "args": {},
-    "note": "Add the product-provided vendor audience required for publishing."
+    "note": "Add the product-provided participant required for publishing."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Create the event so the tester can place it into the approval workflow."
+    "note": "Publish the prepared event as the closest catalog-supported event creation action."
    },
    {
     "step": "expect_published",
@@ -102,25 +113,23 @@
    {
     "step": "ask_tester",
     "args": {
-     "need": "submit this event for approval with Asha as step-one approver and Bikram as step-two approver, wait for or trigger the approval reminder, open Asha's mailbox, and leave the reminder email open"
+     "need": "as Ravi, submit this event for the configured two-step email approval workflow, trigger or wait for the reminder, open Asha's mailbox, and leave the reminder email open"
     },
-    "note": "Approval submission, reminder triggering, and mailbox access require another user/session and are not available in the catalog."
+    "note": "Approval submission, reminder delivery, and mailbox access require the specified users and external email system."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "This is just a quick reminder that Ravi has requested for your approval in",
-     "present": true
+     "text": "This is just a quick reminder that Ravi has requested for your approval in"
     },
-    "note": "Verify the reminder text identifies Ravi as the requester once the tester has opened the email."
+    "note": "Check the visible reminder wording after the tester leaves Asha's reminder email open."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "QA Email Approval - Office Chairs Nov",
-     "present": true
+     "text": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Verify the exact event name appears in the reminder email."
+    "note": "Assert that the reminder visibly contains the exact event name."
    }
   ]
  }

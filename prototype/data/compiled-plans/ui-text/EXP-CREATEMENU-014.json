@@ -4,36 +4,65 @@
   "title": "Events list and the Create Event menu: \"RFQ RFQ-23186 Overdue by about 1h 1/38 Evaluate RFQ Commerci\" opens the stage page",
   "group": "EXP-CREATEMENU",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:34:51.796Z",
+  "compiledAt": "2026-11-13T13:59:12.276Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page"
+  ],
   "source": "llm",
-  "steps": 2,
+  "steps": 5,
   "stepNames": [
    "open_event",
-   "expect_navigated"
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_url_contains"
   ],
-  "ms": 5921
+  "ms": 13444
  },
  "plan": {
-  "title": "Open RFQ event from Events list",
+  "title": "Open RFQ stage from events list",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "RFQ RFQ-23186 Overdue by about 1h 1/38 Evaluate RFQ Commerci"
     },
-    "note": "Open the specifically named existing event from the Events list."
+    "note": "Open the specifically named RFQ from the buyer’s event context."
    },
    {
-    "step": "expect_navigated",
+    "step": "require_setting",
     "args": {
-     "screen": "event",
-     "path": "/project/"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Verify that the event opens on a project/stage page with the expected project URL."
+    "note": "Enable RFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "boq_in_erfx_allowed",
+     "value": "On"
+    },
+    "note": "Apply the configured BOQ capability before navigating."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "scheduled_events_enabled",
+     "value": "On"
+    },
+    "note": "Apply the configured scheduled-events capability before navigating."
+   },
+   {
+    "step": "expect_url_contains",
+    "args": {
+     "text": "/project/"
+    },
+    "note": "Verify that opening the event navigated to its project stage page."
    }
   ]
  }

@@ -4,19 +4,26 @@
   "title": "A live RFQ: \"Withdraw\" opens the \"Withdrawing Order...\" window",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:30:12.328Z",
+  "compiledAt": "2026-11-13T14:12:07.026Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+  ],
   "source": "llm",
-  "steps": 9,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "event_menu",
-   "expect_visible",
+   "expect_text",
    "expect_text",
    "expect_visible",
    "expect_visible",
@@ -24,32 +31,57 @@
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9279
+  "ms": 13489
  },
  "plan": {
-  "title": "Live RFQ withdraw confirmation dialog",
+  "title": "Live RFQ Withdraw Dialog",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ as the buyer."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects for the live RFQ flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the case's withdrawal visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal while vendor submissions are still open."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the specified vendor-masking configuration."
    },
    {
     "step": "go_to",
     "args": {
-     "screen": "stage",
+     "screen": "responses",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Open the Responses tab specified by the case."
+    "note": "Reach the RFQ Responses tab where the Settings menu is used."
    },
    {
     "step": "event_menu",
@@ -57,54 +89,48 @@
      "item": "Withdraw",
      "stage": "rfq"
     },
-    "note": "Choose Withdraw from the RFQ Settings menu, leaving its confirmation window open."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Withdrawing Order...",
-     "visible": true
-    },
-    "note": "Verify that the withdrawal confirmation window opened."
+    "note": "Open the RFQ Settings menu and choose Withdraw without confirming the dialog."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Please enter reason for withdrawing this event",
-     "present": true,
-     "within": "dialog"
+     "text": "Withdrawing Order..."
+    },
+    "note": "Verify that the withdrawal dialog opened."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Please enter reason for withdrawing this event"
     },
     "note": "Verify the dialog explains that a withdrawal reason is required."
    },
    {
     "step": "expect_visible",
     "args": {
-     "label": "Enter reason",
-     "visible": true,
-     "within": "dialog"
+     "role": "textbox",
+     "placeholder": "Enter reason",
+     "visible": true
     },
-    "note": "Verify the reason field is present."
+    "note": "Verify the withdrawal reason field is present."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Cancel",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
-    "note": "Verify the dialog offers Cancel without submitting the withdrawal."
+    "note": "Verify the dialog offers Cancel without changing the event."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Yes",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
-    "note": "Verify the dialog offers Yes for explicit confirmation; no button is pressed, so the event remains unchanged."
+    "note": "Verify the dialog offers the unconfirmed withdrawal action."
    }
   ]
  }

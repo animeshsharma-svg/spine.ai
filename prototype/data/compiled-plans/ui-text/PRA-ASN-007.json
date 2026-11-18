@@ -4,24 +4,25 @@
   "title": "Assign items of one PR from the list",
   "group": "PRA-ASN",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-12T13:47:30.218Z",
+  "compiledAt": "2026-11-13T14:25:14.674Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "do_on_screen",
-   "expect_message"
+   "expect_message",
+   "expect_table"
   ],
-  "ms": 13074
+  "ms": 16427
  },
  "plan": {
-  "title": "Assign PR items from list",
+  "title": "Bulk assign PR items to User A",
   "steps": [
    {
     "step": "require_setting",
@@ -29,26 +30,26 @@
      "key": "is_pr_teams_filtering_enabled",
      "value": "On"
     },
-    "note": "Enable the required team-filtering configuration for the PR list."
+    "note": "Enable the required PR team-category filtering configuration for this case."
    },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen where the PR items are assigned."
+    "note": "Open the Purchase Requisitions area in the buyer console."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab containing PR-1."
+    "note": "Ensure the PR list is on the Open tab."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "Search for PR-1, select all 3 of its line items, click the Assign control beside Upload PRs, choose Food Buyer (User A) from the Search a user list, and stop with all 3 rows showing User A in the Assignee column and the assignment success message visible."
+     "goal": "Search for PR-1, select all 3 PR-1 item rows, click the Assign button next to Upload PRs, search for and select Food Buyer (User A), and stop when the assignment success message and the three assigned rows are visible"
     },
-    "note": "Perform the PR-list-specific bulk assignment and verify the assigned rows on screen."
+    "note": "Perform the bulk assignment workflow that has no dedicated catalog action."
    },
    {
     "step": "expect_message",
@@ -56,7 +57,18 @@
      "kind": "success",
      "text": "Items succesfully assigned to"
     },
-    "note": "Assert the expected success message was shown after assigning the three items."
+    "note": "Verify Procol reports that the items were successfully assigned."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "within": "PR-1",
+     "rows": 3,
+     "eachRow": {
+      "Assignee": "Food Buyer"
+     }
+    },
+    "note": "Verify all three PR-1 item rows show User A/Food Buyer in the Assignee column."
    }
   ]
  }

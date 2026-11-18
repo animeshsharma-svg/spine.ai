@@ -4,20 +4,29 @@
   "title": "eRFX project level (all stages), one clause Required: the vendor accepts only the optional clause",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:13:17.928Z",
+  "compiledAt": "2026-11-13T13:04:42.399Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the project-level clauses are presented and enforced on every stage of a multi-stage project; the requested setup explicitly creates an RFQ-only project."
+  ],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Verify that the project-level clauses are presented and enforced on every stage of a multi-stage project; the requested setup explicitly creates an RFQ-only project."
+  ],
   "source": "llm",
-  "steps": 21,
+  "steps": 25,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
    "select_template",
    "add_line_items",
+   "set_sheet_cell",
    "fill_sheet",
    "do_on_screen",
    "invite_vendor",
@@ -29,15 +38,16 @@
    "expect_text",
    "expect_text",
    "toggle",
+   "toggle",
    "attempt",
    "toggle",
    "vendor_bid",
    "expect_bid_submitted"
   ],
-  "ms": 19864
+  "ms": 20297
  },
  "plan": {
-  "title": "Required project T&C blocks vendor submission",
+  "title": "eRFX project-level required and optional T&C acceptance",
   "steps": [
    {
     "step": "open_create",
@@ -45,6 +55,22 @@
      "path": "erfx"
     },
     "note": "Open the eRFX project creation screen."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow the vendor to be added during event creation."
    },
    {
     "step": "set_title",
@@ -60,19 +86,19 @@
       "rfq"
      ]
     },
-    "note": "Configure the project with an RFQ stage only."
+    "note": "Configure the project with an RFQ-only stage as specified."
    },
    {
     "step": "switch_stage",
     "args": {
      "stage": "rfq"
     },
-    "note": "Apply the RFQ template and line items to the RFQ stage."
+    "note": "Apply the RFQ template and sheet configuration to the RFQ stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select the available RFQ pricing template."
+    "note": "Select the offered RFQ pricing template."
    },
    {
     "step": "add_line_items",
@@ -84,23 +110,32 @@
     "note": "Add the CYLINDER line item with the requested quantity."
    },
    {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location for the line item."
+   },
+   {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet, including editable line-item fields."
+    "note": "Complete remaining required pricing-sheet fields before publishing."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "on the RFQ eRFX create screen, open Add T&Cs, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", set Payment within 45 days to Required, leave Delivery within 7 days as None, click Done, and stop with the project-level T&C configuration visibly saved"
+     "goal": "On the eRFX create screen, open Add T&Cs, add the clauses \"Payment within 45 days\" and \"Delivery within 7 days\", set Payment within 45 days to Required, leave Delivery within 7 days as None, click Done, and stop on the create screen."
     },
-    "note": "Configure the two project-level clauses because no dedicated catalog step edits T&C clauses."
+    "note": "Configure the project-level required and optional clauses."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one QA test vendor for the vendor-portal submission."
+    "note": "Add one QA test vendor to the RFQ."
    },
    {
     "step": "set_schedule",
@@ -112,12 +147,12 @@
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ project."
+    "note": "Publish the configured RFQ project."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Confirm the event reached a published project page."
+    "note": "Confirm that publishing reached a real project page."
    },
    {
     "step": "switch_portal",
@@ -131,23 +166,29 @@
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's RFQ bid sheet and terms block as the vendor."
+    "note": "Open this event's RFQ bid sheet as the vendor."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Payment within 45 days",
-     "present": true
+     "text": "Payment within 45 days"
     },
     "note": "Confirm the required project-level clause is shown to the vendor."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Delivery within 7 days",
-     "present": true
+     "text": "Delivery within 7 days"
     },
-    "note": "Confirm the optional project-level clause is also shown."
+    "note": "Confirm the optional project-level clause is shown to the vendor."
+   },
+   {
+    "step": "toggle",
+    "args": {
+     "label": "Payment within 45 days",
+     "on": false
+    },
+    "note": "Ensure the required clause remains unaccepted for the blocked-submission check."
    },
    {
     "step": "toggle",
@@ -167,7 +208,7 @@
      "expect": "refused",
      "because": "Payment within 45 days"
     },
-    "note": "Attempt submission with the required clause still unchecked and verify Procol blocks the bid citing the required clause."
+    "note": "Verify that submitting a quote is blocked while the required clause is unchecked."
    },
    {
     "step": "toggle",
@@ -182,12 +223,12 @@
     "args": {
      "price": 100
     },
-    "note": "Submit the bid at 100 after all required terms are accepted."
+    "note": "Submit the quote at 100 for the line item after all required clauses are accepted."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the vendor portal shows the bid as submitted."
+    "note": "Confirm that the vendor bid was successfully submitted."
    }
   ]
  }

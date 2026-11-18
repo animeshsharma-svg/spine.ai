@@ -4,49 +4,79 @@
   "title": "eRFX Technical + RFQ project (RFQ stage): withdraw it while live with bids",
   "group": "SRC-KND",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:31:01.069Z",
+  "compiledAt": "2026-11-13T12:12:33.837Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
    "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "withdraw_event",
    "expect_withdrawn",
    "filter_events",
-   "expect_event_in_list"
+   "expect_event_in_list",
+   "expect_event_status"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 70840
+  "ms": 16033
  },
  "plan": {
-  "title": "Withdraw live Tech+RFQ project with bids",
+  "title": "Withdraw live Tech+RFQ project",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live Technical + RFQ project with its bid."
+    "note": "Open the prepared live Technical + RFQ project with a bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX multi-stage projects for the test tenant."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "erfx_rfp_stage_enabled",
+     "value": "On"
+    },
+    "note": "Enable the Technical RFP stage used by the prepared project."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure the Withdraw Project action is available."
    },
    {
     "step": "withdraw_event",
     "args": {
      "scope": "project",
-     "reason": "Testing project withdrawal"
+     "reason": "Testing withdrawal of the live Technical + RFQ project"
     },
-    "note": "Withdraw the entire project through the project-level menu and confirm with a reason."
+    "note": "Withdraw the entire project through the project menu, which withdraws every stage together."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Verify that the project withdrawal is recorded and shown as Withdrawn."
+    "note": "Verify Procol records the project as withdrawn."
    },
    {
     "step": "filter_events",
@@ -58,7 +88,14 @@
    {
     "step": "expect_event_in_list",
     "args": {},
-    "note": "Assert that this withdrawn project is present in History."
+    "note": "Verify the prepared project appears in History."
+   },
+   {
+    "step": "expect_event_status",
+    "args": {
+     "status": "Withdrawn"
+    },
+    "note": "Verify the project's History row shows Withdrawn status."
    }
   ]
  }

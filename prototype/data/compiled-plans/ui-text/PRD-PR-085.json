@@ -3,23 +3,25 @@
   "caseId": "PRD-PR-085",
   "title": "PR Approval: step 2 bypassed when \"Amount ≤ INR 10,000 and vendor pre-approved\"",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:43:45.316Z",
+  "compiledAt": "2026-11-13T15:22:23.849Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create and submit a Purchase Requisition for exactly INR 10,000 with a pre-approved vendor, advance it through the approval workflow, and verify in workflow history that step 2 Line Manager Approval was skipped and the next step is active."
+   "Create and submit a Purchase Requisition for exactly INR 10,000 with a pre-approved vendor",
+   "Follow the PR approval workflow to step 2 and verify that Line Manager Approval is bypassed with no request sent",
+   "Inspect workflow history to confirm step 2 was skipped under the bypass condition and the next step became active"
   ],
   "warnings": [
-   "can only test part of this — no step for: Create and submit a Purchase Requisition for exactly INR 10,000 with a pre-approved vendor, advance it through the approval workflow, and verify in workflow history that step 2 Line Manager Approval was skipped and the next step is active."
+   "can only test part of this — no step for: Create and submit a Purchase Requisition for exactly INR 10,000 with a pre-approved vendor; Follow the PR approval workflow to step 2 and verify that Line Manager Approval is bypassed with no request sent; Inspect workflow history to confirm step 2 was skipped under the bypass condition and the next step became active"
   ],
   "source": "llm",
   "steps": 3,
   "stepNames": [
    "open_purchase_requisitions",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 276316
+  "ms": 13724
  },
  "plan": {
   "title": "PR approval bypass at INR 10,000",
@@ -27,19 +29,22 @@
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Reaches the closest available PR screen before the missing creation and approval-workflow actions."
+    "note": "Provides the closest available PR-related screen, but does not create or submit the triggering requisition."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "create and submit a Purchase Requisition for exactly INR 10,000 with a pre-approved vendor, advance it through the approval workflow, and inspect workflow history to verify that Line Manager Approval step 2 was skipped and the next step is active"
+     "need": "sign in as the submitting employee, create and submit a Purchase Requisition for exactly INR 10,000 with a pre-approved vendor, then inspect the workflow history to verify Line Manager Approval was skipped and the next step is active"
     },
-    "note": "The catalog has no step for creating/submitting the qualifying PR, running its approval workflow, or reading the workflow history."
+    "note": "The catalog has no step to create the required PR, use the employee identity, or observe the approval workflow history."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Final assertion that the current screen remains usable after the tester's workflow actions; this does not assert the bypass behavior."
+    "step": "expect_text",
+    "args": {
+     "text": "Purchase Requisitions",
+     "present": true
+    },
+    "note": "Confirms the run remains on the known PR screen after the unavailable workflow portion."
    }
   ]
  }

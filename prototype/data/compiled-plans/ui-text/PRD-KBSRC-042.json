@@ -3,12 +3,11 @@
   "caseId": "PRD-KBSRC-042",
   "title": "\"Download template\" gives a sheet that opens in Google Sheets or Excel",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:09:49.382Z",
+  "compiledAt": "2026-11-13T14:33:07.073Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the downloaded file in Google Sheets or Microsoft Excel and verify that it opens successfully",
-   "Inspect the downloaded workbook's cells to confirm it contains line-item columns"
+   "Opening the downloaded file in Google Sheets or Microsoft Excel"
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -19,7 +18,7 @@
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
    "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
-   "can only test part of this — no step for: Open the downloaded file in Google Sheets or Microsoft Excel and verify that it opens successfully; Inspect the downloaded workbook's cells to confirm it contains line-item columns"
+   "can only test part of this — no step for: Opening the downloaded file in Google Sheets or Microsoft Excel"
   ],
   "source": "llm",
   "steps": 7,
@@ -32,7 +31,7 @@
    "click",
    "expect_download"
   ],
-  "ms": 9642
+  "ms": 11405
  },
  "plan": {
   "title": "RFQ template download",
@@ -42,7 +41,7 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Open the event creation screen used for a standalone RFQ."
+    "note": "Open the single-stage RFQ creation screen, which exposes the Upload Sheet control."
    },
    {
     "step": "compose_stages",
@@ -57,12 +56,12 @@
     "args": {
      "title": "RFQ Template Download Test"
     },
-    "note": "Provide the required event title for the create flow."
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ template before accessing the sheet upload controls."
+    "note": "Apply an RFQ template so the downloadable sheet has line-item columns."
    },
    {
     "step": "click",
@@ -70,19 +69,24 @@
      "role": "button",
      "name": "Upload Sheet"
     },
-    "note": "Open the upload sheet dialog containing the template download action."
+    "note": "Open the upload-sheet dialog containing the download-template action."
    },
    {
     "step": "click",
     "args": {
      "text": "Download template"
     },
-    "note": "Download the template file from the upload dialog."
+    "note": "Download the blank line-item template from the dialog."
    },
    {
     "step": "expect_download",
-    "args": {},
-    "note": "Assert that a file was downloaded; workbook opening and cell-level column inspection are not supported by the catalog."
+    "args": {
+     "contains": [
+      "Product",
+      "Quantity Requested"
+     ]
+    },
+    "note": "Verify that a downloaded file exists and contains expected line-item columns."
    }
   ]
  }

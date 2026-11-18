@@ -4,41 +4,39 @@
   "title": "Approvals expire",
   "group": "SRC-AWD",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:22:49.846Z",
+  "compiledAt": "2026-11-13T11:42:30.127Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Create or select a proposal that has been waiting for approval longer than the approval window",
-   "Have the approver open the expired approval in a separate approver session",
-   "Observe the refusal message when completing an expired approval",
-   "Determine whether the buyer must resubmit the award after approval expiry"
+   "Open the expired approval as the approver and verify that completion is refused, record the refusal message, and determine whether the buyer must resubmit."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "cannot test this case yet — no step can observe: Create or select a proposal that has been waiting for approval longer than the approval window; Have the approver open the expired approval in a separate approver session; Observe the refusal message when completing an expired approval; Determine whether the buyer must resubmit the award after approval expiry"
+   "can only test part of this — no step for: Open the expired approval as the approver and verify that completion is refused, record the refusal message, and determine whether the buyer must resubmit."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "require_setting",
-   "open_prepared",
-   "expect_screen_clean"
+   "go_to",
+   "ask_tester",
+   "expect_visible"
   ],
   "state": "proposal",
   "screen": "summary",
-  "ms": 12174
+  "ms": 13496
  },
  "plan": {
-  "title": "SRC-AWD-042 Approvals Expire",
+  "title": "Approvals expire",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared event's summary page as the required first step for a prepared-state case."
+    "note": "Open the existing prepared event's summary page as required for prepared-state cases."
    },
    {
     "step": "require_setting",
@@ -46,19 +44,31 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project setting before accessing the prepared approval event."
+    "note": "Enable the required eRFX project setting for this approval scenario."
    },
    {
-    "step": "open_prepared",
+    "step": "go_to",
     "args": {
-     "screen": "proposal"
+     "screen": "tab",
+     "name": "Approvals"
     },
-    "note": "Open the prepared award proposal screen, which is the closest available screen to the approval workflow."
+    "note": "Navigate to the approval area where the expired approval would be inspected."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Verify the available proposal screen rendered without errors; this does not assert approval expiry behavior."
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the approver, open the approval after its approval window expired, attempt to complete it, and record the refusal message and whether the buyer must resubmit"
+    },
+    "note": "The catalog has no step for another approver's session or for verifying expiry-specific approval behavior."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "tab",
+     "name": "Approvals",
+     "visible": true
+    },
+    "note": "Assert that the approval area remains present after the tester interaction."
    }
   ]
  }

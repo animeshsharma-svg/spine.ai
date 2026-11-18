@@ -4,19 +4,19 @@
   "title": "Increase Event Time: Cancel button closes Increase Event Time window without changing end time",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:40:26.116Z",
+  "compiledAt": "2026-11-13T13:50:17.119Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Directly assert that no toast appears after clicking Cancel"
+   "Assert that no toast appears when Cancel is clicked, because no specific toast text or generic toast-absence assertion is provided."
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Directly assert that no toast appears after clicking Cancel"
+   "can only test part of this — no step for: Assert that no toast appears when Cancel is clicked, because no specific toast text or generic toast-absence assertion is provided."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -24,6 +24,8 @@
    "require_setting",
    "require_setting",
    "require_setting",
+   "go_to",
+   "go_to",
    "remember",
    "event_menu",
    "expect_visible",
@@ -33,17 +35,17 @@
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 12444
+  "ms": 16106
  },
  "plan": {
-  "title": "Cancel Increase Event Time",
+  "title": "Cancel Increase Event Time Without Changes",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ summary containing the vendor's bid."
+    "note": "Open the prepared live RFQ summary with one vendor bid."
    },
    {
     "step": "require_setting",
@@ -83,7 +85,22 @@
      "key": "is_counter_offer_percent_bid_allowed",
      "value": "On"
     },
-    "note": "Apply the required percentage counter-offer configuration."
+    "note": "Apply the required counter-offer percentage configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Open the RFQ stage page."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Open the RFQ Responses tab where the event end time and Settings control are available."
    },
    {
     "step": "remember",
@@ -91,7 +108,7 @@
      "key": "original_end_time",
      "text": "Bidding Ends At"
     },
-    "note": "Capture the event end-time display before opening the extension dialog."
+    "note": "Capture the displayed end-time region before opening the extension dialog."
    },
    {
     "step": "event_menu",
@@ -99,15 +116,16 @@
      "item": "Extend Submission Time",
      "stage": "rfq"
     },
-    "note": "Open the RFQ's Increase Event Time window from Settings."
+    "note": "Open the Increase Event Time window from the RFQ Settings menu."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Increase Event Time",
+     "role": "dialog",
+     "name": "Increase Event Time",
      "visible": true
     },
-    "note": "Confirm that the submission-time dialog opened."
+    "note": "Verify that the Increase Event Time window opened."
    },
    {
     "step": "click",
@@ -115,23 +133,25 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the time extension without submitting a new end time."
+    "note": "Cancel the time-extension operation."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Increase Event Time",
+     "role": "dialog",
+     "name": "Increase Event Time",
      "visible": false
     },
-    "note": "Verify that the Increase Event Time window closed."
+    "note": "Verify that cancelling closes the dialog."
    },
    {
     "step": "expect_remembered",
     "args": {
      "key": "original_end_time",
+     "text": "Bidding Ends At",
      "same": true
     },
-    "note": "Verify that the RFQ end-time display is unchanged after cancellation."
+    "note": "Verify that the RFQ end time remains unchanged."
    }
   ]
  }

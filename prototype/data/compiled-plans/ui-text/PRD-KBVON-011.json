@@ -3,48 +3,54 @@
   "caseId": "PRD-KBVON-011",
   "title": "Start onboarding for a prospect",
   "group": "PRD-KBVON",
-  "compiledAt": "2026-11-10T03:58:06.122Z",
+  "compiledAt": "2026-11-13T15:16:05.596Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Navigate to Vendors > Prospects, select a prospect, start onboarding, choose an onboarding template, confirm the action, and verify the prospect moves to Onboarding in Progress."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Navigate to Vendors > Prospects, select a prospect, start onboarding, choose an onboarding template, confirm the action, and verify the prospect moves to Onboarding in Progress."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
-   "ask_tester",
-   "expect_toast",
+   "require_setting",
+   "do_on_screen",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 8162
+  "ms": 10590
  },
  "plan": {
   "title": "Start onboarding for a prospect",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "navigate to Vendors > Prospects, select a prospect, click Start Onboarding, choose a template under Onboarding Template, confirm sending the prospect to the onboarding event, and stop when the success state or Onboarding in Progress tab is visible"
+     "phrase": "Vendor Onboarding enabled",
+     "value": "On"
     },
-    "note": "No catalog step can reach or operate the Vendors and Prospects onboarding flow."
+    "note": "Ensure the required tenant capability is enabled before starting the workflow."
    },
    {
-    "step": "expect_toast",
+    "step": "do_on_screen",
     "args": {
-     "kind": "success",
-     "text": "You have successfully started the onboarding for a vendor!"
+     "goal": "Navigate to the Vendors page, open the Prospects tab, select a prospect, click the blue Start Onboarding button, choose an available template under Onboarding Template, confirm sending the prospect to the onboarding event, and stop when the screen shows the success state and the prospect under Onboarding in Progress."
     },
-    "note": "Checks the stated success confirmation after the tester completes the onboarding action."
+    "note": "Perform the vendor onboarding flow that has no dedicated domain step."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Onboarding in Progress"
+     "text": "You have successfully started the onboarding for a vendor!",
+     "present": true
     },
-    "note": "Checks that the prospect is shown in the expected destination tab."
+    "note": "Verify the application reports that onboarding started successfully."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Onboarding in Progress",
+     "present": true
+    },
+    "note": "Verify the prospect moved to the expected onboarding status tab."
    }
   ]
  }

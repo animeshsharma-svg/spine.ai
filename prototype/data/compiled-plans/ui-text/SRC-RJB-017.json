@@ -4,15 +4,15 @@
   "title": "The blocked vendor cannot bid again",
   "group": "SRC-RJB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:49:55.131Z",
+  "compiledAt": "2026-11-13T12:43:17.620Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Perform and verify that Vendor A was rejected without Allow seller to bid again before extending the submission time",
-   "Verify that the buyer extended the submission time before Vendor A attempted the new bid"
+   "Create the state where Vendor A was rejected without allowing the seller to bid again and verify that the vendor was added to the blocked list.",
+   "Verify the buyer extended the submission time after the rejection before the vendor retry."
   ],
   "warnings": [
-   "can only test part of this — no step for: Perform and verify that Vendor A was rejected without Allow seller to bid again before extending the submission time; Verify that the buyer extended the submission time before Vendor A attempted the new bid"
+   "cannot test this case yet — no step can observe: Create the state where Vendor A was rejected without allowing the seller to bid again and verify that the vendor was added to the blocked list.; Verify the buyer extended the submission time after the rejection before the vendor retry."
   ],
   "source": "llm",
   "steps": 4,
@@ -24,7 +24,7 @@
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 8737
+  "ms": 11427
  },
  "plan": {
   "title": "Blocked vendor cannot rebid",
@@ -34,29 +34,33 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared event summary without recreating or changing its state."
+    "note": "Open the existing prepared event without creating or searching for another event."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to the separate supplier-portal session while keeping the buyer session available."
+    "note": "Continue in the separate supplier portal session as Vendor A."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the event's pricing round as Vendor A."
+    "note": "Open the event's pricing round in the vendor portal."
    },
    {
     "step": "attempt",
     "args": {
      "step": "vendor_bid",
+     "args": {
+      "price": 100
+     },
      "expect": "refused"
     },
-    "note": "Attempt to submit a new price and require positive evidence that the blocked vendor cannot bid again."
+    "note": "Attempt the new quote and look for a refusal; without the required blocked state this is only the closest available check."
    }
   ]
  }

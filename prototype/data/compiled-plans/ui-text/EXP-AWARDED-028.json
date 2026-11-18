@@ -4,41 +4,53 @@
   "title": "Download Reports: Download Event Detailed Report with specific individual checkboxes selected",
   "group": "EXP-AWARDED",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:15:47.172Z",
+  "compiledAt": "2026-11-13T13:44:51.286Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the downloaded report contains only Event Ref ID and Event Title columns and no other columns."
+   "Verify that the downloaded report contains only Event Ref ID and Event Title columns, with no other columns.",
+   "Directly assert that the Event Ref ID and Event Title checkboxes are selected before downloading."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the downloaded report contains only Event Ref ID and Event Title columns and no other columns."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that the downloaded report contains only Event Ref ID and Event Title columns, with no other columns.; Directly assert that the Event Ref ID and Event Title checkboxes are selected before downloading."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
    "go_to",
    "click",
    "expect_visible",
-   "toggle",
-   "toggle",
+   "click",
+   "click",
    "click",
    "expect_download"
   ],
   "state": "awarded",
   "screen": "master_qcs",
-  "ms": 69613
+  "ms": 13513
  },
  "plan": {
-  "title": "Awarded Event Report Column Selection",
+  "title": "Awarded Event Detailed Report Selection",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared awarded event on the buyer's Master QCS screen."
+    "note": "Open the already-awarded event prepared for this case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the case."
    },
    {
     "step": "go_to",
@@ -46,14 +58,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage named by the case."
+    "note": "Navigate to the event's RFQ stage."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ Responses tab where the report control is available."
+    "note": "Open the RFQ Responses view where the report control is available."
    },
    {
     "step": "click",
@@ -66,26 +78,27 @@
    {
     "step": "expect_visible",
     "args": {
-     "text": "Download Reports",
+     "role": "dialog",
+     "name": "Download Reports",
      "visible": true
     },
-    "note": "Confirm the report dialog opened."
+    "note": "Assert that the Download Reports window opened."
    },
    {
-    "step": "toggle",
+    "step": "click",
     "args": {
-     "label": "Event Ref ID",
-     "on": true
+     "role": "checkbox",
+     "name": "Event Ref ID"
     },
-    "note": "Select the Event Ref ID column."
+    "note": "Select the Event Ref ID report column."
    },
    {
-    "step": "toggle",
+    "step": "click",
     "args": {
-     "label": "Event Title",
-     "on": true
+     "role": "checkbox",
+     "name": "Event Title"
     },
-    "note": "Select the Event Title column."
+    "note": "Select the Event Title report column."
    },
    {
     "step": "click",
@@ -93,7 +106,7 @@
      "role": "button",
      "name": "Download Excel"
     },
-    "note": "Download the report with the selected columns."
+    "note": "Download the report with the selected fields."
    },
    {
     "step": "expect_download",
@@ -103,7 +116,7 @@
       "Event Title"
      ]
     },
-    "note": "Confirm that an Excel report was downloaded containing both requested column headers."
+    "note": "Assert that an Excel report was downloaded and includes both requested column names."
    }
   ]
  }

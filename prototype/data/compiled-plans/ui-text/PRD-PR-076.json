@@ -3,39 +3,52 @@
   "caseId": "PRD-PR-076",
   "title": "PR Collator: not available on the Growth plan",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:38:39.711Z",
+  "compiledAt": "2026-11-13T15:21:47.247Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Switch tenant plan between Growth and Enterprise",
-   "unconfirmed label \"Purchase Items\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+   "Verify that PR Collator is absent or refused on a Growth-plan tenant and available for collating multiple PRs into one supplier window on an Enterprise-plan tenant.",
+   "Switch between the unnamed Growth and Enterprise tenants; switch_company requires a tenant ID named by the case."
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Purchase Items\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Switch tenant plan between Growth and Enterprise"
+   "can only test part of this — no step for: Verify that PR Collator is absent or refused on a Growth-plan tenant and available for collating multiple PRs into one supplier window on an Enterprise-plan tenant.; Switch between the unnamed Growth and Enterprise tenants; switch_company requires a tenant ID named by the case."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_purchase_requisitions",
-   "expect_text"
+   "pr_tab",
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 264723
+  "ms": 19231
  },
  "plan": {
-  "title": "PR-076 PR Collator not available on Growth plan",
+  "title": "PR Collator plan availability",
   "steps": [
    {
     "step": "open_purchase_requisitions",
-    "note": "Open purchase requisitions to check for the PR Collator feature."
+    "args": {},
+    "note": "Reaches the closest available PR workflow screen, but does not expose PR Collator or plan gating."
    },
    {
-    "step": "expect_text",
+    "step": "pr_tab",
     "args": {
-     "present": false,
-     "text": "Purchase Items"
+     "tab": "Open"
     },
-    "note": "Assert that PR collation / purchase items functionality is not available on Growth plan."
+    "note": "Shows the Open PR workflow where sourcing from requisitions begins, but cannot assert multi-PR collation availability."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in to the Growth-plan and Enterprise-plan tenants, attempt to collate multiple PRs into one supplier window with the same buyer, and report whether the capability is absent or refused on Growth and works on Enterprise"
+    },
+    "note": "The plan comparison and PR Collator action are not expressible by catalog steps."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Final assertion that the observed screen has no crash or server error after the tester's comparison."
    }
   ]
  }

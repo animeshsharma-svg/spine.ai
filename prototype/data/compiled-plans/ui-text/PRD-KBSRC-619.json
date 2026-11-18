@@ -3,84 +3,65 @@
   "caseId": "PRD-KBSRC-619",
   "title": "Bulk counter offer sent without the optional note",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:25:46.572Z",
+  "compiledAt": "2026-11-13T14:47:57.405Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that a \"Counter Offer Requested\" tag appears above every vendor's name individually",
-   "unconfirmed label \"Counter Offer Remarks\" (expect_value) — not among the labels known from the app nor in the case"
+   "Verify that the backend request omits the optional note.",
+   "Assert individually that the Counter Offer Requested tag appears above every vendor's name when the exact vendor count is not specified."
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"Counter Offer Remarks\" (expect_value) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Assert that a \"Counter Offer Requested\" tag appears above every vendor's name individually"
+   "can only test part of this — no step for: Verify that the backend request omits the optional note.; Assert individually that the Counter Offer Requested tag appears above every vendor's name when the exact vendor count is not specified."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "event_menu",
-   "fill",
-   "expect_value",
-   "click",
-   "expect_toast",
-   "expect_text"
+   "do_on_screen",
+   "expect_message",
+   "expect_count"
   ],
-  "ms": 12775
+  "ms": 24387
  },
  "plan": {
-  "title": "Bulk Counter Offer Without Note",
+  "title": "Bulk counter offer without note",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ response grid containing several vendor bids."
+    "note": "Open the prepared RFQ responses screen containing several vendor bids."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Send Bulk Counter Offer"
     },
-    "note": "Open the bulk counter-offer drawer from Settings."
+    "note": "Open the bulk counter-offer drawer from the event settings menu."
    },
    {
-    "step": "fill",
+    "step": "do_on_screen",
     "args": {
-     "label": "Price",
-     "value": "90"
+     "goal": "In the bulk counter-offer drawer, select Price, enter a new counter-offer value, leave the optional note empty, and click Send Counter Offer; stop when the drawer reports the send succeeded."
     },
-    "note": "Enter the revised counter-offer price."
+    "note": "Perform the form interaction without inventing an unspecified price or note field value."
    },
    {
-    "step": "expect_value",
-    "args": {
-     "label": "Counter Offer Remarks",
-     "value": ""
-    },
-    "note": "Confirm the optional note remains empty before sending."
-   },
-   {
-    "step": "click",
-    "args": {
-     "role": "button",
-     "name": "Send Counter Offer"
-    },
-    "note": "Submit the bulk counter offer without remarks."
-   },
-   {
-    "step": "expect_toast",
+    "step": "expect_message",
     "args": {
      "kind": "success"
     },
-    "note": "Verify Procol reports a successful send."
+    "note": "Assert the success feedback reported after sending the bulk counter offer."
    },
    {
-    "step": "expect_text",
+    "step": "expect_count",
     "args": {
-     "text": "Counter Offer Requested"
+     "text": "Counter Offer Requested",
+     "min": 2
     },
-    "note": "Verify the counter-offer status tag is visible in the vendor response grid."
+    "note": "Assert that the counter-offer requested tag appears for multiple vendor bids."
    }
   ]
  }

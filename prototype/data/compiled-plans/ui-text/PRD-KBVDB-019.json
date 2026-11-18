@@ -3,18 +3,18 @@
   "caseId": "PRD-KBVDB-019",
   "title": "Quote can be changed and re-submitted while submission time is running",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:54:12.300Z",
+  "compiledAt": "2026-11-13T15:45:04.870Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
    "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
    "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
-   "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids"
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids"
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 17,
   "stepNames": [
    "open_create",
    "set_title",
@@ -26,23 +26,25 @@
    "invite_vendor",
    "publish",
    "expect_published",
-   "expect_bid_submitted",
    "switch_portal",
    "vendor_open_event",
-   "expect_text",
-   "expect_value"
+   "expect_bid_submitted",
+   "expect_bid_submitted",
+   "switch_portal",
+   "open_master_qcs",
+   "expect_qcs_cell"
   ],
-  "ms": 10278
+  "ms": 12731
  },
  "plan": {
-  "title": "Vendor revises and resubmits quote",
+  "title": "Vendor quote revision during live submission",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create the RFQ event used for the resubmission scenario."
+    "note": "Open the event creation flow."
    },
    {
     "step": "set_title",
@@ -58,38 +60,38 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ with a pricing quote sheet."
+    "note": "Create the pricing event needed for quote submission."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply an RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item so the quote sheet has a value to revise."
+    "note": "Add one product to quote."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the initial pricing sheet."
+    "note": "Complete the pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a submission window that remains active for the revision."
+    "note": "Keep the submission window running for the revision."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor that will submit and revise the quote."
+    "note": "Invite one QA vendor to submit and revise its quote."
    },
    {
     "step": "publish",
@@ -99,41 +101,52 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a published project page."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify the initial vendor response was accepted."
+    "note": "Confirm the event is live and published."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Continue in the invited vendor's supplier-portal session."
+    "note": "Move to the invited vendor's supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Reopen the active quote sheet for the submitted event."
+    "note": "Open the live RFQ quote sheet."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Submitted"
-    },
-    "note": "Verify the vendor portal shows the renewed submitted confirmation."
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the initial response was accepted."
    },
    {
-    "step": "expect_value",
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the revised response was accepted and submitted again."
+   },
+   {
+    "step": "switch_portal",
     "args": {
-     "label": "Price",
-     "value": "110"
+     "to": "buyer"
     },
-    "note": "Verify the changed price is held in the submitted response."
+    "note": "Return to the buyer console to inspect the submitted response."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's comparison grid for the live event."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": 1,
+     "equals": "110"
+    },
+    "note": "Verify the changed quote value is held in the submitted response."
    }
   ]
  }

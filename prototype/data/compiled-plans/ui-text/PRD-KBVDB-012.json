@@ -3,21 +3,19 @@
   "caseId": "PRD-KBVDB-012",
   "title": "Regretted item is crossed out in the Technical Stage and in later RFQ and RA stages",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:53:50.487Z",
+  "compiledAt": "2026-11-13T15:44:29.859Z",
   "tier": "fast",
   "coverage": "partial",
-  "gaps": [
-   "Use the vendor's Technical Stage Quick Fill menu to choose Regret Item for a line item.",
-   "Create an event containing Technical Stage, RFQ, and RA stages together; the catalog permits at most two stages and RFQ and Auction/RA cannot coexist.",
-   "Assert that a line item is visually crossed out or struck through in a stage."
-  ],
+  "gaps": [],
   "warnings": [
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "can only test part of this — no step for: Use the vendor's Technical Stage Quick Fill menu to choose Regret Item for a line item.; Create an event containing Technical Stage, RFQ, and RA stages together; the catalog permits at most two stages and RFQ and Auction/RA cannot coexist.; Assert that a line item is visually crossed out or struck through in a stage."
+   "resolved: “Regret a line item via Quick Fill → Regret Item in the vendor portal and verify that the same item is struck through in ” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "the model judged coverage none, but every gap it named is done by a step in this plan — read as partial",
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 22,
+  "steps": 19,
   "stepNames": [
    "open_create",
    "set_title",
@@ -37,27 +35,26 @@
    "switch_portal",
    "vendor_open_event",
    "ask_tester",
-   "vendor_open_event",
-   "expect_text",
-   "vendor_open_event",
    "expect_text"
   ],
-  "ms": 16169
+  "ms": 25043
  },
  "plan": {
-  "title": "Regretted Item Across Future Stages",
+  "title": "Regretted Item Crossed Out Across Future Stages",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start the closest supported multi-stage event flow."
+    "note": "Create the multi-stage event needed for the test setup."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title for publishing."
+    "args": {
+     "title": "Regretted Item Cross-Stage Test"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -67,7 +64,7 @@
       "rfq"
      ]
     },
-    "note": "Create the supported subset of the required Technical and RFQ stages; RA cannot be added with RFQ."
+    "note": "Compose the available Technical Stage and RFQ stages; RA cannot be added alongside RFQ on this create flow."
    },
    {
     "step": "switch_stage",
@@ -85,7 +82,7 @@
     "args": {
      "count": 1
     },
-    "note": "Add the line item that the vendor would regret."
+    "note": "Add the line item whose regret would be followed across stages."
    },
    {
     "step": "fill_questionnaires"
@@ -112,73 +109,53 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit a bidding schedule."
+    "note": "Commit a usable event schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the vendor who will perform the regret action."
+    "note": "Invite the QA vendor who must regret the line item."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so the vendor can access both stages."
+    "note": "Publish the prepared multi-stage event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that the event is available to the vendor."
+    "note": "Confirm the event reached a real project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Open the supplier-side session required for the regret action."
+    "note": "Open the invited vendor's supplier-portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the Technical Stage where the line item should be regretted."
+    "note": "Open the event's Technical Stage where the regret action is expected."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "as the vendor, use Technical Stage Quick Fill to choose Regret Item for the line item"
+     "need": "regret the line item through Quick Fill → Regret Item, then verify that it is struck through in the Technical Stage, the later RFQ stage, and the later RA stage"
     },
-    "note": "No catalog step can perform the vendor's Quick Fill regret action."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "stage": "technical"
-    },
-    "note": "Return to the Technical Stage after the regret action for inspection."
+    "note": "The catalog lacks the regret action, RA-stage progression, and an assertion for the item's struck-through visual state."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Technical Stage"
+     "text": "Technical Stage",
+     "present": true
     },
-    "note": "Confirm the vendor remains on the Technical Stage; the catalog cannot assert the crossed-out styling."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "stage": "pricing"
-    },
-    "note": "Open the later RFQ stage to inspect the same line item."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "RFQ"
-    },
-    "note": "Confirm the vendor reached the RFQ stage; the catalog cannot assert the crossed-out styling or inspect an unavailable RA stage."
+    "note": "Confirm the vendor session remains on a known technical-stage screen after the missing verification task."
    }
   ]
  }

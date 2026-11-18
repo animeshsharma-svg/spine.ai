@@ -4,21 +4,19 @@
   "title": "A saved eRFX draft: \"Configuration for Event\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:43:59.840Z",
+  "compiledAt": "2026-11-13T14:04:36.759Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Compare the draft's event times before and after cancellation",
-   "Compare the draft's vendors before and after cancellation",
-   "Compare the draft's bids before and after cancellation"
+   "Prove that the draft's times, vendors, and bids are all unchanged before and after cancelling the Configuration for Event window"
   ],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Compare the draft's event times before and after cancellation; Compare the draft's vendors before and after cancellation; Compare the draft's bids before and after cancellation"
+   "can only test part of this — no step for: Prove that the draft's times, vendors, and bids are all unchanged before and after cancelling the Configuration for Event window"
   ],
   "source": "llm",
-  "steps": 26,
+  "steps": 23,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -26,38 +24,35 @@
    "require_setting",
    "set_title",
    "compose_stages",
+   "switch_stage",
    "select_template",
    "add_line_items",
    "fill_sheet",
    "set_schedule",
-   "invite_vendor",
    "save_draft",
    "open_events_list",
    "filter_events",
    "expect_event_in_list",
-   "expect_event_status",
-   "open_event",
+   "open_first_event",
    "click",
    "expect_visible",
    "click",
    "expect_visible",
-   "expect_value",
    "open_events_list",
    "filter_events",
-   "expect_event_in_list",
    "expect_event_status"
   ],
-  "ms": 26976
+  "ms": 20153
  },
  "plan": {
-  "title": "Saved eRFX Draft Configuration Cancel",
+  "title": "Cancel Configuration on Saved eRFX Draft",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start an eRFX project draft."
+    "note": "Create the saved eRFX draft used by this test."
    },
    {
     "step": "require_setting",
@@ -73,7 +68,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Apply the required vendor-lock configuration."
+    "note": "Apply the required vendor-addition setting for event creation."
    },
    {
     "step": "require_setting",
@@ -86,9 +81,9 @@
    {
     "step": "set_title",
     "args": {
-     "title": "EXP-DRAFT-021 Cancel Configuration"
+     "title": "EXP-DRAFT-021 Configuration Cancel"
     },
-    "note": "Give the draft a stable title for reopening and verification."
+    "note": "Give the draft a stable title so it can be identified in the Drafts tab."
    },
    {
     "step": "compose_stages",
@@ -97,46 +92,48 @@
       "rfq"
      ]
     },
-    "note": "Configure the draft with an RFQ stage."
+    "note": "Configure the draft as an eRFX project with an RFQ stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Work on the RFQ stage before saving the draft."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Complete the required RFQ template configuration."
+    "note": "Apply a pricing template so the draft has a valid RFQ configuration."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add the required draft line item."
+    "note": "Add a line item to establish the draft's pricing content."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet so the draft can be saved."
+    "note": "Fill the RFQ pricing sheet before saving."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Set and commit a schedule for the saved draft."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {},
-    "note": "Complete the draft's participant setup."
+    "note": "Commit a schedule so the saved draft has event timing to preserve."
    },
    {
     "step": "save_draft",
     "args": {},
-    "note": "Create the saved, unpublished eRFX draft required by the case."
+    "note": "Save the eRFX event as a draft."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Navigate to the Events list to reopen the saved draft through the product flow."
+    "note": "Navigate to the events list to access the saved draft."
    },
    {
     "step": "filter_events",
@@ -148,24 +145,17 @@
    {
     "step": "expect_event_in_list",
     "args": {
-     "title": "EXP-DRAFT-021 Cancel Configuration"
+     "title": "EXP-DRAFT-021 Configuration Cancel"
     },
-    "note": "Confirm the newly saved draft is present before opening it."
+    "note": "Confirm the created draft is present before opening it."
    },
    {
-    "step": "expect_event_status",
+    "step": "open_first_event",
     "args": {
-     "title": "EXP-DRAFT-021 Cancel Configuration",
-     "status": "Draft"
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-021 Configuration Cancel"
     },
-    "note": "Record the draft's pre-action status."
-   },
-   {
-    "step": "open_event",
-    "args": {
-     "title": "EXP-DRAFT-021 Cancel Configuration"
-    },
-    "note": "Open the saved eRFX draft."
+    "note": "Open the saved draft under test."
    },
    {
     "step": "click",
@@ -173,16 +163,16 @@
      "role": "tab",
      "name": "RFQ"
     },
-    "note": "Select RFQ as specified, which should open the Configuration for Event window."
+    "note": "Select RFQ, which should open the Configuration for Event window."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "heading",
+     "role": "dialog",
      "name": "Configuration for Event",
      "visible": true
     },
-    "note": "Verify that the configuration window opened."
+    "note": "Verify that the Configuration for Event window opened."
    },
    {
     "step": "click",
@@ -190,51 +180,36 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the configuration without applying changes."
+    "note": "Cancel the configuration interaction without saving changes."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "heading",
+     "role": "dialog",
      "name": "Configuration for Event",
      "visible": false
     },
-    "note": "Assert that Cancel closes the Configuration for Event window."
-   },
-   {
-    "step": "expect_value",
-    "args": {
-     "label": "Enter the title of the project",
-     "value": "EXP-DRAFT-021 Cancel Configuration"
-    },
-    "note": "Verify the draft title remains unchanged after cancellation."
+    "note": "Verify that Cancel closes the Configuration for Event window."
    },
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Return to the list to verify the saved draft remains intact."
+    "note": "Return to the events list to verify the draft remains a draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Inspect the Drafts tab after cancellation."
-   },
-   {
-    "step": "expect_event_in_list",
-    "args": {
-     "title": "EXP-DRAFT-021 Cancel Configuration"
-    },
-    "note": "Verify the same draft is still present."
+    "note": "Reopen the Drafts tab after cancelling."
    },
    {
     "step": "expect_event_status",
     "args": {
-     "title": "EXP-DRAFT-021 Cancel Configuration",
+     "title": "EXP-DRAFT-021 Configuration Cancel",
      "status": "Draft"
     },
-    "note": "Assert that cancellation did not publish or otherwise change the draft status."
+    "note": "Confirm cancellation did not publish or otherwise change the draft status."
    }
   ]
  }

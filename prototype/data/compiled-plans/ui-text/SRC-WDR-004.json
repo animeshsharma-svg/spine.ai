@@ -4,35 +4,38 @@
   "title": "Withdraw an event that is live with no bids with a reason",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:22:23.972Z",
+  "compiledAt": "2026-11-13T13:15:53.998Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that the specific unnamed RFQ moves to the History tab after withdrawal",
-   "Assert that the countdown stops and vendors can no longer bid",
-   "Assert that a purchase-request line returns to Open"
+   "Confirming that this exact event appears in the History tab after withdrawal because the case provides no event title or ID to correlate it in the list.",
+   "Verifying that the countdown stops.",
+   "Verifying that a PR line returns to Open, because the event's PR origin is not specified and no prepared PR state is provided."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Assert that the specific unnamed RFQ moves to the History tab after withdrawal; Assert that the countdown stops and vendors can no longer bid; Assert that a purchase-request line returns to Open"
+   "can only test part of this — no step for: Confirming that this exact event appears in the History tab after withdrawal because the case provides no event title or ID to correlate it in the list.; Verifying that the countdown stops.; Verifying that a PR line returns to Open, because the event's PR origin is not specified and no prepared PR state is provided."
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "expect_responses",
+   "require_setting",
+   "require_setting",
    "withdraw_event",
    "expect_toast",
    "expect_withdrawn",
    "event_menu",
-   "expect_text"
+   "expect_text",
+   "expect_text",
+   "open_participants",
+   "expect_count"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 15192
+  "ms": 15868
  },
  "plan": {
   "title": "Withdraw live RFQ with reason",
@@ -45,18 +48,20 @@
     "note": "the API built this case's state"
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
     },
-    "note": "Navigate to the event's Responses view so the precondition of no bids can be checked."
+    "note": "Ensure the Withdraw Project action is available for the event."
    },
    {
-    "step": "expect_responses",
+    "step": "require_setting",
     "args": {
-     "count": 0
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Verify that the live event has no vendor responses before withdrawal."
+    "note": "Ensure eRFX event flows are enabled for the tenant."
    },
    {
     "step": "withdraw_event",
@@ -64,7 +69,7 @@
      "scope": "project",
      "reason": "QA test withdraw"
     },
-    "note": "Withdraw the whole project through the project menu with the required reason."
+    "note": "Withdraw the whole event and submit the required reason."
    },
    {
     "step": "expect_toast",
@@ -72,26 +77,47 @@
      "kind": "success",
      "text": "Order withdrawn"
     },
-    "note": "Verify the expected withdrawal confirmation appears."
+    "note": "Verify Procol confirms the withdrawal."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Verify Procol records the event as withdrawn."
+    "note": "Verify the event's recorded state is Withdrawn."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Order Activity"
     },
-    "note": "Open the event activity drawer to inspect the audit record."
+    "note": "Open the project's activity drawer to inspect the withdrawal audit record."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Activity"
+    },
+    "note": "Verify the activity drawer opened."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "QA test withdraw"
     },
-    "note": "Verify the withdrawal reason is recorded in Order Activity."
+    "note": "Verify the withdrawal reason was recorded in Order Activity."
+   },
+   {
+    "step": "open_participants",
+    "args": {},
+    "note": "Open the published event's participant view after withdrawal."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "role": "button",
+     "name": "Add Bid",
+     "count": 0
+    },
+    "note": "Verify vendors no longer have an Add Bid control after the event is withdrawn."
    }
   ]
  }

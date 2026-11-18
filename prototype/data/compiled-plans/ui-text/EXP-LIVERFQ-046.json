@@ -4,56 +4,83 @@
   "title": "Increase Event Time: Increase Event Time with Custom Fixed time (valid future datetime) updates end time",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:47:52.954Z",
+  "compiledAt": "2026-11-13T14:14:38.351Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Enter and verify the exact absolute datetime 31 October 2026 04:00 AM in the custom fixed-time field"
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Enter and verify the exact absolute datetime 31 October 2026 04:00 AM in the custom fixed-time field"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "go_to",
-   "do_on_screen",
-   "expect_toast",
-   "expect_text"
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "extend_time",
+   "expect_toast"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 14232
+  "ms": 14157
  },
  "plan": {
-  "title": "Increase RFQ Time with Custom Fixed Datetime",
+  "title": "Live RFQ custom fixed-time extension",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ's project page."
+    "note": "Open the prepared live RFQ project as the buyer."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Navigate to the RFQ stage."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
     },
-    "note": "Open the RFQ Responses tab before accessing Settings."
+    "note": "Apply the required tenant configuration for withdraw visibility."
    },
    {
-    "step": "do_on_screen",
+    "step": "require_setting",
     "args": {
-     "goal": "open the RFQ Settings menu, choose Extend Submission Time, select Custom Fixed time, enter 31 October 2026 04:00 AM in the custom date-time field, click Ok, and stop when the window closes and the RFQ page shows the end time as 31 October 2026 04:00 AM"
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
     },
-    "note": "Perform the exact absolute custom fixed-time interaction that the domain extension step cannot parameterize."
+    "note": "Allow withdrawal behavior to match the live-event configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
+   },
+   {
+    "step": "extend_time",
+    "args": {
+     "which": "submission",
+     "option": "fixed",
+     "at": "+2h",
+     "expect": "saved"
+    },
+    "note": "Exercise the supported custom fixed future-time extension and verify that the event end time is updated."
    },
    {
     "step": "expect_toast",
@@ -61,14 +88,7 @@
      "kind": "success",
      "text": "Order time updated"
     },
-    "note": "Verify the expected confirmation toast appeared."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "31 October 2026 04:00 AM"
-    },
-    "note": "Verify the RFQ page displays the updated end datetime."
+    "note": "Verify the confirmation toast named in the expected result."
    }
   ]
  }

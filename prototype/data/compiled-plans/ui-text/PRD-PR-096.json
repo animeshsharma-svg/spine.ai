@@ -3,37 +3,49 @@
   "caseId": "PRD-PR-096",
   "title": "PR Approval: step 3 \"Finance Approval\" follows the tenant's configuration",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:48:41.813Z",
+  "compiledAt": "2026-11-13T15:23:17.667Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "change tenant configuration settings for DoA matrix thresholds",
-   "simulate employee PR submission and trigger approval workflow",
-   "verify conditional routing and timing for step 3 Finance Approval"
+   "Submit a purchase requisition as an employee and follow the approval workflow to Finance Approval while comparing routing and timing before and after the DoA configuration change."
   ],
   "warnings": [
-   "added expect_events_list — opening the list without asserting it rendered tests nothing",
-   "added expect_events_list — opening the list without asserting it rendered tests nothing",
-   "cannot test this case yet — no step can observe: change tenant configuration settings for DoA matrix thresholds; simulate employee PR submission and trigger approval workflow; verify conditional routing and timing for step 3 Finance Approval"
+   "can only test part of this — no step for: Submit a purchase requisition as an employee and follow the approval workflow to Finance Approval while comparing routing and timing before and after the DoA configuration change."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
-   "open_events_list",
-   "expect_events_list"
+   "require_setting",
+   "ask_tester",
+   "expect_text"
   ],
-  "ms": 272920
+  "ms": 10562
  },
  "plan": {
-  "title": "PRD-PR-096 — PR Approval: step 3 Finance Approval follows tenant configuration",
+  "title": "PR Approval Finance Routing Configuration",
   "steps": [
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open the events list as a starting fallback point"
+    "step": "require_setting",
+    "args": {
+     "phrase": "DoA matrix thresholds",
+     "value": "the new configured values"
+    },
+    "note": "Apply the tenant's configurable DoA threshold values before exercising the approval workflow."
    },
    {
-    "step": "expect_events_list"
+    "step": "ask_tester",
+    "args": {
+     "need": "submit a purchase requisition as an employee and follow the approval workflow to Finance Approval, comparing its routing and timing with the prior configuration"
+    },
+    "note": "The catalog has no step to submit a PR or observe Finance Approval workflow routing and timing."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Finance Approval",
+     "present": true
+    },
+    "note": "Assert that the workflow screen reached by the tester identifies the Finance Approval step."
    }
   ]
  }

@@ -1,33 +1,34 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-014",
-  "title": "RFX-11221 error \"You cannot edit the RFQ once the Auction is created\" reproduced when Convert to Auction flag toggled",
+  "title": "Double‑clicking \"Open Commercials\" does not cause duplicate unlock requests",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-09T23:10:30.329Z",
+  "compiledAt": "2026-11-13T13:40:45.442Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Clicking Open Commercials twice quickly and observing whether the action is deduplicated",
-   "Entering and submitting the valid OTP and password once",
-   "Confirming that commercials open exactly once without an error",
-   "Inspecting server logs to verify exactly one unlock request"
+   "Verify from server logs that exactly one unlock request was sent."
   ],
   "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "cannot test this case yet — no step can observe: Clicking Open Commercials twice quickly and observing whether the action is deduplicated; Entering and submitting the valid OTP and password once; Confirming that commercials open exactly once without an error; Inspecting server logs to verify exactly one unlock request"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify from server logs that exactly one unlock request was sent."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
+   "do_on_screen",
+   "expect_no_error",
+   "ask_tester",
    "expect_screen_clean"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 15152
+  "ms": 13717
  },
  "plan": {
   "title": "RFQ Commercial Unlock Double-Click",
@@ -37,12 +38,46 @@
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ summary as required for prepared-state tests."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_bid_masking_for_event",
+     "value": "On"
+    },
+    "note": "Enable the sealed-commercials configuration required by the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Navigate to the buyer’s Responses view where commercial unlocking is performed."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "On the buyer's RFQ Responses screen, click Open Commercials twice quickly, enter the valid OTP and password once, confirm the unlock, and stop when the commercial bids are open without an error message."
+    },
+    "note": "Perform the rapid duplicate-click timing flow and verify the resulting UI state."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Assert that the unlock flow left no application error visible."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "inspect the server logs and confirm that exactly one commercial unlock request was sent"
+    },
+    "note": "Server-log request counts are not observable through the catalog."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert that the opened event renders without a crash or server error, without claiming that commercial unlocking was tested."
+    "note": "Ensure the buyer view remains rendered without a crash or server error after the unlock flow."
    }
   ]
  }

@@ -4,39 +4,41 @@
   "title": "Download Report with a rejected bid",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:09:22.996Z",
+  "compiledAt": "2026-11-13T12:34:36.597Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Create or verify the RFQ state with Vendor A rejected and a rejection remark.",
-   "Inspect the downloaded workbook to confirm the rejected bid and remark are present and that the bid is not ranked."
+   "Verify the rejected bid's exact rejection remark in the downloaded report because the remark text is not provided and expect_download cannot assert a row's field relationship.",
+   "Verify specifically that Vendor A has no rank while other report rows may contain rank values because expect_download lacks row/column assertions for this relationship."
   ],
   "warnings": [
-   "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "cannot test this case yet — no step can observe: Create or verify the RFQ state with Vendor A rejected and a rejection remark.; Inspect the downloaded workbook to confirm the rejected bid and remark are present and that the bid is not ranked."
+   "added open_prepared(master_qcs) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Verify the rejected bid's exact rejection remark in the downloaded report because the remark text is not provided and expect_download cannot assert a row's field relationship.; Verify specifically that Vendor A has no rank while other report rows may contain rank values because expect_download lacks row/column assertions for this relationship."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
    "require_setting",
+   "open_master_qcs",
    "click",
    "expect_download"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 15238
+  "ms": 12114
  },
  "plan": {
-  "title": "Rejected bid report export",
+  "title": "Download Master QCS Report with Rejected Bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared event's Master QCS, the source screen for the report."
+    "note": "the API built this case's state"
    },
    {
     "step": "require_setting",
@@ -44,7 +46,12 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project configuration before accessing the prepared event."
+    "note": "Enable eRFX projects as required by the case configuration."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the buyer's Master QCS comparison screen before downloading its report."
    },
    {
     "step": "click",
@@ -52,12 +59,17 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Trigger the Master QCS report export."
+    "note": "Start downloading the Master QCS report."
    },
    {
     "step": "expect_download",
-    "args": {},
-    "note": "Assert that the report file was downloaded, although its rejected-bid workbook contents cannot be checked by the catalog."
+    "args": {
+     "contains": [
+      "Rejected",
+      "Vendor A"
+     ]
+    },
+    "note": "Verify the downloaded report contains the rejected status and identifies Vendor A."
    }
   ]
  }

@@ -4,11 +4,10 @@
   "title": "eRFX RFQ stage only, Mark all mandatory: the vendor accepts both clauses",
   "group": "SRC-TNC",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:20:42.874Z",
+  "compiledAt": "2026-11-13T13:07:30.795Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog has no dedicated assertion that the vendor's two checkbox acceptances were persisted as accepted independently of the successful bid submission.",
    "unconfirmed label \"Payment within 45 days\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
    "unconfirmed label \"Delivery within 7 days\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
@@ -19,7 +18,7 @@
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
    "coverage partial: unconfirmed label \"Payment within 45 days\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
    "coverage partial: unconfirmed label \"Delivery within 7 days\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: The catalog has no dedicated assertion that the vendor's two checkbox acceptances were persisted as accepted independently of the successful bid submission."
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
   "steps": 30,
@@ -55,17 +54,17 @@
    "switch_portal",
    "expect_text"
   ],
-  "ms": 34371
+  "ms": 30401
  },
  "plan": {
-  "title": "Mandatory RFQ Terms Acceptance",
+  "title": "RFQ mandatory terms acceptance",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Start the eRFX creation flow."
+    "note": "Open the eRFX create screen."
    },
    {
     "step": "require_setting",
@@ -73,7 +72,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX project creation for the case."
+    "note": "Enable eRFX project creation for this case."
    },
    {
     "step": "require_setting",
@@ -81,14 +80,14 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation."
+    "note": "Allow vendors to be added during event creation and publishing."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Mandatory RFQ Terms Acceptance"
+     "title": "SRC-TNC-042 Mandatory RFQ Terms"
     },
-    "note": "Provide the required project title."
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -98,7 +97,7 @@
       "rfq"
      ]
     },
-    "note": "Create the Technical + RFQ stage pair."
+    "note": "Create the required Technical plus RFQ event."
    },
    {
     "step": "switch_stage",
@@ -143,7 +142,7 @@
     "args": {
      "minutes": 30
     },
-    "note": "Commit the 30-minute event schedule."
+    "note": "Commit the required 30-minute event schedule."
    },
    {
     "step": "invite_vendor",
@@ -155,26 +154,26 @@
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured event."
+    "note": "Publish the configured two-stage event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a published project page."
+    "note": "Confirm the event reached a published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Move to the invited vendor portal session."
+    "note": "Open the invited QA vendor's separate supplier portal session."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the Technical Stage from the vendor portal."
+    "note": "Open the technical stage first to verify RFQ-only terms are not shown there."
    },
    {
     "step": "expect_text",
@@ -182,7 +181,7 @@
      "text": "Payment within 45 days",
      "present": false
     },
-    "note": "Verify the RFQ-only clause is not shown on the Technical Stage."
+    "note": "Confirm the payment clause does not appear on the technical stage."
    },
    {
     "step": "expect_text",
@@ -190,30 +189,28 @@
      "text": "Delivery within 7 days",
      "present": false
     },
-    "note": "Verify the second RFQ-only clause is not shown on the Technical Stage."
+    "note": "Confirm the delivery clause does not appear on the technical stage."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the RFQ pricing round where the terms must be accepted."
+    "note": "Open the RFQ pricing stage where the mandatory terms should be presented."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Payment within 45 days",
-     "present": true
+     "text": "Payment within 45 days"
     },
-    "note": "Verify the first clause is visible to the vendor on the RFQ."
+    "note": "Confirm the vendor can read the payment clause on the RFQ stage."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Delivery within 7 days",
-     "present": true
+     "text": "Delivery within 7 days"
     },
-    "note": "Verify the second clause is visible to the vendor on the RFQ."
+    "note": "Confirm the vendor can read the delivery clause on the RFQ stage."
    },
    {
     "step": "click",
@@ -221,7 +218,7 @@
      "role": "checkbox",
      "name": "Payment within 45 days"
     },
-    "note": "Accept the first mandatory clause."
+    "note": "Accept the mandatory payment clause."
    },
    {
     "step": "click",
@@ -229,19 +226,19 @@
      "role": "checkbox",
      "name": "Delivery within 7 days"
     },
-    "note": "Accept the second mandatory clause."
+    "note": "Accept the mandatory delivery clause."
    },
    {
     "step": "vendor_bid",
     "args": {
      "price": 100
     },
-    "note": "Submit the vendor's quote after accepting both clauses."
+    "note": "Submit the vendor's quote after accepting both mandatory clauses."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the vendor portal reports the bid as submitted."
+    "note": "Assert that the vendor bid was submitted successfully."
    },
    {
     "step": "switch_portal",
@@ -253,10 +250,9 @@
    {
     "step": "expect_text",
     "args": {
-     "text": "Vendors who have placed the bid, have accepted the Terms and Conditions.",
-     "present": true
+     "text": "Vendors who have placed the bid, have accepted the Terms and Conditions."
     },
-    "note": "Verify the buyer sees the accepted-terms bid status."
+    "note": "Confirm the buyer sees the acceptance status for the submitted bid."
    }
   ]
  }

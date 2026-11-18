@@ -4,35 +4,73 @@
   "title": "Recreate Order: Attempt to create order with Evaluation Duration left empty",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:29:43.990Z",
+  "compiledAt": "2026-11-13T13:55:59.206Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 7,
+  "steps": 13,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "event_menu",
+   "expect_visible",
    "select",
+   "fill",
    "pick_date",
    "click",
    "expect_field_error",
    "expect_visible"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 10094
+  "ms": 25772
  },
  "plan": {
-  "title": "Recreate Order Validation Without Evaluation Duration",
+  "title": "Recreate Order Empty Evaluation Duration",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ summary with an existing vendor bid."
+    "note": "Open the prepared closed RFQ summary as required for this state."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects for the tenant."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Ensure post-expiry surrogate bidding is disabled as specified."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the specified evaluation-reopen configuration."
    },
    {
     "step": "event_menu",
@@ -40,7 +78,15 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open the RFQ Settings menu and launch the Recreate Order window."
+    "note": "Open Recreate Order from the RFQ stage Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Recreate Order",
+     "visible": true
+    },
+    "note": "Confirm the Recreate Order window opened."
    },
    {
     "step": "select",
@@ -48,15 +94,23 @@
      "label": "Event End Time Duration",
      "option": "30"
     },
-    "note": "Set the event end-time duration to 30 as required by the scenario."
+    "note": "Select the required 30 duration."
+   },
+   {
+    "step": "fill",
+    "args": {
+     "label": "Evaluation Duration",
+     "value": ""
+    },
+    "note": "Leave Evaluation Duration empty for the negative validation case."
    },
    {
     "step": "pick_date",
     "args": {
      "label": "Delivery Date",
-     "date": "2027-03-10"
+     "date": "10 March 2027"
     },
-    "note": "Set the required future delivery date."
+    "note": "Set the future Delivery Date specified by the case."
    },
    {
     "step": "click",
@@ -64,7 +118,7 @@
      "role": "button",
      "name": "Create Order"
     },
-    "note": "Attempt creation with Evaluation Duration deliberately left empty."
+    "note": "Attempt to create the order with Evaluation Duration missing."
    },
    {
     "step": "expect_field_error",
@@ -72,16 +126,15 @@
      "field": "Evaluation Duration",
      "message": "Please enter evaluation duration"
     },
-    "note": "Assert the validation message identifies the missing evaluation duration."
+    "note": "Assert the required-field validation message."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "dialog",
-     "name": "Recreate Order",
+     "text": "Recreate Order",
      "visible": true
     },
-    "note": "Assert that the Recreate Order window remains open after the refused submission."
+    "note": "Confirm the Recreate Order window remains open after validation fails."
    }
   ]
  }

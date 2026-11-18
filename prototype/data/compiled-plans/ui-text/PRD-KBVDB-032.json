@@ -3,12 +3,11 @@
   "caseId": "PRD-KBVDB-032",
   "title": "Cost Breakdown Time begins automatically when auction submission time ends",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:55:10.971Z",
+  "compiledAt": "2026-11-13T15:45:59.779Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enable Cost Breakdown Mode on the auction",
-   "Prove that Cost Breakdown Time began automatically without vendor navigation or another vendor action"
+   "Configure the auction in Cost Breakdown Mode before bidding."
   ],
   "warnings": [
    "dropped place_bid — the case switches to the vendor's side to look, and never says the vendor bids",
@@ -19,10 +18,10 @@
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
    "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
    "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
-   "can only test part of this — no step for: Enable Cost Breakdown Mode on the auction; Prove that Cost Breakdown Time began automatically without vendor navigation or another vendor action"
+   "can only test part of this — no step for: Configure the auction in Cost Breakdown Mode before bidding."
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 17,
   "stepNames": [
    "open_create",
    "set_title",
@@ -35,29 +34,31 @@
    "publish",
    "expect_published",
    "expect_bid_submitted",
+   "switch_portal",
    "close_event",
    "switch_portal",
    "vendor_open_event",
+   "expect_text",
    "expect_text"
   ],
-  "ms": 13350
+  "ms": 17390
  },
  "plan": {
-  "title": "Auction Cost Breakdown Time Transition",
+  "title": "Auction CBD Time Auto-Start",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Start an auction creation flow."
+    "note": "Open the single-stage creation flow for an auction."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Cost Breakdown Time Auction"
+     "title": "CBD Auto Start Auction"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "configure_single_stage",
@@ -69,38 +70,38 @@
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the auction pricing template."
+    "note": "Apply the first available auction template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Create multiple line items so a submitted total can be inspected as a breakdown."
+    "note": "Create multiple line items so the vendor can be prompted for a breakdown across them."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Populate the auction pricing sheet."
+    "note": "Complete the auction pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 3
     },
-    "note": "Commit the auction submission window."
+    "note": "Commit the auction submission window so it can end naturally."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite the vendor who will submit the bid."
+    "note": "Invite the QA vendor that will submit the total bid."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the auction so the vendor can bid."
+    "note": "Publish the auction."
    },
    {
     "step": "expect_published",
@@ -113,26 +114,33 @@
     "note": "Confirm the vendor's bid was accepted."
    },
    {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console before waiting for the auction to end."
+   },
+   {
     "step": "close_event",
     "args": {
      "natural": true,
      "maxWaitMinutes": 36
     },
-    "note": "Wait for the auction submission window to end naturally."
+    "note": "Wait for the auction submission time to end rather than force-ending it."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Inspect the vendor-side state after submission ends."
+    "note": "Inspect the vendor session after the submission window closes."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the bid round in the vendor portal after the auction closes."
+    "note": "Open the ended auction's pricing round in the vendor portal."
    },
    {
     "step": "expect_text",
@@ -140,7 +148,15 @@
      "text": "Cost Breakdown Time",
      "present": true
     },
-    "note": "Check whether the vendor portal shows the Cost Breakdown Time state."
+    "note": "Verify that the vendor portal shows the Cost Breakdown Time has begun."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Price",
+     "present": true
+    },
+    "note": "Verify that the vendor is presented with line-item pricing fields for the breakdown."
    }
   ]
  }

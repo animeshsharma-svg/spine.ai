@@ -1,39 +1,53 @@
 {
  "meta": {
   "caseId": "DRV-CO-005",
-  "title": "Accepted counter with trailing space in price creates correct revision",
+  "title": "Issuing a counter offer with zero or negative price is refused",
   "group": "DRV-CO",
   "sheet": "derived-buyer-can-send-a-counter-offer-on-an-act",
-  "compiledAt": "2026-11-09T23:02:54.331Z",
+  "compiledAt": "2026-11-13T13:33:13.822Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "open_master_qcs",
+   "expect_qcs_cell",
    "attempt"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 12090
+  "ms": 1614
  },
  "plan": {
-  "title": "Reject counter offer above vendor price",
+  "title": "Reject Counter Offer Above Vendor Price",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ on the buyer's Responses tab with Vendor A's bid."
+    "note": "Open the prepared live RFQ on the buyer’s Responses tab."
    },
    {
     "step": "open_master_qcs",
-    "args": {},
-    "note": "Open the buyer comparison grid, where the vendor bid's Counter Offer control is available."
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Open the buyer’s comparison grid so the vendor’s current bid and counter-offer control are available."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "key": "bidPrice"
+    },
+    "note": "Verify that Vendor A’s current bid is the prepared value of 100."
    },
    {
     "step": "attempt",
@@ -46,7 +60,7 @@
      "expect": "refused",
      "because": "lower than the vendor's current price"
     },
-    "note": "Attempt to submit the higher counter price and require Procol to refuse it with a message indicating the counter must be lower than the vendor's current price."
+    "note": "Attempt to submit the higher counter price and require Procol to refuse it with a message indicating the counter must be lower than the vendor’s current price."
    }
   ]
  }

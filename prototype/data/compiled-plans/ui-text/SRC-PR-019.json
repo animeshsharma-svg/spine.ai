@@ -4,30 +4,25 @@
   "title": "Try to purchase a BOQ-based PR with a material PR",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:06:57.084Z",
+  "compiledAt": "2026-11-13T12:25:26.573Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Select both one BOQ-based PR and one material PR together in the Purchase Requisitions list."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Select both one BOQ-based PR and one material PR together in the Purchase Requisitions list."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 7,
+  "steps": 6,
   "stepNames": [
    "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
-   "select_pr",
+   "do_on_screen",
    "expect_disabled",
-   "hover",
    "expect_message"
   ],
-  "ms": 11199
+  "ms": 16518
  },
  "plan": {
-  "title": "Prevent mixed BOQ and material PR purchase",
+  "title": "Block mixed BOQ and material PR purchase",
   "steps": [
    {
     "step": "require_setting",
@@ -35,48 +30,41 @@
      "key": "boq_in_erfx_allowed",
      "value": "On"
     },
-    "note": "Enable BOQ PR handling as required by the case."
+    "note": "Enable BOQ-based PR sourcing as required by the case."
    },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen."
+    "note": "Open the Purchase Requisitions area."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Use the only PR tab from which items can be purchased."
+    "note": "Show PRs eligible for purchase."
    },
    {
-    "step": "select_pr",
-    "args": {},
-    "note": "Select the available PR as the closest supported setup; selecting both required PR types is not expressible."
+    "step": "do_on_screen",
+    "args": {
+     "goal": "Select one BOQ-based PR together with one material PR, hover Purchase Items to reveal its disabled reason, and try clicking Purchase Items; stop on the PR list showing the control disabled and no purchase flow opened."
+    },
+    "note": "The catalog has no step for selecting two different PRs, so perform the mixed selection and refused click directly on the buyer screen."
    },
    {
     "step": "expect_disabled",
     "args": {
      "control": "Purchase Items"
     },
-    "note": "Assert that Purchase Items is disabled."
-   },
-   {
-    "step": "hover",
-    "args": {
-     "role": "button",
-     "name": "Purchase Items"
-    },
-    "note": "Reveal the disabled control's explanatory tooltip."
+    "note": "Assert that the mixed BOQ/material selection leaves Purchase Items disabled."
    },
    {
     "step": "expect_message",
     "args": {
      "kind": "tooltip",
-     "on": "Purchase Items",
      "text": "BOQ-based PR cannot pe purchased along with Material PR"
     },
-    "note": "Assert the exact application message, including its stated spelling."
+    "note": "Verify the app's exact disabled-control explanation, including its displayed spelling."
    }
   ]
  }

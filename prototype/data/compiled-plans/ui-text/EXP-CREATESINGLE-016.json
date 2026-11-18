@@ -4,10 +4,12 @@
   "title": "Configuration for Event: Verify that vendor addition is locked during event creation",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:43:35.945Z",
+  "compiledAt": "2026-11-13T14:01:34.086Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Whether an Add Vendor control is rendered but disabled rather than not rendered."
+  ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
@@ -15,10 +17,10 @@
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "resolved: “Directly verify the Add Vendor control inside the Configuration for Event window is disabled or absent rather than merel” — require_setting switches that company setting before the case and back after"
+   "can only test part of this — no step for: Whether an Add Vendor control is rendered but disabled rather than not rendered."
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 10,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -28,19 +30,20 @@
    "set_title",
    "select_template",
    "add_line_items",
-   "attempt"
+   "click",
+   "expect_count"
   ],
-  "ms": 19891
+  "ms": 24548
  },
  "plan": {
-  "title": "Single-stage RFQ vendor lock",
+  "title": "Single-stage RFQ vendor addition lock",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen."
+    "note": "Open the Single Stage event creation screen."
    },
    {
     "step": "require_setting",
@@ -48,7 +51,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Enable the tenant setting that should prevent vendor addition during event creation."
+    "note": "Enable the setting that should prevent vendor additions during event creation."
    },
    {
     "step": "require_setting",
@@ -56,12 +59,12 @@
      "key": "can_add_ceil_price",
      "value": "On"
     },
-    "note": "Apply the requested ceiling-price configuration."
+    "note": "Apply the requested read-only price-cap configuration."
    },
    {
     "step": "require_setting",
     "args": {
-     "phrase": "enable_tnc_mandatory_button",
+     "key": "enable_tnc_mandatory_button",
      "value": "Off"
     },
     "note": "Apply the requested terms-and-conditions configuration."
@@ -71,19 +74,17 @@
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ and open its configuration flow."
+    "note": "Set the event type to RFQ and open the configuration flow."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "EXP-CREATESINGLE-016 Vendor Lock"
-    },
-    "note": "Provide the mandatory event title for the create screen."
+    "args": {},
+    "note": "Provide the mandatory event title using the runner's unique default."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select the first available RFQ template, corresponding to the requested Buy Template action."
+    "note": "Choose the first available RFQ template before adding products."
    },
    {
     "step": "add_line_items",
@@ -95,15 +96,21 @@
     "note": "Add the specified product with quantity 10."
    },
    {
-    "step": "attempt",
+    "step": "click",
     "args": {
-     "step": "invite_vendor",
-     "args": {
-      "count": 1
-     },
-     "expect": "refused"
+     "role": "button",
+     "name": "RFQ"
     },
-    "note": "Attempt to add a vendor and require positive evidence that the tenant lock prevents the action."
+    "note": "Reopen the Configuration for Event window after configuring the RFQ."
+   },
+   {
+    "step": "expect_count",
+    "args": {
+     "role": "button",
+     "name": "Add Vendor",
+     "count": 0
+    },
+    "note": "Assert that the Add Vendor control is not present while vendor addition is locked."
    }
   ]
  }

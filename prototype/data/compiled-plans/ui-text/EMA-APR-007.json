@@ -4,35 +4,41 @@
   "title": "Approving after another approver of the same step already rejected",
   "group": "EMA-APR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-12T13:47:03.365Z",
+  "compiledAt": "2026-11-13T14:18:41.874Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Configure step 1 with Asha and Chetan, submit the event into the email approval workflow, have Chetan reject by email, have Asha approve without changing the subject, send the reply, wait for mailbox processing, and verify Asha receives the no-longer-waiting-for-approval bounce-back."
+   "Configure step 1 with Asha and Chetan as two approvers where either rejection closes the step",
+   "Submit the event for approval through the approval workflow",
+   "Have Chetan reject by email with a comment",
+   "Have Asha approve from her mailbox without changing the subject and send the email",
+   "Wait for Procol to process the mailbox and verify Asha receives the no-longer-waiting bounce-back",
+   "Verify the event remains rejected as a consequence of the email approval flow"
   ],
   "warnings": [
    "moved open_create to the front — the steps before it had no create screen to act on",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "can only test part of this — no step for: Configure step 1 with Asha and Chetan, submit the event into the email approval workflow, have Chetan reject by email, have Asha approve without changing the subject, send the reply, wait for mailbox processing, and verify Asha receives the no-longer-waiting-for-approval bounce-back."
+   "can only test part of this — no step for: Configure step 1 with Asha and Chetan as two approvers where either rejection closes the step; Submit the event for approval through the approval workflow; Have Chetan reject by email with a comment; Have Asha approve from her mailbox without changing the subject and send the email; Wait for Procol to process the mailbox and verify Asha receives the no-longer-waiting bounce-back; Verify the event remains rejected as a consequence of the email approval flow"
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_create",
    "require_setting",
    "require_setting",
    "set_title",
+   "compose_stages",
    "select_template",
    "add_line_items",
    "fill_sheet",
    "set_schedule",
    "invite_vendor",
    "publish",
+   "expect_published",
    "ask_tester",
-   "open_events_list",
    "expect_event_status"
   ],
-  "ms": 25678
+  "ms": 16093
  },
  "plan": {
   "title": "EMA-APR-007 Email Approval After Rejection",
@@ -42,7 +48,7 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Create the event that will enter the approval workflow."
+    "note": "Creates the closest available event setup before the unavailable approval and mailbox actions."
    },
    {
     "step": "require_setting",
@@ -50,7 +56,7 @@
      "phrase": "Email approvals switched on for the company, with the company's approval mailbox connected to Procol",
      "value": "On"
     },
-    "note": "Enable the required email approval capability before creating the event."
+    "note": "Sets the required email-approval company configuration."
    },
    {
     "step": "require_setting",
@@ -58,68 +64,77 @@
      "phrase": "Approval workflow for events with email approval turned on",
      "value": "On"
     },
-    "note": "Enable the approval workflow prerequisite for the event."
+    "note": "Attempts to enable the required approval workflow configuration."
    },
    {
     "step": "set_title",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Use the case's event title so the resulting state can be checked in the events list."
+    "note": "Uses the event title specified by the case."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configures a pricing stage for the event."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available pricing template required for the event."
+    "note": "Applies the first available pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item so the event is publishable."
+    "note": "Adds the required event line item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet before scheduling and publishing."
+    "note": "Completes the pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid event schedule."
+    "note": "Commits an event schedule so the event can be published."
    },
    {
     "step": "invite_vendor",
     "args": {},
-    "note": "Add the product's available participant so publication is not blocked by missing participants."
+    "note": "Adds the product-mapped vendor participants required for publication."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Submit the completed event into the configured approval flow as the event creator."
+    "note": "Publishes the closest reachable event state before the unavailable approval workflow."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirms that event creation completed before the missing email-approval actions."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "Configure step 1 with Asha and Chetan, use the connected mailboxes to have Chetan reject this event with a comment, have Asha click Approve without changing the subject and send the email, wait 1-2 minutes for Procol to process it, and verify the no-longer-waiting-for-approval bounce-back."
+     "need": "configure step 1 with Asha and Chetan, submit this event for approval, have Chetan reject by email, have Asha approve without changing the subject, send the email, wait for mailbox processing, and verify the no-longer-waiting bounce-back and rejected event"
     },
-    "note": "The catalog has no mailbox, email reply, rejection, or named approver workflow action."
-   },
-   {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Return to the events list to inspect the resulting event state."
+    "note": "The workflow, separate user mailboxes, email sending, mailbox ingestion, and bounce-back are not available as catalog actions."
    },
    {
     "step": "expect_event_status",
     "args": {
-     "title": "QA Email Approval - Office Chairs Nov",
-     "status": "Rejected"
+     "status": "Rejected",
+     "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Check the observable portion of the expected result: the event remains rejected."
+    "note": "Checks the event's rejected status if the tester completed the unavailable approval flow."
    }
   ]
  }

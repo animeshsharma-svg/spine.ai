@@ -4,54 +4,82 @@
   "title": "Edit Evaluation Time: Leave the Edit Evaluation Time window open and reload the page",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:24:04.561Z",
+  "compiledAt": "2026-11-13T13:51:26.265Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The case asks to record the arbitrary post-refresh state of the Edit Evaluation Time window without specifying an expected outcome."
+   "Refresh the browser while the Edit Evaluation Time window is open and observe its post-refresh state."
   ],
   "warnings": [
-   "can only test part of this — no step for: The case asks to record the arbitrary post-refresh state of the Edit Evaluation Time window without specifying an expected outcome."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Refresh the browser while the Edit Evaluation Time window is open and observe its post-refresh state."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "go_to",
-   "go_to",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "event_menu",
-   "press",
-   "capture_screen",
-   "expect_screen_clean"
+   "expect_visible"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 10417
+  "ms": 19250
  },
  "plan": {
-  "title": "Reload Edit Evaluation Time Window",
+  "title": "Edit Evaluation Time Dialog After Reload",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with a vendor bid on the buyer side."
+    "note": "Open the prepared live RFQ with Vendor A's bid on the buyer side."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the RFQ stage."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "responses"
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
     },
-    "note": "Open the stage's Responses tab."
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer editing of bidding fields as required."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Enable percentage counter offers as required by the case."
    },
    {
     "step": "event_menu",
@@ -59,26 +87,16 @@
      "item": "Edit Evaluation Time",
      "stage": "rfq"
     },
-    "note": "Open the Edit Evaluation Time window from the RFQ Settings menu."
+    "note": "Open the RFQ stage Settings menu and choose Edit Evaluation Time, leaving its window open."
    },
    {
-    "step": "press",
+    "step": "expect_visible",
     "args": {
-     "key": "F5"
+     "role": "dialog",
+     "name": "Edit Evaluation Time",
+     "visible": true
     },
-    "note": "Refresh the page without interacting with the dialog."
-   },
-   {
-    "step": "capture_screen",
-    "args": {
-     "label": "edit-evaluation-time-after-refresh"
-    },
-    "note": "Record the dialog's post-refresh state for the requested observation."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Verify the refreshed screen has no crash, server error, or malformed rendering."
+    "note": "Assert that the Edit Evaluation Time window opened before the unexpressible refresh step."
    }
   ]
  }

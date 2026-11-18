@@ -4,37 +4,54 @@
   "title": "Unlock commercial bids before technical evaluation is done",
   "group": "SRC-EVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:24:58.982Z",
+  "compiledAt": "2026-11-13T12:07:32.368Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "added open_prepared(technical) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "go_to",
    "open_event_settings",
-   "click",
-   "expect_message"
+   "expect_visible",
+   "attempt"
   ],
   "state": "live",
   "screen": "technical",
-  "ms": 9349
+  "ms": 12399
  },
  "plan": {
-  "title": "Block Unlock Before Technical Evaluation",
+  "title": "Block Unlocking Bids Before Technical Evaluation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "technical"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared event's technical stage before evaluation has been completed."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "restrict_unlock_bid_before_evaluation",
+     "value": "On"
+    },
+    "note": "Enable the configuration that blocks bid unlocking before technical evaluation is complete."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled for the prepared Tech+RFQ event."
    },
    {
     "step": "go_to",
@@ -42,7 +59,7 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage where commercial bids are locked."
+    "note": "Navigate to the RFQ stage where the locked commercial bids can be unlocked."
    },
    {
     "step": "open_event_settings",
@@ -50,20 +67,26 @@
     "note": "Open the RFQ stage Settings menu containing Unlock Bids."
    },
    {
-    "step": "click",
+    "step": "expect_visible",
     "args": {
      "role": "menuitem",
-     "name": "Unlock Bids"
+     "name": "Unlock Bids",
+     "visible": true
     },
-    "note": "Attempt to unlock the commercial bids before technical evaluation is complete."
+    "note": "Confirm the Unlock Bids action is present before attempting it."
    },
    {
-    "step": "expect_message",
+    "step": "attempt",
     "args": {
-     "kind": "error",
-     "text": "Bids can't be unlocked until technical evaluation is done"
+     "step": "click",
+     "args": {
+      "role": "menuitem",
+      "name": "Unlock Bids"
+     },
+     "expect": "refused",
+     "because": "Bids can't be unlocked until technical evaluation is done"
     },
-    "note": "Verify Procol refuses the unlock action with the required message."
+    "note": "Attempt to unlock the commercial bids and require Procol's refusal message before technical evaluation."
    }
   ]
  }

@@ -4,27 +4,27 @@
   "title": "QCS shows correct landed price when freight is non‑zero",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-09T23:04:59.570Z",
+  "compiledAt": "2026-11-13T13:36:06.045Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Independently verify the separate freight value of 20 and that the displayed landed price was calculated as 80 + 20 rather than receiving the total from another source."
+   "Directly verify that the displayed landed price is specifically calculated as bid price 80 plus freight 20 rather than another total field",
+   "Verify the visual L1 row highlight"
   ],
   "warnings": [
-   "can only test part of this — no step for: Independently verify the separate freight value of 20 and that the displayed landed price was calculated as 80 + 20 rather than receiving the total from another source."
+   "can only test part of this — no step for: Directly verify that the displayed landed price is specifically calculated as bid price 80 plus freight 20 rather than another total field; Verify the visual L1 row highlight"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "expect_qcs_vendors",
-   "expect_qcs_cell",
    "expect_qcs_cell",
    "expect_qcs_ranks"
   ],
   "state": "bid",
   "screen": "master_qcs",
-  "ms": 8895
+  "ms": 16830
  },
  "plan": {
   "title": "QCS landed price with freight",
@@ -34,7 +34,7 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared live RFQ directly on Master QCS."
+    "note": "Open the prepared live RFQ directly on the buyer's Master QCS screen."
    },
    {
     "step": "expect_qcs_vendors",
@@ -42,36 +42,28 @@
      "count": 1,
      "vendors": [
       "Vendor A"
-     ]
+     ],
+     "realNames": true
     },
-    "note": "Confirm the QCS contains Vendor A's bid column with a real vendor name."
+    "note": "Confirm the QCS has one real vendor column for Vendor A."
    },
    {
     "step": "expect_qcs_cell",
     "args": {
-     "row": "Sum Total",
+     "row": "RFQ Amount",
      "vendor": "Vendor A",
-     "key": "bidTotal"
+     "equals": "100"
     },
-    "note": "Verify the QCS displays the API-held total for Vendor A, which represents the landed bid amount."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "Rank",
-     "vendor": "Vendor A",
-     "number": 1
-    },
-    "note": "Verify Vendor A is ranked L1 when it has the lowest landed amount."
+    "note": "Check the closest available QCS total field for the expected landed amount of 100."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "by": "Sum Total",
+     "by": "RFQ Amount",
      "order": "lowest",
      "atLeast": 1
     },
-    "note": "Confirm ranking follows the displayed total amount."
+    "note": "Assert that the vendor is ranked according to the QCS amount and is Rank 1 in the one-vendor prepared state."
    }
   ]
  }

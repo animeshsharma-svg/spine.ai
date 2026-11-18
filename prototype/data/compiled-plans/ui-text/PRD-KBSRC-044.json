@@ -3,7 +3,7 @@
   "caseId": "PRD-KBSRC-044",
   "title": "RFQ awarded as an entire lot to a single vendor runs at Lot level",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:09:58.026Z",
+  "compiledAt": "2026-11-13T14:33:15.873Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -21,8 +21,8 @@
   "steps": 18,
   "stepNames": [
    "open_create",
-   "expect_options",
    "configure_single_stage",
+   "expect_options",
    "set_title",
    "select_template",
    "add_line_items",
@@ -34,22 +34,30 @@
    "place_bid",
    "expect_bid_submitted",
    "close_event",
+   "award_event",
+   "expect_awarded",
    "open_master_qcs",
-   "start_awarding",
-   "allocate_award",
    "expect_award_counters"
   ],
-  "ms": 10037
+  "ms": 11641
  },
  "plan": {
-  "title": "RFQ Whole-Lot Awarding",
+  "title": "RFQ Lot-Level Awarding",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage RFQ setup screen."
+    "note": "Open the single-stage event setup screen."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq",
+     "awarding": "lot"
+    },
+    "note": "Choose RFQ and select whole-lot awarding."
    },
    {
     "step": "expect_options",
@@ -59,36 +67,26 @@
       "I'll award the entire lot to single Vendor",
       "I may partially award the event to multiple"
      ],
-     "count": 2
+     "only": true
     },
-    "note": "Verify the RFQ awarding choices offered by the configuration."
-   },
-   {
-    "step": "configure_single_stage",
-    "args": {
-     "eventType": "rfq",
-     "awarding": "lot"
-    },
-    "note": "Select RFQ with awarding of the entire lot to one vendor."
+    "note": "Verify the RFQ exposes the expected awarding configuration choices."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "RFQ Whole Lot Award Test"
-    },
+    "args": {},
     "note": "Provide the required event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ pricing template before adding products."
+    "note": "Apply the RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 2
+     "count": 1
     },
-    "note": "Add two products so whole-lot allocation is distinguishable from line-item allocation."
+    "note": "Add a product to form the lot."
    },
    {
     "step": "fill_sheet",
@@ -100,14 +98,14 @@
     "args": {
      "minutes": 3
     },
-    "note": "Commit the event schedule before publishing."
+    "note": "Commit a valid bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one vendor to receive and answer the RFQ."
+    "note": "Invite a vendor to the RFQ."
    },
    {
     "step": "publish",
@@ -122,7 +120,7 @@
    {
     "step": "place_bid",
     "args": {},
-    "note": "Have the invited vendor submit an RFQ quote."
+    "note": "Have the invited vendor submit an RFQ bid."
    },
    {
     "step": "expect_bid_submitted",
@@ -132,30 +130,32 @@
    {
     "step": "close_event",
     "args": {},
-    "note": "Close the bidding window so awarding is available."
+    "note": "Close the bidding window so the event can be awarded."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "lowest"
+    },
+    "note": "Award the lot to the lowest bidder using the whole-lot configuration."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Confirm the award proposal was created and submitted."
    },
    {
     "step": "open_master_qcs",
     "args": {},
-    "note": "Open the comparison grid containing the submitted RFQ bid."
-   },
-   {
-    "step": "start_awarding",
-    "args": {},
-    "note": "Enter the awarding flow to inspect lot allocation."
-   },
-   {
-    "step": "allocate_award",
-    "args": {},
-    "note": "Allocate the RFQ award to the single available vendor."
+    "note": "Open the comparison and award context for the published RFQ."
    },
    {
     "step": "expect_award_counters",
     "args": {
-     "items": "2/2",
-     "vendors": "1/1"
+     "vendors": "1/1",
+     "items": "1/1"
     },
-    "note": "Verify that all line items are awarded to exactly one vendor, demonstrating whole-lot awarding."
+    "note": "Verify the complete lot is allocated to exactly one vendor."
    }
   ]
  }

@@ -3,112 +3,45 @@
   "caseId": "PRD-KBSRC-390",
   "title": "Next round offer moves by the tick size when no vendor accepts",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:19:52.052Z",
+  "compiledAt": "2026-11-13T14:43:17.592Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Configure a live Dutch auction with a starting price, tick size, and End Price.",
-   "Let a Dutch auction round pass with no vendor accepting.",
-   "Observe the next round's offer and assert that it differs from the previous offer by exactly the tick size.",
-   "Verify that the offer progresses round by round until the End Price is reached."
+   "Create or identify a live Dutch auction with a starting price, tick size, and End Price.",
+   "Let a Dutch auction round pass without acceptance and advance to the next round.",
+   "Read the next round's offer and verify it differs from the previous offer by exactly the tick size until the End Price is reached."
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: Configure a live Dutch auction with a starting price, tick size, and End Price.; Let a Dutch auction round pass with no vendor accepting.; Observe the next round's offer and assert that it differs from the previous offer by exactly the tick size.; Verify that the offer progresses round by round until the End Price is reached."
+   "can only test part of this — no step for: Create or identify a live Dutch auction with a starting price, tick size, and End Price.; Let a Dutch auction round pass without acceptance and advance to the next round.; Read the next round's offer and verify it differs from the previous offer by exactly the tick size until the End Price is reached."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 3,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
-   "convert_to_auction",
-   "expect_no_error"
+   "open_event",
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 8298
+  "ms": 14405
  },
  "plan": {
-  "title": "Dutch auction tick progression without acceptance",
+  "title": "Dutch Auction Tick Progression",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Start the closest supported event creation flow for an auction conversion."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "Dutch Auction Tick Progression Test"
-    },
-    "note": "Provide the mandatory event title for publishing."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Create the RFQ required before the catalog's supported conversion-to-auction flow."
-   },
-   {
-    "step": "select_template",
+    "step": "open_event",
     "args": {},
-    "note": "Apply the RFQ pricing template before adding line items."
+    "note": "Open the closest available existing live event; the catalog has no Dutch-auction-specific navigation or setup."
    },
    {
-    "step": "add_line_items",
+    "step": "ask_tester",
     "args": {
-     "count": 1
+     "need": "advance a live Dutch auction round with no vendor accepting, then observe and verify that the next round's offer differs from the previous offer by exactly the configured tick size until the End Price is reached"
     },
-    "note": "Add a line item so the RFQ can be configured and published."
+    "note": "A tester is required because no catalog step can create or operate a Dutch auction round or inspect its offer progression."
    },
    {
-    "step": "fill_sheet",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a schedule required for publication."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Add a participant required for publication and the closest available auction setup."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the RFQ before conversion."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Assert that the RFQ reached a published project page."
-   },
-   {
-    "step": "convert_to_auction",
-    "args": {},
-    "note": "Reach the supported conversion-to-auction create screen, although Dutch strategy and tick behavior cannot be configured."
-   },
-   {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Assert that the conversion completed without an application error."
+    "note": "Confirm the resulting screen has no visible application error after the tester's observation."
    }
   ]
  }

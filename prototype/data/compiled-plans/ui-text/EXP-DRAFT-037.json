@@ -4,41 +4,59 @@
   "title": "A saved eRFX draft: with lock_vendors_addition_in_event_creation Off, \"arrows-alt icon\" is not offered",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:44:47.111Z",
+  "compiledAt": "2026-11-13T14:06:01.413Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Identify and verify the absence of the icon-only “arrows-alt icon” control on the saved eRFX draft.",
    "unconfirmed label \"arrows-alt icon\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
   ],
   "warnings": [
-   "moved open_events_list to the front — the steps before it had no list on screen",
-   "moved open_events_list to the front — the steps before it had no list on screen",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "coverage partial: unconfirmed label \"arrows-alt icon\" in an absence check (expect_visible) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
-   "can only test part of this — no step for: Identify and verify the absence of the icon-only “arrows-alt icon” control on the saved eRFX draft."
+   "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 16,
   "stepNames": [
+   "open_create",
+   "compose_stages",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
    "open_events_list",
-   "require_setting",
-   "require_setting",
-   "require_setting",
-   "expect_events_list",
    "filter_events",
+   "expect_event_in_list",
    "open_first_event",
-   "expect_navigated",
    "expect_visible"
   ],
-  "ms": 12189
+  "ms": 10779
  },
  "plan": {
-  "title": "Saved eRFX draft hides vendor-addition icon",
+  "title": "Saved eRFX Draft Vendor-Addition Icon",
   "steps": [
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open the Events list to reach saved drafts."
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Open the eRFX creation screen."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    }
    },
    {
     "step": "require_setting",
@@ -46,7 +64,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case."
+    "note": "Enable eRFX project creation for the test."
    },
    {
     "step": "require_setting",
@@ -54,7 +72,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Apply the tenant configuration under test."
+    "note": "Set the condition under which vendor addition should not be locked."
    },
    {
     "step": "require_setting",
@@ -62,33 +80,68 @@
      "key": "is_add_new_stage_allowed",
      "value": "Off"
     },
-    "note": "Apply the additional tenant configuration specified for the draft."
+    "note": "Apply the additional configuration required by the case."
    },
    {
-    "step": "expect_events_list",
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-037 Vendor Addition Draft"
+    },
+    "note": "Provide the required draft title."
+   },
+   {
+    "step": "select_template",
     "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Apply a template so the draft can contain a valid configured stage."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the minimum line item required for the draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet for the line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid schedule before saving the draft."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Create the saved, unpublished eRFX draft."
+   },
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Navigate to the events list to locate the saved draft."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Switch to the Drafts tab specified by the scenario."
+    "note": "Show saved drafts."
+   },
+   {
+    "step": "expect_event_in_list",
+    "args": {},
+    "note": "Confirm the newly saved draft is present in Drafts."
    },
    {
     "step": "open_first_event",
     "args": {
-     "tab": "Drafts"
+     "tab": "Drafts",
+     "containing": "EXP-DRAFT-037 Vendor Addition Draft"
     },
-    "note": "Open the first saved draft and land on its draft create screen."
-   },
-   {
-    "step": "expect_navigated",
-    "args": {
-     "screen": "draft"
-    },
-    "note": "Confirm the selected saved draft is open."
+    "note": "Reopen the specific saved eRFX draft."
    },
    {
     "step": "expect_visible",
@@ -96,7 +149,7 @@
      "text": "arrows-alt icon",
      "visible": false
     },
-    "note": "Attempt the closest available assertion that the named icon is not visible; the icon-only control has no confirmed catalog label."
+    "note": "Assert that the named control is not offered on the saved draft; the label is unconfirmed in the catalog."
    }
   ]
  }

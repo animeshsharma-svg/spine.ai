@@ -4,20 +4,21 @@
   "title": "Recreate Order: Cancel button closes the Recreate Order window without creating an order",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:42:15.327Z",
+  "compiledAt": "2026-11-13T13:56:25.860Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open Recreate Order from Vendor A's bid-row ⋮ menu specifically.",
-   "Directly assert that no new order appears on the RFQ detail page after cancellation."
+   "Assert that no new order appears on the RFQ detail page after cancelling.",
+   "unconfirmed label \"⋮\" (click) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Open Recreate Order from Vendor A's bid-row ⋮ menu specifically.; Directly assert that no new order appears on the RFQ detail page after cancellation."
+   "coverage partial: unconfirmed label \"⋮\" (click) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Assert that no new order appears on the RFQ detail page after cancelling."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 17,
   "stepNames": [
    "open_prepared",
    "require_setting",
@@ -27,22 +28,29 @@
    "go_to",
    "go_to",
    "event_menu",
+   "expect_visible",
+   "click",
+   "expect_visible",
+   "click",
+   "click",
+   "click",
+   "expect_visible",
    "click",
    "expect_visible"
   ],
   "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 16911
+  "ms": 22470
  },
  "plan": {
-  "title": "Cancel Recreate Order Window",
+  "title": "Cancel Recreate Order",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ instead of creating or searching for an event."
+    "note": "Open the prepared closed RFQ event summary."
    },
    {
     "step": "require_setting",
@@ -50,7 +58,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the case configuration."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "require_setting",
@@ -58,7 +66,7 @@
      "key": "is_allowed_to_add_surrogate_bid_post_expiry",
      "value": "Off"
     },
-    "note": "Apply the required post-expiry surrogate-bid configuration."
+    "note": "Apply the required expired-event surrogate bidding configuration."
    },
    {
     "step": "require_setting",
@@ -74,7 +82,7 @@
      "key": "allow_event_evaluation_reopen_for_everyone",
      "value": "Off"
     },
-    "note": "Apply the required evaluation-reopen configuration."
+    "note": "Apply the required evaluation reopen configuration."
    },
    {
     "step": "go_to",
@@ -82,14 +90,14 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage where its Settings menu is available."
+    "note": "Open the RFQ stage."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Reach the Responses view specified by the case."
+    "note": "Open the RFQ Responses tab."
    },
    {
     "step": "event_menu",
@@ -97,15 +105,25 @@
      "item": "Recreate Order",
      "stage": "rfq"
     },
-    "note": "Open Recreate Order from the RFQ stage Settings menu."
+    "note": "Open Recreate Order from the RFQ Settings menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Confirm the Recreate Order window opened."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Cancel"
+     "name": "Cancel",
+     "within": "dialog"
     },
-    "note": "Cancel the Recreate Order operation."
+    "note": "Cancel the recreate-order operation."
    },
    {
     "step": "expect_visible",
@@ -114,7 +132,61 @@
      "name": "Recreate Order",
      "visible": false
     },
-    "note": "Verify that cancelling closes the Recreate Order window."
+    "note": "Confirm the Recreate Order window closed."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "⋮",
+     "within": "Vendor A"
+    },
+    "note": "Open Vendor A's bid-row overflow menu."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Settings",
+     "within": "Vendor A"
+    },
+    "note": "Open the bid-row Settings menu."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Recreate Order",
+     "within": "Vendor A"
+    },
+    "note": "Open Recreate Order from Vendor A's bid-row menu."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": true
+    },
+    "note": "Confirm the second entry point opens the Recreate Order window."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Cancel",
+     "within": "dialog"
+    },
+    "note": "Cancel the second recreate-order operation."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Recreate Order",
+     "visible": false
+    },
+    "note": "Confirm the second Recreate Order window closed."
    }
   ]
  }

@@ -4,16 +4,16 @@
   "title": "Assign from the PR detail page uses the same rule",
   "group": "PRA-ASN",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:00:39.110Z",
+  "compiledAt": "2026-11-13T14:25:26.314Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 2 step(s) that would open a blank event or replace the PR's items",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 2 step(s) that would open a blank event or replace the PR's items"
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 1 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → the stages the tester picks); dropped 1 step(s) that would open a blank event or replace the PR's items"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 8,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -21,12 +21,13 @@
    "purchase_items",
    "choose_stages",
    "expect_pr_items",
-   "expect_toast"
+   "require_setting",
+   "expect_message"
   ],
-  "ms": 9434
+  "ms": 20016
  },
  "plan": {
-  "title": "PR Detail Assignee Eligibility",
+  "title": "PR detail assignee filtering",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -51,11 +52,19 @@
     "step": "expect_pr_items"
    },
    {
-    "step": "expect_toast",
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the tenant configuration required for team-category filtering."
+   },
+   {
+    "step": "expect_message",
     "args": {
      "kind": "success"
     },
-    "note": "Assert that the assignment produced a success confirmation."
+    "note": "Confirm that the assignment produced a success message."
    }
   ]
  }

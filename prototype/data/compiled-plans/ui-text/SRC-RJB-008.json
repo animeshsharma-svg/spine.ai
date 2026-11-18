@@ -4,17 +4,13 @@
   "title": "Reject both bids",
   "group": "SRC-RJB",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:12:45.044Z",
+  "compiledAt": "2026-11-13T12:42:40.425Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The exact rejection reason text and the complete per-vendor rejection interaction are not represented by a dedicated catalog step; do_on_screen must perform and observe that buyer-side flow."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "added open_prepared(master_qcs) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: The exact rejection reason text and the complete per-vendor rejection interaction are not represented by a dedicated catalog step; do_on_screen must perform and observe that buyer-side flow."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
   "steps": 10,
@@ -26,23 +22,23 @@
    "event_menu",
    "expect_text",
    "expect_text",
-   "open_master_qcs",
-   "expect_qcs_vendors",
+   "go_to",
+   "expect_text",
    "attempt"
   ],
   "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 18471
+  "ms": 16084
  },
  "plan": {
-  "title": "Reject Both RFQ Bids",
+  "title": "Reject both RFQ bids",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared RFQ with Vendor A and Vendor B bids."
    },
    {
     "step": "require_setting",
@@ -50,28 +46,28 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable the required eRFX project configuration before accessing the existing RFQ."
+    "note": "Enable the required eRFX project configuration for the RFQ scenario."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the RFQ stage's Responses tab where the submitted bids and Reject controls are available."
+    "note": "Open the RFQ Responses tab where both submitted bids can be rejected."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the buyer's RFQ Responses screen, reject Vendor A with a reason and then reject Vendor B with a reason; stop when both rejection actions have completed successfully."
+     "goal": "Reject Vendor A with a reason and then reject Vendor B with a reason; stop on the Responses screen showing both bids rejected"
     },
-    "note": "Perform the two vendor-specific rejection actions that have no dedicated domain step."
+    "note": "Reject both bids using the buyer-side controls and provide the required rejection reasons."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Rejected Bids"
     },
-    "note": "Open the RFQ stage's Rejected Bids view to verify both rejected vendors are recorded."
+    "note": "Open the stage menu's Rejected Bids view."
    },
    {
     "step": "expect_text",
@@ -79,7 +75,7 @@
      "text": "Vendor A",
      "present": true
     },
-    "note": "Confirm Vendor A appears in the rejected bids list."
+    "note": "Verify Vendor A appears in the rejected-bids list."
    },
    {
     "step": "expect_text",
@@ -87,27 +83,35 @@
      "text": "Vendor B",
      "present": true
     },
-    "note": "Confirm Vendor B appears in the rejected bids list."
+    "note": "Verify Vendor B appears in the rejected-bids list."
    },
    {
-    "step": "open_master_qcs",
-    "args": {},
-    "note": "Open Master QCS to inspect the post-rejection comparison state."
-   },
-   {
-    "step": "expect_qcs_vendors",
+    "step": "go_to",
     "args": {
-     "count": 0
+     "screen": "master_qcs"
     },
-    "note": "Verify that no rankable vendor bid remains in Master QCS after both bids are rejected."
+    "note": "Return to Master QCS to verify that no bid remains rankable."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "No bids are placed yet!",
+     "present": true
+    },
+    "note": "Assert that Master QCS has no active bids to rank."
    },
    {
     "step": "attempt",
     "args": {
-     "step": "start_awarding",
-     "expect": "refused"
+     "step": "click",
+     "args": {
+      "role": "button",
+      "name": "Start Awarding"
+     },
+     "expect": "refused",
+     "because": "Please award for at least one Vendor"
     },
-    "note": "Verify that awarding cannot proceed when both bids have been rejected."
+    "note": "Verify awarding cannot proceed when both bids have been rejected."
    }
   ]
  }

@@ -1,35 +1,47 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-011",
-  "title": "Vendors see only their own lot items, not other vendors' lots",
+  "title": "Manual open button disabled after RFQ already auto‑opened",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-09T23:09:50.437Z",
+  "compiledAt": "2026-11-13T13:40:11.838Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
    "go_to",
    "expect_disabled",
    "expect_message"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "summary",
-  "ms": 5115
+  "ms": 8892
  },
  "plan": {
-  "title": "Open Commercials Disabled After Auto-Open",
+  "title": "RFQ Open Commercials Disabled After Auto-Open",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared closed RFQ on the buyer side."
+    "note": "Open the prepared closed RFQ as the buyer."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "enable_bid_masking_for_event",
+     "value": "On"
+    },
+    "note": "Enable sealed bidding for the RFQ scenario."
    },
    {
     "step": "go_to",
@@ -37,7 +49,7 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Navigate to the RFQ stage where the Open Commercials control is shown."
+    "note": "Navigate to the RFQ stage where the Open Commercials control is available."
    },
    {
     "step": "expect_disabled",
@@ -53,7 +65,7 @@
      "on": "Open Commercials",
      "text": "Commercials already opened"
     },
-    "note": "Verify the disabled control explains that commercials were already opened."
+    "note": "Verify the disabled-state tooltip explains that commercials were already opened automatically."
    }
   ]
  }

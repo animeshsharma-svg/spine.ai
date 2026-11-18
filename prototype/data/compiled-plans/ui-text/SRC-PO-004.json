@@ -4,66 +4,52 @@
   "title": "The PR line shows the order",
   "group": "SRC-PO",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:13:10.366Z",
+  "compiledAt": "2026-11-13T12:23:50.116Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Search the Purchase Requisitions Open tab for the PR used in the event and verify that the line's ordered quantity equals the awarded quantity and that the line is Completed when fully ordered"
-  ],
-  "warnings": [
-   "added open_prepared(summary) — the API built this case's state",
-   "can only test part of this — no step for: Search the Purchase Requisitions Open tab for the PR used in the event and verify that the line's ordered quantity equals the awarded quantity and that the line is Completed when fully ordered"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 5,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
-   "open_purchase_requisitions",
-   "pr_tab",
-   "ask_tester",
-   "expect_visible"
+   "create_po",
+   "do_on_screen",
+   "expect_text"
   ],
   "state": "awarded",
   "screen": "summary",
-  "ms": 10838
+  "ms": 12613
  },
  "plan": {
-  "title": "Verify PR Ordered Quantity After Award",
+  "title": "PR reflects awarded purchase order",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared awarded event's summary as the buyer."
    },
    {
-    "step": "open_purchase_requisitions",
+    "step": "create_po",
     "args": {},
-    "note": "Navigate to the Purchase Requisitions area."
+    "note": "Complete the award approval flow so Procol generates the purchase order and writes the ordered quantity back to the PR."
    },
    {
-    "step": "pr_tab",
+    "step": "do_on_screen",
     "args": {
-     "tab": "Open"
+     "goal": "open Purchase Requisitions, stay on the Open tab, search for the purchase requisition used by this event, and verify its event line shows an ordered quantity equal to the awarded quantity"
     },
-    "note": "Open the tab where the PR should be listed."
+    "note": "Navigate to the source PR and verify the ordered quantity against the award on the buyer portal."
    },
    {
-    "step": "ask_tester",
+    "step": "expect_text",
     "args": {
-     "need": "search the Open Purchase Requisitions tab for the PR used in the awarded event and verify that its line ordered quantity equals the awarded quantity and that it is Completed when fully ordered"
+     "text": "Completed",
+     "present": true
     },
-    "note": "The catalog has no step to search the PR or inspect its ordered quantity and completion status."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "tab",
-     "name": "Open",
-     "visible": true
-    },
-    "note": "Confirm the Open Purchase Requisitions tab remains visible after the tester's verification."
+    "note": "Confirm the PR is marked Completed when the awarded quantity has been fully ordered."
    }
   ]
  }

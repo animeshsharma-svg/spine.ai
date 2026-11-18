@@ -4,16 +4,18 @@
   "title": "QCS L1 highlight respects hide_tna_bid_from_qcs setting",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-12T13:36:18.237Z",
+  "compiledAt": "2026-11-13T13:36:12.630Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Config hide_tna_bid_from_qcs = On cannot be fully manipulated by a catalog step without runner setup, and TNA bid state setup requires specific evaluator grading."
+   "A live RFQ containing a Vendor A TNA bid that is the lowest landed-price bid",
+   "Verifying that the TNA bid is absent from the QCS ranking table",
+   "Verifying that the next-lowest regular bid is visually highlighted as L1"
   ],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Config hide_tna_bid_from_qcs = On cannot be fully manipulated by a catalog step without runner setup, and TNA bid state setup requires specific evaluator grading."
+   "cannot test this case yet — no step can observe: A live RFQ containing a Vendor A TNA bid that is the lowest landed-price bid; Verifying that the TNA bid is absent from the QCS ranking table; Verifying that the next-lowest regular bid is visually highlighted as L1"
   ],
   "source": "llm",
   "steps": 3,
@@ -24,34 +26,30 @@
   ],
   "state": "bid",
   "screen": "master_qcs",
-  "ms": 16772
+  "ms": 9527
  },
  "plan": {
-  "title": "QCS L1 highlight respects hide_tna_bid_from_qcs setting",
+  "title": "QCS hides TNA bids from L1 ranking",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS on the prepared RFQ event"
+    "note": "Open the available prepared Master QCS screen as the closest available route to the ranking view."
    },
    {
     "step": "require_setting",
     "args": {
-     "phrase": "hide_tna_bid_from_qcs",
+     "key": "hide_tna_bid_from_qcs",
      "value": "On"
     },
-    "note": "Ensure hide_tna_bid_from_qcs is enabled as required by the case"
+    "note": "Enable the required tenant configuration before inspecting QCS behavior."
    },
    {
     "step": "expect_qcs_ranks",
-    "args": {
-     "by": "RFQ Amount",
-     "order": "lowest",
-     "atLeast": 1
-    },
-    "note": "Assert that ranks correctly follow available regular bids and TNA is hidden"
+    "args": {},
+    "note": "Assert the available QCS ranking data, although this cannot prove TNA exclusion or the requested L1 highlight."
    }
   ]
  }

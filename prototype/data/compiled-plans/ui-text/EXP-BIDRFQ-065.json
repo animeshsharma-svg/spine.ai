@@ -4,36 +4,82 @@
   "title": "Edit Evaluation Time: Attempt to set evaluation time to a past date via custom duration",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:23:49.296Z",
+  "compiledAt": "2026-11-13T13:51:07.014Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Enter the specific absolute past date/time 01 January 2020 00:00 in the Edit Evaluation Time dialog; the catalog only supports relative past times such as -10m."
+   "Entering an absolute past date/time such as 01 January 2020 00:00 through the Edit Evaluation Time custom-duration input"
   ],
   "warnings": [
-   "can only test part of this — no step for: Enter the specific absolute past date/time 01 January 2020 00:00 in the Edit Evaluation Time dialog; the catalog only supports relative past times such as -10m."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Entering an absolute past date/time such as 01 January 2020 00:00 through the Edit Evaluation Time custom-duration input"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "extend_time"
   ],
   "state": "bid",
   "screen": "summary",
-  "ms": 9385
+  "ms": 10632
  },
  "plan": {
-  "title": "Edit Evaluation Time with Past Time",
+  "title": "Edit Evaluation Time to Past Time",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with its existing vendor bid."
+    "note": "Open the prepared live RFQ summary containing the vendor's bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bid-rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required percentage counter-offer configuration."
    },
    {
     "step": "go_to",
@@ -41,14 +87,7 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage requested by the case."
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "responses"
-    },
-    "note": "Reach the buyer's Responses view before opening Settings."
+    "note": "Navigate to the RFQ stage where evaluation-time settings are available."
    },
    {
     "step": "extend_time",
@@ -58,7 +97,7 @@
      "at": "-10m",
      "expect": "refused"
     },
-    "note": "Open Edit Evaluation Time, attempt to set it to a past time, and assert Procol refuses the change."
+    "note": "Attempt the closest expressible past evaluation time and verify that Procol refuses it."
    }
   ]
  }

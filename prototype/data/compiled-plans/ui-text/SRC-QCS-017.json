@@ -4,25 +4,29 @@
   "title": "Download Report while bids are locked",
   "group": "SRC-QCS",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:40:17.364Z",
+  "compiledAt": "2026-11-13T12:34:28.312Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "A prepared event whose bids are specifically locked before technical evaluation; the catalog cannot create or select that exact state."
+   "Starting from an existing project with bids locked before technical evaluation; no catalog step can create or select that specific state."
   ],
   "warnings": [
-   "can only test part of this — no step for: A prepared event whose bids are specifically locked before technical evaluation; the catalog cannot create or select that exact state."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "cannot test this case yet — no step can observe: Starting from an existing project with bids locked before technical evaluation; no catalog step can create or select that specific state."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_toast"
   ],
   "state": "closed",
   "screen": "master_qcs",
-  "ms": 9927
+  "ms": 17755
  },
  "plan": {
   "title": "Download Report with locked bids",
@@ -32,7 +36,23 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared event's Master QCS screen without searching for or creating another event."
+    "note": "Open the closest available Master QCS screen on a prepared event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "restrict_unlock_bid_before_evaluation",
+     "value": "On"
+    },
+    "note": "Enable the required bid-locking configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "click",
@@ -40,7 +60,7 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Attempt the buyer-side report download."
+    "note": "Attempt the report download action."
    },
    {
     "step": "expect_toast",
@@ -48,7 +68,7 @@
      "kind": "error",
      "text": "Unlock Bid to Download Report"
     },
-    "note": "Verify Procol refuses the download with the expected locked-bid message."
+    "note": "Check for the expected refusal message, though the required locked-before-evaluation state is not guaranteed."
    }
   ]
  }

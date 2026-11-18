@@ -3,26 +3,25 @@
   "caseId": "PRD-KBSRC-416",
   "title": "Reject a TR; the evaluator revises and resends it",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:22:05.234Z",
+  "compiledAt": "2026-11-13T14:45:23.844Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Reject the submitted TR from the approver's Pending on Me queue with remarks and verify it is rejected, then have the evaluator revise and resend it for approval and verify it reappears in the approvers' queue."
+   "Open the submitted TR from Pending on Me as the approver, enter remarks, and reject it",
+   "Sign in as the evaluator, revise the rejected TR, and resend it for approval",
+   "Verify the TR is rejected and then reappears in the approvers' queue after resending"
   ],
   "warnings": [
-   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
-   "open_event → open_prepared(master_qcs) — the case starts from an award proposal, which the run's pick never finds among live events; the API builds it",
-   "can only test part of this — no step for: Reject the submitted TR from the approver's Pending on Me queue with remarks and verify it is rejected, then have the evaluator revise and resend it for approval and verify it reappears in the approvers' queue."
+   "can only test part of this — no step for: Open the submitted TR from Pending on Me as the approver, enter remarks, and reject it; Sign in as the evaluator, revise the rejected TR, and resend it for approval; Verify the TR is rejected and then reappears in the approvers' queue after resending"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
-   "go_to",
    "ask_tester",
    "expect_text"
   ],
-  "ms": 10742
+  "ms": 17841
  },
  "plan": {
   "title": "Reject and Resend Technical Re-evaluation",
@@ -30,32 +29,24 @@
    {
     "step": "open_prepared",
     "args": {
-     "screen": "master_qcs"
+     "screen": "proposal"
     },
-    "note": "the API builds the proposal event this case starts from"
-   },
-   {
-    "step": "go_to",
-    "args": {
-     "screen": "stage",
-     "stage": "rfp"
-    },
-    "note": "Navigate to the technical stage where the TR workflow is expected."
+    "note": "Open the prepared proposal containing the submitted technical re-evaluation."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "as the approver, open the submitted TR from Pending on Me, enter remarks and reject it; then as the evaluator, revise the evaluation and resend it for approval"
+     "need": "as the approver, open the submitted TR from Pending on Me, enter remarks and reject it, then as the evaluator revise the rejected TR and resend it for approval"
     },
-    "note": "The catalog has no step for approver rejection, evaluator revision, or resubmission of a technical re-evaluation."
+    "note": "The catalog cannot perform the approver and evaluator workflow or the required role-specific sign-ins."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Pending on Me",
+     "text": "Approval in Progress",
      "present": true
     },
-    "note": "Confirm the known approver queue label is visible after the tester completes the workflow."
+    "note": "Check the known proposal status label after the tester completes the rejection and resend flow."
    }
   ]
  }

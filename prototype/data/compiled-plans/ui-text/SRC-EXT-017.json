@@ -4,34 +4,39 @@
   "title": "Extend a round beyond the auction's end",
   "group": "SRC-EXT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:26:32.231Z",
+  "compiledAt": "2026-11-13T12:09:05.825Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Explicitly set the knockout round end time beyond the auction's separate expiry time; extend_time can request a time relative to the current end but cannot reference the auction expiry boundary directly."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Explicitly set the knockout round end time beyond the auction's separate expiry time; extend_time can request a time relative to the current end but cannot reference the auction expiry boundary directly."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
    "open_prepared",
+   "go_to",
    "extend_time"
   ],
   "state": "knockout",
   "screen": "summary",
-  "ms": 10060
+  "ms": 14992
  },
  "plan": {
-  "title": "Reject knockout round extension past auction expiry",
+  "title": "Reject round extension beyond auction expiry",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared live knockout auction on the buyer's summary page."
+    "note": "Open the prepared live knockout auction event."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "auction"
+    },
+    "note": "Navigate to the auction stage where the current round's extension control is available."
    },
    {
     "step": "extend_time",
@@ -40,9 +45,9 @@
      "option": "fixed",
      "at": "E+30m",
      "expect": "refused",
-     "message": "You cannot extend round time beyond auction expiry time"
+     "message": "You cannot extend round time beyond auction expiry time. Please extend auction time first."
     },
-    "note": "Attempt to extend the current round beyond its current end and verify Procol refuses it with the auction-expiry message."
+    "note": "Attempt to extend the current round beyond the auction's current end and assert Procol refuses with the expected message."
    }
   ]
  }

@@ -4,43 +4,68 @@
   "title": "Start now, end after 24 Hrs",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:13:59.519Z",
+  "compiledAt": "2026-11-13T12:51:11.790Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Assert that the Duration menu offers a literal “24 Hrs” option; the catalog exposes the configured duration as 1440 minutes and the known UI preset is “1 Days”.",
+   "Read and compare the exact “Event will end at …” timestamp before saving with the published “Bidding Ends At” timestamp and countdown."
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Assert that the Duration menu offers a literal “24 Hrs” option; the catalog exposes the configured duration as 1440 minutes and the known UI preset is “1 Days”.; Read and compare the exact “Event will end at …” timestamp before saving with the published “Bidding Ends At” timestamp and countdown."
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 15,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
+   "set_sheet_cell",
    "invite_vendor",
    "set_schedule",
    "publish",
-   "expect_published"
+   "expect_published",
+   "expect_text",
+   "expect_no_error"
   ],
-  "ms": 13396
+  "ms": 16923
  },
  "plan": {
-  "title": "SRC-SCH-005 Start now, end after 24 Hrs",
+  "title": "Single-stage RFQ 24-hour schedule",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage create screen as specified in step 4."
+    "note": "Open the single-stage event creation screen specified by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation so publishing is not blocked."
    },
    {
     "step": "configure_single_stage",
@@ -48,54 +73,79 @@
      "eventType": "rfq",
      "awarding": "lot"
     },
-    "note": "Set event type to RFQ under Event Type as required by step 5."
+    "note": "Change the default event type to RFQ and retain whole-lot awarding."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide a unique event title so publishing can proceed."
+    "note": "Provide the mandatory event title while allowing the runner to generate a unique title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select the RFQ template to render the product sheet."
+    "note": "Apply the first available RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER"
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
     },
-    "note": "Add the line item as specified in step 7."
+    "note": "Add the specified product and quantity; the product selection supplies its single Variant 1 variant."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Fill quantity and delivery location for the pricing sheet as described in step 8."
+    "note": "Complete the remaining required pricing-sheet fields before scheduling and publishing."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location on the first product row."
    },
    {
     "step": "invite_vendor",
     "args": {
-     "count": 1
+     "vendors": [
+      "Vendor A"
+     ]
     },
-    "note": "Invite a vendor under Participants as required in step 9."
+    "note": "Add the vendor named in the case to the event audience."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 1440
     },
-    "note": "Open schedule drawer, keep Start now, set duration to 24 Hrs (1440 minutes), and save schedule as per steps 10-14."
+    "note": "Commit a start-now schedule with the requested 24-hour equivalent duration."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event as required by step 15."
+    "note": "Publish the fully configured RFQ and wait for the publish result."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Assert the event successfully reached a real project page."
+    "note": "Assert that publishing reached a real project page."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Bidding Ends At",
+     "present": true
+    },
+    "note": "Verify that the published Project Details view exposes the bidding end field."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm that no application error was shown during scheduling or publishing."
    }
   ]
  }

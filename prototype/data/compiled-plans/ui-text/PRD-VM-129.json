@@ -3,37 +3,45 @@
   "caseId": "PRD-VM-129",
   "title": "Buyer-Side Vendor Profile Editing: not available on plans below Growth",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T03:14:59.360Z",
+  "compiledAt": "2026-11-13T15:12:03.106Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open vendor management and edit an existing vendor profile as a buyer, verify the capability is refused or absent on a below-Growth tenant, then repeat and verify it is available on a Growth tenant; the catalog cannot inspect plan tiers or vendor profile editing."
+   "Switching between an unspecified lower-plan tenant and a Growth tenant while preserving the same buyer role",
+   "Opening and editing an existing vendor profile from the buyer console",
+   "Comparing that vendor-profile editing is absent or refused below Growth and available on Growth"
   ],
   "warnings": [
-   "can only test part of this — no step for: Open vendor management and edit an existing vendor profile as a buyer, verify the capability is refused or absent on a below-Growth tenant, then repeat and verify it is available on a Growth tenant; the catalog cannot inspect plan tiers or vendor profile editing."
+   "added open_events_list — the menu being checked is on the events list",
+   "added open_events_list — the menu being checked is on the events list",
+   "can only test part of this — no step for: Switching between an unspecified lower-plan tenant and a Growth tenant while preserving the same buyer role; Opening and editing an existing vendor profile from the buyer console; Comparing that vendor-profile editing is absent or refused below Growth and available on Growth"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
+   "open_events_list",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_events_list"
   ],
-  "ms": 9037
+  "ms": 11636
  },
  "plan": {
   "title": "Vendor Profile Editing Plan Gating",
   "steps": [
    {
-    "step": "ask_tester",
-    "args": {
-     "need": "sign in as the same buyer on a below-Growth tenant and a Growth tenant, open vendor management, attempt to edit an existing vendor profile on both tenants, and report whether the editor is absent or refused below Growth and available on Growth"
-    },
-    "note": "The catalog has no step for vendor management, vendor profile editing, plan verification, or switching to the tenants needed for this comparison."
+    "step": "open_events_list"
    },
    {
-    "step": "expect_screen_clean",
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as the same Buyer on a tenant below Growth and on a Growth tenant, open an existing vendor profile, attempt the same profile edit on both tenants, and record that editing is absent or refused below Growth and available on Growth"
+    },
+    "note": "No catalog step can navigate to Buyer-Side Vendor Profile Editing or compare plan-gated tenant behavior."
+   },
+   {
+    "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the session remains on a usable screen after the tester's cross-plan investigation."
+    "note": "Final catalog assertion required by the plan contract; it only confirms the buyer console list rendered and does not assert vendor profile editing."
    }
   ]
  }

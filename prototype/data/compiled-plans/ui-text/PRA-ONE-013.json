@@ -4,51 +4,83 @@
   "title": "A user whose team has the PR's subcategory is shown",
   "group": "PRA-ONE",
   "sheet": "pr-assignee",
-  "compiledAt": "2026-11-10T01:05:26.979Z",
+  "compiledAt": "2026-11-13T14:29:07.668Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Search or filter for PR-1 line items exactly as described",
+   "Assert that every assignee name in the list was inspected through the end of the list",
+   "Verify the assignment list is complete beyond confirming that Fruits Buyer is present"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Search or filter for PR-1 line items exactly as described; Assert that every assignee name in the list was inspected through the end of the list; Verify the assignment list is complete beyond confirming that Fruits Buyer is present"
+  ],
   "source": "llm",
-  "steps": 5,
+  "steps": 8,
   "stepNames": [
+   "require_setting",
    "open_purchase_requisitions",
    "pr_tab",
    "select_pr",
-   "do_on_screen",
+   "click",
+   "expect_visible",
+   "scroll_to",
    "expect_text"
   ],
-  "ms": 8532
+  "ms": 9535
  },
  "plan": {
-  "title": "PR assignee list includes subcategory-matched user",
+  "title": "PR assignee list includes matching subcategory user",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_pr_teams_filtering_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required team-category filtering configuration before opening the PR list."
+   },
    {
     "step": "open_purchase_requisitions",
     "args": {},
-    "note": "Open the Purchase Requisitions screen."
+    "note": "Open Purchase Requisitions, the starting screen for this PR-based case."
    },
    {
     "step": "pr_tab",
     "args": {
      "tab": "Open"
     },
-    "note": "Stay on the Open tab where PR-1 is available for assignment."
+    "note": "Stay on the Open tab where PR-1 is expected to be available."
    },
    {
     "step": "select_pr",
     "args": {
-     "pr": "PR-1",
-     "items": 1
+     "pr": "PR-1"
     },
-    "note": "Select one line item from PR-1 as required before assigning it."
+    "note": "Select the named open PR as the closest catalog action to selecting its line item."
    },
    {
-    "step": "do_on_screen",
+    "step": "click",
     "args": {
-     "goal": "click the Assign person icon next to Upload PRs, inspect the Search a user list, scroll to the end, and verify that Fruits Buyer (User B) is listed"
+     "text": "Assign"
     },
-    "note": "The catalog has no dedicated step for opening and inspecting the PR assignee list, so perform that buyer-side interaction on screen."
+    "note": "Open the PR assignee picker using the assignment control described in the case."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "textbox",
+     "name": "Search a user",
+     "visible": true
+    },
+    "note": "Verify that the user search box and assignee list opened."
+   },
+   {
+    "step": "scroll_to",
+    "args": {
+     "text": "Fruits Buyer"
+    },
+    "note": "Scroll through the assignee list until the expected matching user is visible."
    },
    {
     "step": "expect_text",
@@ -56,7 +88,7 @@
      "text": "Fruits Buyer",
      "present": true
     },
-    "note": "Assert that the subcategory-matched user appears in the assignee list."
+    "note": "Assert that User B, the buyer whose team has the PR subcategory, appears in the assignee list."
    }
   ]
  }

@@ -1,71 +1,89 @@
 {
  "meta": {
   "caseId": "DRV-RFQ-007",
-  "title": "Split request just before bidding window closes is accepted",
+  "title": "Vendor submission exactly after the best offer window closes is refused with order not active",
   "group": "DRV-RFQ",
   "sheet": "derived-commercials-remain-sealed-during-an-rfq-",
-  "compiledAt": "2026-11-09T23:09:22.074Z",
+  "compiledAt": "2026-11-13T13:39:33.268Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Perform the Open Commercials action with valid OTP and password and confirm it.",
-   "Assert that RFQ commercials become visible immediately after manual opening.",
-   "Wait for and verify the automatic close causes no change or error.",
-   "Verify the event is exactly one minute from automatic close."
+   "Open Commercials with valid OTP and password and confirm the action",
+   "Observe that commercial values become visible immediately after opening",
+   "Observe the second automatic close and verify that it causes no change or error"
   ],
   "warnings": [
-   "can only test part of this — no step for: Perform the Open Commercials action with valid OTP and password and confirm it.; Assert that RFQ commercials become visible immediately after manual opening.; Wait for and verify the automatic close causes no change or error.; Verify the event is exactly one minute from automatic close."
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "can only test part of this — no step for: Open Commercials with valid OTP and password and confirm the action; Observe that commercial values become visible immediately after opening; Observe the second automatic close and verify that it causes no change or error"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
+   "open_event_settings",
    "expect_visible",
+   "click",
    "ask_tester",
    "expect_screen_clean"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 12438
+  "ms": 13315
  },
  "plan": {
-  "title": "Manual RFQ commercial opening before close",
+  "title": "RFQ commercial opening before close",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Opens the API-prepared live RFQ required by the case."
+    "note": "the API built this case's state"
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "enable_bid_masking_for_event",
+     "value": "On"
     },
-    "note": "Navigates to the RFQ stage where commercial masking and any opening control would be shown."
+    "note": "Enable the sealed-commercials configuration required by the scenario."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the RFQ Settings menu where the commercial-unlock action is exposed."
    },
    {
     "step": "expect_visible",
     "args": {
-     "text": "Open Commercials",
+     "role": "menuitem",
+     "name": "Unlock Bids",
      "visible": true
     },
-    "note": "Checks whether the named manual-opening control is visible, but does not prove the OTP/password flow or its outcome."
+    "note": "Confirm the buyer is offered the closest available control for manually opening sealed commercials."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "menuitem",
+     "name": "Unlock Bids"
+    },
+    "note": "Start the manual commercial-opening flow; the catalog has no step that can complete or verify its OTP/password dialog."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "perform Open Commercials on the RFQ with the valid OTP and password, confirm that commercials become visible, wait for automatic close, and verify no change or error occurs"
+     "need": "enter the valid OTP and password, confirm Open Commercials, verify that commercial values become visible immediately, and verify that the later automatic close causes no change or error"
     },
-    "note": "The catalog has no runnable step for this manual opening and timing sequence."
+    "note": "A tester is required for the unsupported authentication, reveal verification, and automatic-close timing checks."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Provides a final assertion that the current screen has no crash or server error after the tester action."
+    "note": "Provide a final assertion that the resulting screen has no visible crash or server error, without claiming the commercial-opening behavior was verified."
    }
   ]
  }

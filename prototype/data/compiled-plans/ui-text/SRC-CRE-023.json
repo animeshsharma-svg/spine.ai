@@ -4,20 +4,23 @@
   "title": "Forward auction: Quantity Requested = blank",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:30:32.547Z",
+  "compiledAt": "2026-11-13T11:50:48.333Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Selecting a specifically forward (sell) auction template by direction, because the case provides no template name and the catalog cannot assert template direction when selecting the first offered template."
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Selecting a specifically forward (sell) auction template by direction, because the case provides no template name and the catalog cannot assert template direction when selecting the first offered template."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "require_setting",
@@ -26,23 +29,24 @@
    "select_template",
    "add_line_items",
    "set_sheet_cell",
-   "set_sheet_cell",
    "expect_sheet_cell",
+   "expect_field_error",
+   "set_sheet_cell",
    "invite_vendor",
    "set_schedule",
    "expect_publish_blocked"
   ],
-  "ms": 21832
+  "ms": 15050
  },
  "plan": {
-  "title": "Forward auction rejects blank quantity",
+  "title": "Forward Auction Blank Quantity",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the Single Stage event creation screen."
+    "note": "Opens the Single Stage creation screen."
    },
    {
     "step": "require_setting",
@@ -50,7 +54,7 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation as required by the case."
+    "note": "Ensures vendors can be added during event creation as required by the case."
    },
    {
     "step": "configure_single_stage",
@@ -59,15 +63,18 @@
      "auctionSubtype": "rank",
      "awarding": "lot"
     },
-    "note": "Switch the event type to Auction and configure the available forward-auction settings."
+    "note": "Changes the event type to Auction; rank and lot are the catalog defaults for an unspecified auction strategy and awarding mode."
    },
    {
     "step": "set_title",
-    "note": "Provide the mandatory event title."
+    "args": {
+     "title": "SRC-CRE-023 Forward Auction Blank Quantity"
+    },
+    "note": "Provides the mandatory event title needed to reach the quantity validation on publish."
    },
    {
     "step": "select_template",
-    "note": "Apply an available auction template so the product sheet is rendered."
+    "note": "Applies the first available auction template; the specific forward-template direction cannot be selected without a template name."
    },
    {
     "step": "add_line_items",
@@ -75,16 +82,7 @@
      "count": 1,
      "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Add the specified product as the first line item."
-   },
-   {
-    "step": "set_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "value": "Plant Name (LOC-0001)"
-    },
-    "note": "Set the first row's delivery location to the requested plant."
+    "note": "Adds the requested product as the first line item."
    },
    {
     "step": "set_sheet_cell",
@@ -93,7 +91,7 @@
      "column": "Quantity Requested",
      "value": ""
     },
-    "note": "Clear the requested quantity and tab out as the invalid input under test."
+    "note": "Clears the first row's requested quantity to reproduce the blank-quantity case."
    },
    {
     "step": "expect_sheet_cell",
@@ -102,28 +100,44 @@
      "column": "Quantity Requested",
      "refused": true
     },
-    "note": "Verify the blank quantity is not accepted and is marked or treated as invalid."
+    "note": "Verifies that the blank quantity is not retained as a valid sheet value."
+   },
+   {
+    "step": "expect_field_error",
+    "args": {
+     "field": "Quantity Requested"
+    },
+    "note": "Checks that the quantity cell is marked with a required-field validation error."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Sets the specified delivery location while leaving quantity blank."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Add one available QA vendor so the publish attempt reaches quantity validation."
+    "note": "Adds one available QA test vendor so the publish attempt reaches quantity validation."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required 30-minute schedule."
+    "note": "Commits the required 30-minute schedule."
    },
    {
     "step": "expect_publish_blocked",
     "args": {
      "because": "Please fill valid quantity on every line item"
     },
-    "note": "Verify publishing is refused because the line item's quantity is blank."
+    "note": "Attempts publishing and verifies it is refused because the requested quantity is blank."
    }
   ]
  }

@@ -4,22 +4,21 @@
   "title": "Source two material lines of the same PR in one event",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:08:10.858Z",
+  "compiledAt": "2026-11-13T12:28:47.002Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the exact quantity and delivery location of each event row against its corresponding PR line"
+   "Verify that each of the two event rows retains its own purchase-requisition quantity and delivery location."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 9 step(s) that would open a blank event or replace the PR's items",
-   "resolved: “Verify that both rows retain their originating PR identity or number” — expect_table reads the rows and cells; expect_remembered{delta} checks a count that rises or falls",
-   "can only test part of this — no step for: Verify the exact quantity and delivery location of each event row against its corresponding PR line"
+   "can only test part of this — no step for: Verify that each of the two event rows retains its own purchase-requisition quantity and delivery location."
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 16,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -31,18 +30,17 @@
    "fill_sheet",
    "require_setting",
    "require_setting",
-   "expect_sheet_columns",
-   "expect_table",
    "set_title",
    "invite_vendor",
    "set_schedule",
+   "expect_table",
    "publish",
    "expect_published"
   ],
-  "ms": 11875
+  "ms": 20262
  },
  "plan": {
-  "title": "Source Two Lines from One PR",
+  "title": "Source Two Material Lines from One PR",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -93,30 +91,14 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation."
-   },
-   {
-    "step": "expect_sheet_columns",
-    "args": {
-     "columns": [
-      "Product",
-      "Quantity Requested",
-      "Delivery location"
-     ]
-    },
-    "note": "Verify that the PR-derived pricing sheet exposes the product, quantity, and location columns."
-   },
-   {
-    "step": "expect_table",
-    "args": {
-     "rows": 2
-    },
-    "note": "Verify that the event sheet renders two data rows for the two selected PR lines."
+    "note": "Allow vendors to be added during event creation and avoid the publish restriction."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title before publishing."
+    "args": {
+     "title": "SRC-PR-048 Same PR Material Lines"
+    },
+    "note": "Provide the mandatory event title before publishing."
    },
    {
     "step": "invite_vendor",
@@ -125,24 +107,32 @@
       "Vendor A"
      ]
     },
-    "note": "Add the named Vendor A participant during event creation."
+    "note": "Add the vendor named by the case."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required 30-minute schedule."
+    "note": "Commit the default 30-minute schedule."
+   },
+   {
+    "step": "expect_table",
+    "args": {
+     "within": "Line Items",
+     "rows": 2
+    },
+    "note": "Assert that the event contains two line-item rows."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the single-stage RFQ event."
+    "note": "Publish the configured event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publication completed and the event has a project page."
+    "note": "Assert that publishing reached a real project page."
    }
   ]
  }

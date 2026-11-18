@@ -3,40 +3,43 @@
   "caseId": "PRD-KBINT-057",
   "title": "Required toggle on the question without reopening edit",
   "group": "PRD-KBINT",
-  "compiledAt": "2026-11-10T02:29:19.673Z",
+  "compiledAt": "2026-11-13T15:06:52.160Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "added compose_stages(rfp) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has"
+  ],
   "source": "llm",
-  "steps": 9,
+  "steps": 8,
   "stepNames": [
    "open_create",
-   "set_title",
    "compose_stages",
-   "switch_stage",
+   "set_title",
    "select_template",
    "fill_questionnaires",
+   "assign_evaluator",
    "do_on_screen",
-   "expect_text",
-   "expect_text"
+   "expect_value"
   ],
-  "ms": 72705
+  "ms": 14028
  },
  "plan": {
-  "title": "RFP question required toggle persistence",
+  "title": "RFP question required toggle",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open a multi-stage event creation flow for the RFP setup."
-   },
-   {
-    "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title before configuring the technical stage."
+    "note": "Open the single-stage create screen for the RFP setup."
    },
    {
     "step": "compose_stages",
@@ -44,46 +47,44 @@
      "stages": [
       "rfp"
      ]
-    },
-    "note": "Configure the event with an RFP technical stage."
+    }
    },
    {
-    "step": "switch_stage",
+    "step": "set_title",
     "args": {
-     "stage": "rfp"
+     "title": "Required Toggle Verification"
     },
-    "note": "Work on the RFP stage where the question template is configured."
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the available RFP template containing the non-required question."
+    "note": "Apply an available RFP template before configuring its questions."
    },
    {
     "step": "fill_questionnaires",
     "args": {},
-    "note": "Load the technical questionnaire so the question and its Form View controls are present."
+    "note": "Populate the technical questionnaire so a question is available for the required-state check."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Complete the RFP questionnaire setup required for a valid technical stage."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the RFP questionnaire's Form View, find the non-required question, switch on its Required toggle directly without opening the edit window, then open that question's Edit window and stop with Required showing Yes."
+     "goal": "In the RFP Form View, locate a non-required question, switch its Required toggle on directly without using the question edit window, then open that question's Edit view and stop with the Required field showing Yes."
     },
-    "note": "Perform the required direct-toggle interaction and verify the edit view reflects the change."
+    "note": "Perform and verify the direct toggle behavior that no catalog domain step can express."
    },
    {
-    "step": "expect_text",
+    "step": "expect_value",
     "args": {
-     "text": "Required"
+     "label": "Required",
+     "value": "Yes"
     },
-    "note": "Assert that the question edit view exposes the Required setting."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Yes"
-    },
-    "note": "Assert that the Required setting is shown as Yes after the direct toggle."
+    "note": "Assert that the question's edit view shows Required = Yes after the direct toggle."
    }
   ]
  }

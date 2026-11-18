@@ -4,25 +4,27 @@
   "title": "Technical stage 60 Mins with RFQ 60 Mins",
   "group": "SRC-SCH",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:02:44.258Z",
+  "compiledAt": "2026-11-13T12:52:39.896Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Set the Technical Stage duration to exactly 60 Mins independently of the RFQ duration",
-   "Set the RFQ duration to exactly 60 Mins independently of the Technical Stage duration",
-   "Read each stage's Event will end at value",
-   "Compare the two stage end times and determine whether equal end times are allowed",
-   "Record the result of publishing when both stage end times are equal"
+   "The catalog has no direct step to set separate Technical Stage and RFQ duration blocks to 60 minutes or explicitly compare their displayed Event will end at values for equality."
   ],
   "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
+   "added set_schedule — the schedule is displayed but not committed until saved",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "cannot test this case yet — no step can observe: Set the Technical Stage duration to exactly 60 Mins independently of the RFQ duration; Set the RFQ duration to exactly 60 Mins independently of the Technical Stage duration; Read each stage's Event will end at value; Compare the two stage end times and determine whether equal end times are allowed; Record the result of publishing when both stage end times are equal"
+   "added set_schedule — the schedule is displayed but not committed until saved",
+   "can only test part of this — no step for: The catalog has no direct step to set separate Technical Stage and RFQ duration blocks to 60 minutes or explicitly compare their displayed Event will end at values for equality."
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 17,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "set_title",
    "compose_stages",
    "switch_stage",
@@ -33,15 +35,15 @@
    "switch_stage",
    "select_template",
    "fill_sheet",
-   "set_schedule",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published"
   ],
-  "ms": 9684
+  "ms": 19580
  },
  "plan": {
-  "title": "SRC-SCH-017 Two-Stage Equal Schedule",
+  "title": "Technical and RFQ Equal 60-Minute Schedule",
   "steps": [
    {
     "step": "open_create",
@@ -51,11 +53,25 @@
     "note": "Open the eRFX project creation screen."
    },
    {
-    "step": "set_title",
+    "step": "require_setting",
     "args": {
-     "title": "SRC-SCH-017 Technical RFQ Schedule"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Provide the required event title."
+    "note": "Enable eRFX projects required for the two-stage event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation so publishing is not blocked by the tenant setting."
+   },
+   {
+    "step": "set_title",
+    "args": {},
+    "note": "Provide the mandatory event title needed for publishing."
    },
    {
     "step": "compose_stages",
@@ -65,7 +81,7 @@
       "rfq"
      ]
     },
-    "note": "Configure the requested Technical Stage and RFQ stages."
+    "note": "Create the required Technical Stage and RFQ stages."
    },
    {
     "step": "switch_stage",
@@ -83,7 +99,7 @@
     "args": {
      "count": 1
     },
-    "note": "Add the requested single line item."
+    "note": "Add the single requested line item at the project level."
    },
    {
     "step": "fill_questionnaires"
@@ -106,28 +122,24 @@
     "step": "fill_sheet"
    },
    {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 60
-    },
-    "note": "Apply the closest available schedule configuration; the catalog exposes only a general duration, not independent stage blocks."
-   },
-   {
     "step": "invite_vendor",
     "args": {
      "count": 1
     },
-    "note": "Invite one QA test vendor for the event."
+    "note": "Add one QA test vendor before publishing."
+   },
+   {
+    "step": "set_schedule"
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Attempt to publish the configured two-stage event."
+    "note": "Publish the fully configured two-stage event."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publication succeeded."
+    "note": "Assert that publishing reached a real project page."
    }
   ]
  }

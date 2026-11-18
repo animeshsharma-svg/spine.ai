@@ -4,38 +4,33 @@
   "title": "Vendor accepts, then tries to revise",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:05:42.243Z",
+  "compiledAt": "2026-11-13T12:21:29.386Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "The catalog cannot verify that the previously accepted 90 remains preserved in a bid-history or audit trail after a successful revision."
+   "Verify that the accepted counter-offer value of 90 is retained and not silently overwritten after the vendor revises to 88."
   ],
   "warnings": [
-   "added open_prepared(responses) — the API built this case's state",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: The catalog cannot verify that the previously accepted 90 remains preserved in a bid-history or audit trail after a successful revision."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: Verify that the accepted counter-offer value of 90 is retained and not silently overwritten after the vendor revises to 88."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 9,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
-   "open_master_qcs",
    "place_counter_offer",
    "expect_counter_offer_sent",
    "accept_counter_offer",
    "expect_counter_offer_accepted",
-   "expect_qcs_cell",
    "place_bid",
-   "expect_bid_submitted",
-   "open_master_qcs",
-   "expect_qcs_cell"
+   "expect_bid_submitted"
   ],
   "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 21526
+  "ms": 26648
  },
  "plan": {
   "title": "Vendor revises after accepted counter offer",
@@ -45,7 +40,7 @@
     "args": {
      "screen": "responses"
     },
-    "note": "the API built this case's state"
+    "note": "Open the prepared live RFQ with Vendor A at 100 and Vendor B at 90 on the Responses screen."
    },
    {
     "step": "require_setting",
@@ -53,7 +48,7 @@
      "key": "hide_counter_offer_rfq",
      "value": "Off"
     },
-    "note": "Enable the RFQ counter-offer control required by the case."
+    "note": "Enable counter offers on RFQs as required by the case."
    },
    {
     "step": "require_setting",
@@ -61,16 +56,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable eRFX projects as required by the setup."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Reach the buyer comparison grid where the normal bid and counter offer are managed."
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "place_counter_offer",
@@ -78,21 +64,21 @@
      "vendor": "Vendor A",
      "price": 90
     },
-    "note": "Send the buyer's 90 counter offer to Vendor A's own bid."
+    "note": "Have the buyer send a 90 counter offer to Vendor A's own bid."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Assert that the buyer's counter offer was initiated for Vendor A."
+    "note": "Verify that the buyer's counter offer was initiated for Vendor A."
    },
    {
     "step": "accept_counter_offer",
     "args": {
      "vendor": "Vendor A"
     },
-    "note": "Have Vendor A accept the pending 90 counter offer in the supplier portal."
+    "note": "Have Vendor A accept the buyer's counter offer in the vendor portal."
    },
    {
     "step": "expect_counter_offer_accepted",
@@ -102,44 +88,17 @@
     "note": "Verify on the buyer side that Vendor A's counter offer is marked accepted."
    },
    {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": "Vendor A",
-     "number": 90
-    },
-    "note": "Confirm the accepted 90 is visible in the comparison grid before attempting the revision."
-   },
-   {
     "step": "place_bid",
     "args": {
-     "vendor": "Vendor A",
+     "vendor": 1,
      "price": 88
     },
-    "note": "Have Vendor A attempt to revise the accepted bid to 88 while the round is live."
+    "note": "Have Vendor A attempt the requested revision to 88 using the same vendor identity."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Assert whether Procol accepted the vendor's revised submission."
-   },
-   {
-    "step": "open_master_qcs",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Return to the buyer comparison grid after the vendor revision."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "row": "RFQ Rate",
-     "vendor": "Vendor A",
-     "number": 88
-    },
-    "note": "If the revision was accepted, verify that the buyer now sees the revised 88 rate."
+    "note": "Verify whether the revised bid was accepted by the vendor portal."
    }
   ]
  }

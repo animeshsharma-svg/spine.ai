@@ -3,37 +3,60 @@
   "caseId": "PRD-KBSRC-029",
   "title": "Add event-specific T&Cs via 'Edit Terms and Conditions'",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:08:49.752Z",
+  "compiledAt": "2026-11-13T14:32:01.877Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The catalog has no dedicated step for selecting existing T&Cs and entering new terms within the specific Edit Terms and Conditions form, so that interaction is performed through do_on_screen.",
+   "unconfirmed label \"PRD-KBSRC-029 event-only term\" (expect_text) — not among the labels known from the app nor in the case",
+   "unconfirmed label \"PRD-KBSRC-029 event-only term\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed"
+  ],
+  "warnings": [
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "moved add_line_items before fill_questionnaires / assign_evaluator — evaluators are assigned per line item",
+   "coverage partial: unconfirmed label \"PRD-KBSRC-029 event-only term\" (expect_text) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"PRD-KBSRC-029 event-only term\" in an absence check (expect_text) — a name the product does not use is always absent, so this proves nothing until the label is confirmed",
+   "can only test part of this — no step for: The catalog has no dedicated step for selecting existing T&Cs and entering new terms within the specific Edit Terms and Conditions form, so that interaction is performed through do_on_screen."
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 17,
   "stepNames": [
    "open_create",
    "set_title",
    "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "switch_stage",
+   "select_template",
+   "fill_sheet",
    "click",
    "do_on_screen",
-   "expect_visible"
+   "expect_text",
+   "switch_stage",
+   "click",
+   "expect_text"
   ],
-  "ms": 15159
+  "ms": 22594
  },
  "plan": {
-  "title": "Add event-specific terms and conditions",
+  "title": "Event-specific terms isolation across stages",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Open a multi-stage event configuration screen so terms can be checked for stage-specific isolation."
+    "note": "Open the multi-stage event configuration screen."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the required event title before interacting with the configuration."
+    "args": {
+     "title": "PRD-KBSRC-029 Event-Specific Terms"
+    },
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -43,7 +66,53 @@
       "rfq"
      ]
     },
-    "note": "Create two stages so the added terms can be verified against the other stage."
+    "note": "Create separate Technical and RFQ stages for the stage-isolation check."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Configure the Technical stage before configuring the RFQ stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a template to the Technical stage."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item so the RFQ configuration is usable."
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Complete the Technical stage questionnaire requirements."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Assign the evaluator required for the Technical stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage, where the event-specific terms will be added."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply a pricing template to the RFQ stage."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
    },
    {
     "step": "click",
@@ -51,22 +120,45 @@
      "role": "button",
      "name": "Terms & Conditions"
     },
-    "note": "Open the event's terms configuration control."
+    "note": "Open the RFQ stage's terms configuration."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "In the Terms and Conditions editor, select a recent or previously used T&C, manually enter a new term, upload a document if the editor requires or offers one, click Done, then verify that the event's T&C panel lists the added terms on the current stage and that the other stage of the same project does not show those added terms."
+     "goal": "In the open Terms and Conditions editor, select a recent or previously used term if available, manually add the unique term text 'PRD-KBSRC-029 event-only term', optionally upload a document if the editor requires one, click Done, and stop on the RFQ configuration screen where the added term is listed in the event's T&C panel."
     },
-    "note": "Perform and verify the event-specific T&C workflow, including the stage-isolation oracle that no catalog step can express directly."
+    "note": "Perform the terms-specific interaction that has no dedicated catalog step."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "text": "Terms & Conditions",
-     "visible": true
+     "text": "PRD-KBSRC-029 event-only term",
+     "present": true
     },
-    "note": "Confirm the configuration screen still exposes the T&C panel after the terms workflow completes."
+    "note": "Verify the newly entered term is listed for the RFQ stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Move to the other stage in the same project."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Terms & Conditions"
+    },
+    "note": "Open the Technical stage's T&C panel for the isolation check."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "PRD-KBSRC-029 event-only term",
+     "present": false
+    },
+    "note": "Verify the RFQ-specific term is not shown on the Technical stage."
    }
   ]
  }

@@ -4,30 +4,37 @@
   "title": "A saved eRFX draft: \"Savings Calculation\": \"Cancel\" closes it and changes nothing",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:41:53.012Z",
+  "compiledAt": "2026-11-13T14:04:50.879Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that event status, times, vendors, and bids are unchanged before and after cancelling on the existing unnamed draft"
+   "Verify that status, times, vendors, and bids are all unchanged from their exact pre-cancellation values."
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that event status, times, vendors, and bids are unchanged before and after cancelling on the existing unnamed draft"
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: Verify that status, times, vendors, and bids are all unchanged from their exact pre-cancellation values."
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 12,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "expect_events_list",
    "filter_events",
    "open_first_event",
    "click",
    "expect_visible",
    "click",
-   "expect_visible"
+   "expect_visible",
+   "expect_no_error"
   ],
-  "ms": 12608
+  "ms": 22428
  },
  "plan": {
-  "title": "Cancel Savings on Saved Draft",
+  "title": "Saved Draft Savings Cancel",
   "steps": [
    {
     "step": "open_events_list",
@@ -35,18 +42,47 @@
     "note": "Open the Events list to reach the saved draft."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required to access the saved eRFX draft flow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the requested tenant configuration for vendor handling during event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the requested tenant configuration before opening the draft."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirm the events list rendered successfully."
+   },
+   {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show saved eRFX drafts."
+    "note": "Switch to the Drafts tab specified by the case."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first saved draft, which reopens its create screen."
+    "note": "Open the available saved eRFX draft."
    },
    {
     "step": "click",
@@ -54,16 +90,15 @@
      "role": "button",
      "name": "Savings"
     },
-    "note": "Open the Savings Calculation window."
+    "note": "Open the Savings Calculation window on the draft."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "heading",
-     "name": "Savings Calculation",
+     "text": "Savings Calculation",
      "visible": true
     },
-    "note": "Verify that the Savings Calculation window opened."
+    "note": "Confirm the Savings Calculation window opened."
    },
    {
     "step": "click",
@@ -71,16 +106,20 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Cancel the savings interaction without saving changes."
+    "note": "Cancel the Savings Calculation window without applying changes."
    },
    {
     "step": "expect_visible",
     "args": {
-     "role": "heading",
-     "name": "Savings Calculation",
+     "text": "Savings Calculation",
      "visible": false
     },
-    "note": "Verify that the Savings Calculation window closed."
+    "note": "Confirm the Savings Calculation window closed."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm cancelling did not produce an application error."
    }
   ]
  }

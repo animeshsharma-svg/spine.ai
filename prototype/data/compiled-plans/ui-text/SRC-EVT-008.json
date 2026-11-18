@@ -4,46 +4,68 @@
   "title": "Change evaluators outside evaluation time",
   "group": "SRC-EVT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:24:51.044Z",
+  "compiledAt": "2026-11-13T12:07:32.816Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "added open_prepared(technical) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "go_to",
    "do_on_screen",
-   "expect_text"
+   "expect_message"
   ],
   "state": "live",
   "screen": "technical",
-  "ms": 8369
+  "ms": 19776
  },
  "plan": {
-  "title": "Evaluator Change Outside Evaluation Time",
+  "title": "Change evaluator outside evaluation time",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "technical"
     },
-    "note": "Open the prepared live Tech+RFQ project's technical stage as required for this state."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX projects are enabled as required by the setup."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfp"
+    },
+    "note": "Navigate to the live technical stage where evaluator controls apply."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the live technical stage, attempt to change the assigned evaluator and stop when the screen shows the refusal message \"You can update evaluators only in evaluation time.\""
+     "goal": "On the buyer screen for the live Technical Stage, open the evaluator controls, try to change the assigned evaluator, and stop when the app shows the refusal message."
     },
-    "note": "Perform the evaluator-change action that has no dedicated catalog step and verify the refusal on screen."
+    "note": "Perform the evaluator-change attempt that has no dedicated catalog action."
    },
    {
-    "step": "expect_text",
+    "step": "expect_message",
     "args": {
-     "text": "You can update evaluators only in evaluation time.",
-     "present": true
+     "kind": "any",
+     "text": "You can update evaluators only in evaluation time."
     },
-    "note": "Assert the exact refusal message required by the case."
+    "note": "Verify Procol refused the change with the expected message."
    }
   ]
  }

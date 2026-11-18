@@ -4,63 +4,133 @@
   "title": "All Vendors: The All Vendors window shows the vendor list and available actions",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:54:59.504Z",
+  "compiledAt": "2026-11-13T14:08:37.227Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
-  "source": "llm",
-  "steps": 20,
-  "stepNames": [
-   "open_events_list",
-   "expect_events_list",
-   "filter_events",
-   "open_first_event",
-   "click",
-   "expect_visible",
-   "expect_visible",
-   "expect_visible",
-   "expect_visible",
-   "expect_visible",
-   "expect_visible",
-   "expect_text",
-   "expect_text",
-   "expect_text",
-   "expect_text",
-   "expect_text",
-   "expect_text",
-   "expect_text",
-   "expect_text",
-   "expect_text"
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
   ],
-  "ms": 11383
+  "source": "llm",
+  "steps": 28,
+  "stepNames": [
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "save_draft",
+   "click",
+   "expect_text",
+   "expect_visible",
+   "expect_visible",
+   "expect_visible",
+   "expect_visible",
+   "expect_visible",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_text",
+   "expect_table"
+  ],
+  "ms": 17849
  },
  "plan": {
   "title": "Draft All Vendors Window",
   "steps": [
    {
-    "step": "open_events_list",
-    "args": {},
-    "note": "Open the Events list to access saved drafts."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Confirm the events list rendered before navigating to Drafts."
-   },
-   {
-    "step": "filter_events",
+    "step": "open_create",
     "args": {
-     "tab": "Drafts"
+     "path": "erfx"
     },
-    "note": "Switch to the Drafts tab as required by the case."
+    "note": "Open the eRFX create screen to build the saved draft."
    },
    {
-    "step": "open_first_event",
+    "step": "require_setting",
     "args": {
-     "tab": "Drafts"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the first saved eRFX draft shown in Drafts."
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the required restriction on adding vendors during event creation."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the requested stage-setting configuration."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "EXP-DRAFT-063 All Vendors"
+    },
+    "note": "A title is required to save the draft and identify it."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Configure the draft as an eRFX RFQ stage."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfq"
+    },
+    "note": "Move to the RFQ stage before configuring its template and sheet."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ template so the draft can be configured."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add the required line item for a valid saved draft."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before saving the draft."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a schedule so the draft has a configured event schedule."
+   },
+   {
+    "step": "save_draft",
+    "args": {},
+    "note": "Save the eRFX event as an unpublished draft."
    },
    {
     "step": "click",
@@ -68,16 +138,14 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the All Vendors window from the draft's Participants control."
+    "note": "Open the Participants control that contains the All Vendors window."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "heading",
-     "name": "All Vendors",
-     "visible": true
+     "text": "All Vendors"
     },
-    "note": "Verify the window title is All Vendors."
+    "note": "Assert that the participant window title is All Vendors."
    },
    {
     "step": "expect_visible",
@@ -85,7 +153,7 @@
      "label": "Search Vendors",
      "visible": true
     },
-    "note": "Verify the vendor search field is visible."
+    "note": "Assert that the vendor search field is visible."
    },
    {
     "step": "expect_visible",
@@ -94,7 +162,7 @@
      "name": "Invite",
      "visible": true
     },
-    "note": "Verify the Invite action is available."
+    "note": "Assert that the Invite action is visible."
    },
    {
     "step": "expect_visible",
@@ -103,7 +171,7 @@
      "name": "Filters",
      "visible": true
     },
-    "note": "Verify the Filters action is available."
+    "note": "Assert that the Filters action is visible."
    },
    {
     "step": "expect_visible",
@@ -112,7 +180,7 @@
      "name": "Cancel",
      "visible": true
     },
-    "note": "Verify the Cancel action is available."
+    "note": "Assert that the Cancel action is visible."
    },
    {
     "step": "expect_visible",
@@ -121,79 +189,72 @@
      "name": "Save",
      "visible": true
     },
-    "note": "Verify the Save action is available."
+    "note": "Assert that the Save action is visible."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Name",
-     "present": true
+     "text": "Name"
     },
-    "note": "Verify the Name column is shown."
+    "note": "Assert the Name column is present."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Vendor Code",
-     "present": true
+     "text": "Vendor Code"
     },
-    "note": "Verify the Vendor Code column is shown."
+    "note": "Assert the Vendor Code column is present."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Email",
-     "present": true
+     "text": "Email"
     },
-    "note": "Verify the Email column is shown."
+    "note": "Assert the Email column is present."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Phone",
-     "present": true
+     "text": "Phone"
     },
-    "note": "Verify the Phone column is shown."
+    "note": "Assert the Phone column is present."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Bids",
-     "present": true
+     "text": "Bids"
     },
-    "note": "Verify the Bids column is shown."
+    "note": "Assert the Bids column is present."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Closed",
-     "present": true
+     "text": "Closed"
     },
-    "note": "Verify the Closed column is shown."
+    "note": "Assert the Closed column is present."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "City",
-     "present": true
+     "text": "City"
     },
-    "note": "Verify the City column is shown."
+    "note": "Assert the City column is present."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Tags",
-     "present": true
+     "text": "Tags"
     },
-    "note": "Verify the Tags column is shown."
+    "note": "Assert the Tags column is present."
    },
    {
-    "step": "expect_text",
+    "step": "expect_table",
     "args": {
-     "text": "12 - check@gmail.com No bids closed Aalborg - adsf - a123@gmail.com",
+     "within": "All Vendors",
+     "row": "12 - check@gmail.com No bids closed Aalborg - adsf - a123@gmail.com",
      "present": true
     },
-    "note": "Verify the expected vendor row and its displayed values are present."
+    "note": "Assert that the expected vendor row is listed in the All Vendors table."
    }
   ]
  }

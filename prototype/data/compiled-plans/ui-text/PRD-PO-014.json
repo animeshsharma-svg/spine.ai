@@ -3,53 +3,60 @@
   "caseId": "PRD-PO-014",
   "title": "SAP PO Creation & MQCS Push: not available on the Growth plan",
   "group": "PRD-PO",
-  "compiledAt": "2026-11-10T05:15:18.241Z",
+  "compiledAt": "2026-11-13T15:26:19.490Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Inspect whether SAP PO Creation & MQCS Push is available or absent specifically because the tenant is on the Growth plan.",
-   "Create a purchase order in SAP from Procol.",
-   "Push the Master QCS to SAP and verify it is attached to the SAP purchase order.",
-   "Repeat the same flow on an Enterprise-plan tenant and compare the outcome.",
-   "Switch between the unnamed Growth and Enterprise tenants because their tenant IDs are not provided."
+   "Select or verify tenants by Growth versus Enterprise plan because switch_company requires a named tenant ID and does not inspect plan tiers",
+   "Observe whether SAP PO Creation & MQCS Push is absent or refused on Growth",
+   "Create the PO in SAP, push the MQCS to SAP, and verify the MQCS is attached",
+   "Repeat the same SAP workflow on Enterprise and compare availability"
   ],
   "warnings": [
-   "can only test part of this — no step for: Inspect whether SAP PO Creation & MQCS Push is available or absent specifically because the tenant is on the Growth plan.; Create a purchase order in SAP from Procol.; Push the Master QCS to SAP and verify it is attached to the SAP purchase order.; Repeat the same flow on an Enterprise-plan tenant and compare the outcome.; Switch between the unnamed Growth and Enterprise tenants because their tenant IDs are not provided."
+   "can only test part of this — no step for: Select or verify tenants by Growth versus Enterprise plan because switch_company requires a named tenant ID and does not inspect plan tiers; Observe whether SAP PO Creation & MQCS Push is absent or refused on Growth; Create the PO in SAP, push the MQCS to SAP, and verify the MQCS is attached; Repeat the same SAP workflow on Enterprise and compare availability"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
-   "open_event",
-   "open_master_qcs",
+   "open_prepared",
+   "create_po",
+   "expect_po_items",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 11800
+  "ms": 20315
  },
  "plan": {
-  "title": "SAP PO and MQCS plan-gating",
+  "title": "SAP PO Creation and MQCS Push Plan Gating",
   "steps": [
    {
-    "step": "open_event",
-    "args": {},
-    "note": "Open an existing event that can provide the closest available Master QCS context; this does not test SAP integration or plan gating."
+    "step": "open_prepared",
+    "args": {
+     "screen": "proposal"
+    },
+    "note": "Open a prepared awarded proposal as the closest available starting point for PO creation."
    },
    {
-    "step": "open_master_qcs",
+    "step": "create_po",
     "args": {},
-    "note": "Render the buyer's Master QCS as the closest available observation related to MQCS; it cannot verify an SAP push or attachment."
+    "note": "Attempt the catalog's ordinary PO creation flow, which is the closest available action to the requested PO creation."
+   },
+   {
+    "step": "expect_po_items",
+    "args": {},
+    "note": "Assert that the created PO contains the awarded line items, while noting this does not verify SAP creation or MQCS attachment."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "on the Growth-plan tenant and then the Enterprise-plan tenant, verify whether SAP PO Creation & MQCS Push is available, create the SAP purchase order, push and attach the Master QCS, and compare the outcomes"
+     "need": "run SAP PO Creation and MQCS Push as the same buyer on a Growth tenant and an Enterprise tenant, then verify the Growth capability is unavailable and the Enterprise PO is created in SAP with the MQCS pushed and attached"
     },
-    "note": "The catalog cannot inspect plan entitlements, switch to the unnamed tenants, or perform and verify the SAP integration."
+    "note": "A tester is required for plan-specific tenant access and the SAP/MQCS integration workflow."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Confirm the current screen remains usable after the unsupported verification request."
+    "note": "Confirm the resulting screen has no visible crash or server error after the tester-assisted workflow."
    }
   ]
  }

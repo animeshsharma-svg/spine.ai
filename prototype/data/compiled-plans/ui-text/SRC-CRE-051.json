@@ -4,35 +4,36 @@
   "title": "Adding more products than the company allows",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T12:57:42.736Z",
+  "compiledAt": "2026-11-13T11:53:38.785Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Verify that the maximum is sourced from the company setting named allowed maximum line items rather than only observing the enforced UI limit"
+  ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "can only test part of this — no step for: Verify that the maximum is sourced from the company setting named allowed maximum line items rather than only observing the enforced UI limit"
   ],
   "source": "llm",
-  "steps": 9,
+  "steps": 7,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "set_sheet_cell",
-   "add_line_items",
    "add_line_items",
    "expect_error"
   ],
-  "ms": 15011
+  "ms": 12144
  },
  "plan": {
-  "title": "Single-stage product limit",
+  "title": "Single-stage product limit enforcement",
   "steps": [
    {
     "step": "open_create",
@@ -46,62 +47,44 @@
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the single-stage event type to RFQ."
+    "note": "Set the event type to RFQ as required by the case."
    },
    {
     "step": "set_title",
     "args": {
      "title": "SRC-CRE-051 Product Limit Test"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the mandatory event title for a create test."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ template so the product sheet is available."
+    "note": "Apply the first available RFQ template so the product sheet is rendered."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 1,
-     "search": "CYLINDER",
+     "count": 50,
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add CYLINDER WITH KEY & KNOB as the first product and set its quantity to 10."
-   },
-   {
-    "step": "set_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "value": "Plant Name (LOC-0001)"
-    },
-    "note": "Set the first product's delivery location as required by the case."
+    "note": "Add the first batch of products using the named product and requested quantity."
    },
    {
     "step": "add_line_items",
     "args": {
-     "count": 68,
-     "search": "CYLINDER",
+     "count": 20,
+     "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add enough additional products to reach the stated company maximum of 69 line items."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1,
-     "search": "CYLINDER",
-     "quantity": "10"
-    },
-    "note": "Attempt to add one product beyond the company maximum."
+    "note": "Attempt to add enough additional rows to pass the company's maximum line-item limit."
    },
    {
     "step": "expect_error",
     "args": {
      "contains": "Maximum no of product addition reached"
     },
-    "note": "Verify that Procol refuses the extra product with the maximum-line-item error."
+    "note": "Assert that Procol refuses the extra product row with the expected maximum-products message."
    }
   ]
  }

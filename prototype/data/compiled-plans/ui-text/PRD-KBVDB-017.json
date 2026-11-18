@@ -3,23 +3,24 @@
   "caseId": "PRD-KBVDB-017",
   "title": "Quote sheet tab reached manually when not opened automatically",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:54:08.955Z",
+  "compiledAt": "2026-11-13T15:44:59.926Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to",
-   "added the create steps through publish before switch_portal — the vendor can only be shown an event this plan published and invited them to"
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:rfq} — the single-stage screen opens as RFP, whose templates have no price sheet"
   ],
   "source": "llm",
-  "steps": 15,
+  "steps": 14,
   "stepNames": [
    "open_create",
-   "compose_stages",
    "set_title",
+   "configure_single_stage",
    "select_template",
    "add_line_items",
-   "expect_line_items",
    "fill_sheet",
    "set_schedule",
    "invite_vendor",
@@ -30,71 +31,86 @@
    "click",
    "expect_visible"
   ],
-  "ms": 7852
+  "ms": 17304
  },
  "plan": {
-  "title": "Vendor manually opens quote sheet tab",
+  "title": "PRD-KBVDB-017 Quote Sheet Tab",
   "steps": [
    {
     "step": "open_create",
     "args": {
-     "path": "erfx"
-    }
+     "path": "single-stage"
+    },
+    "note": "Create a single-stage event that can expose a vendor quote sheet."
    },
    {
-    "step": "compose_stages",
+    "step": "set_title",
     "args": {
-     "stages": [
-      "rfq"
-     ]
-    }
+     "title": "PRD-KBVDB-017 Quote Sheet"
+    },
+    "note": "Provide the required event title."
    },
    {
-    "step": "set_title"
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfq"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
    },
    {
-    "step": "select_template"
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the first available RFQ pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
-    }
+    },
+    "note": "Add one product so the quote sheet has a line item."
    },
    {
-    "step": "expect_line_items",
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the pricing sheet before publishing."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid bidding schedule."
+   },
+   {
+    "step": "invite_vendor",
     "args": {
      "count": 1
-    }
+    },
+    "note": "Invite the QA vendor who will view the event."
    },
    {
-    "step": "fill_sheet"
+    "step": "publish",
+    "args": {},
+    "note": "Publish the event so the vendor can access its RFQ."
    },
    {
-    "step": "set_schedule"
-   },
-   {
-    "step": "invite_vendor"
-   },
-   {
-    "step": "publish"
-   },
-   {
-    "step": "expect_published"
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event is available on its project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Switch to the invited vendor's supplier portal session."
+    "note": "Continue in the supplier portal as the invited vendor."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "overview": true
     },
-    "note": "Open the event and remain on the vendor's Event Overview instead of entering a round automatically."
+    "note": "Open the event on Event Overview to reproduce the state where automatic navigation did not occur."
    },
    {
     "step": "click",
@@ -102,7 +118,7 @@
      "role": "tab",
      "name": "RFQ"
     },
-    "note": "Manually select the pricing tab next to the event overview."
+    "note": "Manually select the quote-sheet tab next to the event overview."
    },
    {
     "step": "expect_visible",
@@ -111,7 +127,7 @@
      "name": "Submit Quote",
      "visible": true
     },
-    "note": "Assert that the vendor quote sheet/form is displayed and ready for submission."
+    "note": "Verify that the vendor quote form is displayed and can be submitted."
    }
   ]
  }

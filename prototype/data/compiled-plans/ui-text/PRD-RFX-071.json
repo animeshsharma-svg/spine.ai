@@ -3,111 +3,63 @@
   "caseId": "PRD-RFX-071",
   "title": "Mobile Vendor Bidding: refused for a user without the Vendor role",
   "group": "PRD-RFX",
-  "compiledAt": "2026-11-10T01:36:14.512Z",
+  "compiledAt": "2026-11-13T14:56:38.567Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Mobile app Mobile Vendor Bidding flow and its refusal or availability",
-   "Signing in as a user without the Vendor role and repeating the action as a Vendor",
-   "Verifying the tenant's Enterprise plan and RBAC configuration"
+   "Sign in on the same Enterprise tenant as a user without the Vendor role and attempt bidding from the mobile app.",
+   "Verify that the tenant is on the Enterprise plan and record any RBAC configuration that grants mobile bidding to additional roles."
   ],
   "warnings": [
-   "can only test part of this — no step for: Mobile app Mobile Vendor Bidding flow and its refusal or availability; Signing in as a user without the Vendor role and repeating the action as a Vendor; Verifying the tenant's Enterprise plan and RBAC configuration"
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "dropped vendor_bid — the case switches to the vendor's side to look, and never says the vendor bids",
+   "resolved: “Repeat the bidding attempt in the mobile app as a Vendor and compare availability with the non-Vendor result.” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Sign in on the same Enterprise tenant as a user without the Vendor role and attempt bidding from the mobile app.; Verify that the tenant is on the Enterprise plan and record any RBAC configuration that grants mobile bidding to additional roles."
   ],
   "source": "llm",
-  "steps": 12,
+  "steps": 5,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "compose_stages",
-   "select_template",
-   "add_line_items",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
+   "open_event",
    "ask_tester",
-   "expect_screen_clean"
+   "switch_portal",
+   "vendor_open_event",
+   "expect_bid_submitted"
   ],
-  "ms": 16745
+  "ms": 19142
  },
  "plan": {
-  "title": "Mobile Vendor Bidding RBAC",
+  "title": "Mobile Vendor Bidding Role Authorization",
   "steps": [
    {
-    "step": "open_create",
-    "args": {
-     "path": "erfx"
-    },
-    "note": "Create a published RFQ that can be used for the bidding attempt."
-   },
-   {
-    "step": "set_title",
+    "step": "open_event",
     "args": {},
-    "note": "Provide the required event title."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfq"
-     ]
-    },
-    "note": "Configure the event as an RFQ pricing stage."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Apply the first available RFQ template."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Add one product so the bid sheet has a line item."
-   },
-   {
-    "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the RFQ pricing sheet before publishing."
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 30
-    },
-    "note": "Commit a usable bidding schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite a QA vendor so a vendor-side bid can be attempted."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the event needed for bidding."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Confirm the event is live before handing off the mobile role checks."
+    "note": "Open an existing event suitable for bidding so the role-based bidding behavior can be exercised."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in to the Enterprise tenant's mobile app as a user without the Vendor role, attempt Mobile Vendor Bidding and record the refusal or absence, then repeat in the same tenant as a Vendor and record whether the action is available"
+     "need": "use the mobile app on the same Enterprise tenant to attempt bidding as a user without the Vendor role, then repeat the attempt as a Vendor and record whether each action is refused or available"
     },
-    "note": "The mobile app and alternate-role sign-ins are not available in the catalog."
+    "note": "The catalog cannot sign in as an arbitrary non-Vendor user or operate the mobile app; this is the core comparison requested by the case."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Exercise the closest supported Vendor-side bidding session in the supplier portal."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the event's pricing round in the Vendor portal."
+   },
+   {
+    "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the session remains free of an application error after the tester's mobile-role checks."
+    "note": "Assert that the Vendor bid was accepted in the available portal flow."
    }
   ]
  }

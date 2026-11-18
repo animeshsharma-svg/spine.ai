@@ -3,39 +3,50 @@
   "caseId": "PRD-PO-057",
   "title": "Recurring PO: refused for a user without the Buyer role",
   "group": "PRD-PO",
-  "compiledAt": "2026-11-10T06:31:07.311Z",
+  "compiledAt": "2026-11-13T15:27:45.479Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role and attempt to create or enable a Recurring PO on the specified Enterprise tenant.",
-   "Repeat the same Recurring PO action as a Buyer and compare whether it is offered or succeeds.",
-   "Observe the tenant's RBAC configuration when access is granted to roles beyond Buyer."
+   "Sign in as a non-Buyer and a Buyer in the same Enterprise tenant and compare whether Recurring PO auto-generation can be configured on a schedule.",
+   "Observe the Recurring PO control or refusal message and determine whether the tenant's RBAC intentionally grants access to additional roles."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role and attempt to create or enable a Recurring PO on the specified Enterprise tenant.; Repeat the same Recurring PO action as a Buyer and compare whether it is offered or succeeds.; Observe the tenant's RBAC configuration when access is granted to roles beyond Buyer."
+   "can only test part of this — no step for: Sign in as a non-Buyer and a Buyer in the same Enterprise tenant and compare whether Recurring PO auto-generation can be configured on a schedule.; Observe the Recurring PO control or refusal message and determine whether the tenant's RBAC intentionally grants access to additional roles."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
+   "open_events_list",
+   "expect_events_list",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_events_list"
   ],
-  "ms": 9018
+  "ms": 9750
  },
  "plan": {
-  "title": "Recurring PO Buyer Role Access",
+  "title": "Recurring PO role access",
   "steps": [
+   {
+    "step": "open_events_list",
+    "args": {},
+    "note": "Closest available navigation step, but the events list does not expose or test Recurring PO role permissions."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Confirms the available list screen rendered before the tester investigates the unavailable Recurring PO role comparison."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the specified non-Buyer user, attempt to create or enable a Recurring PO on the Enterprise tenant, then repeat the same action as a Buyer and record whether the action is refused, absent, or available"
+     "need": "sign in as the non-Buyer user and the Buyer user in the same Enterprise tenant, then compare whether each can configure Recurring PO auto-generation on a defined schedule and record any RBAC configuration"
     },
-    "note": "Role-specific sessions and the Recurring PO workflow are not represented by catalog steps."
+    "note": "The catalog cannot switch user roles or operate and observe the Recurring PO scheduling capability."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the session remains usable after the tester performs the comparison."
+    "note": "Provides the required final assertion after the tester's manual comparison."
    }
   ]
  }

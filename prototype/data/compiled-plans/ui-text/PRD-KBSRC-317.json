@@ -3,18 +3,18 @@
   "caseId": "PRD-KBSRC-317",
   "title": "Price Based: vendors see the lowest bid price, not ranks",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:13:18.110Z",
+  "compiledAt": "2026-11-13T14:37:03.413Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case"
+   "unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "coverage partial: unconfirmed label \"100\" (expect_text) — not among the labels known from the app nor in the case",
+   "coverage partial: unconfirmed label \"90\" (expect_text) — not among the labels known from the app nor in the case",
    "can only test part of this — a generic step relies on a label not yet confirmed from the app"
   ],
   "source": "llm",
-  "steps": 16,
+  "steps": 18,
   "stepNames": [
    "open_create",
    "configure_single_stage",
@@ -28,22 +28,24 @@
    "expect_published",
    "place_bid",
    "expect_bid_submitted",
-   "place_bid",
+   "place_surrogate_bid",
    "expect_bid_submitted",
+   "switch_portal",
+   "vendor_open_event",
    "expect_text",
    "expect_text"
   ],
-  "ms": 13122
+  "ms": 12899
  },
  "plan": {
-  "title": "Price-Based Auction Lowest Price Visibility",
+  "title": "Price-based auction shows lowest bid without rank",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage creation flow required for configuring auction strategy."
+    "note": "Open the single-stage create flow required for selecting a Price Based auction."
    },
    {
     "step": "configure_single_stage",
@@ -52,50 +54,50 @@
      "auctionSubtype": "price",
      "awarding": "lot"
     },
-    "note": "Configure the auction as Price Based with lot awarding."
+    "note": "Configure the auction as Price Based with whole-lot awarding."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "Price Based Lowest Bid Visibility"
+     "title": "Price Based Lowest Bid Visibility Test"
     },
-    "note": "Provide the required event title."
+    "note": "Provide the required event title before publishing."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available pricing template."
+    "note": "Apply the first available auction pricing template."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one item so the vendor view has a per-item bid price to compare."
+    "note": "Create one item so the lowest-price assertion maps directly to the only item."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet for the item."
+    "note": "Complete the auction pricing sheet."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a valid bidding schedule before publishing."
+    "note": "Commit a valid bidding schedule."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 2
     },
-    "note": "Invite at least two vendors so a lowest competing bid exists."
+    "note": "Invite at least two vendors so the auction has competing bids."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured auction."
+    "note": "Publish the configured Price Based auction."
    },
    {
     "step": "expect_published",
@@ -105,36 +107,48 @@
    {
     "step": "place_bid",
     "args": {
-     "vendor": 1,
-     "price": 120
-    },
-    "note": "Submit the first vendor's higher bid."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Confirm the first vendor's bid was accepted."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "vendor": 2,
      "price": 100
     },
-    "note": "Submit the second vendor's lower bid, establishing the lowest price."
+    "note": "Submit the first vendor bid at 100."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Confirm the second vendor's bid was accepted."
+    "note": "Confirm the first vendor bid was accepted."
+   },
+   {
+    "step": "place_surrogate_bid",
+    "args": {
+     "price": 90
+    },
+    "note": "Submit a lower bid for the other invited vendor to establish the lowest price."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the competing lower bid was accepted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor"
+    },
+    "note": "Inspect the invited vendor's supplier-portal view."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the auction's pricing round in the vendor portal."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "100",
+     "text": "90",
      "present": true
     },
-    "note": "Verify the vendor bidding screen shows the lowest bid price for the item."
+    "note": "Assert the vendor screen shows the lowest bid price for the item."
    },
    {
     "step": "expect_text",
@@ -142,7 +156,7 @@
      "text": "Rank",
      "present": false
     },
-    "note": "Verify the vendor bidding screen does not show a rank."
+    "note": "Assert the Price Based vendor view does not expose rank information."
    }
   ]
  }

@@ -4,22 +4,22 @@
   "title": "Create an eRFX project, Auction only from an open service PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:07:48.417Z",
+  "compiledAt": "2026-11-13T12:28:00.026Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify the PR line moves to In Progress with this event's number",
-   "Verify the published event explicitly shows that it came from a PR",
-   "Verify the service shows its activities as rows and that the price column is a rate per activity",
-   "Verify the PR-filled delivery location is locked; the available sheet-cell assertion treats Delivery location as editable on an eRFX draft"
+   "Verify that the service line expands into activity rows and that the price column is a rate per activity.",
+   "Verify that the PR line moves to In Progress with this event's number attached.",
+   "Verify that the published event explicitly shows that it originated from a PR.",
+   "Verify the PR-filled unit and delivery-location values themselves; the catalog can only inspect available columns and locked-cell state."
   ],
   "warnings": [
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 7 step(s) that would open a blank event or replace the PR's items",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 7 step(s) that would open a blank event or replace the PR's items",
-   "can only test part of this — no step for: Verify the PR line moves to In Progress with this event's number; Verify the published event explicitly shows that it came from a PR; Verify the service shows its activities as rows and that the price column is a rate per activity; Verify the PR-filled delivery location is locked; the available sheet-cell assertion treats Delivery location as editable on an eRFX draft"
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → auction); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "can only test part of this — no step for: Verify that the service line expands into activity rows and that the price column is a rate per activity.; Verify that the PR line moves to In Progress with this event's number attached.; Verify that the published event explicitly shows that it originated from a PR.; Verify the PR-filled unit and delivery-location values themselves; the catalog can only inspect available columns and locked-cell state."
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 19,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -31,6 +31,7 @@
    "fill_sheet",
    "require_setting",
    "require_setting",
+   "expect_template_selected",
    "expect_sheet_columns",
    "expect_sheet_cells",
    "set_title",
@@ -40,10 +41,10 @@
    "expect_published",
    "expect_menu_item"
   ],
-  "ms": 13311
+  "ms": 25848
  },
  "plan": {
-  "title": "Create Auction eRFX from Service PR",
+  "title": "Create auction eRFX from open service PR",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -83,7 +84,7 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Enable multi-stage eRFX project creation as required by the case."
+    "note": "Enable eRFX project creation for the tenant."
    },
    {
     "step": "require_setting",
@@ -91,18 +92,24 @@
      "key": "lock_vendors_addition_in_event_creation",
      "value": "Off"
     },
-    "note": "Allow vendors to be added during event creation and keep Publish available."
+    "note": "Allow vendors to be added during event creation so publishing is possible."
+   },
+   {
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Confirm the auction stage has a template before filling and publishing."
    },
    {
     "step": "expect_sheet_columns",
     "args": {
      "columns": [
+      "Product",
       "Quantity Requested",
       "Delivery location",
       "Price"
      ]
     },
-    "note": "Verify the create sheet renders the PR quantity, delivery location, and pricing columns."
+    "note": "Confirm the PR-derived pricing sheet rendered the key item, delivery, and price columns."
    },
    {
     "step": "expect_sheet_cells",
@@ -110,19 +117,15 @@
      "row": 1,
      "readonly": [
       "Product",
-      "Quantity Requested",
-      "Product Variant"
-     ],
-     "editable": [
-      "Price"
+      "Quantity Requested"
      ]
     },
-    "note": "Verify the PR-derived product, quantity, and variant are locked while the auction price/rate cell is editable."
+    "note": "Verify core PR-provided product and requested quantity cells are locked."
    },
    {
     "step": "set_title",
     "args": {},
-    "note": "Provide the mandatory event title for publishing."
+    "note": "Set the required event title using the runner's generated title."
    },
    {
     "step": "invite_vendor",
@@ -132,14 +135,14 @@
       "Vendor B"
      ]
     },
-    "note": "Add the two vendors explicitly named by the case."
+    "note": "Add the two vendors named by the case."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the 30-minute Start now schedule."
+    "note": "Commit the requested Start now and 30-minute schedule."
    },
    {
     "step": "publish",
@@ -149,7 +152,7 @@
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publication landed on a real project page."
+    "note": "Verify publication reached a real project page."
    },
    {
     "step": "expect_menu_item",
@@ -157,7 +160,7 @@
      "item": "Recreate Order",
      "enabled": false
     },
-    "note": "Verify the recreate action is greyed out for an event created from a PR."
+    "note": "Verify that Recreate Order is greyed out for an event created from a PR."
    }
   ]
  }

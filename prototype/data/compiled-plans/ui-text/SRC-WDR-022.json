@@ -4,39 +4,61 @@
   "title": "A withdrawn event cannot be withdrawn again",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:23:39.915Z",
+  "compiledAt": "2026-11-13T13:17:20.142Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 6,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "go_to",
    "expect_settings_menu",
    "expect_withdrawn"
   ],
   "state": "withdrawn",
   "screen": "summary",
-  "ms": 5966
+  "ms": 13366
  },
  "plan": {
-  "title": "Withdrawn Event Cannot Be Withdrawn Again",
+  "title": "Withdrawn event cannot be withdrawn again",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared withdrawn event as the buyer."
+    "note": "Open the API-prepared withdrawn event without searching the events list."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure the Withdraw option is not hidden by tenant configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Ensure eRFX event flows are enabled for the buyer portal."
    },
    {
     "step": "go_to",
     "args": {
-     "screen": "stage"
+     "screen": "stage",
+     "stage": "rfq"
     },
-    "note": "Navigate from the summary to the event's stage page where the Settings menu is available."
+    "note": "Navigate to the withdrawn RFQ stage page where the Settings menu is available."
    },
    {
     "step": "expect_settings_menu",
@@ -45,7 +67,7 @@
       "Withdraw"
      ]
     },
-    "note": "Assert that Withdraw is not offered for an already withdrawn event."
+    "note": "Assert that a withdrawn event cannot offer Withdraw again."
    },
    {
     "step": "expect_withdrawn",

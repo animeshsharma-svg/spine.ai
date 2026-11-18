@@ -4,47 +4,57 @@
   "title": "A delivery-failure email in the approval mailbox is ignored",
   "group": "EMA-THR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:59:02.074Z",
+  "compiledAt": "2026-11-13T14:24:34.769Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Receive or inject a delivery-failure email into the approval mailbox",
-   "Verify that no reply is sent to the delivery-failure email",
-   "Verify that nothing is recorded in the approval thread or mailbox"
+   "Inject a delivery-failure email into the connected approval mailbox",
+   "Watch the approval mailbox to verify that no reply is sent and nothing is recorded"
   ],
   "warnings": [
-   "can only test part of this — no step for: Receive or inject a delivery-failure email into the approval mailbox; Verify that no reply is sent to the delivery-failure email; Verify that nothing is recorded in the approval thread or mailbox"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Inject a delivery-failure email into the connected approval mailbox; Watch the approval mailbox to verify that no reply is sent and nothing is recorded"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
+   "require_setting",
    "ask_tester",
-   "expect_no_error"
+   "expect_screen_clean"
   ],
-  "ms": 8442
+  "ms": 12626
  },
  "plan": {
-  "title": "Delivery-Failure Email Ignored",
+  "title": "Delivery-Failure Email Is Ignored",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the existing event associated with the approval workflow before the mailbox check."
+    "note": "Open the named event to establish the buyer-side context for the approval workflow."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required email-approval configuration before testing the mailbox behavior."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open the approval mailbox, cause or receive a delivery-failure email, and verify that no reply is sent and nothing is recorded"
+     "need": "inject a delivery-failure email into the connected approval mailbox, watch the mailbox, and verify that no reply is sent and nothing is recorded"
     },
-    "note": "The catalog cannot access mailboxes, inject delivery failures, or observe email-thread recording."
+    "note": "Mailbox injection and observation are not available through the catalog."
    },
    {
-    "step": "expect_no_error",
+    "step": "expect_screen_clean",
     "args": {},
-    "note": "Assert the buyer portal remains free of an application error after the tester's mailbox check."
+    "note": "Confirm the buyer-side screen remains free of visible errors after the mailbox check."
    }
   ]
  }

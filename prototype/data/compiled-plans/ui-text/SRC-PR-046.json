@@ -4,26 +4,23 @@
   "title": "Create an eRFX project, Technical + RFQ from an open asset PR line",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:32:59.614Z",
+  "compiledAt": "2026-11-13T12:28:32.960Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Select specifically an open asset PR line rather than another open PR line.",
-   "Verify Account Assignment A is carried to the purchase order.",
-   "Verify the PR moves to In Progress with this event's number.",
-   "Verify the published event explicitly shows that it came from a PR.",
-   "Verify the PR line's unit value is filled and preserved.",
-   "Verify the event number associated with the PR."
+   "Verify the asset line's Account Assignment A is carried into the resulting purchase order.",
+   "Verify the PR line moves to In Progress with this event's number after publishing.",
+   "Verify the published event explicitly shows that it came from a PR."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp + rfq); dropped 14 step(s) that would open a blank event or replace the PR's items",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfp + rfq); dropped 14 step(s) that would open a blank event or replace the PR's items",
-   "can only test part of this — no step for: Select specifically an open asset PR line rather than another open PR line.; Verify Account Assignment A is carried to the purchase order.; Verify the PR moves to In Progress with this event's number.; Verify the published event explicitly shows that it came from a PR.; Verify the PR line's unit value is filled and preserved.; Verify the event number associated with the PR."
+   "can only test part of this — no step for: Verify the asset line's Account Assignment A is carried into the resulting purchase order.; Verify the PR line moves to In Progress with this event's number after publishing.; Verify the published event explicitly shows that it came from a PR."
   ],
   "source": "llm",
-  "steps": 20,
+  "steps": 24,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -38,15 +35,19 @@
    "switch_stage",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_sheet_cells",
    "set_title",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published",
+   "open_event_settings",
    "expect_menu_item"
   ],
-  "ms": 20557
+  "ms": 22526
  },
  "plan": {
   "title": "Create Technical + RFQ event from asset PR",
@@ -109,33 +110,54 @@
     "step": "fill_sheet"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable multi-stage eRFX projects for the test company."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "erfx_rfp_stage_enabled",
+     "value": "On"
+    },
+    "note": "Enable the Technical/RFP stage."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation."
+   },
+   {
     "step": "expect_sheet_cells",
     "args": {
      "row": 1,
      "readonly": [
       "Product",
       "Product Variant",
-      "Quantity Requested"
-     ],
-     "editable": [
+      "Quantity Requested",
+      "Unit",
       "Delivery location"
      ]
     },
-    "note": "Verify PR-derived product, variant, and quantity fields are locked while delivery location remains editable."
+    "note": "Verify that PR-provided item, quantity, unit, variant, and delivery-location fields are locked on the pricing sheet."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-PR-046 Asset PR eRFX"
-    },
-    "note": "Provide the mandatory project title required before publishing."
+    "args": {},
+    "note": "Give the new PR-based event a valid title before publishing."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the requested Start now and 30-minute schedule."
+    "note": "Commit the requested Start now, 30-minute schedule."
    },
    {
     "step": "invite_vendor",
@@ -145,26 +167,30 @@
       "Vendor B"
      ]
     },
-    "note": "Invite the two vendors explicitly named in the case."
+    "note": "Add the two vendors explicitly named in the case."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the completed Technical + RFQ project."
+    "note": "Publish the completed Technical + RFQ event and handle the product's confirmation flow."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify publication reached a real project page."
+    "note": "Verify that publishing reached a real project page."
+   },
+   {
+    "step": "open_event_settings",
+    "args": {},
+    "note": "Open the published event's Settings menu to inspect PR-specific actions."
    },
    {
     "step": "expect_menu_item",
     "args": {
      "item": "Recreate Order",
-     "enabled": false,
-     "stage": "rfq"
+     "enabled": false
     },
-    "note": "Verify Recreate Order is greyed out for the PR-created event."
+    "note": "Verify that Recreate Order is greyed out for an event created from a PR."
    }
   ]
  }

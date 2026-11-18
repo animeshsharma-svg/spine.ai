@@ -3,40 +3,48 @@
   "caseId": "PRD-AE-055",
   "title": "Escalation Timeout (Hours): dependency on DoA Threshold Currency does not apply when \"Only matters when DoA matrix thresholds trigger escalation\" is false (DEP-006)",
   "group": "PRD-AE",
-  "compiledAt": "2026-11-10T01:47:18.245Z",
+  "compiledAt": "2026-11-13T15:03:32.291Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Make the condition 'Only matters when DoA matrix thresholds trigger escalation' false.",
-   "Leave DoA Threshold Currency unconfigured while configuring Escalation Timeout (Hours).",
-   "Exercise Escalation Timeout (Hours) and verify it works without DoA Threshold Currency.",
-   "Verify that no amount-based escalation routing impact occurs when DoA currency is misconfigured."
+   "Configure the Escalation Timeout (Hours) setting or escalation policy while leaving DoA Threshold Currency unconfigured.",
+   "Exercise Escalation Timeout (Hours) and verify that the missing DoA currency does not affect its behavior.",
+   "Verify the stated amount-based escalation routing impact does not occur."
   ],
   "warnings": [
-   "can only test part of this — no step for: Make the condition 'Only matters when DoA matrix thresholds trigger escalation' false.; Leave DoA Threshold Currency unconfigured while configuring Escalation Timeout (Hours).; Exercise Escalation Timeout (Hours) and verify it works without DoA Threshold Currency.; Verify that no amount-based escalation routing impact occurs when DoA currency is misconfigured."
+   "can only test part of this — no step for: Configure the Escalation Timeout (Hours) setting or escalation policy while leaving DoA Threshold Currency unconfigured.; Exercise Escalation Timeout (Hours) and verify that the missing DoA currency does not affect its behavior.; Verify the stated amount-based escalation routing impact does not occur."
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
+   "require_setting",
    "ask_tester",
    "expect_screen_clean"
   ],
-  "ms": 7236
+  "ms": 13014
  },
  "plan": {
   "title": "Escalation Timeout Without DoA Currency",
   "steps": [
    {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Only matters when DoA matrix thresholds trigger escalation",
+     "value": "Off"
+    },
+    "note": "Make the conditional dependency inactive if this condition is available as a company setting."
+   },
+   {
     "step": "ask_tester",
     "args": {
-     "need": "configure the approval tenant so the escalation-trigger condition is false, leave DoA Threshold Currency unconfigured, configure and exercise Escalation Timeout (Hours), and verify no amount-based escalation routing impact occurs"
+     "need": "configure and exercise Escalation Timeout (Hours) while DoA Threshold Currency remains unconfigured, then verify the timeout works without the stated amount-based escalation impact"
     },
-    "note": "No catalog step can access or observe these approval configuration and escalation-policy behaviors."
+    "note": "No catalog step can configure or observe escalation timeout policy behavior."
    },
    {
     "step": "expect_screen_clean",
     "args": {},
-    "note": "Final assertion required by the plan format; it only checks for UI errors and does not substitute for the missing approval-behavior assertions."
+    "note": "Confirm the resulting screen has no visible crash or server error after the tester's action."
    }
   ]
  }

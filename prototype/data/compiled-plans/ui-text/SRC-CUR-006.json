@@ -4,7 +4,7 @@
   "title": "Savings budget left empty",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:21:46.058Z",
+  "compiledAt": "2026-11-13T11:54:50.002Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,20 +17,26 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
-   "do_on_screen",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "set_sheet_cell",
+   "expect_sheet_cell",
+   "click",
+   "select",
+   "click",
    "expect_message"
   ],
-  "ms": 12727
+  "ms": 23006
  },
  "plan": {
-  "title": "Savings Budget Left Empty",
+  "title": "Savings Budget Without Price",
   "steps": [
    {
     "step": "open_create",
@@ -42,36 +48,91 @@
    {
     "step": "configure_single_stage",
     "args": {
-     "eventType": "rfq"
+     "eventType": "rfq",
+     "awarding": "lot"
     },
-    "note": "Set the single-stage event type to RFQ."
+    "note": "Set the event type to RFQ as required by the case."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-CUR-006 Savings Budget Empty"
+     "title": "Savings Budget Empty Price"
     },
     "note": "Provide the mandatory event title."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Choose the available RFQ template so the product sheet is available."
+    "note": "Apply the first available RFQ template so the pricing sheet and savings controls are available."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1,
-     "search": "CYLINDER"
+     "search": "CYLINDER WITH KEY & KNOB",
+     "quantity": "10"
     },
-    "note": "Add the CYLINDER line item required by the scenario."
+    "note": "Add the specified product and quantity."
    },
    {
-    "step": "do_on_screen",
+    "step": "set_sheet_cell",
     "args": {
-     "goal": "On the RFQ create screen, set the first line item's Quantity Requested to 10, choose Plant Name (LOC-0001) for Delivery location, open Savings, choose Budget, leave the price empty, save the savings configuration, and stop with the refusal message visible."
+     "row": 1,
+     "column": "Product Variant",
+     "value": "Variant 1"
     },
-    "note": "Perform the product-sheet edits and savings interaction not covered by a dedicated domain step."
+    "note": "Select the product's mapped variant."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Product Variant",
+     "equals": "Variant 1"
+    },
+    "note": "Confirm the requested variant is shown."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Choose the specified delivery location."
+   },
+   {
+    "step": "expect_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "equals": "Plant Name (LOC-0001)"
+    },
+    "note": "Confirm the delivery location is shown."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Savings"
+    },
+    "note": "Open the Savings Calculation drawer."
+   },
+   {
+    "step": "select",
+    "args": {
+     "label": "How do you want to measure savings?",
+     "option": "Budget"
+    },
+    "note": "Choose Budget as the savings basis."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Add Savings"
+    },
+    "note": "Attempt to save the Budget reference while leaving its price empty."
    },
    {
     "step": "expect_message",
@@ -79,7 +140,7 @@
      "kind": "error",
      "text": "Please enter price in INR"
     },
-    "note": "Assert that saving Budget savings without a price is refused with the expected currency-specific message."
+    "note": "Assert that Procol refuses the empty Budget price and names the INR currency."
    }
   ]
  }

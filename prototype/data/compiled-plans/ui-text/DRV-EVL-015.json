@@ -4,75 +4,97 @@
   "title": "Mobile app shows correct L1 highlight in QCS ranking",
   "group": "DRV-EVL",
   "sheet": "derived-the-qcs-ranks-all-bids-including-landed-",
-  "compiledAt": "2026-11-12T13:36:42.715Z",
+  "compiledAt": "2026-11-13T13:36:27.436Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "Open the Procol mobile app as the buyer",
+   "Verify that Vendor A's row is visually highlighted as L1"
+  ],
+  "warnings": [
+   "can only test part of this — no step for: Open the Procol mobile app as the buyer; Verify that Vendor A's row is visually highlighted as L1"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 7,
   "stepNames": [
    "open_prepared",
    "expect_qcs_vendors",
-   "expect_qcs_ranks",
    "expect_qcs_cell",
    "expect_qcs_cell",
-   "expect_qcs_cell"
+   "expect_qcs_cell",
+   "expect_qcs_cell",
+   "expect_qcs_ranks"
   ],
   "state": "two_bids",
   "screen": "master_qcs",
-  "ms": 27089
+  "ms": 6593
  },
  "plan": {
-  "title": "Mobile app shows correct L1 highlight in QCS ranking",
+  "title": "Mobile QCS L1 Highlight",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open Master QCS on the prepared two-bids RFQ event."
+    "note": "Open the prepared live RFQ directly on the Master QCS screen."
    },
    {
     "step": "expect_qcs_vendors",
     "args": {
      "count": 2,
+     "vendors": [
+      "Vendor A",
+      "Vendor B"
+     ],
      "realNames": true
     },
-    "note": "Assert both vendor columns rendered correctly."
+    "note": "Verify both bidding vendors appear as real vendor columns."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor A",
+     "equals": "90"
+    },
+    "note": "Verify Vendor A's landed/unit price is 90."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": "Vendor A",
+     "number": 1
+    },
+    "note": "Verify Vendor A is ranked first."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "RFQ Rate",
+     "vendor": "Vendor B",
+     "equals": "100"
+    },
+    "note": "Verify Vendor B's landed/unit price is 100."
+   },
+   {
+    "step": "expect_qcs_cell",
+    "args": {
+     "row": "Rank",
+     "vendor": "Vendor B",
+     "number": 2
+    },
+    "note": "Verify Vendor B appears below Vendor A in the ranking."
    },
    {
     "step": "expect_qcs_ranks",
     "args": {
-     "order": "lowest"
+     "by": "RFQ Rate",
+     "order": "lowest",
+     "atLeast": 2
     },
-    "note": "Assert ranks follow the landed amounts correctly with Vendor A as Rank 1."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "vendor": 1,
-     "row": "Rank",
-     "number": 1
-    },
-    "note": "Assert Vendor A is ranked 1."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "vendor": 1,
-     "key": "bidPrice"
-    },
-    "note": "Assert Vendor A landed price matches the API value (90)."
-   },
-   {
-    "step": "expect_qcs_cell",
-    "args": {
-     "vendor": 2,
-     "row": "Rank",
-     "number": 2
-    },
-    "note": "Assert Vendor B appears below Vendor A as Rank 2."
+    "note": "Verify ranking follows the lowest landed price across both bids."
    }
   ]
  }

@@ -3,19 +3,18 @@
   "caseId": "PRD-RFQ-039",
   "title": "Baseline / Historical Price: refused for a user without the Buyer role",
   "group": "PRD-RFQ",
-  "compiledAt": "2026-11-10T01:31:37.000Z",
+  "compiledAt": "2026-11-13T14:52:35.287Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Buyer role on the specified Enterprise tenant and verify that Baseline / Historical Price is refused or absent",
-   "Repeat the action as a Buyer on the same tenant and verify that it is available",
-   "Verify whether the tenant's RBAC configuration deliberately grants the capability to additional roles"
+   "Sign in to the specified Enterprise tenant when no tenant ID is provided",
+   "Switch between a user without the Buyer role and a Buyer account to compare Baseline/Historical Price availability and usability"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Buyer role on the specified Enterprise tenant and verify that Baseline / Historical Price is refused or absent; Repeat the action as a Buyer on the same tenant and verify that it is available; Verify whether the tenant's RBAC configuration deliberately grants the capability to additional roles"
+   "can only test part of this — no step for: Sign in to the specified Enterprise tenant when no tenant ID is provided; Switch between a user without the Buyer role and a Buyer account to compare Baseline/Historical Price availability and usability"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 9,
   "stepNames": [
    "open_create",
    "set_title",
@@ -24,11 +23,10 @@
    "add_line_items",
    "fill_sheet",
    "click",
-   "expect_text",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_text"
   ],
-  "ms": 19383
+  "ms": 18361
  },
  "plan": {
   "title": "Baseline Historical Price Role Access",
@@ -38,14 +36,14 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Open the event template flow where the savings and historical-price configuration can be inspected."
+    "note": "Open a create screen where the template and savings configuration can be inspected."
    },
    {
     "step": "set_title",
     "args": {
      "title": "Baseline Historical Price Role Access Test"
     },
-    "note": "Provide the required title for a create-screen test."
+    "note": "Provide the mandatory event title for the create flow."
    },
    {
     "step": "compose_stages",
@@ -54,24 +52,22 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ stage, matching the case's RFQ template context."
+    "note": "Use an RFQ stage because the case concerns RFQ template pricing configuration."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply a pricing template before inspecting its savings configuration."
+    "note": "Apply an RFQ template before configuring its pricing-related options."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a line item so the savings configuration is available."
+    "note": "Add a line item so the pricing and savings controls are available."
    },
    {
     "step": "fill_sheet",
-    "args": {},
-    "note": "Complete the pricing sheet before opening savings configuration."
+    "note": "Complete the pricing sheet so the savings configuration can be opened."
    },
    {
     "step": "click",
@@ -79,7 +75,14 @@
      "role": "button",
      "name": "Savings"
     },
-    "note": "Open the savings configuration where Historical Price may be offered."
+    "note": "Open the savings configuration containing the Baseline/Historical Price choice."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "On the specified Enterprise tenant, sign in as a user without the Buyer role and verify whether Baseline/Historical Price is absent or refused, then repeat as a Buyer and verify that it is offered and usable; record both outcomes."
+    },
+    "note": "The role-specific login and comparison are not available to the catalog."
    },
    {
     "step": "expect_text",
@@ -87,19 +90,7 @@
      "text": "Historical Price",
      "present": true
     },
-    "note": "Record whether the current session exposes the Historical Price option; this does not establish the required role-based result."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "sign in as the non-Buyer user and as a Buyer on the same Enterprise tenant, use Baseline / Historical Price in the template, and compare whether the action is refused or offered"
-    },
-    "note": "The required cross-role sign-in and permission comparison cannot be performed by the catalog."
-   },
-   {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Ensure the session remains stable after the tester performs or skips the missing role-based comparison."
+    "note": "Confirm that the known Baseline/Historical Price option is visible on the final inspected savings screen."
    }
   ]
  }

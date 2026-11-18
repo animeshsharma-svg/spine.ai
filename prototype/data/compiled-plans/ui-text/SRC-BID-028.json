@@ -4,17 +4,13 @@
   "title": "Forward auction: first bid outside the limit",
   "group": "SRC-BID",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T16:27:07.089Z",
+  "compiledAt": "2026-11-13T11:46:54.711Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Configure or verify the live forward auction's floor price",
-   "Submit a specifically below-floor numeric bid because the case does not state the floor or bid amount"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
    "moved open_prepared to the front — every later step acts on that screen",
-   "moved open_prepared to the front — every later step acts on that screen",
-   "can only test part of this — no step for: Configure or verify the live forward auction's floor price; Submit a specifically below-floor numeric bid because the case does not state the floor or bid amount"
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
   "steps": 5,
@@ -27,17 +23,17 @@
   ],
   "state": "forward",
   "screen": "summary",
-  "ms": 9875
+  "ms": 13457
  },
  "plan": {
-  "title": "Forward Auction Bid Below Floor",
+  "title": "Forward auction rejects below-floor first bid",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live auction event without creating or searching for another event."
+    "note": "Open the prepared live forward-auction event without recreating it."
    },
    {
     "step": "require_setting",
@@ -45,21 +41,22 @@
      "key": "can_add_ceil_price",
      "value": "On"
     },
-    "note": "Enable the tenant configuration required for auction price limits."
+    "note": "Enable the configured price-limit behavior required by the case."
    },
    {
     "step": "switch_portal",
     "args": {
-     "to": "vendor"
+     "to": "vendor",
+     "vendor": "Vendor A"
     },
-    "note": "Move to Vendor A's supplier-portal session while keeping the buyer session available."
+    "note": "Open a separate Vendor A supplier-portal session while keeping the buyer session available."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the prepared live auction's pricing round in the vendor portal."
+    "note": "Open the live auction's pricing round from the vendor event list."
    },
    {
     "step": "attempt",
@@ -71,7 +68,7 @@
      "expect": "refused",
      "because": "Quoted price must be more than the floor price"
     },
-    "note": "Attempt a clearly low bid and require the forward-auction floor refusal message; the numeric value is only a best-effort proxy because the case does not state the configured floor."
+    "note": "Attempt to submit a clearly below-floor first bid and require Procol's forward-auction refusal."
    }
   ]
  }

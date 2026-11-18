@@ -3,47 +3,57 @@
   "caseId": "PRD-VM-144",
   "title": "Vendor Clone: refused for a user without the Procurement Manager role",
   "group": "PRD-VM",
-  "compiledAt": "2026-11-10T03:16:34.030Z",
+  "compiledAt": "2026-11-13T15:12:52.755Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as a user without the Procurement Manager role and verify Vendor Clone is refused or absent, then repeat as a Procurement Manager and verify the action is available in the same Growth tenant.",
-   "Verify or record whether the tenant's RBAC configuration deliberately grants Vendor Clone to additional roles.",
-   "Execute the Vendor Clone action for the Procurement Manager and observe its result."
+   "Sign in as the specified non-Procurement Manager and Procurement Manager personas in the same tenant",
+   "Verify or select the tenant's Growth plan because no plan-tier step is available",
+   "Actually carry out the Vendor Clone action because no clone execution step exists"
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as a user without the Procurement Manager role and verify Vendor Clone is refused or absent, then repeat as a Procurement Manager and verify the action is available in the same Growth tenant.; Verify or record whether the tenant's RBAC configuration deliberately grants Vendor Clone to additional roles.; Execute the Vendor Clone action for the Procurement Manager and observe its result."
+   "can only test part of this — no step for: Sign in as the specified non-Procurement Manager and Procurement Manager personas in the same tenant; Verify or select the tenant's Growth plan because no plan-tier step is available; Actually carry out the Vendor Clone action because no clone execution step exists"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_event",
+   "expect_menu_item",
    "ask_tester",
    "expect_menu_item"
   ],
-  "ms": 71742
+  "ms": 17387
  },
  "plan": {
-  "title": "Vendor Clone role-based access",
+  "title": "Vendor Clone role permission",
   "steps": [
    {
     "step": "open_event",
     "args": {},
-    "note": "Open an existing active event so the project actions menu can be inspected."
-   },
-   {
-    "step": "ask_tester",
-    "args": {
-     "need": "sign in as a non-Procurement Manager and a Procurement Manager in the same Growth tenant, compare whether Vendor Clone is absent or refused for the first user and available for the second, and report the tenant RBAC configuration and clone results"
-    },
-    "note": "The catalog cannot change user identities, validate role-specific permissions, or perform the Vendor Clone workflow."
+    "note": "Open an existing active event so its project actions can be inspected."
    },
    {
     "step": "expect_menu_item",
     "args": {
-     "item": "Clone Project"
+     "item": "Clone Project",
+     "present": false
     },
-    "note": "Inspect the closest catalog representation of Vendor Clone after the tester's role comparison; this does not independently prove the role-based requirement."
+    "note": "Assert that the current user's event menu does not offer the Vendor Clone action."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "sign in as a Procurement Manager in the same tenant and verify that the active event's Clone Project action is available"
+    },
+    "note": "A second role session is required to compare the Procurement Manager's permission."
+   },
+   {
+    "step": "expect_menu_item",
+    "args": {
+     "item": "Clone Project",
+     "enabled": true
+    },
+    "note": "Assert that the Procurement Manager's event menu offers an enabled Clone Project action after the tester switches roles."
    }
   ]
  }

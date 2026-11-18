@@ -4,11 +4,11 @@
   "title": "Mobile app vendor quote submission follows same validation as web",
   "group": "DRV-BID",
   "sheet": "derived-vendors-can-submit-commercial-bids-manua",
-  "compiledAt": "2026-11-09T23:01:54.555Z",
+  "compiledAt": "2026-11-13T13:32:21.531Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Submit the commercial bid through the Procol Mobile App as Vendor A."
+   "Enter the price and tap Submit Quote specifically in the mobile app"
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
@@ -18,10 +18,11 @@
    "dropped open_create — the API built this case's event; open_prepared opens its screen",
    "dropped set_title — the API built this case's event; open_prepared opens its screen",
    "dropped expect_published — the API built this case's event; open_prepared opens its screen",
-   "can only test part of this — no step for: Submit the commercial bid through the Procol Mobile App as Vendor A."
+   "resolved: “Log in to the Procol Mobile App as Vendor A and open the live RFQ from the mobile vendor dashboard” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
+   "can only test part of this — no step for: Enter the price and tap Submit Quote specifically in the mobile app"
   ],
   "source": "llm",
-  "steps": 10,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
    "compose_stages",
@@ -31,15 +32,19 @@
    "set_schedule",
    "invite_vendor",
    "publish",
-   "ask_tester",
+   "switch_portal",
+   "vendor_open_event",
+   "vendor_bid",
+   "expect_bid_submitted",
+   "switch_portal",
    "expect_responses"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 1299
+  "ms": 10342
  },
  "plan": {
-  "title": "DRV-BID-018 Mobile Commercial Bid Submission",
+  "title": "Commercial Bid Submission and Portal Sync",
   "steps": [
    {
     "step": "open_prepared",
@@ -55,65 +60,82 @@
       "rfq"
      ]
     },
-    "note": "Configure the event as an RFQ rather than the default auction."
+    "note": "Configure the event as an RFQ rather than the default auction stage."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available RFQ pricing template."
+    "note": "Apply the RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add one product line so a commercial price can be entered."
+    "note": "Add a product for the commercial bid."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet required for publication."
+    "note": "Complete the pricing sheet so the RFQ can be published."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit a live bidding schedule."
+    "note": "Commit a live bidding window."
    },
    {
     "step": "invite_vendor",
-    "args": {
-     "vendors": [
-      "Vendor A"
-     ]
-    },
-    "note": "Invite the vendor named in the test case."
+    "args": {},
+    "note": "Invite the available QA vendor audience to the RFQ."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the RFQ so Vendor A can submit a bid."
+    "note": "Publish the RFQ so the vendor can submit a bid."
    },
    {
-    "step": "ask_tester",
+    "step": "switch_portal",
     "args": {
-     "need": "log in to the Procol Mobile App as Vendor A, open the live RFQ, enter price 500, and submit the quote"
+     "to": "vendor"
     },
-    "note": "The catalog has no Mobile App interaction step, so the tester must perform the requested mobile submission."
+    "note": "Use the catalog's supported web supplier portal as the closest available vendor channel."
+   },
+   {
+    "step": "vendor_open_event",
+    "args": {
+     "stage": "pricing"
+    },
+    "note": "Open the published RFQ's pricing round in the vendor portal."
+   },
+   {
+    "step": "vendor_bid",
+    "args": {
+     "price": 500
+    },
+    "note": "Submit the commercial bid at the required price of 500."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Assert that the vendor portal shows the bid as submitted."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console to verify synchronization."
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 1,
-     "direct": 1,
-     "vendors": [
-      "Vendor A"
-     ],
-     "participation": "1/1",
-     "stage": "rfq"
+     "direct": 1
     },
-    "note": "Verify that the buyer's web portal shows Vendor A's submitted commercial response."
+    "note": "Assert that the buyer's RFQ Responses view contains the vendor's direct bid."
    }
   ]
  }

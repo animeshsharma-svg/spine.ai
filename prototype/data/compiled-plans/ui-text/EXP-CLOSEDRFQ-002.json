@@ -4,20 +4,29 @@
   "title": "A closed RFQ: \"Download Report\" opens the \"Download Reports\" window",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:24:49.537Z",
+  "compiledAt": "2026-11-13T13:52:21.435Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "That no other event state or data changes internally until Download Excel is pressed cannot be fully verified; the plan can only verify the report window remains open with the event screen available behind it."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: That no other event state or data changes internally until Download Excel is pressed cannot be fully verified; the plan can only verify the report window remains open with the event screen available behind it."
+  ],
   "source": "llm",
-  "steps": 14,
+  "steps": 19,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
    "go_to",
-   "expect_navigated",
-   "click",
    "expect_visible",
+   "click",
    "expect_text",
    "expect_text",
    "expect_text",
@@ -25,21 +34,55 @@
    "expect_text",
    "expect_text",
    "expect_text",
-   "expect_visible"
+   "expect_text",
+   "expect_visible",
+   "expect_navigated"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "master_qcs",
-  "ms": 14089
+  "ms": 16528
  },
  "plan": {
-  "title": "Closed RFQ Download Reports Window",
+  "title": "Closed RFQ Download Reports window",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared closed RFQ on its Master QCS page."
+    "note": "Open the API-prepared closed RFQ instead of creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Set the post-expiry surrogate-bid setting required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Enable buyer bid editing as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Restrict evaluation reopening as required by the case."
    },
    {
     "step": "go_to",
@@ -47,21 +90,23 @@
      "screen": "stage",
      "stage": "rfq"
     },
-    "note": "Open the RFQ stage of the existing event."
+    "note": "Navigate to the RFQ stage named by the case."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Navigate to the RFQ Responses tab where Download Report is available."
+    "note": "Open the RFQ Responses tab where Download Report is available."
    },
    {
-    "step": "expect_navigated",
+    "step": "expect_visible",
     "args": {
-     "screen": "responses"
+     "role": "button",
+     "name": "Download Report",
+     "visible": true
     },
-    "note": "Confirm the Responses screen is ready before using its report control."
+    "note": "Verify the control being explored is present before activating it."
    },
    {
     "step": "click",
@@ -69,32 +114,29 @@
      "role": "button",
      "name": "Download Report"
     },
-    "note": "Open the report selection window without downloading a report."
+    "note": "Open the report-selection window."
    },
    {
-    "step": "expect_visible",
+    "step": "expect_text",
     "args": {
-     "role": "dialog",
-     "name": "Download Reports",
-     "visible": true
+     "text": "Download Reports",
+     "present": true
     },
-    "note": "Verify that the Download Reports window opened."
+    "note": "Verify the expected report window opened."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Select all",
-     "present": true,
-     "within": "dialog"
+     "present": true
     },
-    "note": "Verify the select-all control is present in the report window."
+    "note": "Verify the report-selection control is present."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Basic Details",
-     "present": true,
-     "within": "dialog"
+     "present": true
     },
     "note": "Verify Basic Details is offered."
    },
@@ -102,8 +144,7 @@
     "step": "expect_text",
     "args": {
      "text": "Event Ref ID",
-     "present": true,
-     "within": "dialog"
+     "present": true
     },
     "note": "Verify Event Ref ID is offered."
    },
@@ -111,8 +152,7 @@
     "step": "expect_text",
     "args": {
      "text": "Event Title",
-     "present": true,
-     "within": "dialog"
+     "present": true
     },
     "note": "Verify Event Title is offered."
    },
@@ -120,8 +160,7 @@
     "step": "expect_text",
     "args": {
      "text": "Event Terms and Conditions",
-     "present": true,
-     "within": "dialog"
+     "present": true
     },
     "note": "Verify Event Terms and Conditions is offered."
    },
@@ -129,8 +168,7 @@
     "step": "expect_text",
     "args": {
      "text": "Event Remarks",
-     "present": true,
-     "within": "dialog"
+     "present": true
     },
     "note": "Verify Event Remarks is offered."
    },
@@ -138,20 +176,25 @@
     "step": "expect_text",
     "args": {
      "text": "9 more",
-     "present": true,
-     "within": "dialog"
+     "present": true
     },
-    "note": "Verify the dialog indicates the remaining report fields."
+    "note": "Verify the window indicates the additional report fields."
    },
    {
     "step": "expect_visible",
     "args": {
      "role": "button",
      "name": "Download Excel",
-     "visible": true,
-     "within": "dialog"
+     "visible": true
     },
-    "note": "Verify the Download Excel action is available while leaving it unpressed."
+    "note": "Verify the download action is available while leaving it unpressed."
+   },
+   {
+    "step": "expect_navigated",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Verify the underlying page remains the RFQ Responses screen while the report window is open."
    }
   ]
  }

@@ -4,25 +4,32 @@
   "title": "A closed RFQ: \"vertical-switch\" shows \"1. AAC BLOCKS •1100000401 •Variant 1\"",
   "group": "EXP-CLOSEDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:25:56.893Z",
+  "compiledAt": "2026-11-13T13:52:34.366Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_text",
    "expect_text"
   ],
-  "state": "closed",
+  "state": "closed_two_bids",
   "screen": "responses",
-  "ms": 67356
+  "ms": 9255
  },
  "plan": {
-  "title": "Closed RFQ vertical-switch details",
+  "title": "Closed RFQ vertical switch view",
   "steps": [
    {
     "step": "open_prepared",
@@ -32,26 +39,60 @@
     "note": "Open the prepared closed RFQ directly on the buyer's Responses tab."
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects required for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_allowed_to_add_surrogate_bid_post_expiry",
+     "value": "Off"
+    },
+    "note": "Apply the required post-expiry surrogate-bid configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-edit configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "allow_event_evaluation_reopen_for_everyone",
+     "value": "Off"
+    },
+    "note": "Apply the required evaluation-reopen configuration."
+   },
+   {
     "step": "click",
     "args": {
      "role": "button",
      "name": "vertical-switch"
     },
-    "note": "Activate the vertical-switch control whose resulting display is being tested."
+    "note": "Activate the vertical-switch control whose resulting view is being tested."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "1. AAC BLOCKS •1100000401 •Variant 1"
+     "text": "1. AAC BLOCKS •1100000401 •Variant 1",
+     "present": true
     },
-    "note": "Verify the switched view shows the expected line-item identity."
+    "note": "Verify the switched view shows the expected product, material code, and variant."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "90 KG Requested at Gurgaon"
+     "text": "90 KG Requested at Gurgaon",
+     "present": true
     },
-    "note": "Verify the switched view shows the expected requested quantity and location."
+    "note": "Verify the switched view shows the requested quantity and delivery location."
    }
   ]
  }

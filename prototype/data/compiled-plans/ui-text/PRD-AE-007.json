@@ -3,42 +3,42 @@
   "caseId": "PRD-AE-007",
   "title": "DoA Threshold Currency (approval.doa.currency) = SGD",
   "group": "PRD-AE",
-  "compiledAt": "2026-11-10T01:41:47.404Z",
+  "compiledAt": "2026-11-13T15:01:20.701Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Set tenant setting approval.doa.currency to SGD",
-   "Use Modular Approval Setup to attach approvals to entities",
-   "Observe that Delegation of Authority spend thresholds use SGD and differ from the default INR"
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Set tenant setting approval.doa.currency to SGD; Use Modular Approval Setup to attach approvals to entities; Observe that Delegation of Authority spend thresholds use SGD and differ from the default INR"
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
-   "ask_tester",
-   "expect_text"
+   "require_setting",
+   "do_on_screen",
+   "expect_screen_clean"
   ],
-  "ms": 9700
+  "ms": 14649
  },
  "plan": {
   "title": "DoA Threshold Currency SGD",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "as a Tenant Admin, set approval.doa.currency to SGD, use Modular Approval Setup to make approvals attachable to entities, and verify in the Delegation of Authority matrix that all spend threshold currency units are SGD rather than INR"
+     "key": "approval.doa.currency",
+     "value": "SGD"
     },
-    "note": "The catalog cannot access tenant configuration, Modular Approval Setup, or the Delegation of Authority threshold matrix."
+    "note": "Set the required tenant-level DoA threshold currency before inspecting approval configuration."
    },
    {
-    "step": "expect_text",
+    "step": "do_on_screen",
     "args": {
-     "text": "SGD",
-     "present": true
+     "goal": "open Modular Approval Setup, inspect the Delegation of Authority matrix and its spend threshold definitions, and verify that the threshold currency is SGD rather than the default INR across the applicable approval rules"
     },
-    "note": "After the tester completes the missing flow, check for visible evidence of the selected SGD currency; this does not by itself verify the full threshold behavior."
+    "note": "No catalog domain step exposes Modular Approval Setup or the DoA matrix, so use the buyer session to observe the setting-controlled behavior directly."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the inspected approval configuration screen has no rendering errors or raw data failures."
    }
   ]
  }

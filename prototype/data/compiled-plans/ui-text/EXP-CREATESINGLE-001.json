@@ -4,40 +4,39 @@
   "title": "Single stage create screen (RFQ with a product): \"RFQ\" opens the \"Configuration for Event\" window",
   "group": "EXP-CREATESINGLE",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-12T13:43:12.769Z",
+  "compiledAt": "2026-11-13T14:00:05.551Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Prove that no event configuration changes occur before pressing Cancel or Save"
+  ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
+   "dropped the stage steps — the single-stage screen has no stage tabs, its event type is set in a drawer",
+   "added set_title — publishing without a title is refused",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
-   "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
+   "dropped the stage steps — the single-stage screen has no stage tabs, its event type is set in a drawer",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Prove that no event configuration changes occur before pressing Cancel or Save"
   ],
   "source": "llm",
-  "steps": 17,
+  "steps": 11,
   "stepNames": [
    "open_create",
-   "require_setting",
-   "require_setting",
-   "require_setting",
-   "configure_single_stage",
    "set_title",
-   "select_template",
-   "add_line_items",
-   "expect_line_items",
-   "remember",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_visible",
    "expect_visible",
    "expect_visible",
    "expect_visible",
-   "expect_visible",
-   "expect_remembered"
+   "expect_visible"
   ],
-  "ms": 17078
+  "ms": 22774
  },
  "plan": {
   "title": "Single-stage RFQ configuration window",
@@ -50,12 +49,15 @@
     "note": "Open the single-stage event creation screen."
    },
    {
+    "step": "set_title"
+   },
+   {
     "step": "require_setting",
     "args": {
      "key": "lock_vendors_addition_in_event_creation",
      "value": "On"
     },
-    "note": "Enable the required vendor-lock configuration before creating the event."
+    "note": "Apply the required tenant configuration before opening the create screen."
    },
    {
     "step": "require_setting",
@@ -63,7 +65,7 @@
      "key": "can_add_ceil_price",
      "value": "On"
     },
-    "note": "Enable the required read-only price-cap configuration."
+    "note": "Apply the required ceiling-price configuration."
    },
    {
     "step": "require_setting",
@@ -74,56 +76,12 @@
     "note": "Apply the required terms-and-conditions configuration."
    },
    {
-    "step": "configure_single_stage",
-    "args": {
-     "eventType": "rfq",
-     "awarding": "lot"
-    },
-    "note": "Set the event type to RFQ and establish the single-vendor awarding mode."
-   },
-   {
-    "step": "set_title",
-    "args": {
-     "title": "EXP-CREATESINGLE-001 RFQ"
-    },
-    "note": "Provide the mandatory event title for a create test."
-   },
-   {
-    "step": "select_template",
-    "args": {},
-    "note": "Choose the RFQ pricing template before adding the product."
-   },
-   {
-    "step": "add_line_items",
-    "args": {
-     "count": 1,
-     "search": "CYLINDER WITH KEY & KNOB",
-     "quantity": "10"
-    },
-    "note": "Add the specified product and set its requested quantity to 10."
-   },
-   {
-    "step": "expect_line_items",
-    "args": {
-     "count": 1
-    },
-    "note": "Confirm the product was added before testing the RFQ configuration control."
-   },
-   {
-    "step": "remember",
-    "args": {
-     "key": "product_before_config",
-     "text": "CYLINDER WITH KEY & KNOB"
-    },
-    "note": "Record the product text to verify that opening configuration does not alter the event."
-   },
-   {
     "step": "click",
     "args": {
      "role": "button",
      "name": "RFQ"
     },
-    "note": "Click the RFQ event-type control to open its configuration window."
+    "note": "Click the RFQ control whose behavior is under test."
    },
    {
     "step": "expect_visible",
@@ -137,15 +95,17 @@
     "step": "expect_visible",
     "args": {
      "text": "Event Type",
-     "visible": true
+     "visible": true,
+     "within": "dialog"
     },
-    "note": "Verify the configuration window exposes Event Type."
+    "note": "Verify the configuration window identifies the event type section."
    },
    {
     "step": "expect_visible",
     "args": {
      "text": "How will you award the event?",
-     "visible": true
+     "visible": true,
+     "within": "dialog"
     },
     "note": "Verify the awarding configuration is present."
    },
@@ -154,7 +114,8 @@
     "args": {
      "role": "button",
      "name": "Cancel",
-     "visible": true
+     "visible": true,
+     "within": "dialog"
     },
     "note": "Verify the dialog offers Cancel."
    },
@@ -163,17 +124,10 @@
     "args": {
      "role": "button",
      "name": "Save",
-     "visible": true
+     "visible": true,
+     "within": "dialog"
     },
     "note": "Verify the dialog offers Save."
-   },
-   {
-    "step": "expect_remembered",
-    "args": {
-     "key": "product_before_config",
-     "same": true
-    },
-    "note": "Confirm opening the configuration window did not change the event product."
    }
   ]
  }

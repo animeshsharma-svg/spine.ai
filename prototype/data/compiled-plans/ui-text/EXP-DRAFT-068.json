@@ -4,67 +4,91 @@
   "title": "All Vendors: The Invite button behavior is shown when vendor addition is locked",
   "group": "EXP-DRAFT",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T01:46:17.588Z",
+  "compiledAt": "2026-11-13T14:09:14.665Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The exact outcome of whether a QA_Platform vendor can be selected or added when vendor addition is locked, unless the UI exposes a known disabled control or message label.",
+   "The exact message shown, because the case does not provide expected message text."
+  ],
+  "warnings": [
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "moved open_events_list to the front — the steps before it had no list on screen",
+   "can only test part of this — no step for: The exact outcome of whether a QA_Platform vendor can be selected or added when vendor addition is locked, unless the UI exposes a known disabled control or message label.; The exact message shown, because the case does not provide expected message text."
+  ],
   "source": "llm",
-  "steps": 15,
+  "steps": 17,
   "stepNames": [
    "open_events_list",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "expect_events_list",
    "filter_events",
    "open_first_event",
-   "expect_visible",
    "click",
    "expect_text",
-   "expect_visible",
    "click",
-   "inventory_screen",
+   "expect_visible",
+   "expect_visible",
+   "expect_visible",
    "fill",
-   "inventory_screen",
    "expect_text",
    "click",
-   "expect_visible"
+   "expect_screen_clean"
   ],
-  "ms": 18931
+  "ms": 23046
  },
  "plan": {
-  "title": "Draft Invite Behavior When Vendor Addition Is Locked",
+  "title": "Locked Vendor Invite in Draft",
   "steps": [
    {
     "step": "open_events_list",
     "args": {},
-    "note": "Reach the Events list before opening the saved draft."
+    "note": "Open the Events list to reach the saved draft."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "On"
+    },
+    "note": "Apply the tenant setting whose Invite behavior is being tested."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_add_new_stage_allowed",
+     "value": "Off"
+    },
+    "note": "Apply the additional tenant configuration specified for the draft scenario."
    },
    {
     "step": "expect_events_list",
     "args": {},
-    "note": "Confirm the events list rendered successfully."
+    "note": "Confirm the events list rendered before navigating to Drafts."
    },
    {
     "step": "filter_events",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Show saved drafts."
+    "note": "Open the Drafts tab specified by the case."
    },
    {
     "step": "open_first_event",
     "args": {
      "tab": "Drafts"
     },
-    "note": "Open the first saved draft; drafts reopen on the create screen."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Participants",
-     "visible": true
-    },
-    "note": "Confirm the draft exposes the Participants control."
+    "note": "Open the available saved eRFX draft without inventing an event title."
    },
    {
     "step": "click",
@@ -72,24 +96,14 @@
      "role": "button",
      "name": "Participants"
     },
-    "note": "Open the draft's participant and All Vendors interface."
+    "note": "Open the draft's All Vendors window."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "All Vendors",
-     "present": true
+     "text": "All Vendors"
     },
-    "note": "Confirm the All Vendors window is open."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Invite",
-     "visible": true
-    },
-    "note": "Verify the Invite action is rendered before exercising it."
+    "note": "Assert that the vendor selection window opened."
    },
    {
     "step": "click",
@@ -97,14 +111,34 @@
      "role": "button",
      "name": "Invite"
     },
-    "note": "Exercise the Invite behavior while vendor addition is locked."
+    "note": "Trigger the Invite behavior under the locked vendor-addition setting."
    },
    {
-    "step": "inventory_screen",
+    "step": "expect_visible",
     "args": {
-     "label": "all-vendors-invite-locked"
+     "role": "button",
+     "name": "Cancel",
+     "visible": true
     },
-    "note": "Record the opened window, available actions, disabled state, fields, and any message produced by the locked Invite flow."
+    "note": "Check that the Invite flow exposes its known cancellation control."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Save",
+     "visible": true
+    },
+    "note": "Check that the Invite flow exposes its known save control."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "textbox",
+     "placeholder": "Search vendors you want to add",
+     "visible": true
+    },
+    "note": "Verify whether the vendor search control is available."
    },
    {
     "step": "fill",
@@ -112,22 +146,14 @@
      "label": "Search vendors you want to add",
      "value": "QA_Platform"
     },
-    "note": "Search for the required QA test vendor when the search field is available."
-   },
-   {
-    "step": "inventory_screen",
-    "args": {
-     "label": "qa-platform-search-result"
-    },
-    "note": "Record whether the searched vendor can be selected or added and whether the controls are enabled or disabled."
+    "note": "Search for the specified QA test vendor prefix."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "QA_Platform",
-     "present": true
+     "text": "QA_Platform"
     },
-    "note": "Confirm the requested QA vendor search text or matching result is visible."
+    "note": "Assert that the search results contain the requested QA vendor prefix."
    },
    {
     "step": "click",
@@ -135,16 +161,12 @@
      "role": "button",
      "name": "Cancel"
     },
-    "note": "Close the All Vendors window without changing the draft."
+    "note": "Close the Invite window without adding a vendor."
    },
    {
-    "step": "expect_visible",
-    "args": {
-     "role": "button",
-     "name": "Participants",
-     "visible": true
-    },
-    "note": "Confirm the flow returned to the draft screen after cancellation."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the draft screen remains usable after cancelling the Invite flow."
    }
   ]
  }

@@ -4,47 +4,71 @@
   "title": "A refused action is not retried later",
   "group": "EMA-THR",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:59:13.571Z",
+  "compiledAt": "2026-11-13T14:24:42.738Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
    "Access Asha's mailbox and trigger the no-comment rejection bounce",
    "Wait 15 minutes and verify that no second bounce or late rejection appears",
-   "Observe the email approval system's final refusal state across the mailbox and buyer portal"
+   "Verify the company's approval mailbox connection to Procol and the two-step email approval workflow"
   ],
   "warnings": [
-   "can only test part of this — no step for: Access Asha's mailbox and trigger the no-comment rejection bounce; Wait 15 minutes and verify that no second bounce or late rejection appears; Observe the email approval system's final refusal state across the mailbox and buyer portal"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "can only test part of this — no step for: Access Asha's mailbox and trigger the no-comment rejection bounce; Wait 15 minutes and verify that no second bounce or late rejection appears; Verify the company's approval mailbox connection to Procol and the two-step email approval workflow"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_no_error"
+   "expect_visible"
   ],
-  "ms": 12115
+  "ms": 10654
  },
  "plan": {
-  "title": "Email Approval Rejection Finality",
+  "title": "Email Approval Refusal Is Final",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named event to provide the closest available buyer-portal context."
+    "note": "Open the existing event that Ravi sent for approval."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required company email-approval setting before opening the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the required approval-workflow configuration."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Asha, send the no-comment rejection from her mailbox, wait 15 minutes, and verify in the mailbox and buyer portal that no second bounce or late rejection appears"
+     "need": "open Asha's mailbox, send the no-comment rejection reply to trigger the rejection bounce, wait 15 minutes, and verify that no second bounce or late rejection appears"
     },
-    "note": "The catalog has no email mailbox, approval-reply, or timed-wait step for this behavior."
+    "note": "Mailbox access, sending the reply, waiting for the delayed processing, and checking the resulting emails are not expressible by catalog steps."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Final generic assertion required by the plan format; it does not establish the email approval outcome."
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Settings",
+     "visible": true
+    },
+    "note": "Final screen assertion for the opened event; it does not validate the mailbox outcome."
    }
   ]
  }

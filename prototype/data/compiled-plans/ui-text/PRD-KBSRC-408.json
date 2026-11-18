@@ -3,49 +3,143 @@
   "caseId": "PRD-KBSRC-408",
   "title": "Evaluation level follows the buyer's setting (line item or lot)",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:21:14.661Z",
+  "compiledAt": "2026-11-13T14:44:48.630Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Change or verify the buyer's rfp_evaluation_mode setting for separate line-item and lot-level events",
-   "Sign in as the assigned evaluator, open both configured events, click Add Evaluation, and verify whether the evaluation is per line item or per vendor"
+   "Create and evaluate a second event with the buyer's RFP evaluation mode set to lot level in the same plan",
+   "Directly assert that the evaluator UI asks for one rank per vendor versus one rank per line item; evaluate_technical performs scoring but has no level-specific assertion"
   ],
   "warnings": [
-   "can only test part of this — no step for: Change or verify the buyer's rfp_evaluation_mode setting for separate line-item and lot-level events; Sign in as the assigned evaluator, open both configured events, click Add Evaluation, and verify whether the evaluation is per line item or per vendor"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
+   "can only test part of this — no step for: Create and evaluate a second event with the buyer's RFP evaluation mode set to lot level in the same plan; Directly assert that the evaluator UI asks for one rank per vendor versus one rank per line item; evaluate_technical performs scoring but has no level-specific assertion"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 16,
   "stepNames": [
-   "open_event",
-   "ask_tester",
-   "expect_text"
+   "open_create",
+   "require_setting",
+   "set_title",
+   "compose_stages",
+   "switch_stage",
+   "select_template",
+   "add_line_items",
+   "fill_questionnaires",
+   "assign_evaluator",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "close_event",
+   "evaluate_technical",
+   "expect_no_error"
   ],
-  "ms": 10092
+  "ms": 22330
  },
  "plan": {
-  "title": "Evaluation Level Follows Buyer Setting",
+  "title": "Evaluation level follows buyer setting",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
     "args": {
-     "purpose": "evaluation"
+     "path": "erfx"
     },
-    "note": "Open an existing event with a closed technical stage and a vendor response, which is the closest catalog path to the evaluation context."
+    "note": "Open the multi-stage event creation flow."
    },
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "sign in as the assigned evaluator, open both configured line-item-level and lot-level events, click Add Evaluation in each, and verify whether the evaluator is asked for a rank per line item or one rank per vendor"
+     "key": "rfpEvaluationOn",
+     "value": "line"
     },
-    "note": "The evaluator identity, both configured events, and the evaluation-level comparison cannot be completed by catalog steps."
+    "note": "Configure the buyer setting for line-item-level technical evaluation before creating the event."
    },
    {
-    "step": "expect_text",
+    "step": "set_title",
     "args": {
-     "text": "Evaluation",
-     "present": true
+     "title": "Line Item Evaluation Level Test"
     },
-    "note": "Confirm that the current screen remains in an evaluation-related context after the tester's action."
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfp"
+     ]
+    },
+    "note": "Create a technical event so evaluation-level behavior is exercised."
+   },
+   {
+    "step": "switch_stage",
+    "args": {
+     "stage": "rfp"
+    },
+    "note": "Configure the technical stage."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the technical-stage template required before configuring the event."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 2
+    },
+    "note": "Create two line items so line-level evaluation can be exercised."
+   },
+   {
+    "step": "fill_questionnaires",
+    "args": {},
+    "note": "Populate the technical questions needed for vendor evaluation."
+   },
+   {
+    "step": "assign_evaluator",
+    "args": {},
+    "note": "Assign the evaluator required to score the technical responses."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 3
+    },
+    "note": "Commit the technical-stage schedule."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a participant so the event can be published and evaluated."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the configured technical event."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real project page."
+   },
+   {
+    "step": "close_event",
+    "args": {},
+    "note": "Close the technical stage so evaluator scoring becomes available."
+   },
+   {
+    "step": "evaluate_technical",
+    "args": {},
+    "note": "Act as the assigned evaluator and score the technical response; with the line setting, the evaluator flow should operate at line-item level."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Confirm the evaluation flow completed without an application error."
    }
   ]
  }

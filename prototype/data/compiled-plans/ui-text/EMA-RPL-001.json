@@ -4,46 +4,67 @@
   "title": "Reply button opens a reply in the consultation thread with the requester in CC",
   "group": "EMA-RPL",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:57:56.271Z",
+  "compiledAt": "2026-11-13T14:23:10.387Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Access Chetan's mailbox and open the Consultation Request email",
-   "Click Reply and verify the reply opens in the same thread with the expected subject, To company approval mailbox, CC Asha, and required body lines"
+   "Create a consultation from Asha to Chetan in the buyer portal",
+   "Log in as Chetan, open the Consultation Request email, and click Reply"
   ],
   "warnings": [
-   "can only test part of this — no step for: Access Chetan's mailbox and open the Consultation Request email; Click Reply and verify the reply opens in the same thread with the expected subject, To company approval mailbox, CC Asha, and required body lines"
+   "moved open_event to the front — the steps after it act on that event's page",
+   "moved open_event to the front — the steps after it act on that event's page",
+   "resolved: “Verify the reply remains in the same thread with subject \"RE: <consultation subject>\", To set to the company approval ma” — require_setting switches that company setting before the case and back after",
+   "can only test part of this — no step for: Create a consultation from Asha to Chetan in the buyer portal; Log in as Chetan, open the Consultation Request email, and click Reply"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 5,
   "stepNames": [
    "open_event",
-   "expect_no_error",
-   "ask_tester"
+   "require_setting",
+   "require_setting",
+   "ask_tester",
+   "expect_screen_clean"
   ],
-  "ms": 11455
+  "ms": 16748
  },
  "plan": {
-  "title": "EMA-RPL-001 Consultant Reply Thread",
+  "title": "EMA-RPL-001 Consultant reply in approval thread",
   "steps": [
    {
     "step": "open_event",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Opens the named existing event in the buyer portal, the closest catalog-supported context for this approval-related case; it does not test the mailbox reply."
+    "note": "Open the named approval event to provide the buyer-side context before the unavailable consultation and mailbox actions."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirms the existing event page loaded without an application error before handing off the unsupported mailbox interaction."
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Configure the required email-approval setting before opening the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Configure the approval workflow prerequisite described by the case."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as Chetan, open the Consultation Request email in his mailbox, click Reply, and verify the same-thread subject, To company approval mailbox, CC Asha, and required body lines"
+     "need": "Create the consultation from Asha to Chetan, sign in to Chetan's mailbox, open the Consultation Request email, click Reply, and verify the same-thread reply's subject, To, CC, and required body content"
     },
-    "note": "The catalog cannot access user mailboxes or inspect consultation email reply fields."
+    "note": "The catalog cannot access individual mailboxes or create and inspect consultation email threads."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Assert that the current screen has no crash or server error after the tester's unavailable email workflow."
    }
   ]
  }

@@ -4,49 +4,121 @@
   "title": "Consulting an outside address bounces back and nothing is sent",
   "group": "EMA-CON",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:53:59.862Z",
+  "compiledAt": "2026-11-13T14:19:16.162Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Create and submit the approval workflow, access Asha's and the outsider's mailboxes, send the Consult email to outsider.qa@gmail.com, verify the exact bounce-back, verify no email reaches the outsider, and verify no consultation is recorded while Asha remains pending."
+   "Submit the event into the configured email approval workflow and reach Asha's pending approval request",
+   "Sign in to Asha's mailbox, open the Procol approval email, click Consult, enter the comment and outsider.qa@gmail.com, and send without changing the subject",
+   "Wait for Procol to process the approval mailbox and observe the exact bounce-back message",
+   "Verify that outsider.qa@gmail.com receives no email",
+   "Verify that no consultation appears on the event and Asha's approval remains pending",
+   "Verify or establish the company's approval mailbox connection to Procol"
   ],
   "warnings": [
-   "moved open_event to the front — the steps after it act on that event's page",
-   "moved open_event to the front — the steps after it act on that event's page",
-   "can only test part of this — no step for: Create and submit the approval workflow, access Asha's and the outsider's mailboxes, send the Consult email to outsider.qa@gmail.com, verify the exact bounce-back, verify no email reaches the outsider, and verify no consultation is recorded while Asha remains pending."
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "can only test part of this — no step for: Submit the event into the configured email approval workflow and reach Asha's pending approval request; Sign in to Asha's mailbox, open the Procol approval email, click Consult, enter the comment and outsider.qa@gmail.com, and send without changing the subject; Wait for Procol to process the approval mailbox and observe the exact bounce-back message; Verify that outsider.qa@gmail.com receives no email; Verify that no consultation appears on the event and Asha's approval remains pending; Verify or establish the company's approval mailbox connection to Procol"
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 13,
   "stepNames": [
-   "open_event",
+   "open_create",
+   "require_setting",
+   "require_setting",
+   "set_title",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
    "ask_tester",
-   "expect_text"
+   "expect_no_error"
   ],
-  "ms": 16137
+  "ms": 16760
  },
  "plan": {
-  "title": "External Consultation Bounce",
+  "title": "External Consultation Email Bounce",
   "steps": [
    {
-    "step": "open_event",
+    "step": "open_create",
+    "args": {
+     "path": "erfx"
+    },
+    "note": "Create the event used by the scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the required company email-approval configuration before creating the event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Request the configured approval workflow needed for the scenario."
+   },
+   {
+    "step": "set_title",
     "args": {
      "title": "QA Email Approval - Office Chairs Nov"
     },
-    "note": "Open the named event after the mailbox interaction so its approval state can be inspected."
+    "note": "Use the exact event title from the test data."
+   },
+   {
+    "step": "select_template",
+    "note": "Apply the first available template so the event can be configured."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item required for a publishable event."
+   },
+   {
+    "step": "fill_sheet",
+    "note": "Complete the pricing sheet for the line item."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a valid event schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a participant so publishing is allowed."
+   },
+   {
+    "step": "publish",
+    "note": "Create the event so the unavailable approval-email workflow can be attempted against it."
+   },
+   {
+    "step": "expect_published",
+    "note": "Confirm the event was created and a project page is available."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "use the specified Procol users and mailboxes to create and submit the two-step approval event, send Asha's Consult email to outsider.qa@gmail.com with the comment, and verify the bounce, no outsider email, and no recorded consultation"
+     "need": "submit this event for approval, sign in to Asha's mailbox, open the Procol approval request, use Consult to send the stated comment to outsider.qa@gmail.com without changing the subject, wait for processing, and verify the bounce-back, no outside email, no event consultation, and Asha's still-pending approval"
     },
-    "note": "The email approval and external-recipient behavior require mailbox access and user sessions unavailable to catalog steps."
+    "note": "The approval mailbox interaction and all requested external-email outcomes cannot be performed by catalog steps."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Approval in Progress"
-    },
-    "note": "Check the event still indicates approval is in progress rather than showing a completed consultation or approval."
+    "step": "expect_no_error",
+    "note": "Confirm the buyer-side screen is not showing an application error after the tester's unavailable interaction."
    }
   ]
  }

@@ -4,16 +4,21 @@
   "title": "Surrogate bid: a counter offer is not allowed on it",
   "group": "SRC-SUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:10:00.962Z",
+  "compiledAt": "2026-11-13T13:00:53.848Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 6,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "go_to",
+   "require_setting",
+   "require_setting",
+   "open_prepared",
    "place_surrogate_bid",
    "expect_bid_submitted",
    "go_to",
@@ -21,41 +26,57 @@
   ],
   "state": "live",
   "screen": "responses",
-  "ms": 9085
+  "ms": 14771
  },
  "plan": {
-  "title": "Surrogate Bid Counter Offer Block",
+  "title": "Surrogate bid counter-offer blocked",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ on its Responses screen as required for this state."
+    "note": "Open the prepared live RFQ on its Responses screen."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Ensure counter-offer controls are visible for the surrogate-bid rule check."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the eRFX project flow required by the prepared RFQ."
+   },
+   {
+    "step": "open_prepared",
     "args": {
      "screen": "participants"
     },
-    "note": "Open the stage's Participants tab so a surrogate bid can be added."
+    "note": "Open the event's Participants tab to add the buyer-entered bid."
    },
    {
     "step": "place_surrogate_bid",
     "args": {},
-    "note": "Add a buyer-entered bid for the first eligible invited vendor."
+    "note": "Add a surrogate bid for an invited vendor using the buyer portal."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify that the surrogate bid was accepted."
+    "note": "Assert that the surrogate bid was accepted."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Return to Responses to test the counter-offer control for the surrogate bid."
+    "note": "Return to Responses to try the counter-offer action on the surrogate bid."
    },
    {
     "step": "attempt",
@@ -65,10 +86,10 @@
       "role": "button",
       "name": "Counter Offer"
      },
-     "because": "You cannot send counter offer for bids added by you.",
-     "expect": "refused"
+     "expect": "refused",
+     "because": "You cannot send counter offer for bids added by you."
     },
-    "note": "Attempt the Counter Offer action and require Procol's refusal for a buyer-added bid."
+    "note": "Assert that Counter Offer is refused for a buyer-added surrogate bid with the required message."
    }
   ]
  }

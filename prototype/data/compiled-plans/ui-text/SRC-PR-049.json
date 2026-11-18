@@ -4,23 +4,22 @@
   "title": "Source two material lines of two different PRs in one event",
   "group": "SRC-PR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T21:33:14.470Z",
+  "compiledAt": "2026-11-13T12:28:54.895Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "Select one material line from each of two different purchase requisitions and combine them into one event",
-   "Assert that both PR lines arrive as two rows with their originating PR numbers",
-   "Assert that both PRs show the same published event number on their lines"
+   "Select material lines from two different open purchase requisitions and merge them into one event.",
+   "Verify that both originating PR numbers show the same published event number on their lines."
   ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 7 step(s) that would open a blank event or replace the PR's items",
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 8 step(s) that would open a blank event or replace the PR's items",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 7 step(s) that would open a blank event or replace the PR's items",
-   "cannot test this case yet — no step can observe: Select one material line from each of two different purchase requisitions and combine them into one event; Assert that both PR lines arrive as two rows with their originating PR numbers; Assert that both PRs show the same published event number on their lines"
+   "starts from the PR one step at a time (Purchase Requisitions → Open → tick a PR → Purchase Items → Start New Project → rfq); dropped 8 step(s) that would open a blank event or replace the PR's items",
+   "cannot test this case yet — no step can observe: Select material lines from two different open purchase requisitions and merge them into one event.; Verify that both originating PR numbers show the same published event number on their lines."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 15,
   "stepNames": [
    "open_purchase_requisitions",
    "pr_tab",
@@ -30,16 +29,18 @@
    "expect_pr_items",
    "select_template",
    "fill_sheet",
+   "require_setting",
+   "require_setting",
    "set_title",
    "set_schedule",
    "invite_vendor",
    "publish",
    "expect_published"
   ],
-  "ms": 16853
+  "ms": 21934
  },
  "plan": {
-  "title": "Source Two PR Lines in One Event",
+  "title": "Two PR lines in one RFQ",
   "steps": [
    {
     "step": "open_purchase_requisitions"
@@ -74,16 +75,32 @@
     "step": "fill_sheet"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX project creation as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendors to be added during event creation and publishing."
+   },
+   {
     "step": "set_title",
     "args": {},
-    "note": "Provide the required event title before configuration and publishing."
+    "note": "Set the required event title so the event can be published and identified."
    },
    {
     "step": "set_schedule",
     "args": {
      "minutes": 30
     },
-    "note": "Commit the required 30-minute event schedule."
+    "note": "Commit the requested 30-minute schedule."
    },
    {
     "step": "invite_vendor",
@@ -97,7 +114,7 @@
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured event."
+    "note": "Publish the completed RFQ event."
    },
    {
     "step": "expect_published",

@@ -4,15 +4,19 @@
   "title": "Split with everything in one lot",
   "group": "SRC-LOT",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:31:37.888Z",
+  "compiledAt": "2026-11-13T12:13:44.694Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "moved open_create to the front — the steps before it had no create screen to act on"
+  ],
   "source": "llm",
-  "steps": 12,
+  "steps": 13,
   "stepNames": [
    "open_create",
+   "require_setting",
    "set_title",
    "compose_stages",
    "select_template",
@@ -25,24 +29,32 @@
    "do_on_screen",
    "expect_message"
   ],
-  "ms": 15882
+  "ms": 19099
  },
  "plan": {
-  "title": "SRC-LOT-002 single-lot refusal",
+  "title": "SRC-LOT-002 Single-Lot Split Refusal",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "erfx"
     },
-    "note": "Create the buyer-side event needed to reach lot management."
+    "note": "Open the eRFX creation flow for the RFQ event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_lot_creation_enabled",
+     "value": "On"
+    },
+    "note": "Enable lot creation for the test company as required."
    },
    {
     "step": "set_title",
     "args": {
-     "title": "SRC-LOT-002"
+     "title": "SRC-LOT-002 Single Lot Refusal"
     },
-    "note": "Provide the mandatory event title."
+    "note": "Provide the required event title."
    },
    {
     "step": "compose_stages",
@@ -51,24 +63,24 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ event, which is the pricing event being split into lots."
+    "note": "Configure the event with an RFQ stage, which is required for lot creation."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply the first available pricing template before adding line items."
+    "note": "Apply the first available RFQ template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 2
     },
-    "note": "Create multiple line items so the lot assignment can be tested."
+    "note": "Create multiple line items so the lot validation can require assignment across at least two lots."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the pricing sheet for the line items."
+    "note": "Complete the RFQ pricing sheet for the line items."
    },
    {
     "step": "set_schedule",
@@ -87,7 +99,7 @@
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so its lot-management screen is available."
+    "note": "Publish the RFQ so its buyer-side lot controls are available."
    },
    {
     "step": "expect_published",
@@ -97,9 +109,9 @@
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "open the published event's lot or split-event management drawer, assign every line item to Lot 1 so no item is assigned to a second lot, save the lot plan, and stop on the screen showing the refusal that line items must be assigned to at least two lots"
+     "goal": "On the buyer's published RFQ page, open the lot creation drawer, put every line item into lot 1, save the lot plan, and leave the refusal visible."
     },
-    "note": "Perform the unsupported lot assignment and save action in the buyer session."
+    "note": "Perform the lot assignment and save action that has no dedicated catalog step."
    },
    {
     "step": "expect_message",
@@ -107,7 +119,7 @@
      "kind": "error",
      "text": "Please assign line item to at least two lots"
     },
-    "note": "Assert the exact expected refusal message."
+    "note": "Verify the required refusal when all line items are in only one lot."
    }
   ]
  }

@@ -4,41 +4,41 @@
   "title": "Withdraw an event that is live with two bids and press Cancel in the pop-up",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-12T13:23:06.474Z",
+  "compiledAt": "2026-11-13T13:16:19.584Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
   "warnings": [
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
    "moved open_prepared to the front — every later step acts on that screen",
-   "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
    "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 8,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
    "require_setting",
    "require_setting",
    "event_menu",
+   "expect_visible",
    "expect_text",
    "click",
+   "expect_visible",
    "expect_text",
-   "expect_event_status"
+   "expect_text"
   ],
   "state": "two_bids",
   "screen": "summary",
-  "ms": 17166
+  "ms": 20346
  },
  "plan": {
-  "title": "Cancel Live Event Withdrawal",
+  "title": "Cancel live event withdrawal",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ with two bids on its project summary."
+    "note": "Open the existing live RFQ with two bids on its project summary page."
    },
    {
     "step": "require_setting",
@@ -46,7 +46,7 @@
      "key": "hide_withdraw_in_intake_and_event",
      "value": "Off"
     },
-    "note": "Ensure the Withdraw Project action is available for the event."
+    "note": "Ensure the Withdraw Project action is available for the buyer."
    },
    {
     "step": "require_setting",
@@ -54,45 +54,66 @@
      "key": "rfx_project_enabled",
      "value": "On"
     },
-    "note": "Ensure eRFX project behavior is enabled for the prepared RFQ."
+    "note": "Ensure the prepared RFQ project flow is enabled for this tenant."
    },
    {
     "step": "event_menu",
     "args": {
      "item": "Withdraw Project"
     },
-    "note": "Open the project withdrawal confirmation without confirming the withdrawal."
+    "note": "Open the project's withdrawal confirmation pop-up."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Withdrawing Order…",
+     "visible": true
+    },
+    "note": "Verify the withdrawal confirmation pop-up is displayed before cancellation."
    },
    {
     "step": "expect_text",
     "args": {
      "text": "Are you sure you want to withdraw this event?",
-     "present": true
+     "present": true,
+     "within": "dialog"
     },
-    "note": "Verify the withdrawal confirmation asks for confirmation."
+    "note": "Verify the pop-up contains the expected withdrawal confirmation question."
    },
    {
     "step": "click",
     "args": {
      "role": "button",
-     "name": "Cancel"
+     "name": "Cancel",
+     "within": "dialog"
     },
-    "note": "Cancel the withdrawal from the confirmation dialog."
+    "note": "Cancel the withdrawal instead of confirming it."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "dialog",
+     "name": "Withdrawing Order…",
+     "visible": false
+    },
+    "note": "Verify the confirmation pop-up closes after cancellation."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "Are you sure you want to withdraw this event?",
+     "text": "Withdrawn",
      "present": false
     },
-    "note": "Verify the confirmation pop-up closes."
+    "note": "Verify cancellation did not withdraw the event."
    },
    {
-    "step": "expect_event_status",
+    "step": "expect_text",
     "args": {
-     "status": "Live"
+     "text": "Live",
+     "present": true
     },
-    "note": "Confirm the event remains live after cancellation."
+    "note": "Verify the event remains in its live state after cancellation."
    }
   ]
  }

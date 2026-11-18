@@ -3,34 +3,52 @@
   "caseId": "PRD-PR-077",
   "title": "PR Collator: refused for a user without the Buyer role",
   "group": "PRD-PR",
-  "compiledAt": "2026-11-10T04:38:50.670Z",
+  "compiledAt": "2026-11-13T15:21:45.833Z",
   "tier": "fast",
-  "coverage": "none",
+  "coverage": "partial",
   "gaps": [
-   "Open or use PR Collator to collate multiple purchase requisitions into one supplier window",
-   "Sign in as both a non-Buyer and a Buyer in the same tenant for a role comparison",
-   "Verify the tenant is on Enterprise and determine whether RBAC deliberately grants PR Collator access to additional roles",
-   "the plan has no assertion step — nothing the case checks can be observed"
+   "Sign in as a user without the Buyer role on the specified Enterprise tenant",
+   "Use PR Collator to collate multiple purchase requisitions into one supplier window",
+   "Repeat the action as a Buyer and compare availability or refusal in the same tenant",
+   "Verify the tenant's Enterprise plan and its RBAC configuration",
+   "unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case"
   ],
   "warnings": [
-   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
+   "coverage partial: unconfirmed label \"Purchase Items\" (expect_visible) — not among the labels known from the app nor in the case",
+   "can only test part of this — no step for: Sign in as a user without the Buyer role on the specified Enterprise tenant; Use PR Collator to collate multiple purchase requisitions into one supplier window; Repeat the action as a Buyer and compare availability or refusal in the same tenant; Verify the tenant's Enterprise plan and its RBAC configuration"
   ],
   "source": "llm",
-  "steps": 1,
+  "steps": 3,
   "stepNames": [
-   "ask_tester"
+   "open_purchase_requisitions",
+   "ask_tester",
+   "expect_visible"
   ],
-  "ms": 10957
+  "ms": 9249
  },
  "plan": {
-  "title": "PR Collator Buyer Role Access",
+  "title": "PR Collator role access",
   "steps": [
+   {
+    "step": "open_purchase_requisitions",
+    "args": {},
+    "note": "Closest available procurement screen, but this does not open or test PR Collator."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as a non-Buyer and as a Buyer in the same Enterprise tenant, open PR Collator, attempt to collate multiple PRs into one supplier window for each user, and report whether the action is refused, absent, or available"
+     "need": "sign in as the non-Buyer user and then as a Buyer on the same Enterprise tenant, attempt PR Collator to collate multiple PRs into one supplier window, and report whether the action is absent or refused for the non-Buyer and available for the Buyer"
     },
-    "note": "The tester must perform the role-specific sign-ins and use PR Collator because no catalog step can reach or assert that feature."
+    "note": "Role-specific sessions and the PR Collator workflow are not represented by any catalog step."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "role": "button",
+     "name": "Purchase Items",
+     "visible": true
+    },
+    "note": "Confirms the requisitions screen remains available after the manual investigation; it does not assert PR Collator access."
    }
   ]
  }

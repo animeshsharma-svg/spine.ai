@@ -3,39 +3,45 @@
   "caseId": "PRD-AE-005",
   "title": "DoA Threshold Currency (approval.doa.currency) = GBP",
   "group": "PRD-AE",
-  "compiledAt": "2026-11-10T01:41:44.896Z",
+  "compiledAt": "2026-11-13T15:01:11.879Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Set the tenant-level approval.doa.currency setting to GBP and verify that Modular Approval Setup and the Delegation of Authority matrix use GBP for all spend threshold definitions."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Set the tenant-level approval.doa.currency setting to GBP and verify that Modular Approval Setup and the Delegation of Authority matrix use GBP for all spend threshold definitions."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
-   "ask_tester",
+   "require_setting",
+   "do_on_screen",
    "expect_text"
   ],
-  "ms": 12486
+  "ms": 17417
  },
  "plan": {
   "title": "DoA Threshold Currency GBP",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "require_setting",
     "args": {
-     "need": "as Tenant Admin, set approval.doa.currency to GBP, use Modular Approval Setup to make approvals attachable to entities, and open the Delegation of Authority matrix showing GBP as the currency for spend threshold definitions"
+     "key": "approval.doa.currency",
+     "value": "GBP"
     },
-    "note": "No catalog step can change the tenant setting, configure Modular Approval Setup, or inspect the DoA threshold matrix."
+    "note": "Set the tenant's DoA threshold currency to GBP before observing the controlled behaviour."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "open Modular Approval Setup and inspect the Delegation of Authority matrix, confirming that the currency unit for spend threshold definitions is GBP and that approvals can be configured for the available entity types"
+    },
+    "note": "Use the tenant-admin screen to observe the behaviour controlled by the setting."
    },
    {
     "step": "expect_text",
     "args": {
-     "text": "GBP"
+     "text": "GBP",
+     "present": true
     },
-    "note": "Check that the tester's resulting approval configuration or DoA matrix visibly shows GBP."
+    "note": "Assert that GBP is visibly used in the DoA threshold configuration."
    }
   ]
  }

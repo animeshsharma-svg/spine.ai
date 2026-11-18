@@ -4,28 +4,33 @@
   "title": "Recreate Order: Enter extremely large price and verify handling",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:47:26.340Z",
+  "compiledAt": "2026-11-13T14:14:01.975Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "The test case does not specify whether 9999999999 should be accepted, rejected, normalized, or produce a particular message, so no precise outcome assertion can be made."
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: The test case does not specify whether 9999999999 should be accepted, rejected, normalized, or produce a particular message, so no precise outcome assertion can be made."
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 12,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
    "event_menu",
    "expect_visible",
    "fill",
    "click",
-   "expect_toast"
+   "expect_toast",
+   "expect_screen_clean"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 69755
+  "ms": 19600
  },
  "plan": {
   "title": "Recreate Order with Extremely Large Price",
@@ -35,14 +40,54 @@
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ as the buyer."
+    "note": "Open the API-prepared live RFQ rather than creating or searching for another event."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required withdrawal visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow the live-event configuration required for this scenario."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Reach the RFQ Responses tab where the event Settings action is available."
    },
    {
     "step": "event_menu",
     "args": {
-     "item": "Recreate Order"
+     "item": "Recreate Order",
+     "stage": "rfq"
     },
-    "note": "Open the Recreate Order window from the event's Settings menu."
+    "note": "Open the Recreate Order window from the RFQ stage Settings menu."
    },
    {
     "step": "expect_visible",
@@ -56,11 +101,11 @@
    {
     "step": "fill",
     "args": {
-     "label": "Price*",
+     "label": "Price",
      "value": "9999999999",
      "within": "dialog"
     },
-    "note": "Enter the extremely large price in the required Price field."
+    "note": "Enter the extremely large price in the Recreate Order dialog."
    },
    {
     "step": "click",
@@ -69,14 +114,19 @@
      "name": "Create Order",
      "within": "dialog"
     },
-    "note": "Submit the recreated order and let the application determine how it handles the value."
+    "note": "Submit the large price to observe Procol's handling."
    },
    {
     "step": "expect_toast",
     "args": {
      "kind": "any"
     },
-    "note": "Capture any success, warning, or error toast produced by submitting the large price."
+    "note": "Record the resulting success, error, warning, or other toast response."
+   },
+   {
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "Confirm the resulting screen has no crash, server error, raw values, or rendering corruption."
    }
   ]
  }

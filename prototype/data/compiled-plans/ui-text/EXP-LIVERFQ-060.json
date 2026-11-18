@@ -4,57 +4,110 @@
   "title": "Edit Evaluation Time: Attempt to submit without selecting any option (radio unselected) – should still succeed because field is optional",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:49:35.408Z",
+  "compiledAt": "2026-11-13T14:15:56.398Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
-  "warnings": [],
+  "coverage": "partial",
+  "gaps": [
+   "The required starting state specifies a live RFQ with no bids, but the prepared live RFQ state contains one bid; the no-bid prerequisite is not expressible."
+  ],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "can only test part of this — no step for: The required starting state specifies a live RFQ with no bids, but the prepared live RFQ state contains one bid; the no-bid prerequisite is not expressible."
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 10,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "go_to",
-   "go_to",
-   "extend_time"
+   "event_menu",
+   "do_on_screen",
+   "click",
+   "expect_no_error"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 9145
+  "ms": 17637
  },
  "plan": {
-  "title": "Edit Evaluation Time with No Option Selected",
+  "title": "Edit Evaluation Time Without Duration",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the API-prepared live RFQ summary."
+    "note": "Open the prepared live RFQ summary; prepared state is required for this existing event case."
    },
    {
-    "step": "go_to",
+    "step": "require_setting",
     "args": {
-     "screen": "stage",
-     "stage": "rfq"
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Open the RFQ stage before accessing its Responses tab."
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required tenant configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Allow withdrawal during submission as required by the case configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
    },
    {
     "step": "go_to",
     "args": {
      "screen": "responses"
     },
-    "note": "Reach the Responses tab where the Settings action is available."
+    "note": "Navigate to the RFQ Responses tab where the Settings control is available."
    },
    {
-    "step": "extend_time",
+    "step": "event_menu",
     "args": {
-     "which": "evaluation",
-     "option": "custom",
-     "amount": "",
-     "expect": "saved"
+     "item": "Edit Evaluation Time"
     },
-    "note": "Open Edit Evaluation Time, leave the duration unselected/empty, submit, and assert that Procol saves it because the field is optional."
+    "note": "Open the Edit Evaluation Time dialog from the RFQ Settings menu."
+   },
+   {
+    "step": "do_on_screen",
+    "args": {
+     "goal": "In the open Edit Evaluation Time window, ensure the radio option \"Edit evaluation duration\" is deselected, leaving no evaluation-duration option selected; stop with the dialog still open."
+    },
+    "note": "Perform the conditional deselection that no fixed catalog action can guarantee."
+   },
+   {
+    "step": "click",
+    "args": {
+     "role": "button",
+     "name": "Ok"
+    },
+    "note": "Submit the Edit Evaluation Time dialog without selecting an evaluation-duration option."
+   },
+   {
+    "step": "expect_no_error",
+    "args": {},
+    "note": "Assert that submission does not produce an application error, consistent with the optional field expectation."
    }
   ]
  }

@@ -4,59 +4,67 @@
   "title": "Approve button opens a correct email in Apple Mail / phone mail app",
   "group": "EMA-LINK",
   "sheet": "email-approvals-test-cases",
-  "compiledAt": "2026-11-10T00:54:59.447Z",
+  "compiledAt": "2026-11-13T14:20:34.585Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the approval request email in Apple Mail or a phone mail app",
-   "Click the email's Approve action",
-   "Verify the new email is addressed to the company's approval mailbox",
-   "Verify the subject is formatted as Action:Approve|Proposal:[...] without URL encoding",
-   "Verify the required comment text and system-generated message in the email body"
+   "Open the approval request in Apple Mail or a phone mail app and click Approve.",
+   "Verify that a new email is addressed to the company approval mailbox.",
+   "Verify the subject is formatted as Action:Approve|Proposal:[...] with literal brackets and pipe characters rather than encoded values.",
+   "Verify the body contains '(Required) Comment:' followed by 'This is a system-generated message, content after this will be ignored'."
   ],
   "warnings": [
-   "can only test part of this — no step for: Open the approval request email in Apple Mail or a phone mail app; Click the email's Approve action; Verify the new email is addressed to the company's approval mailbox; Verify the subject is formatted as Action:Approve|Proposal:[...] without URL encoding; Verify the required comment text and system-generated message in the email body"
+   "can only test part of this — no step for: Open the approval request in Apple Mail or a phone mail app and click Approve.; Verify that a new email is addressed to the company approval mailbox.; Verify the subject is formatted as Action:Approve|Proposal:[...] with literal brackets and pipe characters rather than encoded values.; Verify the body contains '(Required) Comment:' followed by 'This is a system-generated message, content after this will be ignored'."
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 5,
   "stepNames": [
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "ask_tester",
-   "expect_text",
-   "expect_text",
-   "expect_text"
+   "expect_screen_clean"
   ],
-  "ms": 9477
+  "ms": 13120
  },
  "plan": {
-  "title": "Approval email opens correctly in mail app",
+  "title": "Email Approve Link Opens Correct Reply",
   "steps": [
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Email approvals switched on for the company",
+     "value": "On"
+    },
+    "note": "Enable the email-approval company configuration required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "Approval workflow for events with email approval turned on",
+     "value": "On"
+    },
+    "note": "Enable the approval workflow mode required for approval emails."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "phrase": "company's approval mailbox connected to Procol with permission to send replies",
+     "value": "On"
+    },
+    "note": "Configure the connected approval mailbox prerequisite if it is represented as a company setting."
+   },
    {
     "step": "ask_tester",
     "args": {
-     "need": "open the approval request in Apple Mail or a phone mail app, click Approve, and leave the newly opened email visible"
+     "need": "open the approval request in Apple Mail or a phone mail app as Asha, click Approve, and verify the new email's recipient, literal subject formatting, and required body text"
     },
-    "note": "The catalog cannot access mailboxes or click actions in Apple Mail or a phone mail app."
+    "note": "The catalog has no step for accessing an external mailbox or performing and checking the email-app action."
    },
    {
-    "step": "expect_text",
-    "args": {
-     "text": "Action:Approve|Proposal:"
-    },
-    "note": "Checks the visible email subject prefix after the tester completes the mail action."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "(Required) Comment:"
-    },
-    "note": "Checks that the newly opened email contains the required comment label."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "This is a system-generated message, content after this will be ignored"
-    },
-    "note": "Checks the expected system-generated body text."
+    "step": "expect_screen_clean",
+    "args": {},
+    "note": "End with the available generic assertion without claiming that the external email behavior was verified."
    }
   ]
  }

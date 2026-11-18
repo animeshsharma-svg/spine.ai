@@ -3,15 +3,11 @@
   "caseId": "PRD-KBVDB-008",
   "title": "Vendor declines an event with a reason",
   "group": "PRD-KBVDB",
-  "compiledAt": "2026-11-10T06:53:35.582Z",
+  "compiledAt": "2026-11-13T15:44:04.815Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Click the vendor's \"I don't wish to participate\" button, select a non-participation reason, and confirm with \"I will not participate\"."
-  ],
-  "warnings": [
-   "can only test part of this — no step for: Click the vendor's \"I don't wish to participate\" button, select a non-participation reason, and confirm with \"I will not participate\"."
-  ],
+  "coverage": "full",
+  "gaps": [],
+  "warnings": [],
   "source": "llm",
   "steps": 14,
   "stepNames": [
@@ -27,10 +23,10 @@
    "expect_published",
    "switch_portal",
    "vendor_open_event",
-   "ask_tester",
+   "do_on_screen",
    "expect_text"
   ],
-  "ms": 11049
+  "ms": 8308
  },
  "plan": {
   "title": "Vendor declines event with reason",
@@ -40,12 +36,14 @@
     "args": {
      "path": "erfx"
     },
-    "note": "Create the live event needed by the setup."
+    "note": "Create the live event needed for the vendor decline scenario."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title before publishing."
+    "args": {
+     "title": "Vendor Decline Reason Test"
+    },
+    "note": "Provide the mandatory event title."
    },
    {
     "step": "compose_stages",
@@ -54,24 +52,24 @@
       "rfq"
      ]
     },
-    "note": "Use an RFQ event matching the setup."
+    "note": "Configure the event as an RFQ so the vendor receives a live pricing event."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Configure the RFQ pricing template."
+    "note": "Apply the RFQ pricing template before adding line items."
    },
    {
     "step": "add_line_items",
     "args": {
      "count": 1
     },
-    "note": "Add a required line item."
+    "note": "Add the required product line for the event."
    },
    {
     "step": "fill_sheet",
     "args": {},
-    "note": "Complete the RFQ pricing sheet."
+    "note": "Complete the pricing sheet so the event can be published."
    },
    {
     "step": "set_schedule",
@@ -85,38 +83,38 @@
     "args": {
      "count": 1
     },
-    "note": "Invite the QA vendor required by the setup."
+    "note": "Invite the QA vendor whose response will be declined."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the event so the vendor can access it."
+    "note": "Publish the event and make it live for the vendor."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify the event reached a real published project page."
+    "note": "Confirm the event reached a real published project page."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Open the invited vendor's supplier-portal session."
+    "note": "Continue in the invited vendor's supplier portal."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "overview": true
     },
-    "note": "Land on the vendor's Event Overview screen specified by the case."
+    "note": "Open the event from the vendor's event card on the Event Overview screen."
    },
    {
-    "step": "ask_tester",
+    "step": "do_on_screen",
     "args": {
-     "need": "on the vendor Event Overview, click \"I don't wish to participate\", select a non-participation reason, and confirm with \"I will not participate\""
+     "goal": "On the vendor Event Overview, click the blue \"I don't wish to participate\" button, select a reason for not participating in the dialog, and confirm with \"I will not participate\"; stop when the response is recorded."
     },
-    "note": "The catalog has no vendor-decline action or reason selector."
+    "note": "Perform the vendor decline interaction, including the reason selection and confirmation, which has no dedicated catalog action."
    },
    {
     "step": "expect_text",
@@ -124,7 +122,7 @@
      "text": "You've decided to not participate, Want to change your response?",
      "present": true
     },
-    "note": "Verify the expected non-participation confirmation is displayed at the bottom of the vendor screen."
+    "note": "Verify the expected non-participation confirmation is displayed at the bottom of the vendor overview."
    }
   ]
  }

@@ -4,32 +4,82 @@
   "title": "A live RFQ with a vendor's bid: the \"Analytics\" tab opens",
   "group": "EXP-BIDRFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-09T23:17:45.829Z",
+  "compiledAt": "2026-11-13T13:46:24.868Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
+  ],
   "source": "llm",
-  "steps": 4,
+  "steps": 11,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
    "click",
    "expect_navigated",
-   "expect_screen_clean"
+   "expect_text",
+   "expect_text",
+   "expect_no_error"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 5799
+  "ms": 12157
  },
  "plan": {
-  "title": "Open Analytics for Live RFQ Bid",
+  "title": "RFQ Analytics Tab Opens",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared live RFQ Responses view with the vendor's bid."
+    "note": "Open the prepared live RFQ Responses screen with one vendor bid."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Apply the required RFQ counter-offer visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_reject_bid_in_bidding_time",
+     "value": "Off"
+    },
+    "note": "Apply the required bidding-time bid rejection configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "can_buyer_edit_bid",
+     "value": "On"
+    },
+    "note": "Apply the required buyer bid-editing configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_counter_offer_percent_bid_allowed",
+     "value": "On"
+    },
+    "note": "Apply the required percentage counter-offer configuration."
    },
    {
     "step": "click",
@@ -37,19 +87,35 @@
      "role": "tab",
      "name": "Analytics"
     },
-    "note": "Open the Analytics tab as the buyer."
+    "note": "Open the Analytics tab from the buyer's RFQ view."
    },
    {
     "step": "expect_navigated",
     "args": {
      "screen": "analytics"
     },
-    "note": "Verify navigation reached the Analytics screen."
+    "note": "Verify that the Analytics screen opened."
    },
    {
-    "step": "expect_screen_clean",
+    "step": "expect_text",
+    "args": {
+     "text": "New! Keyboard Navigation",
+     "present": true
+    },
+    "note": "Confirm that known analytics content is rendered."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Use < or > to navigate the event with your keyboard",
+     "present": true
+    },
+    "note": "Confirm the analytics guidance content is visible."
+   },
+   {
+    "step": "expect_no_error",
     "args": {},
-    "note": "Verify the Analytics screen rendered without errors, crashes, raw IDs, or invalid values."
+    "note": "Verify that the analytics screen shows no application error."
    }
   ]
  }

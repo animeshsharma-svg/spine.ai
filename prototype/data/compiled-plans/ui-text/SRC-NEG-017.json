@@ -4,26 +4,29 @@
   "title": "Counter offer on a line the vendor did not quote",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:37:43.006Z",
+  "compiledAt": "2026-11-13T12:18:23.244Z",
   "tier": "fast",
   "coverage": "none",
   "gaps": [
-   "An RFQ with two line items where Vendor A quoted only line 1",
-   "Targeting line 2 specifically in the counter-offer flow",
-   "The refusal message \"You cannot raise a counter offer on a non quoted item.\""
+   "An existing RFQ with two line items where Vendor A quoted only line 1",
+   "Attempting a counter offer specifically on the unquoted second line and observing the refusal message \"You cannot raise a counter offer on a non quoted item.\""
   ],
   "warnings": [
-   "cannot test this case yet — no step can observe: An RFQ with two line items where Vendor A quoted only line 1; Targeting line 2 specifically in the counter-offer flow; The refusal message \"You cannot raise a counter offer on a non quoted item.\""
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen",
+   "cannot test this case yet — no step can observe: An existing RFQ with two line items where Vendor A quoted only line 1; Attempting a counter offer specifically on the unquoted second line and observing the refusal message \"You cannot raise a counter offer on a non quoted item.\""
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "expect_responses"
   ],
   "state": "bid",
   "screen": "responses",
-  "ms": 9479
+  "ms": 14473
  },
  "plan": {
   "title": "Counter offer on unquoted line",
@@ -33,14 +36,30 @@
     "args": {
      "screen": "responses"
     },
-    "note": "Open the closest available prepared buyer response screen with a vendor bid."
+    "note": "Open the available prepared RFQ response state; it is the closest available screen, but it has only one line."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
+    },
+    "note": "Enable the RFQ counter-offer UI as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the case."
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 1
     },
-    "note": "Confirm the prepared event has the vendor response available, without claiming that it is a partial two-line quote."
+    "note": "Confirm the available prepared state has one vendor response, without claiming it covers the missing unquoted-line refusal."
    }
   ]
  }

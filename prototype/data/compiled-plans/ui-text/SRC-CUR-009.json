@@ -4,7 +4,7 @@
   "title": "Savings in a second currency",
   "group": "SRC-CUR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-10T07:21:55.599Z",
+  "compiledAt": "2026-11-13T11:55:14.178Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
@@ -17,44 +17,55 @@
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 9,
   "stepNames": [
    "open_create",
+   "configure_single_stage",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
+   "set_sheet_cell",
    "do_on_screen",
-   "expect_message"
+   "expect_error"
   ],
-  "ms": 9539
+  "ms": 24175
  },
  "plan": {
-  "title": "SRC-CUR-009 Savings Currency Validation",
+  "title": "SRC-CUR-009 Savings USD Validation",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation screen specified by the case."
+    "note": "Open the single-stage event creation flow."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "rfp"
+    },
+    "note": "Establish the initial RFP event type described by the case."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "rfq"
     },
-    "note": "Set the event type to RFQ."
+    "note": "Switch the event type to RFQ before selecting its template."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title required before interacting with the completed create flow."
+    "args": {
+     "title": "SRC-CUR-009 Savings USD Validation"
+    },
+    "note": "Provide the required event title for the create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an RFQ template so the product sheet and savings controls become available."
+    "note": "Apply the available RFQ template so the product sheet is rendered."
    },
    {
     "step": "add_line_items",
@@ -63,22 +74,30 @@
      "search": "CYLINDER",
      "quantity": "10"
     },
-    "note": "Add the CYLINDER line item with the requested quantity."
+    "note": "Add the mapped CYLINDER WITH KEY & KNOB product and set its requested quantity to 10."
+   },
+   {
+    "step": "set_sheet_cell",
+    "args": {
+     "row": 1,
+     "column": "Delivery location",
+     "value": "Plant Name (LOC-0001)"
+    },
+    "note": "Set the requested delivery location on the first line item."
    },
    {
     "step": "do_on_screen",
     "args": {
-     "goal": "On the RFQ create screen, set the first product to CYLINDER, choose the CYLINDER WITH KEY & KNOB variant so Product Variant shows Default Variant, set Delivery location to Plant Name (LOC-0001), open Savings, choose Budget, leave the USD price empty, and submit or save the savings configuration until the screen shows the refusal 'Please enter price in USD'"
+     "goal": "Open Savings, choose Budget, leave the USD reference price empty, attempt to save or continue, and stop when the screen shows the refusal for the missing USD price."
     },
-    "note": "Perform the product, location, multi-currency Budget savings setup and trigger the validation that no catalog domain step exposes."
+    "note": "Perform the Savings > Budget interaction and leave the unsupported currency-specific field empty."
    },
    {
-    "step": "expect_message",
+    "step": "expect_error",
     "args": {
-     "kind": "error",
-     "text": "Please enter price in USD"
+     "contains": "Please enter price in USD"
     },
-    "note": "Assert the required USD-price refusal is shown."
+    "note": "Assert the exact refusal required when the USD price is missing."
    }
   ]
  }

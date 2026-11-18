@@ -4,12 +4,11 @@
   "title": "Upload Sheet with a bad row",
   "group": "SRC-CRE",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-13T11:32:08.184Z",
+  "compiledAt": "2026-11-13T11:53:15.131Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Provide and upload a file containing exactly 2 good rows and 1 row with an unknown product code; the catalog only provides generic sample CSV fixtures.",
-   "Assert that exactly the two valid uploaded rows were added to the sheet; no catalog step can inspect uploaded-row contents after the upload."
+   "Upload a workbook containing exactly two valid rows and one row with an unknown product code; the available upload fixtures are not specified to contain that data."
   ],
   "warnings": [
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
@@ -18,30 +17,29 @@
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "can only test part of this — no step for: Provide and upload a file containing exactly 2 good rows and 1 row with an unknown product code; the catalog only provides generic sample CSV fixtures.; Assert that exactly the two valid uploaded rows were added to the sheet; no catalog step can inspect uploaded-row contents after the upload."
+   "can only test part of this — no step for: Upload a workbook containing exactly two valid rows and one row with an unknown product code; the available upload fixtures are not specified to contain that data."
   ],
   "source": "llm",
-  "steps": 14,
+  "steps": 13,
   "stepNames": [
    "open_create",
    "configure_single_stage",
    "set_title",
    "select_template",
-   "set_sheet_cell",
-   "expect_sheet_cell",
-   "expect_sheet_cell",
-   "set_sheet_cell",
+   "add_line_items",
    "expect_sheet_cell",
    "set_sheet_cell",
    "expect_sheet_cell",
+   "set_sheet_cell",
    "upload",
    "expect_text",
-   "expect_text"
+   "expect_text",
+   "expect_line_items"
   ],
-  "ms": 9953
+  "ms": 22848
  },
  "plan": {
-  "title": "Single-stage RFQ upload with bad row",
+  "title": "Single-Stage RFQ Upload with Bad Row",
   "steps": [
    {
     "step": "open_create",
@@ -55,35 +53,27 @@
     "args": {
      "eventType": "rfq"
     },
-    "note": "Switch the default event type to RFQ as required by the case."
+    "note": "Set the event type to RFQ as required by the scenario."
    },
    {
     "step": "set_title",
-    "args": {},
-    "note": "Provide the mandatory event title before interacting with the create flow."
+    "args": {
+     "title": "SRC-CRE-046 Upload Sheet Bad Row"
+    },
+    "note": "Provide the mandatory event title for a create flow."
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Select the first available RFQ template so the product sheet is rendered."
+    "note": "Apply the RFQ template so the product sheet is available."
    },
    {
-    "step": "set_sheet_cell",
+    "step": "add_line_items",
     "args": {
-     "row": 1,
-     "column": "Product",
-     "value": "CYLINDER WITH KEY & KNOB"
+     "count": 1,
+     "search": "CYLINDER WITH KEY & KNOB"
     },
-    "note": "Select the specified product in the first Product cell."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Product",
-     "equals": "CYLINDER WITH KEY & KNOB"
-    },
-    "note": "Confirm the requested product was selected."
+    "note": "Add the known CYLINDER product through the supported product-selection flow."
    },
    {
     "step": "expect_sheet_cell",
@@ -92,7 +82,7 @@
      "column": "Product Variant",
      "equals": "Variant 1"
     },
-    "note": "Confirm the product selection filled the mapped default variant."
+    "note": "Verify the product's variant is populated as specified."
    },
    {
     "step": "set_sheet_cell",
@@ -101,7 +91,7 @@
      "column": "Quantity Requested",
      "value": "10"
     },
-    "note": "Enter the requested quantity."
+    "note": "Enter the requested quantity for the first product row."
    },
    {
     "step": "expect_sheet_cell",
@@ -110,7 +100,7 @@
      "column": "Quantity Requested",
      "equals": "10"
     },
-    "note": "Confirm the quantity was retained."
+    "note": "Verify the quantity was retained."
    },
    {
     "step": "set_sheet_cell",
@@ -119,16 +109,7 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Choose the specified delivery location."
-   },
-   {
-    "step": "expect_sheet_cell",
-    "args": {
-     "row": 1,
-     "column": "Delivery location",
-     "equals": "Plant Name (LOC-0001)"
-    },
-    "note": "Confirm the delivery location was selected."
+    "note": "Select the required delivery location."
    },
    {
     "step": "upload",
@@ -136,7 +117,7 @@
      "label": "Upload Sheet",
      "file": "sample.csv"
     },
-    "note": "Upload the closest available CSV fixture through the product sheet's upload control."
+    "note": "Upload the closest available fixture in place of the required three-row workbook."
    },
    {
     "step": "expect_text",
@@ -144,7 +125,7 @@
      "text": "Failed to upload 1 entries.",
      "present": true
     },
-    "note": "Assert the upload reports one failed entry, as specified."
+    "note": "Check for the expected one-row upload failure message."
    },
    {
     "step": "expect_text",
@@ -152,7 +133,14 @@
      "text": "View failed entries",
      "present": true
     },
-    "note": "Assert the failed-row inspection control is offered."
+    "note": "Verify that the failed-row details can be opened."
+   },
+   {
+    "step": "expect_line_items",
+    "args": {
+     "count": 3
+    },
+    "note": "Check that the two good uploaded rows plus the existing product row are represented."
    }
   ]
  }

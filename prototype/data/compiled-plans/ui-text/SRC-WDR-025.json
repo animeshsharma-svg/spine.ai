@@ -4,11 +4,11 @@
   "title": "Withdraw an eRFX project upcoming",
   "group": "SRC-WDR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:24:06.597Z",
+  "compiledAt": "2026-11-13T13:17:42.631Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Guarantee that the selected unnamed existing event is an upcoming eRFX Tech+RFQ project before withdrawal"
+   "Verify that this specific pre-existing event's row moved to History because no title or project ID is provided to identify it in the History list."
   ],
   "warnings": [
    "added open_prepared(summary) — the API built this case's state",
@@ -16,32 +16,32 @@
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
    "dropped open_events_list — the API built this case's event; open_prepared opens its screen",
    "dropped open_event — the API built this case's event; open_prepared opens its screen",
-   "resolved: “Verify that every vendor sees both stages as withdrawn; the catalog can inspect only the configured QA vendor session” — switch_portal / vendor_open_event open the supplier portal as the invited QA vendor in a second browser",
-   "can only test part of this — no step for: Guarantee that the selected unnamed existing event is an upcoming eRFX Tech+RFQ project before withdrawal"
+   "can only test part of this — no step for: Verify that this specific pre-existing event's row moved to History because no title or project ID is provided to identify it in the History list."
   ],
   "source": "llm",
-  "steps": 13,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
    "withdraw_event",
+   "expect_toast",
    "expect_withdrawn",
-   "filter_events",
-   "expect_events_list",
-   "expect_text",
    "switch_portal",
    "vendor_open_event",
    "expect_text",
    "vendor_open_event",
    "expect_text",
-   "vendor_open_event",
-   "expect_text"
+   "switch_portal",
+   "filter_events",
+   "expect_events_list"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 21311
+  "ms": 22488
  },
  "plan": {
-  "title": "Withdraw upcoming eRFX project",
+  "title": "Withdraw Upcoming eRFX Project",
   "steps": [
    {
     "step": "open_prepared",
@@ -51,66 +51,55 @@
     "note": "the API built this case's state"
    },
    {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX multi-stage projects as required by the case."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "Off"
+    },
+    "note": "Ensure the Withdraw Project action is visible."
+   },
+   {
     "step": "withdraw_event",
     "args": {
      "scope": "project",
-     "reason": "Upcoming eRFX project withdrawal test"
+     "reason": "Withdraw upcoming eRFX project"
     },
-    "note": "Withdraw the whole project through the project menu with a required remark."
+    "note": "Withdraw the entire project through the project menu beside Messages."
+   },
+   {
+    "step": "expect_toast",
+    "args": {
+     "kind": "success",
+     "text": "Order withdrawn"
+    },
+    "note": "Verify the expected withdrawal confirmation message."
    },
    {
     "step": "expect_withdrawn",
     "args": {},
-    "note": "Assert Procol records the project as withdrawn."
-   },
-   {
-    "step": "filter_events",
-    "args": {
-     "tab": "History"
-    },
-    "note": "Open History, where withdrawn projects should appear."
-   },
-   {
-    "step": "expect_events_list",
-    "args": {},
-    "note": "Assert the History events list rendered without an error."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Withdrawn",
-     "present": true
-    },
-    "note": "Check that the History view exposes the withdrawn status."
+    "note": "Verify Procol records the project as withdrawn."
    },
    {
     "step": "switch_portal",
     "args": {
      "to": "vendor"
     },
-    "note": "Inspect the invited QA vendor's view of the withdrawn project."
-   },
-   {
-    "step": "vendor_open_event",
-    "args": {
-     "overview": true
-    },
-    "note": "Open the withdrawn event in the vendor portal overview."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Withdrawn",
-     "present": true
-    },
-    "note": "Assert the vendor portal shows the project as withdrawn."
+    "note": "Switch to the invited vendor's supplier portal to verify the vendor-facing result."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "technical"
     },
-    "note": "Open the technical stage in the vendor portal."
+    "note": "Open the withdrawn project's Technical Stage in the vendor portal."
    },
    {
     "step": "expect_text",
@@ -118,14 +107,14 @@
      "text": "Withdrawn",
      "present": true
     },
-    "note": "Assert the technical stage is shown as withdrawn."
+    "note": "Verify the vendor sees the Technical Stage as withdrawn."
    },
    {
     "step": "vendor_open_event",
     "args": {
      "stage": "pricing"
     },
-    "note": "Open the pricing stage in the vendor portal."
+    "note": "Open the withdrawn project's RFQ pricing stage in the vendor portal."
    },
    {
     "step": "expect_text",
@@ -133,7 +122,26 @@
      "text": "Withdrawn",
      "present": true
     },
-    "note": "Assert the pricing stage is shown as withdrawn."
+    "note": "Verify the vendor sees the RFQ stage as withdrawn."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer console for the History-list check."
+   },
+   {
+    "step": "filter_events",
+    "args": {
+     "tab": "History"
+    },
+    "note": "Switch to the History tab where withdrawn projects are listed."
+   },
+   {
+    "step": "expect_events_list",
+    "args": {},
+    "note": "Verify the History events list rendered without an error; the specific pre-existing event cannot be identified without its title or ID."
    }
   ]
  }

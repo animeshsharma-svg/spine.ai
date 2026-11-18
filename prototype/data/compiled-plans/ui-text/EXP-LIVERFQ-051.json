@@ -4,31 +4,87 @@
   "title": "Increase Event Time: Enter non‑numeric characters in custom time field shows input validation error",
   "group": "EXP-LIVERFQ",
   "sheet": "procol-explored-flows",
-  "compiledAt": "2026-11-10T00:49:01.576Z",
+  "compiledAt": "2026-11-13T14:15:07.821Z",
   "tier": "fast",
   "coverage": "full",
   "gaps": [],
-  "warnings": [],
+  "warnings": [
+   "added open_prepared(summary) — the API built this case's state",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen",
+   "dropped open_event — the API built this case's event; open_prepared opens its screen"
+  ],
   "source": "llm",
-  "steps": 3,
+  "steps": 8,
   "stepNames": [
    "open_prepared",
-   "extend_time",
-   "expect_visible"
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "require_setting",
+   "go_to",
+   "go_to",
+   "extend_time"
   ],
   "state": "live",
   "screen": "summary",
-  "ms": 68057
+  "ms": 19321
  },
  "plan": {
-  "title": "Reject Non-Numeric Custom Event Time",
+  "title": "EXP-LIVERFQ-051 — Custom time validation",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "summary"
     },
-    "note": "Open the prepared live RFQ on the buyer's summary page."
+    "note": "the API built this case's state"
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable eRFX projects as required by the test setup."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "hide_withdraw_in_intake_and_event",
+     "value": "On"
+    },
+    "note": "Apply the required withdrawal-visibility configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "disable_withdraw_during_submission_time",
+     "value": "Off"
+    },
+    "note": "Apply the required live-event withdrawal configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "is_vendor_masking_allowed_for_everyone",
+     "value": "On"
+    },
+    "note": "Apply the required vendor-masking configuration."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "stage",
+     "stage": "rfq"
+    },
+    "note": "Navigate to the RFQ stage named in the case."
+   },
+   {
+    "step": "go_to",
+    "args": {
+     "screen": "responses"
+    },
+    "note": "Reach the Responses tab where the case opens Settings."
    },
    {
     "step": "extend_time",
@@ -39,16 +95,7 @@
      "unit": "minutes",
      "expect": "refused"
     },
-    "note": "Open Extend Submission Time, enter the non-numeric custom value, press Ok, and assert Procol refuses it with validation feedback."
-   },
-   {
-    "step": "expect_visible",
-    "args": {
-     "role": "dialog",
-     "name": "Increase Event Time",
-     "visible": true
-    },
-    "note": "Verify the Increase Event Time window remains open after the invalid submission."
+    "note": "Enter the non-numeric custom duration and press Ok; the step verifies Procol refuses it and keeps the Increase Event Time window open with validation feedback."
    }
   ]
  }

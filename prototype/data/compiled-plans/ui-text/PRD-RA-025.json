@@ -3,23 +3,24 @@
   "caseId": "PRD-RA-025",
   "title": "Post-Auction Negotiation: refused for a user without the Buyer role",
   "group": "PRD-RA",
-  "compiledAt": "2026-11-10T01:37:47.403Z",
+  "compiledAt": "2026-11-13T14:58:21.177Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Sign in as the non-Buyer user and then as a Buyer in the same tenant, attempt per-vendor Post-Auction Negotiation in QCS, and compare refusal or absence with successful availability; the catalog cannot switch user roles or inspect tenant RBAC configuration."
+   "Sign in as a user without the Buyer role on the same tenant and verify that Post-Auction Negotiation is refused or absent, then repeat the availability check with that role comparison."
   ],
   "warnings": [
-   "can only test part of this — no step for: Sign in as the non-Buyer user and then as a Buyer in the same tenant, attempt per-vendor Post-Auction Negotiation in QCS, and compare refusal or absence with successful availability; the catalog cannot switch user roles or inspect tenant RBAC configuration."
+   "can only test part of this — no step for: Sign in as a user without the Buyer role on the same tenant and verify that Post-Auction Negotiation is refused or absent, then repeat the availability check with that role comparison."
   ],
   "source": "llm",
-  "steps": 3,
+  "steps": 4,
   "stepNames": [
    "open_prepared",
    "ask_tester",
-   "expect_visible"
+   "place_counter_offer",
+   "expect_counter_offer_sent"
   ],
-  "ms": 9648
+  "ms": 19189
  },
  "plan": {
   "title": "Post-Auction Negotiation RBAC",
@@ -29,22 +30,26 @@
     "args": {
      "screen": "master_qcs"
     },
-    "note": "Open the prepared Master QCS containing the auction bids so the negotiation control is in the relevant screen."
+    "note": "Open the prepared post-auction QCS containing vendor bids."
    },
    {
     "step": "ask_tester",
     "args": {
-     "need": "sign in as the non-Buyer user and then as a Buyer in the same tenant, attempt per-vendor Post-Auction Negotiation in Master QCS, and record whether the non-Buyer is refused or lacks the control while the Buyer can use it"
+     "need": "sign in as the user without the Buyer role and attempt Post-Auction Negotiation per vendor in the QCS, recording whether it is refused or absent"
     },
-    "note": "Role-specific sign-in and comparison are not available in the catalog."
+    "note": "The catalog has no step for switching to or validating a user with a different RBAC role."
    },
    {
-    "step": "expect_visible",
+    "step": "place_counter_offer",
     "args": {
-     "text": "Master QCS",
-     "visible": true
+     "price": 90
     },
-    "note": "Assert that the QCS screen remains present after the tester-assisted role comparison."
+    "note": "As the Buyer, raise a per-vendor counter offer from the QCS."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {},
+    "note": "Verify that the Buyer can complete the negotiation action."
    }
   ]
  }

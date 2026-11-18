@@ -3,29 +3,36 @@
   "caseId": "PRD-KBINT-024",
   "title": "Template Type Buy or Sell in the Awarding Criteria module",
   "group": "PRD-KBINT",
-  "compiledAt": "2026-11-10T02:11:53.590Z",
+  "compiledAt": "2026-11-13T15:04:52.024Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "none",
+  "gaps": [
+   "Open the Awarding Criteria module for an RFQ/Auction template",
+   "Assert that the Template Type dropdown offers Buy and Sell",
+   "Select Buy, save the template, reopen Ranking Criteria, and verify Buy persists",
+   "Select Sell, save the template, reopen Ranking Criteria, and verify Sell persists"
+  ],
   "warnings": [
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "added open_create — every create test has to start somewhere",
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
    "added set_title — publishing without a title is refused",
    "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "switched open_create to the eRFX screen — the plan composes stages, which only that screen has",
+   "added set_title — publishing without a title is refused",
+   "cannot test this case yet — no step can observe: Open the Awarding Criteria module for an RFQ/Auction template; Assert that the Template Type dropdown offers Buy and Sell; Select Buy, save the template, reopen Ranking Criteria, and verify Buy persists; Select Sell, save the template, reopen Ranking Criteria, and verify Sell persists"
   ],
   "source": "llm",
-  "steps": 6,
+  "steps": 5,
   "stepNames": [
    "open_create",
    "compose_stages",
    "set_title",
-   "do_on_screen",
-   "expect_options",
-   "expect_value"
+   "select_template",
+   "expect_template_selected"
   ],
-  "ms": 21300
+  "ms": 6843
  },
  "plan": {
   "title": "Template Type Buy or Sell in Awarding Criteria",
@@ -34,7 +41,8 @@
     "step": "open_create",
     "args": {
      "path": "erfx"
-    }
+    },
+    "note": "Closest available route to a template selection screen, but it does not open the template's Awarding Criteria module."
    },
    {
     "step": "compose_stages",
@@ -48,31 +56,14 @@
     "step": "set_title"
    },
    {
-    "step": "do_on_screen",
-    "args": {
-     "goal": "In the current template's Awarding Criteria module, set Template Type to Buy and save, then set it to Sell and save; reopen Ranking Criteria and leave it showing the saved Template Type selection"
-    },
-    "note": "Performs the template-specific interaction and reopens Ranking Criteria because the catalog has no dedicated template authoring step."
+    "step": "select_template",
+    "args": {},
+    "note": "Selects an offered template, but cannot inspect or change its Template Type."
    },
    {
-    "step": "expect_options",
-    "args": {
-     "label": "Template Type",
-     "options": [
-      "Buy",
-      "Sell"
-     ],
-     "only": true
-    },
-    "note": "Verifies the Template Type dropdown offers exactly Buy and Sell."
-   },
-   {
-    "step": "expect_value",
-    "args": {
-     "label": "Template Type",
-     "value": "Sell"
-    },
-    "note": "Verifies the final Sell selection persisted after saving and reopening Ranking Criteria."
+    "step": "expect_template_selected",
+    "args": {},
+    "note": "Confirms only that a template is applied; it does not verify Buy/Sell Template Type persistence."
    }
   ]
  }

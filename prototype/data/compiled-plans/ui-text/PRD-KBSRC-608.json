@@ -3,52 +3,156 @@
   "caseId": "PRD-KBSRC-608",
   "title": "Buyer sends a price counter offer to a vendor from the QCS",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:24:19.790Z",
+  "compiledAt": "2026-11-13T14:46:58.370Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Verify that the success notification is specifically a tooltip.",
-   "Verify that the changed values are visually highlighted with both original and counter-offer values."
+   "Verify that the changed original and counter values are visually highlighted against each other",
+   "Verify that the confirmation is specifically presented as a tooltip notification"
   ],
   "warnings": [
-   "can only test part of this — no step for: Verify that the success notification is specifically a tooltip.; Verify that the changed values are visually highlighted with both original and counter-offer values."
+   "can only test part of this — no step for: Verify that the changed original and counter values are visually highlighted against each other; Verify that the confirmation is specifically presented as a tooltip notification"
   ],
   "source": "llm",
-  "steps": 4,
+  "steps": 18,
   "stepNames": [
-   "open_prepared",
+   "open_create",
+   "set_title",
+   "compose_stages",
+   "select_template",
+   "add_line_items",
+   "fill_sheet",
+   "set_schedule",
+   "invite_vendor",
+   "publish",
+   "expect_published",
+   "place_bid",
+   "expect_bid_submitted",
+   "open_master_qcs",
    "place_counter_offer",
    "expect_counter_offer_sent",
+   "expect_text",
+   "expect_text",
    "expect_toast"
   ],
-  "ms": 9411
+  "ms": 13260
  },
  "plan": {
-  "title": "Send RFQ Counter Offer from QCS",
+  "title": "Buyer sends RFQ counter offer from QCS",
   "steps": [
    {
-    "step": "open_prepared",
+    "step": "open_create",
     "args": {
-     "screen": "master_qcs"
+     "path": "erfx"
     },
-    "note": "Open the prepared RFQ event's QCS with a vendor bid already visible."
+    "note": "Open the multi-stage event creation flow."
+   },
+   {
+    "step": "set_title",
+    "args": {
+     "title": "RFQ Counter Offer QCS Test"
+    },
+    "note": "Provide the required event title."
+   },
+   {
+    "step": "compose_stages",
+    "args": {
+     "stages": [
+      "rfq"
+     ]
+    },
+    "note": "Create an RFQ-only event so the QCS has a pricing round."
+   },
+   {
+    "step": "select_template",
+    "args": {},
+    "note": "Apply the RFQ pricing template."
+   },
+   {
+    "step": "add_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Add a line item for the vendor to quote."
+   },
+   {
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete the RFQ pricing sheet."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit a bidding schedule before publishing."
+   },
+   {
+    "step": "invite_vendor",
+    "args": {
+     "count": 1
+    },
+    "note": "Add one vendor whose bid will be countered."
+   },
+   {
+    "step": "publish",
+    "args": {},
+    "note": "Publish the RFQ so the vendor can submit a bid."
+   },
+   {
+    "step": "expect_published",
+    "args": {},
+    "note": "Confirm the event reached a real published project page."
+   },
+   {
+    "step": "place_bid",
+    "args": {},
+    "note": "Submit a vendor bid so the QCS contains a live response."
+   },
+   {
+    "step": "expect_bid_submitted",
+    "args": {},
+    "note": "Confirm the vendor bid was accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {},
+    "note": "Open the Quote Comparison Sheet containing the vendor bid."
    },
    {
     "step": "place_counter_offer",
-    "args": {},
-    "note": "Open the first vendor's Counter Offer control, enter the default counter price, and send it."
+    "args": {
+     "price": 90
+    },
+    "note": "Open the vendor's Counter Offer control, enter the new price, and send it."
    },
    {
     "step": "expect_counter_offer_sent",
     "args": {},
-    "note": "Assert that the QCS marks the vendor as having a pending counter offer and exposes the revoke state."
+    "note": "Assert the QCS marks the vendor's bid as having a counter offer."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Counter Offer Requested",
+     "present": true
+    },
+    "note": "Check the expected pending counter-offer tag above the vendor."
+   },
+   {
+    "step": "expect_text",
+    "args": {
+     "text": "Revoke Counter Offer",
+     "present": true
+    },
+    "note": "Check that the buyer can revoke the pending counter offer."
    },
    {
     "step": "expect_toast",
     "args": {
      "kind": "success"
     },
-    "note": "Assert that Procol reported a successful send notification."
+    "note": "Check for a successful send confirmation."
    }
   ]
  }

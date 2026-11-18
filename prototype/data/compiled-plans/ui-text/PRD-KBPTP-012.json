@@ -3,37 +3,52 @@
   "caseId": "PRD-KBPTP-012",
   "title": "Multi-level intake approval proceeds level by level in sequence",
   "group": "PRD-KBPTP",
-  "compiledAt": "2026-11-10T06:49:44.875Z",
+  "compiledAt": "2026-11-13T15:41:48.082Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Open the submitted intake, approve it as the level-1 approver, verify the flowchart shows level 2 as the current approver with approvals timestamped in order, then approve it as the level-2 approver."
+   "Open the submitted intake and its multi-level approval workflow",
+   "Sign in as the level-1 approver and approve the intake",
+   "Observe the flowchart showing level 2 as the current approver",
+   "Sign in as the level-2 approver and approve the intake",
+   "Verify both approval timestamps are present and ordered"
   ],
   "warnings": [
-   "can only test part of this — no step for: Open the submitted intake, approve it as the level-1 approver, verify the flowchart shows level 2 as the current approver with approvals timestamped in order, then approve it as the level-2 approver."
+   "can only test part of this — no step for: Open the submitted intake and its multi-level approval workflow; Sign in as the level-1 approver and approve the intake; Observe the flowchart showing level 2 as the current approver; Sign in as the level-2 approver and approve the intake; Verify both approval timestamps are present and ordered"
   ],
   "source": "llm",
-  "steps": 2,
+  "steps": 3,
   "stepNames": [
+   "open_prepared",
    "ask_tester",
-   "expect_screen_clean"
+   "expect_visible"
   ],
-  "ms": 10459
+  "ms": 9828
  },
  "plan": {
   "title": "Sequential Intake Approval Levels",
   "steps": [
    {
-    "step": "ask_tester",
+    "step": "open_prepared",
     "args": {
-     "need": "open the submitted intake, approve it as the level-1 approver, verify the flowchart shows level 2 as the current approver with approvals timestamped in order, then approve it as the level-2 approver"
+     "screen": "proposal"
     },
-    "note": "No catalog step can reach or operate the intake approval workflow or switch between its two approvers."
+    "note": "Closest available prepared screen for an approval workflow; the catalog has no intake-specific screen."
    },
    {
-    "step": "expect_screen_clean",
-    "args": {},
-    "note": "Check that the resulting screen has no crash, server error, raw identifiers, or invalid values after the tester completes the workflow."
+    "step": "ask_tester",
+    "args": {
+     "need": "open the submitted intake, sign in as the level-1 approver and approve it, verify the flowchart shows level 2 as the current approver, then sign in as the level-2 approver and approve it while verifying both approval timestamps are in order"
+    },
+    "note": "Separate approver sessions and the intake flowchart are not expressible by catalog steps."
+   },
+   {
+    "step": "expect_visible",
+    "args": {
+     "text": "Approvals",
+     "visible": true
+    },
+    "note": "Checks that the closest approval-related screen remains available after the tester-assisted portion."
    }
   ]
  }

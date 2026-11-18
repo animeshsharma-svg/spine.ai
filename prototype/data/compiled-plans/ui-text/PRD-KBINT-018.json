@@ -3,28 +3,34 @@
   "caseId": "PRD-KBINT-018",
   "title": "Create and publish an RFQ/Auction template",
   "group": "PRD-KBINT",
-  "compiledAt": "2026-11-10T01:56:17.365Z",
+  "compiledAt": "2026-11-13T15:04:38.755Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "partial",
+  "gaps": [
+   "Navigate to Manage › Templates and open the template creation page",
+   "Enter the Template Title and verify the RFQ/Auction category",
+   "Set Ranking Criteria, awarding criteria, and Template Type",
+   "Add and configure a template column",
+   "Publish the template and verify the published-template confirmation",
+   "Verify that the specifically created template is available for future RFQs and Auctions"
+  ],
   "warnings": [
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "added open_create — every create test has to start somewhere",
+   "moved open_create to the front — the steps before it had no create screen to act on",
    "added set_title — publishing without a title is refused",
-   "added compose_stages(rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
-   "added open_create — every create test has to start somewhere",
-   "added set_title — publishing without a title is refused"
+   "moved open_create to the front — the steps before it had no create screen to act on",
+   "added set_title — publishing without a title is refused",
+   "can only test part of this — no step for: Navigate to Manage › Templates and open the template creation page; Enter the Template Title and verify the RFQ/Auction category; Set Ranking Criteria, awarding criteria, and Template Type; Add and configure a template column; Publish the template and verify the published-template confirmation; Verify that the specifically created template is available for future RFQs and Auctions"
   ],
   "source": "llm",
   "steps": 5,
   "stepNames": [
    "open_create",
+   "ask_tester",
    "compose_stages",
    "set_title",
-   "do_on_screen",
-   "expect_text"
+   "expect_template_menu"
   ],
-  "ms": 9236
+  "ms": 16149
  },
  "plan": {
   "title": "Create and publish RFQ/Auction template",
@@ -33,7 +39,15 @@
     "step": "open_create",
     "args": {
      "path": "erfx"
-    }
+    },
+    "note": "Open event creation to reach the RFQ template picker after the tester's template-creation work."
+   },
+   {
+    "step": "ask_tester",
+    "args": {
+     "need": "navigate to Manage › Templates, create and publish an RFQ/Auction template with its title, category, ranking criteria, awarding criteria, template type, and configured column, then return to the buyer console"
+    },
+    "note": "No catalog step can perform or observe the Manage Templates creation and publishing workflow."
    },
    {
     "step": "compose_stages",
@@ -41,25 +55,19 @@
      "stages": [
       "rfq"
      ]
-    }
+    },
+    "note": "Configure the event as RFQ-only so the RFQ/Auction template availability can be inspected."
    },
    {
     "step": "set_title"
    },
    {
-    "step": "do_on_screen",
+    "step": "expect_template_menu",
     "args": {
-     "goal": "From the homepage, open Manage, choose Templates, create an RFQ/Auction template, enter a Template Title, verify the category is RFQ/Auction, configure the awarding criteria and Template Type under Ranking Criteria, add and configure a column, publish it, and stop on the screen showing the published-template confirmation and that the template is available for future RFQs or Auctions"
+     "eventType": "rfq",
+     "min": 1
     },
-    "note": "Performs the complete buyer-side template creation and publication flow that has no dedicated catalog step."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "Published",
-     "present": true
-    },
-    "note": "Asserts that the resulting screen shows publication confirmation."
+    "note": "Checks that at least one RFQ template is offered, but cannot identify or prove availability of the template created by the tester."
    }
   ]
  }

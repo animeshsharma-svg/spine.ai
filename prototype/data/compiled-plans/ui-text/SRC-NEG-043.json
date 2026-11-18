@@ -4,68 +4,61 @@
   "title": "eRFX RFQ project: counter offer accepted and used in the award",
   "group": "SRC-NEG",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T20:40:50.096Z",
+  "compiledAt": "2026-11-13T12:20:56.555Z",
   "tier": "fast",
-  "coverage": "partial",
-  "gaps": [
-   "Close the prepared event after counter-offer acceptance so it can be awarded",
-   "Start awarding Vendor A and verify that the submitted award uses the accepted price of 90"
-  ],
+  "coverage": "full",
+  "gaps": [],
   "warnings": [
-   "can only test part of this — no step for: Close the prepared event after counter-offer acceptance so it can be awarded; Start awarding Vendor A and verify that the submitted award uses the accepted price of 90"
+   "moved open_prepared to the front — every later step acts on that screen",
+   "moved open_prepared to the front — every later step acts on that screen"
   ],
   "source": "llm",
-  "steps": 7,
+  "steps": 14,
   "stepNames": [
    "open_prepared",
+   "require_setting",
+   "require_setting",
+   "open_master_qcs",
    "place_counter_offer",
    "expect_counter_offer_sent",
+   "switch_portal",
    "accept_counter_offer",
+   "switch_portal",
    "expect_counter_offer_accepted",
    "open_master_qcs",
-   "expect_qcs_cell"
+   "expect_qcs_cell",
+   "award_event",
+   "expect_awarded"
   ],
   "state": "closed",
   "screen": "responses",
-  "ms": 24494
+  "ms": 16729
  },
  "plan": {
-  "title": "eRFX RFQ counter offer accepted before award",
+  "title": "RFQ Counter Offer Accepted and Awarded",
   "steps": [
    {
     "step": "open_prepared",
     "args": {
      "screen": "responses"
     },
-    "note": "Open the prepared RFQ Responses screen containing Vendor A's own bid."
+    "note": "Open the prepared RFQ Responses screen with Vendor A’s own bid."
    },
    {
-    "step": "place_counter_offer",
+    "step": "require_setting",
     "args": {
-     "price": 90
+     "key": "rfx_project_enabled",
+     "value": "On"
     },
-    "note": "Send the buyer's counter offer of 90 on Vendor A's normal bid."
+    "note": "Enable eRFX projects for the scenario."
    },
    {
-    "step": "expect_counter_offer_sent",
+    "step": "require_setting",
     "args": {
-     "vendor": "Vendor A"
+     "key": "hide_counter_offer_rfq",
+     "value": "Off"
     },
-    "note": "Verify the Responses grid marks the counter offer as initiated for Vendor A."
-   },
-   {
-    "step": "accept_counter_offer",
-    "args": {
-     "vendor": "Vendor A"
-    },
-    "note": "Use the vendor portal session to accept Vendor A's pending counter offer."
-   },
-   {
-    "step": "expect_counter_offer_accepted",
-    "args": {
-     "vendor": "Vendor A"
-    },
-    "note": "Verify the buyer-side Responses grid marks Vendor A's counter offer as accepted."
+    "note": "Ensure RFQ counter offers are available."
    },
    {
     "step": "open_master_qcs",
@@ -74,7 +67,60 @@
       "Vendor A"
      ]
     },
-    "note": "Open the buyer's Master QCS to inspect the post-acceptance bid."
+    "note": "Open the buyer comparison grid required to initiate the counter offer."
+   },
+   {
+    "step": "place_counter_offer",
+    "args": {
+     "vendor": "Vendor A",
+     "price": 90
+    },
+    "note": "Send Vendor A a counter offer reducing the bid to 90."
+   },
+   {
+    "step": "expect_counter_offer_sent",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the buyer grid marks the counter offer as initiated."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": "Vendor A"
+    },
+    "note": "Move to Vendor A’s separate supplier-portal session while keeping the buyer session available."
+   },
+   {
+    "step": "accept_counter_offer",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Have Vendor A accept the pending counter offer."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer’s event page."
+   },
+   {
+    "step": "expect_counter_offer_accepted",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Verify the buyer sees Vendor A’s counter offer as accepted."
+   },
+   {
+    "step": "open_master_qcs",
+    "args": {
+     "vendors": [
+      "Vendor A"
+     ]
+    },
+    "note": "Reopen Master QCS after acceptance to inspect the revised bid used for awarding."
    },
    {
     "step": "expect_qcs_cell",
@@ -83,7 +129,19 @@
      "vendor": "Vendor A",
      "equals": "90"
     },
-    "note": "Assert that Master QCS shows the accepted counter-offer price of 90 for Vendor A."
+    "note": "Verify Vendor A’s accepted RFQ rate is 90."
+   },
+   {
+    "step": "award_event",
+    "args": {
+     "vendor": "Vendor A"
+    },
+    "note": "Award the closed RFQ to Vendor A using the accepted bid."
+   },
+   {
+    "step": "expect_awarded",
+    "args": {},
+    "note": "Verify the award proposal was created and submitted."
    }
   ]
  }

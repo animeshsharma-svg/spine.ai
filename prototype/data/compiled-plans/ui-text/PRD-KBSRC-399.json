@@ -3,168 +3,49 @@
   "caseId": "PRD-KBSRC-399",
   "title": "Evaluators can rank T1/T2/T3 or TA/TNA",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:20:26.310Z",
+  "compiledAt": "2026-11-13T14:44:02.308Z",
   "tier": "fast",
-  "coverage": "partial",
+  "coverage": "none",
   "gaps": [
-   "Assert that the evaluator's rank selector offers exactly T1, T2, T3, TA (Technically Accepted), and TNA (Technically Not Accepted).",
-   "unconfirmed label \"T1\" (expect_text) — not among the labels known from the app nor in the case"
+   "Reviewing and asserting that the evaluator's available options are exactly T1, T2, T3, TA (Technically Accepted), and TNA (Technically Not Accepted).",
+   "the plan has no assertion step — nothing the case checks can be observed"
   ],
   "warnings": [
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "set_schedule now uses a 3-minute window — close_event waits for the window to lapse when the tenant offers no force-end",
-   "rebuilt the plan for 2 stages — each stage is configured on its own tab, since a template applies only to the tab showing",
-   "coverage partial: unconfirmed label \"T1\" (expect_text) — not among the labels known from the app nor in the case",
-   "can only test part of this — no step for: Assert that the evaluator's rank selector offers exactly T1, T2, T3, TA (Technically Accepted), and TNA (Technically Not Accepted)."
+   "cannot test this case yet — the plan has no assertion step — nothing the case checks can be observed"
   ],
   "source": "llm",
-  "steps": 20,
+  "steps": 3,
   "stepNames": [
-   "open_create",
-   "set_title",
-   "compose_stages",
-   "switch_stage",
-   "select_template",
-   "add_line_items",
-   "fill_questionnaires",
-   "assign_evaluator",
-   "switch_stage",
-   "select_template",
-   "fill_sheet",
-   "set_schedule",
-   "invite_vendor",
-   "publish",
-   "expect_published",
-   "place_bid",
-   "expect_bid_submitted",
-   "close_event",
-   "evaluate_technical",
-   "expect_text"
+   "open_event",
+   "go_to",
+   "ask_tester"
   ],
-  "ms": 14403
+  "ms": 19381
  },
  "plan": {
   "title": "Technical evaluator rank options",
   "steps": [
    {
-    "step": "open_create",
+    "step": "open_event",
     "args": {
-     "path": "erfx"
+     "purpose": "evaluation"
     },
-    "note": "Create a multi-stage event containing a technical stage and a pricing stage."
+    "note": "Open an existing event whose technical stage has a closed window and a vendor response awaiting evaluation."
    },
    {
-    "step": "set_title",
+    "step": "go_to",
     "args": {
-     "title": "Evaluator Rank Options Test"
-    },
-    "note": "Provide the required event title."
-   },
-   {
-    "step": "compose_stages",
-    "args": {
-     "stages": [
-      "rfp",
-      "rfq"
-     ]
-    },
-    "note": "Add the technical stage and RFQ stage required for a line-item technical evaluation."
-   },
-   {
-    "step": "switch_stage",
-    "args": {
+     "screen": "stage",
      "stage": "rfp"
     },
-    "note": "configure the rfp stage on its own tab"
+    "note": "Navigate to the technical stage where the evaluator's evaluation controls are located."
    },
    {
-    "step": "select_template",
-    "note": "rfp needs its own template"
-   },
-   {
-    "step": "add_line_items",
+    "step": "ask_tester",
     "args": {
-     "count": 1
+     "need": "open the evaluator's line-item evaluation and verify that its available rank options are exactly T1, T2, T3, TA (Technically Accepted), and TNA (Technically Not Accepted)"
     },
-    "note": "Create the line item whose technical response will be evaluated."
-   },
-   {
-    "step": "fill_questionnaires"
-   },
-   {
-    "step": "assign_evaluator"
-   },
-   {
-    "step": "switch_stage",
-    "args": {
-     "stage": "rfq"
-    },
-    "note": "configure the rfq stage on its own tab"
-   },
-   {
-    "step": "select_template",
-    "note": "rfq needs its own template"
-   },
-   {
-    "step": "fill_sheet"
-   },
-   {
-    "step": "set_schedule",
-    "args": {
-     "minutes": 3
-    },
-    "note": "Commit a usable event schedule."
-   },
-   {
-    "step": "invite_vendor",
-    "args": {
-     "count": 1
-    },
-    "note": "Invite one vendor to submit the technical response."
-   },
-   {
-    "step": "publish",
-    "args": {},
-    "note": "Publish the event so the vendor can respond."
-   },
-   {
-    "step": "expect_published",
-    "args": {},
-    "note": "Verify the event reached a published project page."
-   },
-   {
-    "step": "place_bid",
-    "args": {
-     "price": 100
-    },
-    "note": "Submit a vendor response, including the technical response required for evaluation."
-   },
-   {
-    "step": "expect_bid_submitted",
-    "args": {},
-    "note": "Verify the vendor submission was accepted."
-   },
-   {
-    "step": "close_event",
-    "args": {},
-    "note": "Close the event so the technical response becomes available for evaluation."
-   },
-   {
-    "step": "evaluate_technical",
-    "args": {
-     "scores": [
-      "T1"
-     ]
-    },
-    "note": "As the assigned evaluator, assign one of the case's expected technical rank labels and submit it."
-   },
-   {
-    "step": "expect_text",
-    "args": {
-     "text": "T1"
-    },
-    "note": "Confirm the selected technical rank is shown after evaluation."
+    "note": "No catalog step can inspect the evaluator's option list or assert its exact contents."
    }
   ]
  }

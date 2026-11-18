@@ -3,58 +3,72 @@
   "caseId": "PRD-KBSRC-309",
   "title": "A new product row is added automatically after each product",
   "group": "PRD-KBSRC",
-  "compiledAt": "2026-11-10T01:12:43.634Z",
+  "compiledAt": "2026-11-13T14:36:28.741Z",
   "tier": "fast",
-  "coverage": "full",
-  "gaps": [],
+  "coverage": "none",
+  "gaps": [
+   "Select a product from the Products-column cell dropdown with typing to narrow the search",
+   "Verify that selecting the product automatically adds an extra empty row"
+  ],
   "warnings": [
    "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
-   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule"
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "dropped configure_single_stage — the case never asks for the single-stage screen, a strategy or an awarding rule",
+   "inserted configure_single_stage{eventType:auction} — the single-stage screen opens as RFP, whose templates have no price sheet",
+   "cannot test this case yet — no step can observe: Select a product from the Products-column cell dropdown with typing to narrow the search; Verify that selecting the product automatically adds an extra empty row"
   ],
   "source": "llm",
-  "steps": 5,
+  "steps": 6,
   "stepNames": [
    "open_create",
    "set_title",
+   "configure_single_stage",
    "select_template",
-   "do_on_screen",
-   "expect_no_error"
+   "add_line_items",
+   "expect_line_items"
   ],
-  "ms": 10700
+  "ms": 8647
  },
  "plan": {
-  "title": "Automatic Empty Product Row",
+  "title": "Automatic Product Row Addition",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage create screen for the auction event."
+    "note": "Open the single-stage event creation screen for the auction setup."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "Automatic Empty Product Row Test"
-    },
+    "args": {},
     "note": "Provide the required event title for the create flow."
+   },
+   {
+    "step": "configure_single_stage",
+    "args": {
+     "eventType": "auction"
+    },
+    "note": "a priced single-stage event needs its type set before a template (the screen opens as RFP)"
    },
    {
     "step": "select_template",
     "args": {},
-    "note": "Apply an auction template so the product table is available."
+    "note": "Apply an auction template so the pricing sheet is rendered."
    },
    {
-    "step": "do_on_screen",
+    "step": "add_line_items",
     "args": {
-     "goal": "in the auction template table, click the cell beneath the Products column, type to narrow the product dropdown, select one product, and stop with the table visibly showing an additional empty row beneath the selected product for the next product"
+     "count": 1
     },
-    "note": "Perform the product selection and verify the automatic empty-row behavior directly on the screen."
+    "note": "Closest available product-addition action, but this uses the line-item drawer rather than the Products-column dropdown."
    },
    {
-    "step": "expect_no_error",
-    "args": {},
-    "note": "Confirm the product selection and automatic row insertion did not produce an application error."
+    "step": "expect_line_items",
+    "args": {
+     "count": 1
+    },
+    "note": "Assert the single product row created by the available catalog action; this does not verify automatic empty-row insertion."
    }
   ]
  }
