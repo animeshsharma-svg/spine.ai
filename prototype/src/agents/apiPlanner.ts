@@ -1182,6 +1182,15 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
       if (shape && top && !shape.includes(top)) errors.push(`verify ${n}: "${as.path}" — ${v.op} replies have no "${top}" field (seen: ${shape.slice(0, 14).join(", ")}…)`);
       if (!shape && top) warnings.push(`verify ${n}: ${v.op === "request" ? "the request" : v.op}'s reply shape has not been sampled; "${as.path}" is unverified`);
       if (["equals", "not_equals", "contains"].includes(as.op) && as.value === undefined) errors.push(`verify ${n}: ${as.op} needs a value`);
+      // the activity log names the actor and the action ("… has placed the bid"), never the amounts: a "contains price / taxes /
+      // published" the case itself never says is the compiler's own stricter check (12 Order Activity tickets failed on it,
+      // 18 Nov) — it becomes "the entries are there" with the word named
+      const activityRead = v.op === "read_history" || (v.op === "request" && /activity_logs/.test(path ?? ""));
+      if (activityRead && as.op === "contains" && typeof as.value === "string" && /^[a-z][a-z ]{1,30}$/i.test(as.value) && ctx && !new RegExp(`\\b${as.value.trim().replace(/\s+/g, "\\s+")}\\b`, "i").test(caseText)) {
+        warnings.push(`verify ${n}: the case never says “${as.value}”, and the activity log names actors and actions, not amounts — checked that the entries are there instead`);
+        as.op = "non_empty";
+        delete (as as { value?: unknown }).value;
+      }
       if (as.op === "one_of" && !Array.isArray(as.value)) errors.push(`verify ${n}: one_of needs a list`);
       if (["count", "count_gte", "gte", "lte"].includes(as.op) && typeof as.value !== "number") errors.push(`verify ${n}: ${as.op} needs a number`);
       if (as.op === "format" && !FORMATS[String(as.value)]) errors.push(`verify ${n}: unknown format "${String(as.value)}" (known: ${Object.keys(FORMATS).join(", ")})`);
