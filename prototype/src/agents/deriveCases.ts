@@ -422,7 +422,7 @@ export async function deriveCases(input: { text: string; companyId?: number; max
   const allowed = new Set<string>([...rs.map((r) => r.id), ...settings.map((s) => s.key), ...defects.map((d) => d.ticket), ...product.map((p) => p.title.split(" — ")[0].trim()), "screen"]);
   const prefix = `DRV-${prefixOf(module)}`;
   const sheet = `derived-${slugOf(subject)}`;
-  const taken = new Set(sheetCases(sheet).map((c) => c.id));
+  const taken = new Set(sheetCases().map((c) => c.id)); // every sheet: a DRV id names one case across all derivations
   let n = 0;
   const nextId = () => {
     do n++; while (taken.has(`${prefix}-${String(n).padStart(3, "0")}`));

@@ -132,3 +132,36 @@ npm run cases:import                       # must end with 0 orphans
 npm run hubspot:reproduce -- --dry         # plans only
 npm run hubspot:reproduce -- --ids HS-900000001-1 --company 198678   # one live run
 ```
+
+## 8. Cases around a ticket (18 Nov 2026)
+
+One regression case per ticket proves one thing. To catch the ticket's bug *and its neighbours* on its own, the
+platform writes the permutations a senior tester would around each open-defect ticket:
+
+```
+npm run hubspot:derive -- --dry                      which tickets (the open-defect set, §9)
+npm run hubspot:derive -- --limit 5                  derive for five cases and run their API-runnable rows now
+npm run hubspot:derive -- --no-run                   derive only (while another live run holds the QA vendors)
+npm run hubspot:derive -- --run-pending              run the API rows of derivations made with --no-run
+```
+
+Per case, the ticket's STRIPPED scenario goes to `agents/deriveCases.ts` (Slingring only; Groq and Gemini are switched
+off for the process): who else does it, in which event state, under which company setting, with which awkward values,
+at which moment — grounded in Procol's code rules, the settings catalogue, last quarter's RCA defects and the catalog
+(a case the team already has is shown with its id, never written twice). The rows land on the sheet
+`derived-<subject>` (`data/sheet-cases.json`, git-ignored) and the record with its run verdicts in
+`data/hubspot/derived/<case>.json` (git-ignored, like every ticket-derived file). API rows run through the sheet runner
+(own fresh event, QA vendors only, settings switched and restored on PROCOL DEMO); UI rows wait for the single browser
+slot (`scripts/run-ui-cases.ts`).
+
+## 9. The metric: can the platform catch the tickets on its own?
+
+```
+npm run hubspot:metrics -- --md docs/HUBSPOT-CATCH-METRICS-<date>.md
+```
+
+Truth: the team's own "Is Defect = yes" rows of the RCA export whose stage is not Closed (`src/hubspot/openDefects.ts`).
+The funnel per ticket — sorted as a defect → in the events scope → case written → plan compiled → run on a fresh event →
+verdict (caught / flagged / not showing / couldn't tell / cannot express yet / not yet run) — then the cases written
+around the tickets and their runs. Every number is read from the stored evidence; nothing is estimated. Counts and case
+ids only; no ticket text.
