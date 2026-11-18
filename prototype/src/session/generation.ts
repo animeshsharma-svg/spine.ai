@@ -75,6 +75,7 @@ ${STYLE_GUIDE}
 - Every expected result comes from a statement in the PRD: quote or closely paraphrase it. When the PRD is silent on something a tester must judge, write the expected result as "Record what happens — the PRD does not say <what>" and say what to confirm; never invent the rule.
 - If the PRD names a message, tooltip, label or link, the expected result uses those exact words.
 - Implementation notes in the PRD (table, API, file names) are not expectations about what the person sees: write steps and results as a person experiences them.
+- Test data: never name a product, a pricing template or a vendor the PRD does not name. Write vendors as "Vendor A" / "Vendor B" (the platform maps them to its QA vendors), the product as "the test product" and the template as "the first pricing template"; quantities, prices and times may be your own.
 ${styleExamplesText()}
 Answer in this JSON shape, as an array:
 [{"title":"what is checked, in one sentence","role":"Buyer|Vendor|Evaluator|Approver|…","portal":"Buyer portal|Supplier portal|API","preconditions":"the state the case starts from (a draft / live RFQ / live RFQ with a vendor's bid / closed RFQ with a bid / awarded / converted / withdrawn / amended / RFQ with two bids / Technical + RFQ project) and anything else that must be true","configs":"company settings the case needs, 'key = On|Off — why' per line, or 'None'","testData":"the values used, or '-'","steps":["one user action per step, as the screen names it; the last steps are the checks"],"expected":"what is observed when it passes — the product's words for messages and statuses","priority":"P0|P1|P2|P3","testType":"Happy path|Negative|Boundary|Permission|State|Settings|Data|Timing|Visibility|API|Design|Regression","why":"the basis of this case in one sentence","source":"the id of the flow / rule / field / setting / ticket / frame it comes from, e.g. R4 or FL2 or ticket 325461702389"}]
@@ -85,6 +86,14 @@ function flowLines(card: Understanding): string {
 }
 function ruleLines(rules: Rule[]): string {
   return rules.map((r) => `${r.id} [${r.kind}] ${r.text} (source: "${r.source}")${r.settingKey ? ` [setting ${r.settingKey}${r.settingNow !== undefined ? ` = ${JSON.stringify(r.settingNow)} on the test company` : ""}]` : ""}`).join("\n");
+}
+
+/** A product / template / vendor name the PRD does not give, swapped for the platform's placeholder (see askCases). */
+export function scrubInventedNames(t: string, said: string): string {
+  return t
+    .replace(/\bQA[ _-]?Platform[ _-]?Vendor[ _-]?([AB12])\b(?![ _-]?\d)/gi, (m, x) => (said.includes(m.toLowerCase()) ? m : `Vendor ${/[1A]/i.test(x) ? "A" : "B"}`))
+    .replace(/\bQA[ _-](?:test[ _-])?(?:standard[ _-])?(?:RFQ[ _-])?(?:pricing[ _-])?template\b|\bQA[ _-]Standard[ _-]RFQ\b/gi, (m) => (said.includes(m.toLowerCase()) ? m : "the first pricing template"))
+    .replace(/\bQA[ _-](?:test[ _-])?(?:line[ _-]item|product|item|bolt|cable|part|material)s?\b/gi, (m) => (said.includes(m.toLowerCase()) ? m : "the test product"));
 }
 
 /** The model writes the words for a section; the skeleton (what to cover) is given by code. */
@@ -115,6 +124,13 @@ async function askCases(card: Understanding, kind: Kind, skeleton: string, max: 
     j = jsonOf(raw);
     list = Array.isArray(j) ? j : j && typeof j === "object" ? (Object.values(j).find((v) => Array.isArray(v)) as any[]) ?? [] : [];
   }
+  // A name the PRD does not give is the model's own and does not exist on the test company (19 Nov: "QA test line item",
+  // "QA RFQ Template", "QA_Platform Vendor A" — the runner searched for them until it timed out). Swap them back to the
+  // platform's placeholders; a name the PRD itself states stays.
+  const said = JSON.stringify(card).toLowerCase();
+  const scrub = (t: string) => scrubInventedNames(t, said);
+  const scrubAll = (c: any) => c && typeof c === "object" ? { ...c, ...Object.fromEntries(["title", "preconditions", "testData", "expected"].map((k) => [k, typeof c[k] === "string" ? scrub(c[k]) : c[k]])), steps: Array.isArray(c.steps) ? c.steps.map((x: unknown) => typeof x === "string" ? scrub(x) : x) : typeof c.steps === "string" ? scrub(c.steps) : c.steps } : c;
+  list = list.map(scrubAll);
   return list.map((c: any): GenCase => ({
     id: "", module: card.module, scenario: "", title: clean(c?.title), role: clean(c?.role) || "Buyer", portal: clean(c?.portal) || "Buyer portal",
     preconditions: clean(c?.preconditions) || "-", configs: clean(c?.configs) || "None", testData: clean(c?.testData) || "-", steps: stepsOf(c?.steps),
