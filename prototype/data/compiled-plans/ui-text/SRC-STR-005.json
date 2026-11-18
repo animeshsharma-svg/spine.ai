@@ -4,39 +4,48 @@
   "title": "Traffic light auction: what each side sees during bidding",
   "group": "SRC-STR",
   "sheet": "procol-sourcing-test-cases-pr-to-po",
-  "compiledAt": "2026-11-09T22:07:23.283Z",
+  "compiledAt": "2026-11-14T00:36:33.921Z",
   "tier": "fast",
   "coverage": "partial",
   "gaps": [
-   "Assert that each vendor sees a traffic-light zone colour instead of a rank.",
-   "Verify which traffic-light zones can see the best price or rank and whether each vendor receives that visibility.",
-   "Inspect Vendor A and Vendor B in separate vendor sessions with their vendor-specific displays."
+   "Automatically verify Vendor A, B and C's graphical zone colours and conditional best-price/rank visibility, including opening additional vendors' viewing sessions."
   ],
   "warnings": [
+   "dropped a do_on_screen about the traffic light / time extension — configure_single_stage sets those fields",
+   "traffic light bounds set from the bids: GREEN ≤ 950, YELLOW ≤ 1000 (gross = price × 10) so the lowest bidder is green, the next yellow, the rest red",
+   "what each side sees in a traffic light auction is checked with expect_zone: each bidder's own portal (1: yellow, 2: green, 3: red) and the buyer's Responses lights",
+   "the zones allowed to see the best price / rank: set_zone_visibility (green only), then the green bidder sees both and a bidder outside the green zone sees neither",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "dropped a do_on_screen about the traffic light / time extension — configure_single_stage sets those fields",
+   "traffic light bounds set from the bids: GREEN ≤ 950, YELLOW ≤ 1000 (gross = price × 10) so the lowest bidder is green, the next yellow, the rest red",
+   "what each side sees in a traffic light auction is checked with expect_zone: each bidder's own portal (1: yellow, 2: green, 3: red) and the buyer's Responses lights",
+   "the zones allowed to see the best price / rank: set_zone_visibility (green only), then the green bidder sees both and a bidder outside the green zone sees neither",
    "added compose_stages(rfp, rfq) — the screen defaults to an Auction stage, so this test would have run against the wrong stage",
    "moved open_create to the front — the steps before it had no create screen to act on",
    "dropped the stage steps — the single-stage screen has no stage tabs; its type is set in the drawer",
-   "added fill_sheet — a pricing stage will not publish with an unfilled sheet",
    "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
-   "can only test part of this — no step for: Assert that each vendor sees a traffic-light zone colour instead of a rank.; Verify which traffic-light zones can see the best price or rank and whether each vendor receives that visibility.; Inspect Vendor A and Vendor B in separate vendor sessions with their vendor-specific displays."
+   "dropped expect_responses' participation figure — the invite takes every vendor Procol suggests, so participation is bidders / all invited, never bidders / bidders",
+   "can only test part of this — no step for: Automatically verify Vendor A, B and C's graphical zone colours and conditional best-price/rank visibility, including opening additional vendors' viewing sessions."
   ],
   "source": "llm",
-  "steps": 18,
+  "steps": 45,
   "stepNames": [
    "open_create",
+   "require_setting",
+   "require_setting",
    "configure_single_stage",
    "set_title",
    "select_template",
    "add_line_items",
    "fill_sheet",
    "set_sheet_cell",
-   "set_schedule",
+   "expect_sheet_cell",
    "invite_vendor",
+   "set_schedule",
    "publish",
    "expect_published",
    "place_bid",
@@ -45,40 +54,82 @@
    "expect_bid_submitted",
    "place_bid",
    "expect_bid_submitted",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_zone",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_zone",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_zone",
+   "switch_portal",
+   "expect_zone",
+   "expect_zone",
+   "expect_zone",
+   "switch_portal",
+   "set_zone_visibility",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_zone",
+   "switch_portal",
+   "vendor_open_event",
+   "expect_zone",
+   "switch_portal",
+   "expect_responses",
+   "switch_portal",
    "expect_responses"
   ],
-  "ms": 15451
+  "ms": 0
  },
  "plan": {
-  "title": "Traffic Light Auction Bid Visibility",
+  "title": "Traffic-light feedback across buyer and vendor views",
   "steps": [
    {
     "step": "open_create",
     "args": {
      "path": "single-stage"
     },
-    "note": "Open the single-stage event creation flow."
+    "note": "Reach the creation path that supports traffic-light configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "rfx_project_enabled",
+     "value": "On"
+    },
+    "note": "Enable the required project configuration."
+   },
+   {
+    "step": "require_setting",
+    "args": {
+     "key": "lock_vendors_addition_in_event_creation",
+     "value": "Off"
+    },
+    "note": "Allow vendor invitations during creation."
    },
    {
     "step": "configure_single_stage",
     "args": {
      "eventType": "auction",
      "auctionSubtype": "traffic_light",
+     "rangeLower": "950",
+     "rangeUpper": "1000",
      "awarding": "lot"
     },
-    "note": "Configure the event as a buy traffic-light auction."
+    "note": "Select the requested auction strategy without inventing unspecified range values."
    },
    {
     "step": "set_title",
-    "args": {
-     "title": "SRC-STR-005 Traffic Light Auction"
-    },
-    "note": "Provide the required event title."
+    "args": {},
+    "note": "Give the test event a unique title."
    },
    {
     "step": "select_template",
-    "args": {},
-    "note": "Apply the first available auction pricing template; the exact reverse-auction template is not identifiable from the case."
+    "args": {
+     "name": "Buy"
+    },
+    "note": "Apply a reverse-auction pricing template."
    },
    {
     "step": "add_line_items",
@@ -87,10 +138,12 @@
      "search": "CYLINDER WITH KEY & KNOB",
      "quantity": "10"
     },
-    "note": "Add the requested product with quantity 10."
+    "note": "Add the specified product and quantity."
    },
    {
-    "step": "fill_sheet"
+    "step": "fill_sheet",
+    "args": {},
+    "note": "Complete required buyer-side sheet fields."
    },
    {
     "step": "set_sheet_cell",
@@ -99,75 +152,247 @@
      "column": "Delivery location",
      "value": "Plant Name (LOC-0001)"
     },
-    "note": "Enter the requested plant/location value in the first line item's editable location cell."
+    "note": "Select the requested delivery location."
    },
    {
-    "step": "set_schedule",
+    "step": "expect_sheet_cell",
     "args": {
-     "minutes": 30
+     "row": 1,
+     "column": "Delivery location",
+     "kept": true
     },
-    "note": "Commit a 30-minute schedule starting immediately using the schedule drawer."
+    "note": "Verify the location selection was accepted."
    },
    {
     "step": "invite_vendor",
     "args": {
      "count": 3
     },
-    "note": "Invite three QA vendors for the three bids."
+    "note": "Invite three QA vendors without treating A, B and C as actual company names."
+   },
+   {
+    "step": "set_schedule",
+    "args": {
+     "minutes": 30
+    },
+    "note": "Commit the requested live bidding duration."
    },
    {
     "step": "publish",
     "args": {},
-    "note": "Publish the configured auction."
+    "note": "Publish the auction."
    },
    {
     "step": "expect_published",
     "args": {},
-    "note": "Verify that publishing reached a real project page."
+    "note": "Confirm publication reached a real project."
    },
    {
     "step": "place_bid",
     "args": {
+     "vendor": 1,
      "price": 100
     },
-    "note": "Submit Vendor A's bid through the vendor portal flow."
+    "note": "Submit Vendor A's own quote."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the first vendor bid was accepted."
+    "note": "Verify Vendor A's submission."
    },
    {
     "step": "place_bid",
     "args": {
+     "vendor": 2,
      "price": 95
     },
-    "note": "Submit the second vendor's bid through the next vendor portal identity."
+    "note": "Submit Vendor B's own quote."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the second vendor bid was accepted."
+    "note": "Verify Vendor B's submission."
    },
    {
     "step": "place_bid",
     "args": {
+     "vendor": 3,
      "price": 120
     },
-    "note": "Submit the third vendor's bid through the next vendor portal identity."
+    "note": "Submit Vendor C's own quote."
    },
    {
     "step": "expect_bid_submitted",
     "args": {},
-    "note": "Verify the third vendor bid was accepted."
+    "note": "Verify Vendor C's submission."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": 1
+    }
+   },
+   {
+    "step": "vendor_open_event"
+   },
+   {
+    "step": "expect_zone",
+    "args": {
+     "zone": "yellow",
+     "side": "vendor",
+     "rank": false
+    }
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": 2
+    }
+   },
+   {
+    "step": "vendor_open_event"
+   },
+   {
+    "step": "expect_zone",
+    "args": {
+     "zone": "green",
+     "side": "vendor",
+     "rank": false
+    }
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": 3
+    }
+   },
+   {
+    "step": "vendor_open_event"
+   },
+   {
+    "step": "expect_zone",
+    "args": {
+     "zone": "red",
+     "side": "vendor",
+     "rank": false
+    }
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    }
+   },
+   {
+    "step": "expect_zone",
+    "args": {
+     "bid": 100,
+     "zone": "yellow"
+    }
+   },
+   {
+    "step": "expect_zone",
+    "args": {
+     "bid": 95,
+     "zone": "green"
+    }
+   },
+   {
+    "step": "expect_zone",
+    "args": {
+     "bid": 120,
+     "zone": "red"
+    }
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    }
+   },
+   {
+    "step": "set_zone_visibility",
+    "args": {
+     "bestPriceZones": [
+      "green"
+     ],
+     "bestPrices": 1,
+     "rankZones": [
+      "green"
+     ]
+    }
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": 2
+    }
+   },
+   {
+    "step": "vendor_open_event"
+   },
+   {
+    "step": "expect_zone",
+    "args": {
+     "zone": "green",
+     "side": "vendor",
+     "rank": true,
+     "bestPrice": true
+    }
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "vendor",
+     "vendor": 1
+    }
+   },
+   {
+    "step": "vendor_open_event"
+   },
+   {
+    "step": "expect_zone",
+    "args": {
+     "zone": "yellow",
+     "side": "vendor",
+     "rank": false,
+     "bestPrice": false
+    }
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    }
    },
    {
     "step": "expect_responses",
     "args": {
      "count": 3,
-     "direct": 3
+     "direct": 3,
+     "stage": "auction"
     },
-    "note": "Verify the buyer's response view contains all three direct vendor bids and shows full participation."
+    "note": "Check that all three direct quotes appear for the buyer."
+   },
+   {
+    "step": "switch_portal",
+    "args": {
+     "to": "buyer"
+    },
+    "note": "Return to the buyer after vendor inspection."
+   },
+   {
+    "step": "expect_responses",
+    "args": {
+     "count": 3,
+     "direct": 3,
+     "stage": "auction"
+    },
+    "note": "Finish with an automated assertion of the buyer's responses; this does not substitute for the assisted vendor-zone checks."
    }
   ]
  }
