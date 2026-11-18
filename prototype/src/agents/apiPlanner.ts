@@ -918,6 +918,8 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
 
   const have = new Set<string>(recipe?.provides ?? []);
   const normActs: ActStep[] = [];
+  /** acts whose sender the validation changed (the plan named one actor, the app's allow-list another) → who the plan wanted */
+  const switched = new Map<ActStep, ActorId>();
   for (let i = 0; i < acts.length; i++) {
     const src = (acts[i] ?? {}) as ActStep & { until?: string; price?: number; method?: string; path?: string; body?: unknown };
     // only the language's own keys survive (a stray top-level "until"/"price" is moved into params; a stray method/path make a request)
@@ -982,6 +984,7 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
       body = await sampleBody(a.op as OpId).catch(() => undefined);
     }
     if (method && path && op.actors.length) a.as = fixActor(`act ${n}`, a.as, op.actors, method, path);
+    if (src.as && a.as !== src.as) switched.set(a, src.as as ActorId);
     if (a.as === "vendor" && recipe && recipe.vendors < 1 && recipe.id !== "none") warnings.push(`act ${n}: the vendor is not invited to this setup — it acts as an outsider`);
     if (a.as === "vendor2" && recipe && recipe.vendors < 2 && !normActs.some((x) => x.op === "add_vendor")) warnings.push(`act ${n}: QA vendor 2 is not invited in this setup — it acts as an uninvited vendor`);
     if (a.op === "wait") {
@@ -1084,6 +1087,25 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
   if (normActs.filter((a) => a.decisive).length > 1) errors.push("only one act can be the decisive one");
   // the decisive step follows the plan's outcome unless it says otherwise; a stale "no-5xx" on it follows the flip above
   for (const a of normActs) if (a.decisive && a.expect === "no-5xx" && outcome !== "no-5xx") delete a.expect;
+  // a refusal expected of one actor cannot be tested by sending as another: the buyer's acceptance proves nothing about the vendor
+  for (const a of normActs) {
+    const want = switched.get(a);
+    if (a.decisive && want && (a.expect ?? outcome) === "reject") errors.push(`act ${normActs.indexOf(a) + 1}: the case expects the ${want} to be refused, but the app has no ${want} route for this request — it would be sent as the ${a.as}, whose acceptance proves nothing about the ${want}, so the refusal cannot be tested`);
+  }
+  // a refusal the plan cannot arrange is not a refusal the run can test: the only buyer is the support console's super_admin,
+  // no recipe makes an archived / inactive / blocked vendor, and a read never shows whether a change would have been refused
+  {
+    const dec = normActs.find((a) => a.decisive);
+    const decOutcome = dec?.expect ?? outcome;
+    if (dec && decOutcome === "reject") {
+      const n = normActs.indexOf(dec) + 1;
+      const restrictedUser = /\b(?:without|lack(?:s|ing)?|no|missing|lacking)\s+(?:the\s+)?(?:\w+[\s-]+){0,3}(?:permission|rights?|access|role)\b|\bnot authori[sz]ed\s+(?:buyer|user|member)|\brestricted\s+(?:buyer|user|member)|\bmember without\b/i.test(caseText);
+      if (restrictedUser && dec.as === "buyer") errors.push(`act ${n}: the case expects a refusal for a buyer user without the permission, but the only buyer the plan signs in is the support console's super_admin — the refusal cannot be tested until a second buyer user is built`);
+      const vendorState = caseText.match(/\b(archived|inactive|blocked|blacklisted|deactivated|suspended|unapproved|unregistered)\s+(?:\w+\s+){0,2}vendor\b/i);
+      if (vendorState) errors.push(`act ${n}: the case needs an ${vendorState[1].toLowerCase()} vendor, which no recipe creates — the refusal cannot be tested on the QA vendors`);
+      if (OPS[dec.op as OpId]?.kind === "read") errors.push(`act ${n}: the case expects a change to be refused, but the decisive step is a read (${dec.op}) — a read never shows whether the change would have been refused`);
+    }
+  }
   // A wait is capped at 6 minutes: an extension before it must stay inside that.
   const waitAt = normActs.findIndex((a) => a.op === "wait");
   if (waitAt > 0)

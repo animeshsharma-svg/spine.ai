@@ -79,7 +79,7 @@ if (flag("run-pending")) {
   mkdirSync(OUT, { recursive: true });
   const { readdirSync } = await import("node:fs");
   const recs = readdirSync(OUT).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(readFileSync(join(OUT, f), "utf8")) as Record_)
-    .filter((r) => r.sheet && !r.run && (IDS.size ? IDS.has(r.caseId) : true));
+    .filter((r) => r.sheet && (!r.run || flag("again")) && (IDS.size ? IDS.has(r.caseId) : true));
   log(`${recs.length} derivation(s) with API rows not run yet`);
   for (const rec of recs.slice(0, LIMIT || recs.length)) {
     const apiRows = sheetCases(rec.sheet).filter((c) => c.layer === "api");
