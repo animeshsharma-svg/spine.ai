@@ -150,10 +150,13 @@ export function runPoFlow(
     runId?: string;
     companyId?: number | null;
     companyName?: string;
+    /** a PO input file written for this run (passed to the suite as --input); the suite's config/po-input.json when absent */
+    input?: string;
   },
   emit: (e: PoRunEvent) => void,
 ): { stop: () => void } {
   const args = ["tsx", "src/cli/createPo.ts", "--client", opts.clientId];
+  if (opts.input) args.push("--input", opts.input);
   if (opts.submit === false) args.push("--no-submit");
   const command = `npx ${args.join(" ")}`;
   emit({ type: "start", command, line: `$ ${command}` });

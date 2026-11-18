@@ -62,6 +62,15 @@ The API-runnable rows written around the first 35 tickets ran on PROCOL DEMO: 15
 
 So of 9 Fails, 1 is real, 7 are platform false Fails (5 now refused at compile time), 1 is a derivation rule the product does not have.
 
+## The remaining 77 tickets' derived rows (second batch, afternoon)
+
+All 112 open-defect cases now have a derived sheet (model spend of the second batch: $28). Their API-runnable rows ran on PROCOL DEMO; the VPN tunnel to the UAT API and the Procol database died at 13:23 half-way through, so 50 sheets run after that moment carry an outage verdict (the model gateway was unreachable too, so most read "no valid API plan could be compiled" rather than naming the network) and are re-run once the tunnel is back. Of the 32 sheets that ran before the outage: 2 Fails, both false.
+
+| Row | Around ticket | Reading |
+|---|---|---|
+| DRV-LI-179 | HS-1060010159-1 | False: the row's expected line says the two requests "produce rate-only lines **rather than rejecting** zero or missing quantity"; the compiler read the word *rejecting* as "must refuse" and failed the accept. The polarity reader now takes "rather than / instead of / without … rejecting (refusal, error, failure)" as the refusal that does **not** happen. |
+| DRV-AUC-088 | HS-162417491700-1 | False: every data check held (QA vendor 1 rank 1, best bidder) and the one failing check was the compiler's own "rank value is a number", while the app sends the rank as the text "1". The row never says *number*. A type check the case does not ask for is now checked as "the field is there". |
+
 ## What this changes in the pipeline
 
 1. Four refusals the run cannot test are now refused at compile time (apiPlanner), so they read "Not run" with the reason instead of a false Fail: a refusal expected of one actor but sent as another; a refusal expected of a buyer without the permission (the only buyer is the super_admin); a refusal that needs an archived / inactive / blocked vendor; a refusal whose decisive step is a read. These came from the derived rows' Fails above, not from the 21, but it is the same family.

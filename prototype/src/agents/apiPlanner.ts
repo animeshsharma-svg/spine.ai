@@ -1195,6 +1195,13 @@ export async function validatePlan(raw: unknown, ctx?: ValidateContext): Promise
       if (["count", "count_gte", "gte", "lte"].includes(as.op) && typeof as.value !== "number") errors.push(`verify ${n}: ${as.op} needs a number`);
       if (as.op === "format" && !FORMATS[String(as.value)]) errors.push(`verify ${n}: unknown format "${String(as.value)}" (known: ${Object.keys(FORMATS).join(", ")})`);
       if (as.op === "type_is" && !(Array.isArray(as.value) ? as.value : [as.value]).every((t) => ["string", "number", "boolean", "object", "array", "null"].includes(String(t)))) errors.push(`verify ${n}: type_is needs JSON type names`);
+      // whether the app sends a rank as 1 or "1" is the app's choice of wire type, not the case's point unless the case
+      // says "number" / "text" itself (DRV-AUC-088 failed on rank "1" not being a number, 18 Nov) — the field is checked to be there
+      if (as.op === "type_is" && ctx && (Array.isArray(as.value) ? as.value : [as.value]).every((t) => ["string", "number"].includes(String(t))) && !/\b(?:number|numeric|integer|decimal|text|string)\b/i.test(caseText)) {
+        warnings.push(`verify ${n}: the case never says the field must be a ${String(as.value)} — checked that it is there instead`);
+        as.op = "exists";
+        delete (as as { value?: unknown }).value;
+      }
       for (const t of tokensIn(as.value)) {
         const ar = t.match(ACT_TOKEN);
         if (ar) {
@@ -1948,6 +1955,9 @@ export function polarityOf(t: string): Outcome | null {
   if (/\bcode\s+\d{1,4}\b\s*['‘"“]/.test(s)) return "reject";
   // "is not blocked", "no savings error", "publishes without error" — the absence of a refusal is acceptance
   if (/\b(?:is|are|was|were)\s+not\s+(?:blocked|refused|rejected|denied|prevented|stopped)\b|\bno\s+(?:[a-z-]+\s+)?error\b|\bwithout\s+(?:an?\s+)?(?:[a-z-]+\s+)?error\b|\bnot\s+(?:blocked|refused|rejected|denied|prevented)\b/.test(s)) return "accept";
+  // "creates rate-only lines rather than rejecting zero quantity", "saves instead of a validation refusal" — the refusal
+  // named is the one that does NOT happen (DRV-LI-179 ran as "must refuse" and failed falsely, 18 Nov)
+  if (/\b(?:rather than|instead of|without)\s+(?:a\s+|an\s+|any\s+)?(?:[a-z-]+\s+)?(?:reject\w*|refus\w*|block\w*|denial|denying|fail\w*|error\w*)\b/.test(s)) return "accept";
   // "no second award can be started", "never lets a vendor…" — a negated ability is a refusal
   if (/\bno\b[^.;]{0,40}\bcan\b|\bnever\s+(?:lets?|allows?|accepts?|permits?)\b|\bmust\s+(?:never|not)\b/.test(s)) return "reject";
   if (/\b(cannot|can't|can not|not allowed|refus\w*|reject\w*|block\w*|prevent\w*|disallow\w*|is denied|fails?|error|invalid|must not|should not|isn't allowed|not be able)\b/.test(s)) return "reject";
