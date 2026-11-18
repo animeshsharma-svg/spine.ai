@@ -36,8 +36,7 @@ import { slotState } from "./ui/browserSlot.js";
 import { JourneyTrail } from "./ui/journeySteps.js";
 import { saveTrail, readTrail, deleteTrail, listTrails } from "./ui/trailStore.js";
 import { DEFAULT_CLIENT } from "../config/settings.js";
-import { isTokenClient, tokenClient } from "../config/tokenClients.js";
-import { DECATHLON_ID, decathFeatures } from "./clients/decath.js";
+import { type TokenClient, isTokenClient, tokenClient } from "../config/tokenClients.js";
 import { buildUiState } from "./ui/uiSetup.js";
 import { prepFor } from "./ui/uiCasePrep.js";
 import { readEnvVar, readToken, tokenClientChoices } from "./tokenClient.js";
@@ -64,7 +63,7 @@ import { exploreJourney } from "./agents/journeyExplore.js";
 import { cancelQuestions } from "./agents/questions.js";
 import { readRunVerdicts, summariseFindings } from "./agents/oracle.js";
 import { interpret } from "./agents/uiIntent.js";
-import { compileTestCase } from "./agents/planner.js";
+import { type CompileResult, type PlanStep, type TestPlan, compileTestCase } from "./agents/planner.js";
 import * as plannerApi from "./agents/planner.js";
 import { compileCached } from "./agents/compileCache.js";
 import { recall, stats as ragStats, isBuilt } from "./rag/knowledgeBase.js";
@@ -82,6 +81,7 @@ import { readPoRun, readPoRunHtml, deletePoRun, listPoRuns } from "./poRunStore.
 import { defectsFromPoRun } from "./report/poRunDefects.js";
 import { checkToken, poInputSummary, runPoFlow } from "./poRunner.js";
 import { resolveToken } from "./tokenMint.js";
+import { FOLDERS as P2P_FOLDERS, collectionFeatureCases, collectionReady, collectionReportHtml, collectionSteps, folderGate, readCollectionRun, rememberPo, runCollection } from "./p2pCollection.js";
 import { TIERS, runSuiteTier, type SuiteTier } from "./suiteRunner.js";
 import { findCases, sections, caseById, caseAsProse, catalogStats } from "./checks/testCatalog.js";
 import { routeFor, routingCoverage } from "./checks/caseRouting.js";
@@ -263,14 +263,50 @@ const withFull = (url: URL): string => {
 };
 
 // Curated demo clients (PROCOL DEMO is the known-fresh default).
+/**
+ * A CASE ON A TENANT'S OWN SCREENS, ONE STEP AT A TIME (12 Nov, Decathlon short close: the whole case went
+ * to the explorer as one goal and it went round in circles on a Draft PO looking for "Short Close"). The
+ * case's own steps ("Steps: 1. … 2. …") become one on-screen goal each, carrying the preconditions and
+ * data they need, and the expected result becomes the last goal — a check. A wait folds into the goal
+ * after it. Each goal also carries what this tenant's screens are like: a record's actions live under the
+ * ⋮ menu at the top right when they are not buttons, and a step that opens "a Purchase Order" means one
+ * whose status fits the action (not a Draft when the action needs an approved document).
+ */
+function ownScreensPlan(tenant: string, caseText: string): TestPlan {
+  const text = caseText.replace(/\r/g, "");
+  const pick = (label: string) =>
+    (text.match(new RegExp(`(?:^|\\n)\\s*${label}:\\s*([\\s\\S]*?)(?=\\n\\s*(?:Preconditions|Steps|Test data|Expected result|Expected):|$)`, "i"))?.[1] ?? "").replace(/\s+/g, " ").trim();
+  const title = (text.split("\n")[0] || caseText).replace(/[.\s]+$/, "").trim();
+  const pre = pick("Preconditions");
+  const data = pick("Test data");
+  const expected = pick("Expected result") || pick("Expected");
+  const stepsText = pick("Steps");
+  const steps = stepsText ? stepsText.split(/(?:^|\s)\d+\.\s+/).map((t) => t.trim()).filter(Boolean) : [];
+  const hint =
+    `On ${tenant}'s screens a record's actions (Short Close, Cancel, Submit…) sit under the ⋮ menu at the top right of the record when they are not shown as buttons — open it and look there before saying a button is missing. ` +
+    `When a step says to open "a Purchase Order" (or a Rent / Gift PO), open one from its list whose status fits the action: an approved or Released one for Short Close, Cancel or GRN; never a Draft for those. Do not create a new record unless the step says so.`;
+  const ctx = [pre ? `Before: ${pre}` : "", data ? `Data: ${data}` : ""].filter(Boolean).join(" ");
+  const out: PlanStep[] = [];
+  let pendingWait = "";
+  steps.forEach((st, i) => {
+    const wait = st.match(/^wait\b[^.]*?(\d+)\s*(?:seconds?|s)\b/i);
+    if (wait) {
+      pendingWait = `Wait about ${wait[1]} seconds first. `;
+      return;
+    }
+    out.push({ step: "do_on_screen", args: { goal: `Step ${i + 1} of ${steps.length}: ${pendingWait}${st}${/[.!?]$/.test(st) ? "" : "."} ${ctx} ${hint}`.replace(/\s+/g, " ").trim() }, note: st });
+    pendingWait = "";
+  });
+  if (!out.length) out.push({ step: "do_on_screen", args: { goal: `${caseText} ${hint}`.replace(/\s+/g, " ").trim() }, note: title });
+  if (expected) out.push({ step: "do_on_screen", args: { goal: `${pendingWait}Check, without changing anything: ${expected} Say what the screen shows for each part of that.`.replace(/\s+/g, " ").trim() }, note: `Check: ${expected.slice(0, 80)}` });
+  return { title: title.length > 80 ? `${title.slice(0, 77)}…` : title, steps: out };
+}
+
 const CLIENTS = [
   { id: 198678, name: "PROCOL DEMO", note: "best all-round · fresh session" },
   { id: 32461, name: "Demo Account 2", note: "BOQ on" },
   { id: 39490, name: "M/s Moon Beverages", note: "workspace client · BOQ off" },
   { id: 47053, name: "GMMCO LIMITED", note: "vendor onboarding v2 · contactless bulk upload · dedup on GST+address+pincode+account group" },
-  // Aanya, 21 Oct: "set it as a new client — decathlon". Its users sit in their own
-  // sub-companies; role tests (PO visibility) sign in on screen as each role.
-  { id: 57675, name: "DECATHLON SPORTS INDIA", note: "PO flow · role-based PO visibility (general user, validators, approvers)" },
 ];
 
 // Cache capability maps so re-selecting a client is instant.
@@ -849,6 +885,160 @@ const server = createServer(async (req, res) => {
           send("fatal", { message: "Type a test case first." });
           return res.end();
         }
+        /**
+         * A PURCHASE-ORDER CASE ON A PURCHASE-TO-BILL ACCOUNT runs the PO flow, not an event plan.
+         *
+         * "create a PO with 2 line items and submit the PO" on Decathlon compiled into an RFQ
+         * journey (rfq_with_bid) that could not even sign in (Aanya, 10 Nov). The account says what
+         * it carries (featureScope "po"), and the API suite already drives its PO end to end — so
+         * the typed case becomes that run: its own input file with the line items the case asks
+         * for, one check per step of the suite's report.
+         */
+        const poAccount = isTokenClient(c) ? tokenClient(c) : undefined;
+        /**
+         * A TYPED CASE ON A P2P-COLLECTION ACCOUNT names folders of the collection: "invoice",
+         * "GRN", "bill", "acknowledge", "intake", "purchase request", "event". Those run as the
+         * collection, one check per request. A case about the purchase order alone stays with
+         * the API suite's PO flow below (it builds the PO the collection's later folders use).
+         */
+        const COLLECTION_WORDS: Array<[RegExp, string]> = [
+          [/\bintake\b/i, "p2p.intake_to_pr"],
+          [/\b(purchase[ -]requests?|\bprs?\b)\b.*\b(po|purchase[ -]order)/i, "p2p.pr_to_po"],
+          [/\b(acknowledg|vendor)/i, "p2p.vendor_auth"],
+          [/\binvoice/i, "p2p.po_to_invoice"],
+          [/\b(grn|goods[ -]receipt)/i, "p2p.invoice_to_grn"],
+          [/\bbill/i, "p2p.invoice_to_bill"],
+          [/\b(event|rfq|rfp|auction)\b/i, "p2p.pr_to_event"],
+          [/\b(bid|award|approv)/i, "p2p.event_to_po"],
+        ];
+        const folderIds = poAccount?.suite === "p2p-collection" ? [...new Set(COLLECTION_WORDS.filter(([re]) => re.test(text)).map(([, id]) => id))] : [];
+        if (poAccount && folderIds.length) {
+          const chain = ["p2p.po_to_invoice", "p2p.invoice_to_grn", "p2p.invoice_to_bill"];
+          // "invoice → bill" needs the goods receipt in between: the collection chains them.
+          if (folderIds.includes("p2p.invoice_to_bill") && !folderIds.includes("p2p.invoice_to_grn")) folderIds.push("p2p.invoice_to_grn");
+          if (folderIds.some((f) => chain.includes(f)) && !folderIds.includes("p2p.po_to_invoice")) folderIds.unshift("p2p.po_to_invoice");
+          send("line", { line: `Running the P2P collection on ${poAccount.name}: ${folderIds.map((id) => P2P_FOLDERS.find((f) => f.id === id)?.label ?? id).join(", ")}.` });
+          send("plan", { cases: 1, runnable: 1, skipped: [] });
+          const gaps: string[] = [];
+          await new Promise<void>((resolve) => {
+            const run = runCollection(poAccount, folderIds, (e) => {
+              if (e.type === "log" && e.line) send("line", { line: e.line });
+              if (e.type === "run-error" && e.line) gaps.push(e.line);
+              if (e.type === "case" && e.case) {
+                const cs = e.case;
+                const row = noMatchRow();
+                row.id = `P2P-${cs.id}`; row.module = "p2p"; row.flowId = cs.feature; row.scenario = cs.title;
+                row.inconclusive = cs.verdict === "not-run"; row.pass = cs.verdict === "pass"; row.accepted = cs.verdict === "pass";
+                row.httpStatus = cs.status; row.durationMs = cs.ms; (row as any).expectedResult = cs.expected;
+                row.inputSummary = `${cs.method ?? ""} ${cs.path ?? ""}`.trim();
+                row.message = cs.verdict === "not-run" ? `not run — ${cs.reason ?? ""}` : cs.verdict === "pass" ? cs.actual : `${cs.actual}${cs.failed.length ? ` Failed: ${cs.failed.join("; ")}.` : ""}`;
+                row.verdict = cs.verdict === "pass" ? "passed" : cs.verdict === "fail" ? "failed" : "not run";
+                (row as any).request = cs.method ? { method: cs.method, path: cs.path } : undefined;
+                send("check", { check: row });
+              }
+              if (e.type === "done") {
+                if (e.runId) send("line", { line: `Collection run report: /api/collection-report?run=${e.runId}` });
+                resolve();
+              }
+            });
+            req.on("close", () => run.stop());
+          });
+          if (gaps.length) send("line", { line: `Not covered by this API test: ${gaps.join("; ")}.` });
+          send("done", { ok: true, total: 1 });
+          return res.end();
+        }
+        if (poAccount?.suiteClientId && poAccount.featureScope?.includes("po") && /\b(po|pos|purchase[ -]orders?)\b/i.test(text)) {
+          // "1 line item", "one line item", "a single line item" all mean one (11 Nov: "with 1 line item" ran with the
+          // base input's three, because only a digit was read).
+          const WORDS: Record<string, number> = { a: 1, an: 1, one: 1, single: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+          const wm = text.match(/\b(\d+|a|an|one|single|two|three|four|five|six|seven|eight|nine|ten)\s+(?:single\s+)?(?:line[ -]?items?|lines?|items?)\b/i);
+          const wanted = wm ? Number(wm[1]) || WORDS[wm[1].toLowerCase()] || 0 : 0;
+          const submit = !/\b(?:do not|don'?t|without|never|no)\s+submit/i.test(text);
+          const poRunId = `po-${Date.now().toString(36)}`;
+          const summary = poInputSummary();
+          let base: any = {};
+          try { base = summary.exists ? JSON.parse(readFileSync(summary.file, "utf8")) : {}; } catch { base = {}; }
+          const given: any[] = Array.isArray(base.lineItems) && base.lineItems.length ? base.lineItems : [{ quantity: 5, unit_price: 100 }];
+          const lineItems = wanted ? Array.from({ length: wanted }, (_, i) => given[i % given.length]) : given;
+          const inputDir = join(here, "..", "data", "po-runs");
+          mkdirSync(inputDir, { recursive: true });
+          const inputFile = join(inputDir, `${poRunId}-input.json`);
+          writeFileSync(inputFile, JSON.stringify({ ...base, _readme: undefined, client: poAccount.suiteClientId, lineItems }, null, 2));
+          send("line", { line: `A purchase order on ${poAccount.name}: ${lineItems.length} line item${lineItems.length === 1 ? "" : "s"}${submit ? ", submitted into its approval flow" : ", left unsubmitted"} — the PO API flow, not an event.` });
+          let fresh: { token: string; source: string };
+          try {
+            fresh = await resolveToken(poAccount);
+          } catch (err) {
+            const row = noMatchRow();
+            row.id = "PO-LOGIN"; row.module = "po"; row.flowId = "po.create"; row.scenario = text;
+            row.message = `never ran — ${poAccount.name} could not sign in: ${(err as Error).message}`;
+            send("check", { check: row });
+            send("done", { ok: true, total: 0 });
+            return res.end();
+          }
+          send("plan", { cases: 1, runnable: 1, skipped: [] });
+          const steps: Array<{ title: string; status: string; calls: number; failed: number; ms: number }> = [];
+          const issues: string[] = [];
+          await new Promise<void>((resolve) => {
+            const run = runPoFlow(
+              { clientId: poAccount.suiteClientId!, submit, tokenVar: poAccount.tokenVar, token: fresh.token, runId: poRunId, companyId: c, companyName: poAccount.name, input: inputFile },
+              (e) => {
+                if (e.type === "log" && e.line) {
+                  const m = e.line.match(/^\s*(?:!\s+not submitted|✗)\s+(.{4,400})$/);
+                  if (m) issues.push(m[1].trim());
+                  // "✓ created record <uuid>": the purchase order the collection's invoice / GRN / bill folders start from.
+                  const made = e.line.match(/✓ created\s+record\s+(\S+)/);
+                  if (made) rememberPo(c, made[1], poRunId);
+                  send("line", { line: e.line.replace(/^\$\s+npx .*$/, "running the PO flow…") });
+                }
+                if (e.type === "step" && e.step) steps.push(e.step);
+                if (e.type === "run-error" && e.line) issues.push(e.line);
+                if (e.type === "done" || e.type === "run-error") resolve();
+              },
+            );
+            req.on("close", () => run.stop());
+          });
+          // PLAIN WORDS, ONE LINE A STEP (Aanya, 11 Nov: "nothing clear from this, what ur trying to do"): the
+          // suite's step names ("resolve header relations", "line item 1: create") become what a person would
+          // say, the look-ups that only feed the next step are folded away when they passed, and the request
+          // count no longer gets a line of its own.
+          const plainPo = (title: string): string | null => {
+            const t = title.trim();
+            let m: RegExpMatchArray | null;
+            if (/^resolve header relations$/i.test(t)) return null;
+            if ((m = t.match(/^line item (\d+):\s*resolve relations$/i))) return null;
+            if (/^create po header$/i.test(t)) return "Created the purchase order (header)";
+            if ((m = t.match(/^line item (\d+):\s*create$/i))) return `Added line item ${m[1]}`;
+            if (/^submit/i.test(t)) return "Submitted the purchase order into its approval flow";
+            if (/^fetch|^read|^get\b/i.test(t)) return `Read it back — ${t.replace(/^(fetch|read|get)\s*/i, "")}`;
+            return t.charAt(0).toUpperCase() + t.slice(1);
+          };
+          let i = 0;
+          for (const st of steps) {
+            i++;
+            const ok = /pass/i.test(st.status) && st.failed === 0;
+            const said = plainPo(st.title);
+            if (said === null && ok) continue; // a look-up that fed the next step: nothing to tell
+            const row = noMatchRow();
+            row.id = `PO-${String(i).padStart(2, "0")}`; row.module = "po"; row.flowId = "po.create"; row.inconclusive = false;
+            row.scenario = said ?? `Looked up ${st.title.replace(/resolve (header )?relations/i, "the references").replace(/^line item (\d+):\s*/i, "line item $1's ")}`;
+            row.pass = ok; row.accepted = ok; row.durationMs = st.ms;
+            row.message = ok ? `Decathlon's API accepted it${st.calls > 1 ? ` (${st.calls} requests)` : ""}` : `refused — ${st.failed} of ${st.calls} request${st.calls === 1 ? "" : "s"} came back with an error`;
+            row.verdict = ok ? "passed" : "failed";
+            send("check", { check: row });
+          }
+          if (!steps.length) {
+            const row = noMatchRow();
+            row.id = "PO-RUN"; row.module = "po"; row.flowId = "po.create"; row.scenario = text;
+            row.message = `the PO flow stopped before it wrote a report${issues.length ? `: ${issues.slice(0, 2).join("; ")}` : ""}`;
+            send("check", { check: row });
+          } else if (issues.length) {
+            send("line", { line: `Not covered by this API test: ${issues.slice(0, 3).join("; ")}.` });
+          }
+          send("line", { line: `PO run report: /api/po-report?run=${poRunId}` });
+          send("done", { ok: true, total: steps.length, runId: poRunId });
+          return res.end();
+        }
         const match = await matchApiCase(text);
         if (!match) {
           /**
@@ -989,8 +1179,6 @@ const server = createServer(async (req, res) => {
       // The base URL is part of the identity of this answer: the same company
       // on a different host is a different configuration, and keying without
       // it served the previous environment's tree after switching.
-      // Decathlon: its own modules and the decath suite's cases (src/clients/decath.ts).
-      if (Number(cid) === DECATHLON_ID) return json(res, decathFeatures());
       const cacheKey = `features:${cid ?? "none"}:${baseOverride(url) ?? "default"}`;
       const cached = featureCache.get(cacheKey);
       if (cached && Date.now() - cached.at < FEATURE_CACHE_MS) {
@@ -1007,6 +1195,36 @@ const server = createServer(async (req, res) => {
        * from the company for it, so it answers at once.
        */
       const suiteAccount = cid && isTokenClient(Number(cid)) ? tokenClient(Number(cid)) : undefined;
+      /**
+       * A PURCHASE-TO-PAY ACCOUNT'S TREE IS THE P2P COLLECTION (Aanya, 11 Nov).
+       *
+       * One module, its folders as the features, each counting its requests. A folder the
+       * account cannot run (no intake here, no vendor login yet) stays in the list greyed
+       * out with the reason, so what is missing is read, not guessed.
+       */
+      if (suiteAccount?.suite === "p2p-collection") {
+        const covered = collectionFeatureCases();
+        const gate = folderGate(suiteAccount);
+        const children = P2P_FOLDERS.filter((f) => !f.always).map((f) => ({
+          id: f.id,
+          label: f.label,
+          what: gate[f.id] ? `${f.what} Not on this account: ${gate[f.id]}.` : f.what,
+          portal: f.actor === "vendor" ? "vendor" : "buyer",
+          cases: gate[f.id] ? 0 : covered[f.id] ?? 0,
+          lineItemCases: 0,
+          config: { state: "n/a" },
+        }));
+        const groups = [{ id: "p2p", label: "P2P API collection", icon: "📦", what: "Aanya's Postman journey, request by request, on this account.", step: 1, children }];
+        const ready = collectionReady();
+        return json(res, {
+          groups,
+          defaults: [],
+          scope: null,
+          totalCases: children.reduce((n, f) => n + f.cases, 0),
+          company: null,
+          suite: { id: "p2p-collection", ...ready, defaults: {}, journey: collectionSteps().map((st) => ({ id: st.id, title: st.title, actor: st.actor, feature: st.feature })) },
+        });
+      }
       if (suiteAccount?.suite === "aanya-rfp") {
         // The same tree every account sees, module for module. The features
         // this suite tests carry its case counts; every other one has none and
@@ -1391,6 +1609,8 @@ const server = createServer(async (req, res) => {
       const showLogin = url.searchParams.get("login") === "1";
       const slowMo = Number(url.searchParams.get("slowmo") ?? 0) || 0;
       const dryRun = url.searchParams.get("dry") === "1";
+      // A run from the session waits, once its steps are done, for what the tester says next (support/converse.ts).
+      const converse = url.searchParams.get("converse") === "1";
       res.writeHead(200, {
         "content-type": "text/event-stream",
         "cache-control": "no-cache",
@@ -1399,6 +1619,14 @@ const server = createServer(async (req, res) => {
       const send = (event: string, data: any) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
       if (!testCase) {
         send("run-error", { line: "no test case given" });
+        res.end();
+        return;
+      }
+      // An account the browser cannot sign into (Decathlon's own deployment): say so as "not run"
+      // instead of opening a browser that waits on a UAT database session that never comes (10 Nov).
+      const noBrowser = isTokenClient(c) ? tokenClient(c) : undefined;
+      if (noBrowser && !noBrowser.browserJourneys && !noBrowser.browserLogin) {
+        send("done", { exitCode: 0, notRun: true, why: `${noBrowser.name}: ${noBrowser.browserNote ?? "browser journeys are not available for this account."}` });
         res.end();
         return;
       }
@@ -1420,7 +1648,7 @@ const server = createServer(async (req, res) => {
       let warmDone: () => void = () => {};
       const warmGone = new Promise<void>((r) => (warmDone = r));
       const warm = warmOn
-        ? runUiPlan({ plan: null, warm: true, companyId: c, runId: warmId, headed, showLogin, slowMo }, (e) => {
+        ? runUiPlan({ plan: null, warm: true, companyId: c, runId: warmId, headed, showLogin, slowMo, converse }, (e) => {
             const ending = e.type === "done" || e.type === "run-error";
             if (warmTo) return warmTo(e);
             if (ending) {
@@ -1504,7 +1732,31 @@ const server = createServer(async (req, res) => {
         // "Run it again" and the same words again reuse their compiled steps (agents/compileCache.ts).
         // A sheet case compiles with the state its pre-conditions name (prepared), so its plan opens that event.
         const compileOpts = sheetStart?.prepared ? { prepared: compilePrepared(sheetStart, VALUE_KEYS[sheetStart.state] ?? []) } : {};
-        const cachedCompile = await compileCached(caseText, (t) => compileTestCase(t, "events", compileOpts)).finally(() => outlineTimer && clearTimeout(outlineTimer));
+        // A TENANT WITH ITS OWN SCREENS (12 Nov, Decathlon: "these steps are for event creation, not purchase order
+        // making"): the step catalog is Procol UAT's sourcing journey, so the compiler wrote an RFQ → bid → award →
+        // PO plan for a tenant that has no events at all. An account that signs in on its own console and carries
+        // no sourcing scope gets no event steps: its case is one on-screen goal, worked out step by step there.
+        const ownScreens = ((): TokenClient | undefined => {
+          const tc = isTokenClient(c) ? tokenClient(c) : undefined;
+          return tc?.browserLogin && !(tc.featureScope ?? []).some((f) => /^(events|sourcing|rfx|auction)/.test(f)) ? tc : undefined;
+        })();
+        const cachedCompile = ownScreens
+          ? ((): { result: CompileResult; reused: false } => {
+              outlineTimer && clearTimeout(outlineTimer);
+              return {
+                reused: false,
+                result: {
+                  plan: ownScreensPlan(ownScreens.name, caseText),
+                  reasoning: `Doing this on ${ownScreens.name}'s own screens, one step at a time, with a screenshot of each.`,
+                  context: { expectations: [], experience: [] },
+                  source: "llm",
+                  warnings: [],
+                  coverage: "full",
+                  gaps: [],
+                },
+              };
+            })()
+          : await compileCached(caseText, (t) => compileTestCase(t, "events", compileOpts)).finally(() => outlineTimer && clearTimeout(outlineTimer));
         const compiled = cachedCompile.result;
         if (cachedCompile.reused) send("note", { line: `Reused the steps compiled for this exact case ${Math.max(1, Math.round((cachedCompile.ageMs ?? 0) / 60_000))} min ago — the compiler and its steps have not changed since.` });
         const overLimit = expectRefusalOverLimit(compiled.plan, await limitP);
@@ -1739,7 +1991,7 @@ const server = createServer(async (req, res) => {
           res.end();
           return;
         } else {
-          ({ stop } = runUiPlan({ plan: planToRun, companyId: c, runId, headed, showLogin, slowMo, discover }, onRun));
+          ({ stop } = runUiPlan({ plan: planToRun, companyId: c, runId, headed, showLogin, slowMo, discover, converse }, onRun));
         }
         req.on("close", () => {
           closed = true;
@@ -3191,6 +3443,39 @@ const server = createServer(async (req, res) => {
     // Publishes a real RFP event on the account, so it only runs when someone
     // presses the button. The parts ticked, the line-item count, the
     // quantities and the vendor count travel as query parameters.
+    // ── API: the P2P collection, run for a purchase-to-pay account (SSE, same events as the RFP suite) ──
+    if (path === "/api/collection-run") {
+      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+      const send = (event: string, data: unknown) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      const fail = (line: string) => {
+        send("run-error", { type: "run-error", line });
+        send("done", { type: "done", exitCode: 1 });
+        res.end();
+      };
+      const c = Number(url.searchParams.get("c") ?? 0);
+      const account = isTokenClient(c) ? tokenClient(c) : undefined;
+      if (!account || account.suite !== "p2p-collection") return fail("this account does not run the P2P collection");
+      const ready = collectionReady();
+      if (!ready.ready) return fail(ready.reason ?? "the P2P collection is not ready");
+      const features = (url.searchParams.get("features") ?? "").split(",").map((f) => f.trim()).filter((f) => P2P_FOLDERS.some((x) => x.id === f));
+      if (!features.length) return fail("tick at least one part of the collection");
+      const run = runCollection(account, features, (e) => {
+        send(e.type, e);
+        if (e.type === "done") res.end();
+      });
+      req.on("close", () => run.stop());
+      return;
+    }
+    if (path === "/api/collection-report") {
+      const rec = readCollectionRun(url.searchParams.get("run") ?? "");
+      if (!rec) {
+        res.writeHead(404, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ error: "no such collection run" }));
+      }
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      return res.end(collectionReportHtml(rec));
+    }
+
     if (path === "/api/rfp-run") {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       const send = (event: string, data: unknown) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -3267,7 +3552,7 @@ const server = createServer(async (req, res) => {
           JSON.stringify({
             error:
               "The PO flow runs against an account that has the flexi purchase-order module — " +
-              "pick Sandbox (P2P flow) in the client list.",
+              "pick Decathlon (57675) in the client list.",
           }),
         );
       }

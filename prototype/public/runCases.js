@@ -29,30 +29,39 @@
   const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
   /** The export's columns: [header, value, width]. */
+  /**
+   * The test-case sheet, kept the way the team keeps its sheets (Aanya, 29 Oct: "minimal and clean content,
+   * presentable and sharable"): ids, the case in plain words, steps and expected result, Priority / Type / Status as
+   * coloured chips with dropdowns, the run as one link, Procol's code reference, and an empty QA comment.
+   * [header, getter, width, opts] — opts are read by bugsExport.js (center, chips, list, link).
+   */
+  const STATUS_CHIPS = { Pass: "green", Fail: "red", Stopped: "yellow", "Not tested": "grey", Suggested: "blue" };
+  const PRIORITY_CHIPS = { P0: "red", P1: "pink", P2: "yellow" };
+  const TYPE_CHIPS = { Positive: "mint", Negative: "pink", Edge: "yellow", Boundary: "yellow", Regression: "blue", Integration: "blue", Security: "pink", Performance: "yellow", "Bug-confirm": "pink", Observation: "grey" };
   const COLUMNS = [
-    ["Scenario ID", (c) => c.scenarioId || "", 11],
-    ["Test scenario", (c) => c.scenarioTitle || "", 44],
-    ["Scenario covers", (c) => c.scenarioCovers || "", 40],
-    ["Test case ID", (c) => c.id, 12],
-    ["Module", (c) => c.module, 16],
-    ["Feature", (c) => c.feature, 18],
-    ["Test case", (c) => c.scenario, 48],
-    ["Preconditions", (c) => c.preconditions, 34],
-    ["Steps", (c) => c.steps.map((s, i) => `${i + 1}. ${s}`).join("\n"), 60],
-    ["Test data", (c) => c.testData, 26],
-    ["Expected result", (c) => c.expected, 48],
-    ["Priority", (c) => c.priority, 9],
-    ["Type", (c) => c.type, 12],
-    ["Layer", (c) => c.layer, 8],
-    ["Source step", (c) => c.sourceStep, 28],
-    ["Automated in spine", (c) => c.automated, 20],
-    ["Status", (c) => c.status, 14],
-    ["Result", (c) => c.why || "", 40],
-    ["Tested", (c) => (c.testedAt ? new Date(c.testedAt).toLocaleString() : ""), 18],
-    ["Reviewed", (c) => reviewWords(c), 30],
-    ["Run", (c) => (c.runId ? `${location.origin}/#/session/${c.runId}` : ""), 30],
-    ["Library case", (c) => c.libraryId || (c.similarTo ? `similar to ${c.similarTo}` : ""), 18],
+    ["Test case ID", (c) => c.id, 12, { center: true, bold: true }],
+    ["Scenario", (c) => [c.scenarioId, c.scenarioTitle].filter(Boolean).join(" · "), 30, {}],
+    ["Module", (c) => [c.module, c.feature].filter(Boolean).join(" › "), 18, { center: true }],
+    ["Test case", (c) => c.scenario, 44, { tint: true }],
+    ["Preconditions", (c) => c.preconditions, 26, {}],
+    ["Steps", (c) => c.steps.map((s, i) => `${i + 1}. ${s}`).join("\n"), 52, {}],
+    ["Expected result", (c) => c.expected, 40, {}],
+    ["Priority", (c) => c.priority, 9, { chips: PRIORITY_CHIPS, list: Object.keys(PRIORITY_CHIPS) }],
+    ["Type", (c) => c.type, 11, { chips: TYPE_CHIPS, list: Object.keys(TYPE_CHIPS) }],
+    ["Status", (c) => c.status, 11, { chips: STATUS_CHIPS, list: Object.keys(STATUS_CHIPS) }],
+    ["Actual result", (c) => c.why || "", 36, {}],
+    ["Reviewed", (c) => reviewWords(c), 22, {}],
+    ["Run", (c) => (c.runId ? `${location.origin}/#/session/${c.runId}` : ""), 10, { link: "Open run" }],
+    ["QA Comment", () => "", 24, {}],
   ];
+  /** The Summary tab of the exported sheet: how many by status, priority, type and module. */
+  const SUMMARY = [
+    ["Status", (c) => c.status, STATUS_CHIPS],
+    ["Priority", (c) => c.priority, PRIORITY_CHIPS],
+    ["Type", (c) => c.type, TYPE_CHIPS],
+    ["Module", (c) => c.module, null],
+  ];
+
 
   const ico = (name) => `<svg class="ico" aria-hidden="true"><use href="#i-${name}"/></svg>`;
   const $ = (id) => document.getElementById(id);
@@ -138,6 +147,7 @@
       ended = null;
       open(turn, { quiet: true });
     }
+    if (wasOpen !== live) paintTab(); // the run started or ended: one list gives way to the other
     wasOpen = live;
     paintCount();
   }
@@ -290,8 +300,8 @@
   }
 
   // ── the tab ───────────────────────────────────────────────────────────────
-  const TYPES = ["Positive", "Negative", "Boundary", "Edge", "Regression"];
-  const TYPE_TONE = { Positive: "pos", Negative: "neg", Edge: "edge", Boundary: "bnd", Regression: "reg" };
+  const TYPES = ["Positive", "Negative", "Boundary", "Edge", "Integration", "Security", "Performance", "Regression", "Bug-confirm", "Observation"];
+  const TYPE_TONE = { Positive: "pos", Negative: "neg", Edge: "edge", Boundary: "bnd", Regression: "reg", Integration: "int", Security: "sec", Performance: "perf", "Bug-confirm": "bug", Observation: "obs" };
   /** The writer's **bold** as bold, everything else escaped. */
   const rich = (s) => h(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
   const isSuggested = (c) => /^suggested$/i.test(c.status || "");
@@ -317,8 +327,15 @@
     paintCount();
     const root = $("ss-tc");
     if (!root) return;
+    // While a run goes, the tab is the journey's own list (session.js "On this journey"): the written set waits.
+    const head = $("ss-cases-head");
+    if (window.spineSession?.open && head && !head.hidden) {
+      root.hidden = true;
+      return;
+    }
     const scroller = root.querySelector(".tc-list");
     const top = scroller?.scrollTop ?? 0;
+    root.hidden = false;
     if (TAB.writing) {
       root.innerHTML =
         `<div class="tc-wait" role="status"><span class="tc-spark">${ico("file-text")}</span>` +
@@ -332,6 +349,9 @@
       return;
     }
     const set = TAB.set;
+    // The journey's own case list (session.js, "On this journey") fills the tab while the run goes; an
+    // empty placeholder above it grows to half the pane (Aanya, 6 Nov: "why this gap"), so it stays hidden until there is a set to show.
+    root.hidden = !set && !TAB.writing && !TAB.error && !!document.getElementById("ss-cases-head") && !document.getElementById("ss-cases-head").hidden;
     if (!set) {
       root.innerHTML = `<div class="tc-wait tc-empty"><span class="tc-spark">${ico("file-text")}</span><b>No test cases yet</b><span>${window.spineSession?.open ? "They are written as soon as this run ends." : "They are written from a run when it ends."}</span></div>`;
       return;
@@ -403,7 +423,7 @@
     root.querySelectorAll("[data-x]").forEach((b) =>
       b.addEventListener("click", () => {
         const rows = cases.filter((c) => c.keep);
-        if (b.dataset.x === "xlsx" && window.spineBugExport?.xlsx) window.spineBugExport.xlsx(rows, { name: name(), sheet: "Test cases", columns: COLUMNS });
+        if (b.dataset.x === "xlsx" && window.spineBugExport?.xlsx) window.spineBugExport.xlsx(rows, { name: name(), sheet: "Test cases", columns: COLUMNS, summary: SUMMARY, title: `Test cases · ${set.ask.slice(0, 80)}` });
         else csv(rows, name());
       }),
     );
@@ -581,6 +601,28 @@
     repaint(job.set);
     setTimeout(pump, 800);
   }
+
+  /**
+   * THE PRD SCREEN'S WAY IN (public/prd.js): a set written from a PRD is shown and run here, with the same
+   * cards, queue, review and saving as a run's own cases. show() makes it the tab's set for this session.
+   */
+  window.spineRunCases = {
+    show(set) {
+      TAB.sid = window.spineSession?.id;
+      TAB.set = set;
+      TAB.writing = null;
+      TAB.error = null;
+      TAB.filter = "all";
+      TAB.openCards.clear();
+      if (set.key) BY_KEY.set(set.key, set);
+      paintTab();
+      return set;
+    },
+    enqueue,
+    csv: (rows, name) => csv(rows, name),
+    columns: COLUMNS,
+    summary: SUMMARY,
+  };
 
   function csv(rows, name) {
     const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;

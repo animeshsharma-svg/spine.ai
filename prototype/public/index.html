@@ -18,12 +18,16 @@
     <!-- Run tests (#/run-tests). -->
     <link rel="stylesheet" href="/plan.css" />
     <link rel="stylesheet" href="/session.css" />
+    <link rel="stylesheet" href="/journeyBuilder.css" />
     <link rel="stylesheet" href="/runCases.css" />
+    <link rel="stylesheet" href="/prd.css" />
+    <link rel="stylesheet" href="/session-guided.css" />
     <link rel="stylesheet" href="/liveControl.css" />
     <link rel="stylesheet" href="/sessions.css" />
     <link rel="stylesheet" href="/bugs.css" />
     <link rel="stylesheet" href="/screens.css" />
     <link rel="stylesheet" href="/sheets.css" />
+    <link rel="stylesheet" href="/polish.css" /><!-- polish layer (2 Nov): delete this line + polish.css to revert -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%231169cd'/><rect x='28.5' y='22.5' width='43' height='11' rx='5.5' fill='%23fff'/><rect x='35.5' y='44.5' width='29' height='11' rx='5.5' fill='%23fff'/><rect x='28.5' y='66.5' width='43' height='11' rx='5.5' fill='%23fff'/></svg>" />
     <!-- Applied before paint, not after app.js loads, so the sidebar never
          flashes expanded-then-collapses, and the page never flashes the wrong
@@ -92,6 +96,7 @@
   <body>
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
 <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /> </symbol>
+<symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m16 18 6-6-6-6" /> <path d="m8 6-6 6 6 6" /> </symbol>
 <symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z" /> </symbol>
 <symbol id="i-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 3v18" /> <path d="m19 8 3 8a5 5 0 0 1-6 0zV7" /> <path d="M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1" /> <path d="m5 8 3 8a5 5 0 0 1-6 0zV7" /> <path d="M7 21h10" /> </symbol>
 <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <rect width="20" height="14" x="2" y="3" rx="2" /> <line x1="8" x2="16" y1="21" y2="21" /> <line x1="12" x2="12" y1="17" y2="21" /> </symbol>
@@ -209,6 +214,8 @@
                    blue count is the features ticked there (app.js syncNav). -->
               <a class="nav-item" href="#/run-tests" data-view="plan" title="Run tests"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg></span><span class="nav-label">Run tests</span></a>
               <a class="nav-item" href="#/sheets" data-view="sheets" title="Test sheets"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-list-checks"/></svg></span><span class="nav-label">Test sheets</span></a>
+              <a class="nav-item" href="#/s" data-view="guided" title="Guided testing session"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-list-checks"/></svg></span><span class="nav-label">Testing session</span></a>
+              <a class="nav-item" href="#/prd" data-view="prd" title="PRD to test cases"><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-file-text"/></svg></span><span class="nav-label">PRD</span></a>
               <!-- Screens opens from the Sessions page now (Aanya, 27 Oct: "I don't want the module of screens on the left sidebar"). Hidden, not removed: drop `hidden` to bring it back. -->
               <a class="nav-item" href="#/screens" data-view="screens" title="Screens" hidden><span class="nav-ico"><svg class="ico" aria-hidden="true"><use href="#i-monitor"/></svg></span><span class="nav-label">Screens</span></a>
             </div>
@@ -668,6 +675,13 @@
               <label class="sr-only" for="home-q">The test case to run</label>
               <textarea id="home-q" rows="3" spellcheck="true" placeholder="e.g. Sign in as a vendor with OTP, bid below the minimum decrement, and check it's refused."></textarea>
               <div class="home-ask-foot">
+                <!-- A test-case sheet (.xlsx/.csv, the 13 QA columns) runs case by case in the browser:
+                     attached here, run on the Test sheets page, back as a report and the sheet with Status filled (home.js). -->
+                <label class="home-upload" title="Attach a test-case sheet (.xlsx or .csv): every case runs one by one, and you get a report and the sheet back with Pass/Fail filled in">
+                  <svg class="ico" aria-hidden="true"><use href="#i-upload"/></svg>
+                  <input type="file" id="home-sheet" accept=".xlsx,.xls,.csv" aria-label="Attach a test-case sheet">
+                </label>
+                <span class="home-spacer" aria-hidden="true"></span>
                 <!-- One on = that run type; both on = API, then the browser.
                      Turning off the only one on switches to the other (home.js). -->
                 <div class="via-group" role="group" aria-label="Run through">
@@ -1579,7 +1593,7 @@
         <section class="view" id="view-sheets" data-view="sheets">
           <header class="view-head">
             <h1>Test sheets</h1>
-            <p>Run the team's manual test cases as they are written. Pick a sheet (the sourcing sheet is here already) or upload one in the same 13 columns, tick the cases, and spine.ai runs them one by one: it builds the event each case starts from, follows the steps in the browser or through the API, and ends with a report of every case and every bug, with screenshots.</p>
+            <p>The team's manual test cases, run as written: tick cases and spine.ai builds what each one starts from, follows the steps, and reports every case and bug with screenshots.</p>
           </header>
           <div class="view-body" id="sht-root"><div class="loading">Loading…</div></div>
         </section>
@@ -1603,6 +1617,17 @@
             <p>What spine.ai knows about how sourcing events work, and what this client really has — templates and their fields, units, vendors, settings.</p>
           </header>
           <div class="view-body" id="pm-root"><div class="loading">Loading…</div></div>
+        </section>
+        <section class="view" id="view-prd" data-view="prd" aria-labelledby="prd-title">
+          <header class="view-head">
+            <h1 id="prd-title">PRD to test cases</h1>
+          </header>
+          <div class="view-body" id="prd-root"><div class="loading">Loading…</div></div>
+        </section>
+        <!-- ── Guided testing session (#/s, public/session-guided.js, session-guided.css; the mock in session-mock.js) ── -->
+        <section class="view" id="view-guided" data-view="guided" aria-labelledby="gs-title">
+          <header class="view-head"><h1 id="gs-title">Testing session</h1></header>
+          <div class="view-body" id="gs-root"><div class="loading">Loading…</div></div>
         </section>
       </main>
     </div>
@@ -1644,11 +1669,15 @@
     <script src="/landing.js"></script>
     <script src="/plan.js"></script>
     <script src="/session.js"></script>
+    <script src="/journeyBuilder.js"></script>
     <script src="/runCases.js"></script>
+    <script src="/prd.js"></script>
+    <script src="/session-guided.js"></script>
     <script src="/runKeep.js"></script>
     <script src="/liveControl.js"></script>
     <script src="/sessions.js"></script>
     <script src="/bugsExport.js"></script>
     <script src="/bugs.js"></script>
+    <script src="/polish.js"></script><!-- polish layer (2 Nov): delete this line + polish.js to revert -->
   </body>
 </html>
