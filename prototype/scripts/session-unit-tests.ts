@@ -149,3 +149,14 @@ test("the planner presses Invite Vendor only for the case that says so (20 Nov)"
   const named = lintPlan(p(), 'In Participants, search for Vendor A and add it by name — do not press "Invite Vendor".');
   assert.equal(inv(named).args.all, undefined);
 });
+test("the by-name half becomes invite_vendor with the names, never a do_on_screen goal (20 Nov, INV-001N)", async () => {
+  const { lintPlan } = await import("../src/agents/planner.js");
+  const r = lintPlan({ steps: [{ step: "open_create", args: { path: "single-stage" } }, { step: "set_title" }, { step: "do_on_screen", args: { goal: "In Participants, search for Vendor A and add it by name without pressing Invite Vendor; verify that exactly one vendor is selected" } }, { step: "expect_text", args: { text: "Vendor A" } }] } as any,
+    'Create an RFQ (vendors invited by name). In Participants, search for Vendor A and add it by name — do not press "Invite Vendor". Vendor A is the one invited vendor.');
+  const names = r.plan.steps.map((x: any) => x.step);
+  assert.ok(!names.includes("do_on_screen"));
+  const inv = r.plan.steps.find((x: any) => x.step === "invite_vendor") as any;
+  assert.deepEqual(inv.args.vendors, ["Vendor A"]);
+  assert.equal(inv.args.all, undefined);
+  assert.ok(names.includes("expect_participant_count"));
+});

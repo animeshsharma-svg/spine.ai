@@ -85,7 +85,7 @@ npx tsx scripts/session-unit-tests.ts
 npx tsx scripts/apiplanner-unit-tests.ts
 ```
 
-Expected: no type errors outside procol-ui-tests noise; session tests **12 / 12**; API-planner tests **57 / 57**. A type error in `p2pCollection` / `backendRules` callers means her real module's exports differ from the stand-in's — fix the caller in **her** file, or name the export in the stand-up for Animesh.
+Expected: no type errors outside procol-ui-tests noise; session tests **13 / 13**; API-planner tests **57 / 57**. A type error in `p2pCollection` / `backendRules` callers means her real module's exports differ from the stand-in's — fix the caller in **her** file, or name the export in the stand-up for Animesh.
 
 Then start the server **only** from the launch entry (`spine-demo-merged`, port 4320 — never from Bash). Its command must contain `SPINE_QA_VENDORS_ONLY=1` (see §6). Open `http://localhost:4320/#/s` and the PRD page; confirm the P2P collection page and the Test cases tab's code citations are back (they were off while the stand-ins were in).
 
@@ -97,7 +97,7 @@ git push spine HEAD:aanya
 
 (if `git push` asks for a password, stop and tell Aanya; never paste a password or token into the chat). Animesh merges `aanya` into `demo` the same day. Stand-up line, in this shape:
 
-> **Aanya — merge (20 Nov):** pushed `aanya` = `<hash>` (all her work not yet on `demo` — branches <names>, stashes <n>, files from <folders> — + `demo` at `efc38f16`). Conflicts: `<file>` → ours/theirs, … Real `p2pCollection.ts` + `model/backendRules.ts` in. tsc clean, session 12/12, api-planner 57/57. :4320 up from the launch entry, `#/s` lists sessions. Needs Animesh: <exact file / route / field, or "nothing">.
+> **Aanya — merge (20 Nov):** pushed `aanya` = `<hash>` (all her work not yet on `demo` — branches <names>, stashes <n>, files from <folders> — + `demo` at `efc38f16`). Conflicts: `<file>` → ours/theirs, … Real `p2pCollection.ts` + `model/backendRules.ts` in. tsc clean, session 13/13, api-planner 57/57. :4320 up from the launch entry, `#/s` lists sessions. Needs Animesh: <exact file / route / field, or "nothing">.
 
 After this, back to the day-4 rule: every morning `git fetch spine && git merge spine/demo`, every evening push `aanya`.
 

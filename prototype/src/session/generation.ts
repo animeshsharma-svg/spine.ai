@@ -261,6 +261,21 @@ function skErrorGuessing(card: Understanding, max: number): string[] {
   return [...fromOpen, ...defects.slice(0, Math.max(0, max - fromOpen.length)).map((d) => `ticket ${d.ticket ?? d.id}: "${String(d.title ?? "").slice(0, 100)}"${d.symptom ? ` — symptom: ${String(d.symptom).slice(0, 140)}` : ""}${d.rootCause ?? d.rca ? ` — root cause: ${String(d.rootCause ?? d.rca).slice(0, 140)}` : ""} → the regression case that would catch it on this feature`)];
 }
 
+/** The PRD rules no written case cites, as one pass per kind (the rule's own kind decides the section). */
+const RULE_KIND: Record<string, Kind> = { visibility: "visibility", permission: "permission", validation: "negative", integration: "api", setting: "settings", state: "state", timing: "timing", calculation: "data", limit: "edge" };
+export function coveragePasses(card: Understanding, picked: Kind[], written: Array<Pick<GenCase, "source" | "why" | "scenario">>, max: number): Array<{ kind: Kind; skeleton: string[]; basis: string }> {
+  const cited = (id: string) => written.some((w) => new RegExp(`\\b${id}\\b`).test(`${w.source} ${w.why} ${w.scenario}`));
+  const byKind = new Map<Kind, string[]>();
+  for (const r of card.rules) {
+    if (cited(r.id)) continue;
+    const want = RULE_KIND[r.kind] ?? "happy";
+    const kind = picked.includes(want) ? want : picked.includes("happy") ? "happy" : picked[0];
+    if (!kind) continue;
+    byKind.set(kind, [...(byKind.get(kind) ?? []), `${r.id}: the rule "${r.text}" (PRD: "${r.source}") — one case that shows it holds, as a person sees it on screen or in the data${r.kind === "integration" ? " (or as the request and its reply, when nothing on screen shows it)" : ""}`]);
+  }
+  return [...byKind.entries()].map(([kind, sk]) => ({ kind, skeleton: sk.slice(0, max), basis: `Rule coverage — PRD rules no case cited yet, written as ${kind} cases` }));
+}
+
 const TIER: Record<Kind, "fast" | "reason"> = { happy: "fast", negative: "reason", edge: "fast", permission: "reason", state: "reason", settings: "fast", data: "fast", timing: "fast", visibility: "reason", api: "fast", design: "fast", "error-guessing": "reason" };
 
 /** Generate. Streams a section at a time; the rows go into the sheet `gen-<session id>`. */
@@ -283,9 +298,14 @@ export async function runGeneration(s: Session, kinds: Kind[], depth: Depth, emi
   const already = sheetCases(sheet);
   let n = already.length;
   const seen = new Set<string>(already.map((c) => c.title.toLowerCase()));
-  for (const kind of picked) {
-    const skeleton = kind === "happy" ? skHappy(card, max) : kind === "negative" ? skNegative(card, max) : kind === "edge" ? skEdge(card, max) : kind === "permission" ? skPermission(card, max) : kind === "state" ? skState(card, max) : kind === "settings" ? skSettings(card, max) : kind === "data" ? skData(card, max) : kind === "timing" ? skTiming(card, max) : kind === "visibility" ? skVisibility(card, max) : kind === "api" ? skApi(card, max) : kind === "design" ? skDesign(card, figma, max) : skErrorGuessing(card, max);
-    const basis = KIND_BASIS[kind];
+  // The kinds the tester picked, then (standard / deep) one RULE-COVERAGE pass per kind for the PRD rules no case
+  // cited yet (20 Nov, A12 on the PR-assignee PRD: 39 rules, 16 of them integration, and the single api section came
+  // back empty — the assign action R21 and the notification rules had no case at all).
+  const passes: Array<{ kind: Kind; skeleton?: string[]; basis?: string }> = picked.map((kind) => ({ kind }));
+  for (let pi = 0; pi < passes.length; pi++) {
+    const kind = passes[pi].kind;
+    const skeleton = passes[pi].skeleton ?? (kind === "happy" ? skHappy(card, max) : kind === "negative" ? skNegative(card, max) : kind === "edge" ? skEdge(card, max) : kind === "permission" ? skPermission(card, max) : kind === "state" ? skState(card, max) : kind === "settings" ? skSettings(card, max) : kind === "data" ? skData(card, max) : kind === "timing" ? skTiming(card, max) : kind === "visibility" ? skVisibility(card, max) : kind === "api" ? skApi(card, max) : kind === "design" ? skDesign(card, figma, max) : skErrorGuessing(card, max));
+    const basis = passes[pi].basis ?? KIND_BASIS[kind];
     if (!skeleton.length) {
       const note = kind === "design" ? "no design frames were read (give a Figma link with a token, or export the frames)" : kind === "settings" ? "the PRD names no company setting the catalogue knows" : kind === "edge" ? "the PRD gives no numeric limit or list of allowed values" : kind === "error-guessing" ? "no RCA ticket or open HubSpot defect matches the feature" : "nothing on the card to base it on";
       sections.push({ kind, basis, planned: 0, count: 0, existing: 0, caseIds: [], note });
@@ -294,7 +314,19 @@ export async function runGeneration(s: Session, kinds: Kind[], depth: Depth, emi
       continue;
     }
     emit({ type: "section-start", kind, basis, planned: skeleton.length });
-    const rows = pairInviteCases(await askCases(card, kind, skeleton.map((x, i) => `${i + 1}. ${x}`).join("\n"), max, TIER[kind]));
+    // Batches of 8 items (20 Nov, deep run on the PR-assignee PRD: one call for 16–25 items ran past the answer's
+    // length and came back with 2 of 16 settings / 4 of 10 negative cases usable). Two batches in flight at a time.
+    const BATCH = 8;
+    const chunks: string[][] = [];
+    for (let i = 0; i < Math.min(skeleton.length, max); i += BATCH) chunks.push(skeleton.slice(i, Math.min(i + BATCH, max)));
+    const got: GenCase[][] = new Array(chunks.length);
+    for (let i = 0; i < chunks.length; i += 2) {
+      await Promise.all(chunks.slice(i, i + 2).map(async (ch, k) => {
+        got[i + k] = await askCases(card, kind, ch.map((x, j) => `${i * BATCH + k * BATCH + j + 1}. ${x}`).join("\n"), ch.length, TIER[kind]);
+      }));
+    }
+    const asked = got.flat();
+    const rows = pairInviteCases(asked);
     let existing = 0;
     const ids: string[] = [];
     for (const r of rows) {
@@ -334,10 +366,11 @@ export async function runGeneration(s: Session, kinds: Kind[], depth: Depth, emi
       written.push(r);
       emit({ type: "case", row: r });
     }
-    const note = rows.length < Math.min(skeleton.length, max) ? `${rows.length} of ${Math.min(skeleton.length, max)} planned came back usable` : undefined;
+    const note = asked.length < Math.min(skeleton.length, max) ? `${asked.length} of ${Math.min(skeleton.length, max)} planned came back usable` : undefined;
     sections.push({ kind, basis, planned: skeleton.length, count: ids.length, existing, caseIds: ids, note });
     emit({ type: "section-done", kind, count: ids.length, existing, note });
     if (!rows.length) notes.push(`${kind}: the model gave no usable cases`);
+    if (pi === picked.length - 1 && depth !== "quick") for (const extra of coveragePasses(card, picked, written, max)) passes.push(extra);
   }
   if (written.length) addSheetCases(written.map(({ kind: _k, existing, ...c }) => ({ ...c, status: "", twin: existing, reference: `generated for session ${s.id}; ${c.source}` })), sheet);
   const generation: Generation = { at: new Date().toISOString(), kinds: picked, depth, sheet, sections, total: written.length, existing: written.filter((w) => w.existing).length, notes };

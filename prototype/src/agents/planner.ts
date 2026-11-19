@@ -538,6 +538,21 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     if (allSuggested && !firstInvite.args?.all) { firstInvite.args = { ...(firstInvite.args ?? {}), all: true }; delete (firstInvite.args as Record<string, unknown>).count; repairs.push('invite_vendor presses "Invite Vendor" (every suggested vendor) — the case says so'); }
     if (byNameOnly && firstInvite.args?.all) { delete (firstInvite.args as Record<string, unknown>).all; repairs.push('invite_vendor adds by name only — the case says not to press "Invite Vendor"'); }
   }
+  // The by-name half says "search for Vendor A and add it by name"; the model wrote that as a do_on_screen goal the
+  // runner has no step for (20 Nov, INV-001N: the invite never happened and the case read Partly checked). It is
+  // invite_vendor with those names — and "exactly one / only" in the same goal is the participant count.
+  const byName = /\b(?:search(?:es)? for|add(?:s)?)\b[^.]*\bby name\b/i.test(testCase);
+  const named = [...new Set([...testCase.matchAll(/\bVendor [A-E]\b(?![\w/-])/g)].map((m) => m[0]))];
+  if (byName && named.length && !steps.some((st) => st.step === "invite_vendor" && Array.isArray(st.args?.vendors) && (st.args!.vendors as unknown[]).length)) {
+    const at = steps.findIndex((st) => st.step === "do_on_screen" && /\bby name\b|\bsearch for\b[^.]*\bvendor|\badd\b[^.]*\bvendor/i.test(String(st.args?.goal ?? "")));
+    const invite: PlanStep = { step: "invite_vendor", args: { vendors: named, count: named.length } };
+    const counted = at >= 0 && /\b(exactly (one|1|\d+)|only|sole)\b/i.test(String(steps[at].args?.goal ?? "")) ? [{ step: "expect_participant_count", args: { count: named.length } } as PlanStep] : [];
+    const old = steps.findIndex((st) => st.step === "invite_vendor");
+    if (at >= 0) { steps.splice(at, 1, invite, ...counted); if (old >= 0 && old !== at) steps.splice(old > at ? old + counted.length : old, 1); }
+    else if (old >= 0) steps[old] = invite;
+    else { const pub = steps.findIndex((st) => st.step === "publish"); steps.splice(pub < 0 ? steps.length : pub, 0, invite); }
+    repairs.push(`the case adds ${named.join(", ")} by name — invite_vendor with those names${counted.length ? " and the participant count" : ""}`);
+  }
 
   // THE EVENT'S LIFECYCLE, for every combination a case can ask for. Each lifecycle step says
   // which state it needs and which it leaves; walking the plan, a step whose state is not

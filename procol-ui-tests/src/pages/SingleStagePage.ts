@@ -490,6 +490,13 @@ export class SingleStagePage extends BasePage {
     // during that animation loses to the drawer's mask ("no candidate was clickable"). Wait for
     // every drawer mask to go, then click — and once more if the first click still lost.
     await this.page.locator(".ant-drawer-open .ant-drawer-mask, .ant-drawer-open").first().waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+    // …and a "Configuration for Event" drawer an earlier step left OPEN never goes by itself (20 Nov, INV-001A /
+    // SSR-015: a step that looked at the event type opened it, RFQ stayed chosen, the picker sat under its mask until
+    // the click timed out). Save keeps what is chosen in it; then the picker is reachable.
+    if (await this.drawer().isVisible().catch(() => false)) {
+      await this.drawer().getByRole("button", { name: /^save$/i }).click({ timeout: TIMEOUTS.SHORT }).catch(() => {});
+      await this.drawer().waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+    }
     try {
       await this.click([picker, this.page.getByText(/select templates/i)], { label: "open-templates", timeout: TIMEOUTS.MEDIUM });
     } catch {
