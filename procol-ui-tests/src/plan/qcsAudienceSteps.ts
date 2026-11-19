@@ -240,6 +240,20 @@ export async function runQcsAudienceStep(x: QcsAudienceCtx, step: PlanStep): Pro
     }
 
     case "expect_participant_count": {
+      // On the create screen (single-stage quick-create or the eRFX create page) the participants are the chips beside
+      // "Search vendors you want to add", not the event's Participants list (20 Nov, INV-001N: Vendor A was invited by
+      // name and the count check said "not on this screen"). The chips are counted there, "+N" counting N.
+      if (/\/(quick-create|create)\b/.test(page.url()) && a.count !== undefined) {
+        const { CreateEventPage } = await import("../pages/CreateEventPage.js");
+        const create = new CreateEventPage(page);
+        const n = await create.participantCount().catch(() => 0);
+        const names = await create.participantNames().catch(() => [] as string[]);
+        if (n || names.length) {
+          const have = n || names.length;
+          if (have !== Number(a.count)) throw new Error(`the create screen's Participants show ${have} vendor(s)${names.length ? ` (${names.slice(0, 5).join(", ")}${names.length > 5 ? ", …" : ""})` : ""} — the case expects ${a.count}`);
+          return `the create screen's Participants show ${have} vendor(s)${names.length ? `: ${names.slice(0, 5).join(", ")}` : ""}, as the case expects`;
+        }
+      }
       const list = new ParticipantsPage(page);
       if (!(await list.ensureOpen())) throw new Error(NOT_ON_SCREEN("the Participants list is not on this screen (open_prepared participants or open_participants first)"));
       if (a.count === undefined && a.atLeast === undefined && a.grewBy === undefined) throw new Error(NOT_ON_SCREEN("expect_participant_count needs count, atLeast or grewBy (automation needs update)"));

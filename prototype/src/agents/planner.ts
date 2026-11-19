@@ -536,6 +536,9 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     const byNameOnly = /do not press "?invite vendor"?|without (pressing|clicking) "?invite vendor"?|\(vendors invited by name\)/i.test(testCase);
     const allSuggested = !byNameOnly && /\bpress(es)? "?invite vendor"?|every vendor the product suggests|all suggested vendors|\(invite vendor — all suggested vendors\)/i.test(testCase);
     if (allSuggested && !firstInvite.args?.all) { firstInvite.args = { ...(firstInvite.args ?? {}), all: true }; delete (firstInvite.args as Record<string, unknown>).count; repairs.push('invite_vendor presses "Invite Vendor" (every suggested vendor) — the case says so'); }
+    // one press is the whole invite: a later invite_vendor with no names repeats it (20 Nov, INV-001A: the second one
+    // took the QA-only path and stopped, the QA vendor already being on the event)
+    if (allSuggested) for (let i = steps.length - 1; i >= 0; i--) if (steps[i] !== firstInvite && steps[i].step === "invite_vendor" && !(Array.isArray(steps[i].args?.vendors) && (steps[i].args!.vendors as unknown[]).length)) { steps.splice(i, 1); repairs.push("a second invite_vendor with no names repeated the Invite Vendor press — dropped"); }
     if (byNameOnly && firstInvite.args?.all) { delete (firstInvite.args as Record<string, unknown>).all; repairs.push('invite_vendor adds by name only — the case says not to press "Invite Vendor"'); }
   }
   // The by-name half says "search for Vendor A and add it by name"; the model wrote that as a do_on_screen goal the

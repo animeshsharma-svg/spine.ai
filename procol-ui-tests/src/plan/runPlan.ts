@@ -3386,7 +3386,8 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
           await s.single.inviteVendor();
           const extra: string[] = [];
           for (const n of names) if (await s.single.addParticipant(n)) extra.push(n);
-          invitedVendors = extra;
+          const chips = await s.create.participantNames().catch(() => [] as string[]);
+          invitedVendors = [...new Set([...chips, ...extra])];
           return swapNote(real) + `pressed "Invite Vendor" — every vendor the product suggests (single-stage)${extra.length ? `; then added ${extra.join(", ")} by name for the bidding` : ""}`;
         }
         const added: string[] = [];
@@ -3399,6 +3400,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         // name or none at all reached the button below; the multi-stage path already adds the QA vendors instead).
         if (!allowRealVendors() && !added.length) {
           const want = Math.max(1, Math.min(Number(a.count) || 1, qa.length));
+          // already on the event (an earlier invite step, or the "Invite Vendor" press took them): nothing to add
+          const onIt = invitedVendors.filter((v) => isQaVendorName(v, qa));
+          if (onIt.length >= want) return `already on the event: ${onIt.slice(0, want).join(", ")} (single-stage, QA vendors only)`;
           for (const n of qa.slice(0, want)) if (await s.single.addParticipant(n)) added.push(n);
           if (!added.length) throw new Error(`not done: no QA test vendor of this client could be added by search (${qa.length ? qa.join(", ") : "none known — the Procol DB is needed to list them"}); real suppliers are never invited, so "Invite Vendor" was not pressed`);
           invitedVendors = added;
