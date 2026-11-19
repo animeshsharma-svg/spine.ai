@@ -112,3 +112,22 @@ Later (13 Nov, night): the vendor revoke call found (`PATCH /bids/update_bid_sta
 - A step skipped at run time ("no step for …") left the case at "Pass — every check held" → now "Partly checked", naming the skipped part.
 
 **Re-run after the fixes** (same session, PROCOL DEMO, QA-only): SSR-001 run `sheet-mwmutkx4` — "Vendor A" invited by name as QA_Platform Vendor 1, no Invite Vendor press, every check held (its one skipped part now reads Partly checked); SSR-013 run `sheet-mwmv19lf` — **Pass**: surrogate bid of 100 for the QA vendor, Responses and Master QCS rank 1.
+
+## 2026-11-20 — Animesh: invites both ways, deep generation measured, A12 eval (20 Nov)
+
+**New rule (the tester, 20 Nov): every invite is written and run both ways** — vendors added by name (as many as the case needs) and the product's own "Invite Vendor" (every suggested vendor). The generator writes the pair (`pairInviteCases`, titles end "(vendors invited by name)" / "(Invite Vendor — all suggested vendors)"), the planner marks `invite_vendor{all:true}` only for the case that says to press it and turns "search for Vendor A and add it by name" into `invite_vendor{vendors}`, the runner presses the button (also on a QA-only run, because pressing it is the case) and reports how many vendors it put on. Proved live on PROCOL DEMO with SSR-001's pair (sheet `invite-pair-proof`, runs `sheet-mwo22qti`, `sheet-mwo36vwe`, `sheet-mwo4p96q`): by name → QA_Platform Vendor 1 invited by search, no Invite Vendor press; Invite Vendor half → pressed, flow ran, Partly checked (its "record every suggested vendor" has no step yet).
+
+**Found on the way:** adding the AAC Block product on DEMO puts vendor **Test007-001** (company 42962, mapped to DEMO since Sep 2025, no users — nobody is emailed) on the event by itself, so the by-name half sees 2 vendors where the case expects 1 (Fail, with the source named). A QA-only single-stage publish now takes a non-QA vendor off first, unless the case pressed Invite Vendor. Also fixed: a "Configuration for Event" drawer left open blocked the template picker (INV-001A, SSR-015); the participant count reads the create screen's chips.
+
+**Deep generation, measured** (PR-assignee PRD, 11 kinds, PROCOL DEMO profile, no browser):
+
+| Run | Change | Rules read | Flows | Cases | Minutes | A12 full | A12 full or partly |
+|---|---|---|---|---|---|---|---|
+| 1 | baseline | 39 | 3 | 50 | 8.3 | 14% | 53% |
+| 2 | batches of 8 + rule-coverage pass | 37 | 3 | 81 | 8.9 | 15% | 50% |
+| 4 | flows asked in the main reading | **6** | 4 | 37 | 5.2 | 12% | 42% |
+| 5 | flows from a second call (kept) | 34 | 9 | 73 | 8.8 | **17%** | 50% |
+
+A12 = `npx tsx scripts/eval-generation.ts --sheet gen-<session> --gold <hand-written xlsx>` — for each of the tester's 66 cases, the 3 nearest generated cases go to a judge (full / partly / none); report in `data/runs/evals/` (git-ignored). Reading: volume does not move recall; the misses are setup rows (PRA-SET), the run's own bug-hunt cases (PRA-EXT) and existing behaviour of the PR list the PRD never restates (Assign disabled for partly-used items, other list actions, notification read state). Next lever: ground generation in the existing screen's behaviour (the code rules cover events, not the PR list). Error-guessing now cites the HubSpot open defects (2 cited in run 5; 0 → 16 cases after batching).
+
+**Aanya:** merge prompt `docs/Prompt_for_Aanya_Merge_2026-11-20.md` — everything of hers not on `demo`, from any date (branches, unpushed commits, stashes, untracked/ignored source, other checkouts, the two never-committed modules).
