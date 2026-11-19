@@ -3377,6 +3377,11 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         // vendors, and the run says so.
         const asked = Array.isArray(a.vendors) ? a.vendors.map(String) : Array.isArray(a.names) ? a.names.map(String) : a.vendor ? [String(a.vendor)] : [];
         const qa = await qaVendorNames();
+        // Vendors already on the event before any invite: on PROCOL DEMO adding the product puts its mapped vendor on
+        // by itself (20 Nov, INV-001N: "Test007-001" appeared with the line item). Named in the step so a later count
+        // that sees one more vendor than the case invited says where it came from.
+        const before = (await s.create.participantNames().catch(() => [] as string[])).filter((v) => !asked.some((n) => isQaVendorName(v, [n])));
+        const pre = before.length ? ` — already on the event before this step (added by the product with the line items): ${before.join(", ")}` : "";
         const names = allowRealVendors() ? asked : asked.filter((n) => isQaVendorName(n, qa));
         const real = allowRealVendors() ? [] : asked.filter((n) => !isQaVendorName(n, qa));
         // all:true — the case is the "Invite Vendor" half of an invite pair (the tester, 20 Nov 2026: every invite is
@@ -3388,7 +3393,9 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
           for (const n of names) if (await s.single.addParticipant(n)) extra.push(n);
           const chips = await s.create.participantNames().catch(() => [] as string[]);
           invitedVendors = [...new Set([...chips, ...extra])];
-          return swapNote(real) + `pressed "Invite Vendor" — every vendor the product suggests (single-stage)${extra.length ? `; then added ${extra.join(", ")} by name for the bidding` : ""}`;
+          (s as RunState & { invitedAll?: boolean }).invitedAll = true;
+          const total = (await s.create.participantCount().catch(() => 0)) || invitedVendors.length;
+          return swapNote(real) + `pressed "Invite Vendor" — every vendor the product suggests: ${total} vendor(s) now on the event (single-stage)${extra.length ? `; then added ${extra.join(", ")} by name for the bidding` : ""}`;
         }
         const added: string[] = [];
         for (const n of names) {
@@ -3424,7 +3431,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         }
         if (!added.length) await s.single.inviteVendor();
         invitedVendors = allowRealVendors() ? added : added.filter((n) => isQaVendorName(n, qa));
-        return swapNote(real) + (added.length ? `invited ${added.join(", ")} (single-stage)` : "invited every vendor the product suggested (single-stage)");
+        return swapNote(real) + (added.length ? `invited ${added.join(", ")} (single-stage)${pre}` : "invited every vendor the product suggested (single-stage)");
       }
       const asked = Array.isArray(a.vendors) ? (a.vendors as unknown[]).map(String) : vendorNames();
       const min = a.count !== undefined ? Number(a.count) : vendorCount();
@@ -3481,6 +3488,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
     }
     case "publish":
       if (await isSingleStageScreen(s)) {
+        // QA-ONLY: a vendor that is not a QA test vendor is taken off before publishing (it would be emailed) — unless
+        // the case pressed "Invite Vendor" on purpose (the invite pair's all-suggested half, 20 Nov 2026).
+        if (!allowRealVendors() && !(s as RunState & { invitedAll?: boolean }).invitedAll) {
+          const qaNames = await qaVendorNames();
+          const others = (await s.create.participantNames().catch(() => [] as string[])).filter((v) => !isQaVendorName(v, qaNames));
+          if (others.length) {
+            await s.create.removeNonQaParticipants(qaNames).catch(() => 0);
+            console.log(`[plan] QA vendors only: took ${others.join(", ")} off the event before publishing (not a QA test vendor)`);
+          }
+        }
         // The required cells the template added (delivery location, price) are filled before the click: the
         // app refuses to publish over an empty one, and a plan may reach publish without a fill_sheet step.
         await fillEmptyRequiredCells(s).catch(() => {});

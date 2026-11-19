@@ -195,10 +195,10 @@ export async function runUnderstanding(s: Session, prdText: string, figmaLabels:
   let raw: any = null;
   if (ps.length === 1) {
     say(`Reading the requirement (${text.length.toLocaleString("en-IN")} characters) the way a tester reads it: features, roles, flows, rules with their source, states, data, and what it leaves unsaid…`);
-    raw = jsonOf(await chat([{ role: "system", content: SYSTEM }, { role: "user", content: `REQUIREMENT:\n${text}${labels}` }], { tier: "reason", temperature: 0.1, maxTokens: 6000 }).catch((e) => { notes.push(`the model could not be asked: ${String(e.message).slice(0, 120)}`); return ""; }));
+    raw = jsonOf(await chat([{ role: "system", content: SYSTEM }, { role: "user", content: `REQUIREMENT:\n${text}${labels}` }], { tier: "reason", temperature: 0.1, maxTokens: 14000 }).catch((e) => { notes.push(`the model could not be asked: ${String(e.message).slice(0, 120)}`); return ""; }));
     if (!raw) {
       say("The careful reading did not come back as JSON; asking once more on the fast tier.");
-      raw = jsonOf(await chat([{ role: "system", content: SYSTEM }, { role: "user", content: `REQUIREMENT:\n${text.slice(0, 12000)}${labels}` }], { tier: "fast", temperature: 0.1, maxTokens: 5000 }).catch(() => ""));
+      raw = jsonOf(await chat([{ role: "system", content: SYSTEM }, { role: "user", content: `REQUIREMENT:\n${text.slice(0, 12000)}${labels}` }], { tier: "fast", temperature: 0.1, maxTokens: 12000 }).catch(() => ""));
     }
   } else {
     say(`The requirement is long (${text.length.toLocaleString("en-IN")} characters): reading it in ${ps.length} parts, then merging.`);
@@ -208,7 +208,7 @@ export async function runUnderstanding(s: Session, prdText: string, figmaLabels:
       if (j) partial.push(j); else notes.push(`part ${i + 1} did not parse and was skipped`);
       say(`Part ${i + 1} of ${ps.length} read${j ? "" : " (nothing usable)"}.`);
     }
-    raw = jsonOf(await chat([{ role: "system", content: MERGE }, { role: "user", content: `PARTS:\n${JSON.stringify(partial).slice(0, 60_000)}${labels}` }], { tier: "reason", temperature: 0.1, maxTokens: 7000 }).catch(() => ""));
+    raw = jsonOf(await chat([{ role: "system", content: MERGE }, { role: "user", content: `PARTS:\n${JSON.stringify(partial).slice(0, 60_000)}${labels}` }], { tier: "reason", temperature: 0.1, maxTokens: 14000 }).catch(() => ""));
     if (!raw && partial.length) { notes.push("the merge did not parse; the parts were joined without the model"); raw = { title: "Requirement", features: partial.flatMap((p) => p.features ?? []), roles: partial.flatMap((p) => p.roles ?? []), flows: partial.flatMap((p) => p.flows ?? []), rules: partial.flatMap((p) => p.rules ?? []), states: partial.flatMap((p) => p.states ?? []), data: partial.flatMap((p) => p.data ?? []), outOfScope: partial.flatMap((p) => p.outOfScope ?? []), assumptions: partial.flatMap((p) => p.assumptions ?? []), questions: partial.flatMap((p) => p.questions ?? []) }; }
   }
   if (!raw) { emit({ type: "error", why: "The requirement could not be read: the model gave no usable answer twice. Try again in a minute, or paste a shorter part." }); return s; }
@@ -325,13 +325,19 @@ export async function applyAnswers(s: Session, emit: (e: UnderstandEvent) => voi
   const answered = card.questions.filter((q) => q.answer);
   if (!answered.length) { emit({ type: "understanding", card }); return card; }
   emit({ type: "line", line: `Applying ${answered.length} answer(s) to the card…` });
-  const raw = jsonOf(await chat([{ role: "system", content: APPLY }, { role: "user", content: `CARD:\n${JSON.stringify({ ...card, grounding: undefined, notes: undefined }).slice(0, 50_000)}\n\nANSWERS:\n${answered.map((q) => `${q.id}: ${q.text}\n→ ${q.answer}`).join("\n")}` }], { tier: "reason", temperature: 0.1, maxTokens: 7000 }).catch(() => ""));
+  const raw = jsonOf(await chat([{ role: "system", content: APPLY }, { role: "user", content: `CARD:\n${JSON.stringify({ ...card, grounding: undefined, notes: undefined }).slice(0, 50_000)}\n\nANSWERS:\n${answered.map((q) => `${q.id}: ${q.text}\n→ ${q.answer}`).join("\n")}` }], { tier: "reason", temperature: 0.1, maxTokens: 14000 }).catch(() => ""));
   if (!raw) { emit({ type: "error", why: "The answers could not be applied (the model gave no usable card). The answers are kept; try again." }); return card; }
   const c = normalise(raw, []);
   // answered questions stay on the card, marked, so the user sees what was settled
   const kept = card.questions.filter((q) => q.answer || q.skipped);
   const fresh = c.questions.filter((q) => !kept.some((k) => k.text.toLowerCase() === q.text.toLowerCase()));
-  const next: Understanding = { ...card, ...c, version: card.version + 1, at: new Date().toISOString(), questions: [...kept, ...fresh], grounding: card.grounding, notes: card.notes };
+  // A rewrite that comes back with far fewer rules or flows was cut short, not corrected by an answer (20 Nov: the
+  // same PRD read as 39, 37 and 7 rules): the earlier list stays where the new one lost more than a quarter of it.
+  const shrunk = (was: unknown[], now: unknown[]) => was.length >= 4 && now.length < was.length * 0.75;
+  const rules = shrunk(card.rules, c.rules) ? card.rules : c.rules;
+  const flows = shrunk(card.flows, c.flows) ? card.flows : c.flows;
+  if (rules !== c.rules || flows !== c.flows) emit({ type: "line", line: `The rewrite came back with ${c.rules.length} rule(s) and ${c.flows.length} flow(s) where the card had ${card.rules.length} and ${card.flows.length} — kept the card's ${rules !== c.rules ? "rules" : ""}${rules !== c.rules && flows !== c.flows ? " and " : ""}${flows !== c.flows ? "flows" : ""}; the answers are applied to the rest.` });
+  const next: Understanding = { ...card, ...c, rules, flows, version: card.version + 1, at: new Date().toISOString(), questions: [...kept, ...fresh], grounding: card.grounding, notes: card.notes };
   updateSession(s, (f) => { f.understanding = next as unknown as Record<string, unknown>; });
   emit({ type: "understanding", card: next });
   if (next.flows.length) advance(s, "requirement");
