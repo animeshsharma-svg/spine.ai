@@ -518,6 +518,16 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     }
   }
 
+  // expect_event_status with no status checks nothing and fails as "needs a status" (19 Nov, SSR-006: a plan rebuilt
+  // from the screen library kept the step and lost its "Live"). The status the case names fills it; none → dropped.
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const st = steps[i];
+    if (st.step !== "expect_event_status" || String(st.args?.status ?? "").trim()) continue;
+    const named = testCase.match(/\b(live|draft|upcoming|closed|awarded|withdrawn|rfq in progress|in evaluation|expired)\b/i)?.[1];
+    if (named) { st.args = { ...(st.args ?? {}), status: named.replace(/\b\w/g, (x) => x.toUpperCase()) }; repairs.push(`expect_event_status had no status — the case says "${named}"`); }
+    else { steps.splice(i, 1); repairs.push("expect_event_status had no status and the case names none — the step was dropped"); }
+  }
+
   // THE EVENT'S LIFECYCLE, for every combination a case can ask for. Each lifecycle step says
   // which state it needs and which it leaves; walking the plan, a step whose state is not
   // reached gets the shortest bridge inserted in front of it (publish before bidding, a bid

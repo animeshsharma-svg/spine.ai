@@ -479,10 +479,16 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
   // visible in the report for every case): the run's first picture and its end picture, from its evidence folder.
   r.shots = [...beforeAfterShots(planRunId, r.shots), ...r.shots].filter((s, i, all) => all.findIndex((x) => x.file === s.file) === i);
   const serverErrors = (result.observations ?? []).filter((o) => o.findings.some((f) => f.rule === "server-error"));
+  // A step skipped at run time ("not tested — no step for …", a question nobody answered) is a part of the case nobody
+  // checked, even when the compile called the plan full (19 Nov, SSR-001: "verify Vendor A is the only invited vendor"
+  // was skipped and the case still read "Pass — every check held").
+  const skippedParts = steps.filter((s) => s.status === "skipped" && /nobody answered|not tested|no step for/i.test(s.detail ?? ""))
+    .map((s) => String(s.detail ?? "").replace(/^.*?no step for:\s*/i, "").slice(0, 160));
   if (failedAt < 0) {
-    r.status = compiled.coverage === "partial" ? "Partly checked" : "Pass";
-    r.why = compiled.coverage === "partial"
-      ? `Every step the automation could do worked, but part of the case has no step yet: ${compiled.gaps.join("; ")}. That part was not checked.`
+    const gaps = [...(compiled.coverage === "partial" ? compiled.gaps : []), ...skippedParts];
+    r.status = gaps.length ? "Partly checked" : "Pass";
+    r.why = gaps.length
+      ? `Every step the automation could do worked, but part of the case has no step yet: ${gaps.join("; ")}. That part was not checked.`
       : `All ${steps.length} steps worked and every check on the screen held.`;
   } else {
     const f = steps[failedAt];

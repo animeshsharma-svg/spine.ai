@@ -1402,6 +1402,18 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
   const known: Record<string, unknown> = { ...(s.context?.values ?? {}), eventGroupUuid: s.context?.eventGroupUuid, stageUuid: s.context?.stageUuid };
   const fill = (v: unknown): unknown => (typeof v === "string" ? v.replace(/\{([A-Za-z][\w]*)\}/g, (m, k) => (known[k] !== undefined && known[k] !== null && known[k] !== "" ? String(known[k]) : m)) : v);
   if (step.args) for (const k of Object.keys(step.args)) step.args[k] = fill(step.args[k]);
+  // "Vendor A" / "Vendor B" / "Vendor C" are the house placeholders for the QA test vendors (caseStyle.ts; the guided
+  // session's generator writes nothing else since 19 Nov). They are never a company's name: the screen shows the real
+  // one, so "Vendor A" on screen failed and an invite of "Vendor A" fell through to the product's suggestions
+  // (19 Nov walk, SSR-001/003/013). A = the prepared event's vendor, else the client's first QA vendor; B, C in turn.
+  if (step.args && /\bVendor [ABC]\b(?![\w/-])/.test(JSON.stringify(step.args))) {
+    const qa = await qaVendorNames().catch(() => [] as string[]);
+    const named = [s.context?.vendorName, s.context?.otherVendorName ?? s.context?.values?.secondVendorName].filter((x): x is string => typeof x === "string" && !!x);
+    const pool = [...named, ...qa.filter((q) => !named.some((n) => isQaVendorName(n, [q])))];
+    const swap = (v: unknown): unknown =>
+      typeof v === "string" ? v.replace(/\bVendor ([ABC])\b(?![\w/-])/g, (m, x: string) => pool["ABC".indexOf(x)] ?? m) : Array.isArray(v) ? v.map(swap) : v;
+    for (const k of Object.keys(step.args)) step.args[k] = swap(step.args[k]);
+  }
   const a = step.args ?? {};
   // The tester took the browser and published the event themselves: the page
   // handed back is the event's project, and a create-screen step driven
@@ -3371,6 +3383,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         for (const n of names) {
           if (await s.single.addParticipant(n)) added.push(n);
           else console.log(`[single-stage] no vendor matched "${n}" in the participants search`);
+        }
+        // QA-ONLY NEVER FALLS THROUGH TO "Invite Vendor" (19 Nov 2026: the guided-session walk on PROCOL DEMO with
+        // SPINE_QA_VENDORS_ONLY=1 published four single-stage events to every vendor the product suggests — a dropped
+        // name or none at all reached the button below; the multi-stage path already adds the QA vendors instead).
+        if (!allowRealVendors() && !added.length) {
+          const want = Math.max(1, Math.min(Number(a.count) || 1, qa.length));
+          for (const n of qa.slice(0, want)) if (await s.single.addParticipant(n)) added.push(n);
+          if (!added.length) throw new Error(`not done: no QA test vendor of this client could be added by search (${qa.length ? qa.join(", ") : "none known — the Procol DB is needed to list them"}); real suppliers are never invited, so "Invite Vendor" was not pressed`);
+          invitedVendors = added;
+          return swapNote(real) + `invited ${added.join(", ")} — the client's QA test vendor${added.length === 1 ? "" : "s"} (single-stage, QA vendors only)`;
         }
         // A COUNT THE CASE NAMES IS THE COUNT (6 Nov, plan-mw57y3sv: "invite 2 vendors" pressed Invite Vendor, 7
         // arrived, and the run's own participant check failed on its own doing). With no names, that many of the
