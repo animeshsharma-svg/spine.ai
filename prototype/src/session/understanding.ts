@@ -76,7 +76,23 @@ Read the requirement a product manager wrote and write what a tester must know b
  "outOfScope":["what the PRD says is not covered"],
  "assumptions":["what you had to assume, each one a candidate question"],
  "questions":[{"id":"Q1","text":"ONE question, in plain words anyone understands, about ONE thing only (never two joined by and/or), under 20 words, no jargon (say 'the vendor's price' not 'bid decimal precision')","why":"one short plain sentence: what goes wrong in a test if nobody answers","kind":"permission|default|limit|state|data|scope|setting|other"}]}
-Rules of the reading: never invent a rule — every rule quotes the PRD phrase it comes from; when the PRD is silent on a limit, a default, who may act, or what state is allowed, write a QUESTION, not a rule. Flows are happy paths, as user actions on screens (or API calls when the PRD describes endpoints): one per feature, PLUS one for every existing action the change runs through that the PRD names (a changed list or filter is reached from somewhere — when the PRD names both a single and a bulk path, or two screens, that is one flow each), PLUS one for anything the PRD says must stay unchanged (a regression flow that does the old action and sees the old result). Keep names as the PRD uses them. Mark a flow "api" only when no screen is described. Plain English, no jargon.`;
+Rules of the reading: never invent a rule — every rule quotes the PRD phrase it comes from; when the PRD is silent on a limit, a default, who may act, or what state is allowed, write a QUESTION, not a rule. Flows are the happy paths only, one per feature, as user actions on screens (or API calls when the PRD describes endpoints). Keep names as the PRD uses them. Mark a flow "api" only when no screen is described. Plain English, no jargon.`;
+
+/**
+ * THE FLOWS A CHANGE RUNS THROUGH, asked for on their own (20 Nov 2026). The PR-assignee PRD changes the list behind
+ * "Assign"; the reading found 3 flows and none was "assign" — the action most of the tester's 66 cases are about.
+ * Asking for those flows in the main reading cost the rules (39 → 6, twice), so a second, small call adds them.
+ */
+const TOUCHED = `You are a senior QA engineer. The requirement below changes something in an existing product. List ONLY these flows, as JSON {"flows":[{"name":"…","role":"…","layer":"browser|api|both","preconditions":["…"],"steps":["user actions as the screen names them"],"endState":"what is true at the end"}]}:
+1. every EXISTING user action the change runs through that the requirement names (where the changed list / filter / message is used — a single and a bulk path, or two screens, are one flow each);
+2. one regression flow for each thing the requirement says must stay unchanged (do the old action, see the old result).
+Do not repeat these flows the reading already has: {{HAVE}}. At most 6 flows. JSON only.`;
+async function touchedFlows(text: string, have: Flow[]): Promise<Flow[]> {
+  const raw = jsonOf(await chat([{ role: "system", content: TOUCHED.replace("{{HAVE}}", have.map((f) => `"${f.name}"`).join(", ") || "none") }, { role: "user", content: `REQUIREMENT:\n${text.slice(0, 40_000)}` }], { tier: "fast", temperature: 0.1, maxTokens: 4000 }).catch(() => "")) as { flows?: unknown[] } | null;
+  const seen = new Set(have.map((f) => f.name.toLowerCase()));
+  return arr<any>(raw?.flows).map((f, i): Flow => ({ id: `FL${have.length + i + 1}`, name: clean(f?.name), feature: have[0]?.feature ?? "F1", role: clean(f?.role) || have[0]?.role || "buyer", layer: (["browser", "api", "both"].includes(f?.layer) ? f.layer : "browser") as Flow["layer"], preconditions: arr<unknown>(f?.preconditions).map(clean).filter(Boolean), steps: arr<unknown>(f?.steps).map(clean).filter(Boolean), endState: clean(f?.endState) }))
+    .filter((f) => f.name && f.steps.length && !seen.has(f.name.toLowerCase())).slice(0, 6);
+}
 
 const PART = `You are a senior QA engineer reading ONE PART of a longer requirement. Extract, as JSON with the same shape as a full reading ({"features":[],"roles":[],"flows":[],"rules":[],"states":[],"data":[],"outOfScope":[],"assumptions":[],"questions":[]}), only what THIS part states. Every rule quotes its source phrase (≤ 20 words). What the part leaves unsaid becomes a question: ONE thing per question, in plain words, under 20 words. JSON only.`;
 
@@ -213,6 +229,8 @@ export async function runUnderstanding(s: Session, prdText: string, figmaLabels:
   }
   if (!raw) { emit({ type: "error", why: "The requirement could not be read: the model gave no usable answer twice. Try again in a minute, or paste a shorter part." }); return s; }
   const c = normalise(raw, figmaLabels);
+  const touched = await touchedFlows(text, c.flows).catch(() => [] as Flow[]);
+  if (touched.length) { c.flows.push(...touched); say(`${touched.length} more flow(s) the change runs through: ${touched.map((f) => f.name).join("; ")}.`); }
   say(`${c.features.length} feature(s), ${c.roles.length} role(s), ${c.flows.length} flow(s), ${c.rules.length} rule(s) with their source, ${c.questions.length} question(s) from the text.`);
   say("Grounding the card: the company settings the rules name, the features this environment has off, the cases already written, what broke before in this module…");
   const grounding = await ground(s, c, figmaLabels, say);
