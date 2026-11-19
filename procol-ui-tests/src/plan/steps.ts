@@ -497,6 +497,7 @@ export const STEP_CATALOG: StepSpec[] = [
     args: {
       vendors: 'array of vendor names copied from the test case — omit unless the case names a vendor; never invent one',
       count: "minimum number of participants required (e.g. 2 when two vendors must bid); QA test vendors top it up when the suggestion is short",
+      all: 'true when the case says to press "Invite Vendor" / invite every vendor the product suggests — the button is pressed (also on a QA-only run), then any vendors named are added by search for the bidding. Omit when the case adds vendors by name only',
     },
   },
   { name: "publish", purpose: "Publish the event and wait for the outcome." },

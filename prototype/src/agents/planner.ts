@@ -528,6 +528,17 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     else { steps.splice(i, 1); repairs.push("expect_event_status had no status and the case names none — the step was dropped"); }
   }
 
+  // Every invite is tested both ways (the tester, 20 Nov 2026; session/generation.ts pairInviteCases): a case that says
+  // to press "Invite Vendor" gets invite_vendor{all:true} — the product's own button, every suggested vendor, also on a
+  // QA-only run — with any vendors it then adds by name kept; a case that adds by name never presses the button.
+  const firstInvite = steps.find((st) => st.step === "invite_vendor");
+  if (firstInvite) {
+    const byNameOnly = /do not press "?invite vendor"?|without (pressing|clicking) "?invite vendor"?|\(vendors invited by name\)/i.test(testCase);
+    const allSuggested = !byNameOnly && /\bpress(es)? "?invite vendor"?|every vendor the product suggests|all suggested vendors|\(invite vendor — all suggested vendors\)/i.test(testCase);
+    if (allSuggested && !firstInvite.args?.all) { firstInvite.args = { ...(firstInvite.args ?? {}), all: true }; delete (firstInvite.args as Record<string, unknown>).count; repairs.push('invite_vendor presses "Invite Vendor" (every suggested vendor) — the case says so'); }
+    if (byNameOnly && firstInvite.args?.all) { delete (firstInvite.args as Record<string, unknown>).all; repairs.push('invite_vendor adds by name only — the case says not to press "Invite Vendor"'); }
+  }
+
   // THE EVENT'S LIFECYCLE, for every combination a case can ask for. Each lifecycle step says
   // which state it needs and which it leaves; walking the plan, a step whose state is not
   // reached gets the shortest bridge inserted in front of it (publish before bidding, a bid

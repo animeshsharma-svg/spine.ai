@@ -3379,6 +3379,16 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         const qa = await qaVendorNames();
         const names = allowRealVendors() ? asked : asked.filter((n) => isQaVendorName(n, qa));
         const real = allowRealVendors() ? [] : asked.filter((n) => !isQaVendorName(n, qa));
+        // all:true — the case is the "Invite Vendor" half of an invite pair (the tester, 20 Nov 2026: every invite is
+        // tested both ways). The product's own button is pressed even on a QA-only run, because pressing it IS the
+        // case; the bidders it then names are added by search (QA vendors only), so the bidding stays on QA vendors.
+        if (a.all) {
+          await s.single.inviteVendor();
+          const extra: string[] = [];
+          for (const n of names) if (await s.single.addParticipant(n)) extra.push(n);
+          invitedVendors = extra;
+          return swapNote(real) + `pressed "Invite Vendor" — every vendor the product suggests (single-stage)${extra.length ? `; then added ${extra.join(", ")} by name for the bidding` : ""}`;
+        }
         const added: string[] = [];
         for (const n of names) {
           if (await s.single.addParticipant(n)) added.push(n);
@@ -3422,6 +3432,18 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         const qa = await qaVendorNames();
         real = asked.filter((n) => !isQaVendorName(n, qa));
         names = asked.filter((n) => isQaVendorName(n, qa));
+      }
+      // all:true — the "Invite Vendor" half of an invite pair (20 Nov 2026), on the multi-stage screen: the product's
+      // own button, then the named bidders by search (QA vendors only).
+      if (a.all) {
+        await s.create.inviteVendor();
+        const extra: string[] = [];
+        for (const nm of names) if (await s.create.addParticipantByName(nm)) extra.push(nm);
+        const present = await s.create.participantNames();
+        invitedVendors = present.length ? present : extra;
+        invitedFromDb = false;
+        const total = (await s.create.participantCount()) || present.length;
+        return swapNote(real) + `pressed "Invite Vendor" — ${total} vendor(s) the product suggests are on the event${extra.length ? `; then added ${extra.join(", ")} by name for the bidding` : ""}`;
       }
       // A count the case names is exact: that many vendors, each one this run can bid as.
       const exact = a.count !== undefined && !names.length;

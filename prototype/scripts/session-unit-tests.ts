@@ -120,3 +120,32 @@ test("generation swaps product / template / vendor names the PRD never gives (19
   assert.equal(scrubInventedNames("Vendor: QA_Platform Vendor 1 1790820862139", ""), "Vendor: QA_Platform Vendor 1 1790820862139");
   assert.equal(scrubInventedNames("product QA Test Bolt", "the prd names qa test bolt"), "product QA Test Bolt");
 });
+
+test("every invite case is written both ways: by name and with Invite Vendor (20 Nov)", async () => {
+  const { pairInviteCases, vendorsNeeded } = await import("../src/session/generation.js");
+  const base = { id: "", module: "RFQ", scenario: "", role: "Buyer", portal: "Buyer portal", preconditions: "-", configs: "None", testData: "-", priority: "P1", testType: "Happy path", why: "FL1.", source: "FL1", kind: "happy" as const, layer: "ui" as const };
+  const bidCase = { ...base, title: "Buyer enters a surrogate bid", steps: ["Create an RFQ with the test product.", "Invite Vendor A to the event.", "Publish.", "Add a surrogate bid of 100 for Vendor A."], expected: "Vendor A is the only invited vendor. Responses shows 1/1 and the price 100." };
+  const noInvite = { ...base, title: "Publish without a vendor is refused", steps: ["Create an RFQ.", "Publish without inviting any vendor."], expected: "Publish is refused." };
+  const out = pairInviteCases([bidCase, noInvite] as any);
+  assert.equal(out.length, 3);
+  const [named, all, plain] = out;
+  assert.match(named.title, /\(vendors invited by name\)$/);
+  assert.match(named.steps[1], /search for Vendor A and add it by name — do not press "Invite Vendor"/);
+  assert.match(all.title, /\(Invite Vendor — all suggested vendors\)$/);
+  assert.match(all.steps[1], /^Press "Invite Vendor".*Then search for Vendor A .* the bidding is done as Vendor A\.$/);
+  assert.doesNotMatch(all.expected, /only invited vendor|1\/1/);
+  assert.match(all.expected, /record (how many|N)/);
+  assert.equal(plain.title, noInvite.title);
+  assert.equal(vendorsNeeded({ title: "", preconditions: "", testData: "", steps: ["Invite two vendors."], expected: "Vendor B is L1." }), 2);
+  assert.equal(pairInviteCases(out as any).length, 3, "already-paired cases are not paired again");
+});
+test("the planner presses Invite Vendor only for the case that says so (20 Nov)", async () => {
+  const { lintPlan } = await import("../src/agents/planner.js");
+  const p = () => ({ steps: [{ step: "open_create", args: { path: "single-stage" } }, { step: "invite_vendor", args: { vendors: ["Vendor A"], count: 1 } }] } as any);
+  const all = lintPlan(p(), 'Press "Invite Vendor" to invite every vendor the product suggests. Then search for Vendor A and add it by name.');
+  const inv = (r: any) => r.plan.steps.find((x: any) => x.step === "invite_vendor");
+  assert.equal(inv(all).args.all, true);
+  assert.deepEqual(inv(all).args.vendors, ["Vendor A"]);
+  const named = lintPlan(p(), 'In Participants, search for Vendor A and add it by name — do not press "Invite Vendor".');
+  assert.equal(inv(named).args.all, undefined);
+});

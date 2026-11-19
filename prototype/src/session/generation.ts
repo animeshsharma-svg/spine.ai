@@ -15,7 +15,7 @@
  * catalog already has are marked "already have it" (not written twice).
  */
 import { chat } from "../ai/llm.js";
-import { defectsFor, existingFor, jsonOf, sameTitle } from "../agents/deriveCases.js";
+import { defectsFor, existingFor, jsonOf, openDefectsFor, sameTitle } from "../agents/deriveCases.js";
 import { addSheetCases, sheetCases, type SheetCase } from "../checks/sheetCases.js";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -94,6 +94,63 @@ export function scrubInventedNames(t: string, said: string): string {
     .replace(/\bQA[ _-]?Platform[ _-]?Vendor[ _-]?([AB12])\b(?![ _-]?\d)/gi, (m, x) => (said.includes(m.toLowerCase()) ? m : `Vendor ${/[1A]/i.test(x) ? "A" : "B"}`))
     .replace(/\bQA[ _-](?:test[ _-])?(?:standard[ _-])?(?:RFQ[ _-])?(?:pricing[ _-])?template\b|\bQA[ _-]Standard[ _-]RFQ\b/gi, (m) => (said.includes(m.toLowerCase()) ? m : "the first pricing template"))
     .replace(/\bQA[ _-](?:test[ _-])?(?:line[ _-]item|product|item|bolt|cable|part|material)s?\b/gi, (m) => (said.includes(m.toLowerCase()) ? m : "the test product"));
+}
+
+/**
+ * EVERY INVITE, BOTH WAYS (the tester, 20 Nov 2026): a case that puts vendors on the event is written and run twice —
+ * once with the vendors added BY NAME (as many as the case needs: Vendor A, B, … or the number it says) and once with
+ * the product's own "Invite Vendor", which takes every vendor the product suggests. A case that bids, ranks or awards
+ * after an Invite Vendor also adds its bidders by name, because the bid is placed as a QA vendor. Done by code, so no
+ * invite case reaches the sheet with only one of the two.
+ */
+const INVITE_STEP = /\binvit\w*\b[^.]*\bvendors?\b|\binvite vendor\b/i;
+const NOT_INVITING = /\b(without|do not|don't|never|no|skip\w*|before)\b[^.]*\binvit/i;
+const NUM: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+export function vendorsNeeded(c: Pick<GenCase, "title" | "preconditions" | "testData" | "steps" | "expected">): number {
+  const t = [c.title, c.preconditions, c.testData, ...c.steps, c.expected].join(" ");
+  const letters = [...t.matchAll(/\bVendor ([A-E])\b/g)].map((m) => "ABCDE".indexOf(m[1]) + 1);
+  const said = t.match(/\b(\d|one|two|three|four|five)\s+(?:invited\s+|QA\s+)?vendors?\b/i)?.[1]?.toLowerCase();
+  const n = said ? Number(said) || NUM[said] || 1 : 1;
+  return Math.min(5, Math.max(1, n, ...letters));
+}
+export function pairInviteCases(rows: GenCase[]): GenCase[] {
+  const out: GenCase[] = [];
+  for (const r of rows) {
+    const at = r.steps.findIndex((x) => INVITE_STEP.test(x) && !NOT_INVITING.test(x));
+    if (at < 0 || /\(vendors invited by name\)|\(invite vendor — all suggested vendors\)/i.test(r.title)) { out.push(r); continue; }
+    const n = vendorsNeeded(r);
+    const names = "ABCDE".slice(0, n).split("").map((x) => `Vendor ${x}`);
+    const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
+    const after = [...r.steps.slice(at + 1), r.expected].join(" ");
+    const bids = /\b(bid|bids|quote|quoted|surrogate|respon[sd]\w*|rank|l1|award\w*|master qcs)\b/i.test(after);
+    out.push({
+      ...r,
+      title: `${r.title} (vendors invited by name)`,
+      testData: `Vendors: ${list}, added by name. ${r.testData === "-" ? "" : r.testData}`.trim(),
+      steps: r.steps.map((x, i) => (i === at ? `In Participants, search for ${list} and add ${n === 1 ? "it" : "each"} by name — do not press "Invite Vendor".` : x)),
+      why: `${r.why} Invite by name (the paired case presses "Invite Vendor").`,
+    });
+    // a fixed vendor count is not knowable once the product picks the vendors: such a phrase becomes "record how many"
+    // (phrase by phrase, so the template / line-item / price checks in the same sentence stay)
+    const recount = (t: string) => t
+      .replace(/\b(?:Vendor [A-E]|it|they) (?:as|is|are) the (?:only|sole|one|single) (?:invited )?vendors?\b/gi, "every vendor the product suggested as the invited vendors (record how many)")
+      .replace(/\bthe (?:only|sole|one|single) (?:invited )?vendor\b/gi, "the invited vendors (every one the product suggested)")
+      .replace(/\b(?:exactly|only|just) (?:one|1) (?:invited )?vendors?\b/gi, "every vendor the product suggested (record how many)")
+      .replace(/\bparticipants? count (?:is|of|reads|shows|=|equals) ?(?:1|one)\b/gi, "participant count equals the number of vendors the product suggested (record it)")
+      .replace(/\b1\s*\/\s*1\b/g, "1/N, N being every invited vendor (record N)");
+    const allTitle = r.title.replace(/\b(?:invite|invites|inviting) (?:one|1|a single) vendor\b/i, "invite the suggested vendors").replace(/\b(?:one|1|a single) invited vendor\b/i, "the suggested vendors invited");
+    out.push({
+      ...r,
+      title: `${allTitle} (Invite Vendor — all suggested vendors)`,
+      testData: `Vendors: every vendor the product suggests (Invite Vendor)${bids ? `, plus ${list} by name for the bidding` : ""}. ${r.testData === "-" ? "" : r.testData}`.trim(),
+      steps: r.steps.map((x, i) => (i === at
+        ? `Press "Invite Vendor" to invite every vendor the product suggests.${bids ? ` Then search for ${list} and add ${n === 1 ? "it" : "each"} by name if not already listed — the bidding is done as ${list}.` : ""}`
+        : i > at ? recount(x) : x)),
+      expected: recount(r.expected),
+      why: `${r.why} Invite Vendor (the paired case adds the vendors by name).`,
+    });
+  }
+  return out;
 }
 
 /** The model writes the words for a section; the skeleton (what to cover) is given by code. */
@@ -196,8 +253,12 @@ function skVisibility(card: Understanding, max: number): string[] {
 function skApi(card: Understanding, max: number): string[] { return card.flows.filter((f) => f.layer !== "browser" || true).slice(0, max).map((f) => `${f.id}: the flow "${f.name}" as API requests — each step's request, the reply the PRD implies (2xx, or the refusal code), and a read-back of the record that proves the change`); }
 function skDesign(card: Understanding, figmaFrames: Array<{ name: string; labels: string[] }>, max: number): string[] { return figmaFrames.slice(0, max).map((fr) => `frame "${fr.name}": every labelled control is present with its exact label (${fr.labels.slice(0, 12).join(", ")}${fr.labels.length > 12 ? ", …" : ""}); the frame's state (empty / loading / error) is reachable`); }
 function skErrorGuessing(card: Understanding, max: number): string[] {
-  const defects = defectsFor(`${card.title} ${card.summary} ${card.features.map((f) => f.name).join(" ")}`, card.module, max) as any[];
-  return defects.map((d) => `ticket ${d.ticket ?? d.id}: "${String(d.title ?? "").slice(0, 100)}"${d.symptom ? ` — symptom: ${String(d.symptom).slice(0, 140)}` : ""}${d.rootCause ?? d.rca ? ` — root cause: ${String(d.rootCause ?? d.rca).slice(0, 140)}` : ""} → the regression case that would catch it on this feature`);
+  const subject = `${card.title} ${card.summary} ${card.features.map((f) => f.name).join(" ")}`;
+  const defects = defectsFor(subject, card.module, max) as any[];
+  // the HubSpot open defects about this feature too (20 Nov 2026) — half the section at most, so both sources speak
+  const open = openDefectsFor(subject, card.module, Math.max(1, Math.ceil(max / 2)));
+  const fromOpen = open.map((d) => `open defect ${d.caseId} (HubSpot ticket${d.tickets.length > 1 ? "s" : ""} ${d.tickets.join(", ")}, ${d.module}): "${d.subject.slice(0, 160)}" → the regression case that would catch it on this feature`);
+  return [...fromOpen, ...defects.slice(0, Math.max(0, max - fromOpen.length)).map((d) => `ticket ${d.ticket ?? d.id}: "${String(d.title ?? "").slice(0, 100)}"${d.symptom ? ` — symptom: ${String(d.symptom).slice(0, 140)}` : ""}${d.rootCause ?? d.rca ? ` — root cause: ${String(d.rootCause ?? d.rca).slice(0, 140)}` : ""} → the regression case that would catch it on this feature`)];
 }
 
 const TIER: Record<Kind, "fast" | "reason"> = { happy: "fast", negative: "reason", edge: "fast", permission: "reason", state: "reason", settings: "fast", data: "fast", timing: "fast", visibility: "reason", api: "fast", design: "fast", "error-guessing": "reason" };
@@ -226,14 +287,14 @@ export async function runGeneration(s: Session, kinds: Kind[], depth: Depth, emi
     const skeleton = kind === "happy" ? skHappy(card, max) : kind === "negative" ? skNegative(card, max) : kind === "edge" ? skEdge(card, max) : kind === "permission" ? skPermission(card, max) : kind === "state" ? skState(card, max) : kind === "settings" ? skSettings(card, max) : kind === "data" ? skData(card, max) : kind === "timing" ? skTiming(card, max) : kind === "visibility" ? skVisibility(card, max) : kind === "api" ? skApi(card, max) : kind === "design" ? skDesign(card, figma, max) : skErrorGuessing(card, max);
     const basis = KIND_BASIS[kind];
     if (!skeleton.length) {
-      const note = kind === "design" ? "no design frames were read (give a Figma link with a token, or export the frames)" : kind === "settings" ? "the PRD names no company setting the catalogue knows" : kind === "edge" ? "the PRD gives no numeric limit or list of allowed values" : kind === "error-guessing" ? "no RCA ticket in this module matches the feature" : "nothing on the card to base it on";
+      const note = kind === "design" ? "no design frames were read (give a Figma link with a token, or export the frames)" : kind === "settings" ? "the PRD names no company setting the catalogue knows" : kind === "edge" ? "the PRD gives no numeric limit or list of allowed values" : kind === "error-guessing" ? "no RCA ticket or open HubSpot defect matches the feature" : "nothing on the card to base it on";
       sections.push({ kind, basis, planned: 0, count: 0, existing: 0, caseIds: [], note });
       emit({ type: "section-start", kind, basis, planned: 0 });
       emit({ type: "section-done", kind, count: 0, existing: 0, note });
       continue;
     }
     emit({ type: "section-start", kind, basis, planned: skeleton.length });
-    const rows = await askCases(card, kind, skeleton.map((x, i) => `${i + 1}. ${x}`).join("\n"), max, TIER[kind]);
+    const rows = pairInviteCases(await askCases(card, kind, skeleton.map((x, i) => `${i + 1}. ${x}`).join("\n"), max, TIER[kind]));
     let existing = 0;
     const ids: string[] = [];
     for (const r of rows) {

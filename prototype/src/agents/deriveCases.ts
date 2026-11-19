@@ -170,6 +170,27 @@ export function defectsFor(subject: string, module: string, limit = 10): Defect[
     .slice(0, limit)
     .map((x) => x.d);
 }
+/**
+ * The OPEN-DEFECT HubSpot cases (hubspot/openDefects.ts — team-marked defects, not Closed, in the events scope; one
+ * derived record per case in data/hubspot/derived, git-ignored) that are about this subject. Error-guessing cites
+ * them beside the RCA tickets (20 Nov 2026): a feature's cases should include the regressions its own open defects
+ * point at. Ticket-derived text goes to the model provider only (Slingring); never into a commit.
+ */
+export function openDefectsFor(subject: string, module: string, limit = 10): Array<{ caseId: string; tickets: string[]; subject: string; module: string }> {
+  const dir = join(DATA, "hubspot", "derived");
+  if (!existsSync(dir)) return [];
+  const want = words(subject);
+  const all: Array<{ caseId: string; tickets: string[]; subject: string; module: string; s: number }> = [];
+  for (const f of readdirSync(dir).filter((x) => /^HS-.*\.json$/.test(x))) {
+    try {
+      const d = JSON.parse(readFileSync(join(dir, f), "utf8"));
+      if (!d?.subject) continue;
+      const s = score(String(d.subject), want) + (d.module === module ? 1 : 0);
+      if (s >= 3 || (d.module === module && s >= 2)) all.push({ caseId: String(d.caseId ?? f.replace(/\.json$/, "")), tickets: (d.tickets ?? []).map(String), subject: String(d.subject), module: String(d.module ?? ""), s });
+    } catch { /* a half-written record is skipped */ }
+  }
+  return all.sort((a, b) => b.s - a.s).slice(0, limit).map(({ s: _s, ...d }) => d);
+}
 export function productFor(subject: string, module: string, limit = 8): Array<{ file: string; title: string; text: string }> {
   if (!existsSync(PRODUCT_DIR)) return [];
   const want = words(subject);
