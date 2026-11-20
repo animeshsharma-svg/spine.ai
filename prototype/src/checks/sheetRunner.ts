@@ -512,6 +512,17 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
       // placed, and Master QCS rightly showed the first price — that is not a bug)
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) checked the screen after a part that was never done: ${stepWords({ step: skippedBefore.step, args: skippedBefore.args })} — ${String(skippedBefore.detail).slice(0, 160)}. What the screen showed is what you would expect without that part, so nothing about the product can be concluded.`;
+    } else if (f.step === "publish" && /did not reach a project page/.test(d) && !/the app said:|on screen:/.test(d) && (!f.evidence?.appSaid || /did not reach a project page/.test(f.evidence.appSaid))) {
+      // (appSaid is the runner's own error here, not the app's words: dry run 2 skipped this guard on exactly that)
+      // Publish went nowhere and the app said nothing: usually a required sheet cell the run left empty (20 Nov dry
+      // run, SSR-001: Delivery location, "confirmed" on a second event because the run did the same thing twice)
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}): Publish did not go through and the app showed no message, so nothing about the product was shown. The usual cause is a required cell the run left empty; see the screenshot. This is an automation gap until the app is seen refusing.`;
+    } else if (f.step === "expect_value" && /event type/i.test(String(f.args?.label ?? "")) && /shows "\(empty\)"/.test(d)) {
+      // on the create screen the event type is a button ("RFQ"), not a field: a field read finds nothing there
+      // (19 and 20 Nov: "the single-stage screen shows an empty Event Type" was filed twice, both times this)
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}) read "Event Type" as a form field, but on this screen the event type is a button, so the read found nothing. The screen itself was not judged; this is an automation gap, not a product bug.`;
     } else if (/^[a-z_]+ needs an? .{1,40} to (look for|check|compare|count|read)\b/i.test(d)) {
       // the step was written without the value it checks (20 Nov, SSR-006: expect_event_status with no status
       // was a "Fail", and the bug write-up turned it into a product symptom); nothing on the screen was checked
@@ -550,7 +561,14 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
       // chose, or the wrong screen; nothing about the product was judged (10 Nov: SRC-PR-028 "Purchase Items")
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) found no control with that name on the screen: ${d.slice(0, 160)}. The automation looked for a name the product may not use; this is an automation gap, not a product bug.`;
-    } else if (/^expect_(text|visible|count)$/.test(f.step) && /\(\s*\d+\s*\/\s*\d+\s*\)/.test(String(f.args?.text ?? f.args?.name ?? "")) && !f.evidence?.appSaid) {
+    } else if (/^expect_(text|visible|count)$/.test(f.step) && !f.evidence?.appSaid && (() => {
+      const label = String(f.args?.text ?? f.args?.name ?? "");
+      if (/\(\s*\d+\s*\/\s*\d+\s*\)/.test(label)) return true;
+      // a single-number counter the case never wrote ("Quotation Templates (1)", 20 Nov dry run: the sanity flow was
+      // called broken on it) is the compiler's guess too
+      const own = `${c.title} ${c.preconditions} ${c.testData} ${c.steps.join(" ")} ${c.expected}`.toLowerCase();
+      return /\(\s*\d+\s*\)\s*$/.test(label) && !own.includes(label.toLowerCase());
+    })()) {
       // the compiler wrote a counter into the label ("Awarded Vendors (0/1)") — a guess at the numbers, not a label
       // Procol is known to render; its absence proves nothing (10 Nov: SRC-AWD-001 read as a Fail on exactly this)
       r.status = "Couldn't tell";

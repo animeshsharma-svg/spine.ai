@@ -15,7 +15,8 @@ import type { Understanding } from "./understanding.js";
 export interface ReviewState {
   sheet: string;
   cases: SheetCase[];
-  sections: Array<{ kind: string; count: number }>;
+  /** each generated section with its basis and its cases (the Review screen groups the rows by caseIds), then the uploaded rows */
+  sections: Array<{ kind: string; count: number; basis?: string; caseIds: string[] }>;
   frozen?: { sheetId: string; version: number; count: number; at: string };
 }
 
@@ -25,10 +26,15 @@ const prefixOf = (t: string) => (t.replace(/[^A-Za-z ]/g, " ").split(/\s+/).filt
 
 export function reviewState(s: Session): ReviewState {
   const cases = sheetCases(genSheet(s));
-  const by: Record<string, number> = {};
-  for (const c of cases) { const k = c.scenario.split(" — ")[0] || "other"; by[k] = (by[k] ?? 0) + 1; }
   const frozen = (s.review as any)?.sheetId ? { sheetId: String((s.review as any).sheetId), version: Number((s.review as any).version), count: Number((s.review as any).approved), at: String((s.review as any).at) } : undefined;
-  return { sheet: genSheet(s), cases, sections: Object.entries(by).map(([kind, count]) => ({ kind, count })), ...(frozen ? { frozen } : {}) };
+  // the generation's sections, kept to the rows still on the sheet (a dropped case leaves its section)
+  const here = new Set(cases.map((c) => c.id));
+  const gen = ((s.generation as any)?.sections ?? []) as Array<{ kind: string; basis?: string; caseIds?: string[] }>;
+  const sections: ReviewState["sections"] = gen.map((g) => ({ kind: g.kind, basis: g.basis, caseIds: (g.caseIds ?? []).filter((id) => here.has(id)) })).filter((g) => g.caseIds.length).map((g) => ({ ...g, count: g.caseIds.length }));
+  const placed = new Set(sections.flatMap((g) => g.caseIds));
+  const loose = cases.filter((c) => !placed.has(c.id));
+  if (loose.length) sections.push({ kind: "uploaded", basis: "From your sheet", count: loose.length, caseIds: loose.map((c) => c.id) });
+  return { sheet: genSheet(s), cases, sections, ...(frozen ? { frozen } : {}) };
 }
 
 const EDITABLE = new Set(["title", "role", "portal", "preconditions", "configs", "testData", "steps", "expected", "priority", "testType", "module", "scenario", "why", "source"]);

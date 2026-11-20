@@ -239,7 +239,7 @@ export async function runUnderstanding(s: Session, prdText: string, figmaLabels:
   updateSession(s, (f) => { f.understanding = card as unknown as Record<string, unknown>; });
   emit({ type: "understanding", card });
   emit({ type: "questions", questions: card.questions });
-  askAboutCard(s, card);
+  askAboutCard(s, card, say);
   if (card.flows.length) advance(s, "requirement"); else say("No flow could be read from the requirement, so the sanity step cannot start yet; answer the questions or give more of the PRD.");
   return s;
 }
@@ -251,7 +251,7 @@ export async function runUnderstanding(s: Session, prdText: string, figmaLabels:
  *   • each feature the test company has switched off: switch it on for the runs, leave it out, or test it as it is.
  * None of these waits: the tester answers when ready, and the answer is applied by the appliers below.
  */
-function askAboutCard(s: Session, card: Understanding): void {
+function askAboutCard(s: Session, card: Understanding, say: (l: string) => void): void {
   const company = s.env?.companyName ?? (s.env?.companyId ? `company ${s.env.companyId}` : "the test company");
   if (card.flows.length) {
     askLater(s, {
@@ -262,7 +262,13 @@ function askAboutCard(s: Session, card: Understanding): void {
       suggested: card.flows.map((f) => f.id).join(","),
     });
   }
-  for (const q of card.questions.filter((x) => !x.answer && !x.skipped)) {
+  // On screen, only the questions that most change a test's expected result (20 Nov dry run: a 1,284-character PRD
+  // gave 19, down to "which currency applies to the bid of 100"); the rest stay on the card, answerable there.
+  const open = card.questions.filter((x) => !x.answer && !x.skipped);
+  const weight = (q: Question) => ["permission", "limit", "state", "setting", "default", "scope", "data", "other"].indexOf(q.kind) + (q.from === "rule" ? 10 : 0);
+  const onScreen = [...open].sort((a, b) => weight(a) - weight(b)).slice(0, ASK_ON_SCREEN);
+  if (open.length > onScreen.length) say(`${plural(onScreen.length, "question")} asked on screen (the ones that change what a test expects); ${open.length - onScreen.length} more are on the card if you want to answer them.`);
+  for (const q of onScreen) {
     askLater(s, {
       step: "requirement", source: "prd", kind: "text",
       text: q.text, why: q.why,
@@ -285,6 +291,9 @@ function askAboutCard(s: Session, card: Understanding): void {
     });
   }
 }
+
+/** how many of the card's questions are asked on screen; the rest wait on the card */
+const ASK_ON_SCREEN = 6;
 
 const cardOf = (f: Session) => f.understanding as unknown as Understanding | undefined;
 

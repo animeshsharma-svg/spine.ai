@@ -563,6 +563,9 @@ async function completeRequiredCells(s: RunState): Promise<string[]> {
     const shown = cellText((await td.innerText().catch(() => "")) || "");
     if (shown) continue;
     if (/date/i.test(name)) continue;
+    // a greyed cell is the vendor's to fill (Price, Quantity Available on a buyer's sheet): it takes no value here
+    const locked = await td.evaluate((el) => el.getAttribute("aria-disabled") === "true" || !!el.querySelector('[aria-disabled="true"]') || /disabled|read-?only|locked/i.test(el.className)).catch(() => false);
+    if (locked) continue;
     // the same setter a case's own set_sheet_cell uses (click, then double-click; the server-searched list given
     // its time; the first option when nothing is named) — the standalone fill left Delivery location, Price and
     // Quantity Available empty on a PRD-derived flow (17 Nov) and Publish said "Sheet partially filled"
@@ -1414,6 +1417,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       typeof v === "string" ? v.replace(/\bVendor ([ABC])\b(?![\w/-])/g, (m, x: string) => pool["ABC".indexOf(x)] ?? m) : Array.isArray(v) ? v.map(swap) : v;
     for (const k of Object.keys(step.args)) step.args[k] = swap(step.args[k]);
   }
+  // "the test product" is the house placeholder for "no product named" (the generator's scrub writes it for a product
+  // the PRD never gives). Typed literally it found DEMO's real "Test product", which has no delivery location, and
+  // Publish never went through (20 Nov dry run, SSR-001: 17 minutes, then Fail). No product named = the default pick.
+  if (step.args) for (const k of ["search", "product"]) if (typeof step.args[k] === "string" && /^\s*(the |a |any )?(test|sample|dummy) product\s*$/i.test(step.args[k] as string)) delete step.args[k];
   const a = step.args ?? {};
   // The tester took the browser and published the event themselves: the page
   // handed back is the event's project, and a create-screen step driven
@@ -3500,6 +3507,10 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
         }
         // The required cells the template added (delivery location, price) are filled before the click: the
         // app refuses to publish over an empty one, and a plan may reach publish without a fill_sheet step.
+        // and by their header once more: the line-item step's own pass can miss the location dropdown (20 Nov dry run,
+        // SSR-001 twice: Delivery location empty, Publish never went through, 17 minutes each)
+        const late = await completeRequiredCells(s).catch(() => [] as string[]);
+        if (late.length) console.log(`[single-stage] filled before publish: ${late.join(", ")}`);
         await fillEmptyRequiredCells(s).catch(() => {});
         for (let attempt = 1; ; attempt++) {
           await s.single.publish(s.title);
@@ -3617,6 +3628,14 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
           throw new Error(`publishing was blocked earlier, but the app's words do not name the reason — the case expects "${because}"; ${s.earlyRefusal}`);
         }
         return `blocked before publish — ${s.earlyRefusal}`;
+      }
+      // A case that publishes with NO vendor starts from none: the product puts its linked vendors on with the line
+      // items (DEMO adds Test007-001 with AAC Block), so the run takes every chip off first (20 Nov dry run, SSR-005:
+      // "publish allowed" was the product's own vendor on the event, not a missing check).
+      const noVendor = (s.planSteps ?? []).some((x) => x.step === "skip" && /invite_vendor|vendor/i.test(String(x.args?.step ?? ""))) || /\b(vendor|participant|supplier)s?\b/i.test(String(a.because ?? ""));
+      if (noVendor) {
+        const off = await s.create.removeNonQaParticipants([]).catch(() => 0);
+        if (off) console.log(`[plan] the case publishes with no vendor: took ${off} participant(s) the product had put on off first`);
       }
       // Say WHY the app may have allowed it: the product audience adds vendors
       // from the line items on its own, so "no participants" is often untrue.
