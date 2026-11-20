@@ -160,3 +160,12 @@ test("the by-name half becomes invite_vendor with the names, never a do_on_scree
   assert.equal(inv.args.all, undefined);
   assert.ok(names.includes("expect_participant_count"));
 });
+test("a Fail is confirmed only by a second Fail on a different event (23 Nov plan)", async () => {
+  const { repeatOf } = await import("../src/session/execution.js");
+  const ev = (key: string) => ({ key, label: `project ${key}` });
+  assert.equal(repeatOf([{ status: "Fail", runId: "r1", event: ev("A"), ownEvent: false }]).state, "once");
+  assert.equal(repeatOf([{ status: "Fail", runId: "r1", event: ev("A"), ownEvent: false }, { status: "Fail", runId: "r2", event: ev("A"), ownEvent: false }]).state, "same event");
+  assert.equal(repeatOf([{ status: "Fail", runId: "r1", event: ev("A"), ownEvent: false }, { status: "Pass", runId: "r2", event: ev("B"), ownEvent: false }, { status: "Fail", runId: "r3", event: ev("C"), ownEvent: false }]).state, "confirmed");
+  // a case that creates its own event in the browser is on a new one every run, even when no project page was reached
+  assert.equal(repeatOf([{ status: "Fail", runId: "r1", ownEvent: true }, { status: "Fail", runId: "r2", ownEvent: true }]).state, "confirmed");
+});

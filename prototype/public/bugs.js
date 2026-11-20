@@ -399,9 +399,13 @@
   const models = () => (st.groups ?? []).filter((g) => !g.curated || curatedForClient(g.curated.client)).map(model);
   const latestRun = () => [...st.runs].sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts))[0] ?? null;
   const runById = (id) => st.runs.find((r) => r.id === id) ?? null;
+  // run= may name several runs (a guided session's, comma-separated: #/bugs?run=a,b)
+  const runIds = () => st.run.split(",").map((x) => x.trim()).filter(Boolean);
+  const fromRun = (g) => runIds().some((id) => (g.runs ?? []).includes(id));
+  const runWords = () => { const ids = runIds(); if (ids.length > 1) return `this session's ${ids.length} runs`; const r = runById(ids[0]); return r ? runTitle(r) : st.run; };
 
   function inScope(m) {
-    if (st.run) return (m.g.runs ?? []).includes(st.run);
+    if (st.run) return fromRun(m.g);
     if (st.scope === "open") return !CLOSED.has(m.status);
     if (st.scope === "last") {
       const r = latestRun();
@@ -545,8 +549,7 @@
     if (chip) {
       chip.hidden = !st.run;
       if (st.run) {
-        const r = runById(st.run);
-        chip.querySelector("span").textContent = `From run: ${r ? runTitle(r) : st.run}`;
+        chip.querySelector("span").textContent = `From ${runIds().length > 1 ? "" : "run: "}${runWords()}`;
       }
     }
     const box = q$("#bg-q");
@@ -586,10 +589,10 @@
       return `<div class="bg-card bg-empty"><p class="bg-empty-t">No bugs yet</p><p class="bg-note">Run some tests: anything that breaks lands here, one row per bug.</p></div>`;
     }
     if (st.run) {
-      const r = runById(st.run);
+      const many = runIds().length > 1;
       return (
-        `<div class="bg-card bg-empty"><p class="bg-empty-t">No bugs on this list came from this run</p>` +
-        `<p class="bg-note">${h(r ? runTitle(r) : st.run)} · <a class="bg-link" href="/api/bug-report?run=${encodeURIComponent(st.run)}" target="_blank" rel="noopener">Open the run's own bug sheet</a></p>` +
+        `<div class="bg-card bg-empty"><p class="bg-empty-t">No bugs on this list came from ${many ? "these runs" : "this run"}</p>` +
+        `<p class="bg-note">${h(runWords())}${many ? "" : ` · <a class="bg-link" href="/api/bug-report?run=${encodeURIComponent(st.run)}" target="_blank" rel="noopener">Open the run's own bug sheet</a>`}</p>` +
         `<button type="button" class="bg-link" data-act="all">Show all bugs</button></div>`
       );
     }
@@ -1172,7 +1175,7 @@
     // "Bugs from this run", opened from a run that just ended: a list loaded
     // before the run was saved does not know it, and read "no bugs in this run"
     // while the export (loaded later) had its rows (15 Oct). Load it again.
-    const unknownRun = !!st.run && st.groups != null && st.runChecked !== st.run && !(st.groups ?? []).some((g) => (g.runs ?? []).includes(st.run));
+    const unknownRun = !!st.run && st.groups != null && st.runChecked !== st.run && !(st.groups ?? []).some(fromRun);
     if (st.run) st.runChecked = st.run;
     if (st.groups == null || st.stale || unknownRun) load();
     else syncDrawer();

@@ -72,6 +72,8 @@ export interface SheetRunCase {
   settings?: Array<{ key: string; from: unknown; to: unknown }>;
   /** how the case was read before it ran (prompts/test-case-runner.md, against the sheet's PRD) */
   understanding?: CaseUnderstanding;
+  /** the event the case ran on (the start state built for it, else the project the browser opened), so a re-run can show it was a fresh one */
+  event?: { key: string; label: string };
   case: SheetCase;
 }
 export interface SheetRun {
@@ -264,6 +266,15 @@ export async function runSheetCases(cases: SheetCase[], opts: { companyId: numbe
   return run;
 }
 
+/** The event a case ran on: the start state built for it, else the last project the browser had open (a case that creates its event). */
+function eventOf(context: Record<string, unknown> | undefined, steps: Array<{ detail?: string; evidence?: { url?: string } }> | undefined): SheetRunCase["event"] {
+  const uuid = typeof context?.eventGroupUuid === "string" ? context.eventGroupUuid : "";
+  if (uuid) return { key: uuid, label: typeof context?.title === "string" && context.title ? `"${context.title}"` : `event ${uuid.slice(0, 8)}` };
+  // the project page's address, or the publish step's own words ("published as Z2tna2dj", "project Z2tna2dj")
+  const project = (steps ?? []).map((s) => s.evidence?.url?.match(/\/project\/([A-Za-z0-9]{6,})/)?.[1] ?? s.detail?.match(/\b(?:published as|project) ((?=[A-Za-z]*\d)[A-Za-z0-9]{6,12})\b/)?.[1]).filter((x): x is string => !!x).at(-1);
+  return project ? { key: project, label: `project ${project}` } : undefined;
+}
+
 function base(c: SheetCase, status: SheetVerdict, why: string, ms: number): SheetRunCase {
   return { id: c.id, title: c.title, module: c.module, layer: c.layer, priority: c.priority, status, why, steps: [], shots: [], ms, case: c };
 }
@@ -444,6 +455,7 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
   const r = base(c, "Couldn't tell", "", 0);
   r.planRunId = planRunId;
   r.startedFrom = sp?.why ? `${sp.why}${sp.note ? ` (${sp.note})` : ""}` : undefined;
+  r.event = eventOf(prep.context, result?.steps);
   if (!result?.steps?.length) {
     // Playwright leaves the last error beside its output; a network failure reaching the environment is said
     // as such (12 Nov: page.goto net::ERR_TIMED_OUT on cpanel.ag-ri.in read as "ended without a result")
@@ -500,6 +512,11 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
       // placed, and Master QCS rightly showed the first price — that is not a bug)
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) checked the screen after a part that was never done: ${stepWords({ step: skippedBefore.step, args: skippedBefore.args })} — ${String(skippedBefore.detail).slice(0, 160)}. What the screen showed is what you would expect without that part, so nothing about the product can be concluded.`;
+    } else if (/^[a-z_]+ needs an? .{1,40} to (look for|check|compare|count|read)\b/i.test(d)) {
+      // the step was written without the value it checks (20 Nov, SSR-006: expect_event_status with no status
+      // was a "Fail", and the bug write-up turned it into a product symptom); nothing on the screen was checked
+      r.status = "Couldn't tell";
+      r.why = `Step ${failedAt + 1} (${words}) was written without the value it checks (${d.slice(0, 120)}), so nothing on the screen was checked. This is an automation gap, not a product bug.`;
     } else if (/^(not checked|could not tell|couldn't tell)\b[:\s]/i.test(d) || /\bcould not tell:/i.test(d.slice(0, 120))) {
       r.status = "Couldn't tell";
       r.why = `Step ${failedAt + 1} (${words}) could not be checked: ${d.replace(/^.*?(not checked|could not tell|couldn't tell):\s*/i, "")}. This is not a product failure.`;

@@ -33,7 +33,7 @@ export function sheetDefects(): DefectGroup[] {
   // only a case whose LATEST run still fails: a re-run that passes (or was fixed in the automation) clears it
   const latest = new Map<string, string>();
   const files = existsSync(runsDir) ? readdirSync(runsDir).filter((x) => x.endsWith(".json")) : [];
-  const runs: Array<{ id: string; startedAt: string; cases: Array<{ id: string; status: string }> }> = [];
+  const runs: Array<{ id: string; sheet?: string; startedAt: string; cases: Array<{ id: string; status: string }> }> = [];
   for (const f of files) {
     try {
       runs.push(JSON.parse(readFileSync(join(runsDir, f), "utf8")));
@@ -42,17 +42,20 @@ export function sheetDefects(): DefectGroup[] {
     }
   }
   runs.sort((a, b) => String(a.startedAt).localeCompare(String(b.startedAt)));
-  for (const r of runs) for (const c of r.cases ?? []) if (c.status !== "Not run") latest.set(c.id, `${r.id}|${c.status}`);
+  // a case is known by its sheet AND id: every guided session numbers its cases from GEN-001, so by id alone one
+  // session's pass cleared another session's bug (20 Nov: a session with 4 standing bugs showed none on the page)
+  const caseKey = (sheet: string | undefined, id: string) => `${sheet ?? ""}|${id}`;
+  for (const r of runs) for (const c of r.cases ?? []) if (c.status !== "Not run") latest.set(caseKey(r.sheet, c.id), `${r.id}|${c.status}`);
   if (existsSync(runsDir))
     for (const f of files) {
-      let run: { id: string; startedAt: string; cases: Array<{ id: string; title: string; module: string; status: string; why: string; bug?: { title: string; severity: string; whatHappened: string; expected: string; where?: string; appSaid?: string; shots?: Array<{ file?: string; path?: string }> }; case?: { steps?: string[] } }> };
+      let run: { id: string; sheet?: string; startedAt: string; cases: Array<{ id: string; title: string; module: string; status: string; why: string; bug?: { title: string; severity: string; whatHappened: string; expected: string; where?: string; appSaid?: string; shots?: Array<{ file?: string; path?: string }> }; case?: { steps?: string[] } }> };
       try {
         run = JSON.parse(readFileSync(join(runsDir, f), "utf8"));
       } catch {
         continue;
       }
       for (const c of run.cases ?? []) {
-        if (c.status !== "Fail" || !c.bug || latest.get(c.id) !== `${run.id}|Fail`) continue;
+        if (c.status !== "Fail" || !c.bug || latest.get(caseKey(run.sheet, c.id)) !== `${run.id}|Fail`) continue;
         const b = c.bug;
         const fp = `sheet|${key(b.appSaid || b.title)}`;
         add(
