@@ -174,3 +174,10 @@ test("a second Fail at a different step does not confirm the first (20 Nov, SSR-
   assert.equal(repeatOf([{ status: "Fail", runId: "r1", ownEvent: true, at: "publish" }, { status: "Fail", runId: "r2", ownEvent: true, at: "expect_visible" }]).state, "once");
   assert.equal(repeatOf([{ status: "Fail", runId: "r1", ownEvent: true, at: "publish" }, { status: "Fail", runId: "r2", ownEvent: true, at: "publish" }]).state, "confirmed");
 });
+test("click Create Event + expect the create screen becomes open_create (20 Nov, SSR-011)", async () => {
+  const { lintPlan } = await import("../src/agents/planner.js");
+  const r = lintPlan({ steps: [{ step: "open_events_list" }, { step: "click", args: { role: "button", name: "Create Event" } }, { step: "expect_navigated", args: { screen: "create" } }, { step: "expect_visible", args: { text: "Event Type" } }] } as any, "Create Event opens the single-stage screen with the default event type");
+  const names = r.plan.steps.map((x: any) => x.step);
+  assert.ok(!names.includes("expect_navigated"));
+  assert.deepEqual((r.plan.steps.find((x: any) => x.step === "open_create") as any)?.args, { path: "single-stage" });
+});

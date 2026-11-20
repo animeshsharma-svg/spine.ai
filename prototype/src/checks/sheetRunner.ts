@@ -14,7 +14,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sheetCaseProse, sheetPrep, type SheetCase, compilePrepared } from "./sheetCases.js";
-import { compileTestCase } from "../agents/planner.js";
+import { compileTestCase, lintPlan } from "../agents/planner.js";
 import { saveTextPlan, storedTextPlan, textPlanIsFresh } from "./compiledUiText.js";
 import { compileApiPlan, applyLineItemCount } from "../agents/apiPlanner.js";
 import { runApiPlan } from "./apiPlanRunner.js";
@@ -402,7 +402,9 @@ async function runUiCase(c: SheetCase, opts: { companyId: number; headed?: boole
   const compiled: Compiled = precompiled
     ? precompiled
     : reuse
-    ? { plan: structuredClone(stored!.plan), coverage: stored!.meta.coverage, gaps: stored!.meta.gaps, warnings: stored!.meta.warnings, source: stored!.meta.source as "llm" | "fallback", errors: [] as string[] }
+    // a stored plan goes through today's repairs too: they fix a plan's shape, and a plan stored before a repair existed
+    // would otherwise keep failing for it (20 Nov, SSR-011: click Create Event + expect_navigated, stored that morning)
+    ? { plan: lintPlan(structuredClone(stored!.plan), prose).plan, coverage: stored!.meta.coverage, gaps: stored!.meta.gaps, warnings: stored!.meta.warnings, source: stored!.meta.source as "llm" | "fallback", errors: [] as string[] }
     : await compileTestCase(prose, "events", {
         ...(sp?.prepared ? { prepared: { ...compilePrepared(sp, VALUE_KEYS[sp.state] ?? []), companyId: opts.companyId } } : {}),
         ...(ground ? { screen: { label: ground.label, path: ground.path, controls: ground.controls, headings: ground.headings } } : {}),

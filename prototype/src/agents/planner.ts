@@ -426,6 +426,16 @@ export function lintPlan(plan: TestPlan, testCase = ""): { plan: TestPlan; repai
     repairs.push(why);
   };
 
+  // "click Create Event, then the create screen" is open_create: with eRFX on the button opens a menu first and the
+  // page stays on /orders, so a bare click + expect_navigated read as a Fail (20 Nov dry run 2, SSR-011)
+  for (let i = 0; i < steps.length - 1; i++) {
+    const c = steps[i], n = steps[i + 1];
+    if (c.step === "click" && /^create event$/i.test(String(c.args?.name ?? c.args?.text ?? "").trim()) && n.step === "expect_navigated" && /create/i.test(String(n.args?.screen ?? ""))) {
+      steps.splice(i, 2, { step: "open_create", args: { path: /single[- ]stage/i.test(testCase) ? "single-stage" : "erfx" } });
+      repairs.push("click Create Event + expect the create screen → open_create (the button opens a menu when eRFX is on)");
+    }
+  }
+
   // "invite 2 vendors" is two (27 Oct, VB04: the model invited 3 on a two-stage case, twice, and then counted 2):
   // the invite's count is the number the case gives, when it gives one and names none.
   const WORDS: Record<string, number> = { one: 1, a: 1, an: 1, two: 2, three: 3, four: 4, five: 5 };
