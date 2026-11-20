@@ -1784,15 +1784,29 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
       let typed = false;
       // a dropdown cell (Delivery location, Product Variant): its search box opens — type and pick the option
       const select = s.page.locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden)").filter({ visible: true }).last();
+      // a cell that holds a combobox (single-stage Delivery location) renders its list a moment after the click,
+      // while the server search runs: checked at once, the list was "not there", and "(first)" was typed into the
+      // box as text — the cell looked filled, Publish went nowhere (20 Nov dry runs, SSR-001 twice)
+      const inCell = (await td.locator("[role='combobox'], .ant-select").count().catch(() => 0)) > 0;
+      if (!clearing && inCell) for (const until = Date.now() + 4_000; Date.now() < until && !(await select.count().catch(() => 0)); await s.page.waitForTimeout(250));
       if (!clearing && (await select.count().catch(() => 0))) {
-        const search = s.page.locator(".ant-select-search__field, .ant-select-dropdown input").filter({ visible: true }).first();
+        const search = inCell && (await td.locator("input").count().catch(() => 0)) ? td.locator("input").first() : s.page.locator(".ant-select-search__field, .ant-select-dropdown input").filter({ visible: true }).first();
         await search.fill(wantFirst ? "" : value.replace(/\s*\([^)]*\)\s*$/, "")).catch(() => {});
         // the option is matched on the value without its code in brackets, and spacing is not a difference:
         // "Plant Name (LOC-0001)" in the case is "Plant Name(LOC-0001)" on PROCOL DEMO (13 Nov)
         const esc = value.replace(/\s*\([^)]*\)\s*$/, "").trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*");
-        const opt = wantFirst ? select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ visible: true }).first() : select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ hasText: new RegExp(esc, "i") }).first();
-        // the list is searched on the server: give the match up to 6 s to appear before deciding it is not there
-        for (const until = Date.now() + 6_000; Date.now() < until && !(await opt.count().catch(() => 0)); await s.page.waitForTimeout(400));
+        // never the list's own "loading" / "no data" row: it is a disabled option, and clicking it picks nothing
+        const OPTS = "[role='option']:not([aria-disabled='true']), .ant-select-dropdown-menu-item:not(.ant-select-dropdown-menu-item-disabled)";
+        const opt = wantFirst ? select.locator(OPTS).filter({ visible: true }).first() : select.locator(OPTS).filter({ hasText: new RegExp(esc, "i") }).first();
+        // the list is searched on the server: give the match up to 8 s to appear before deciding it is not there
+        for (const until = Date.now() + (wantFirst ? 3_000 : 8_000); Date.now() < until && !(await opt.count().catch(() => 0)); await s.page.waitForTimeout(400));
+        // some lists search only once something is typed (single-stage Delivery location lists nothing for an empty
+        // search, and "Plant Name(LOC-0001)" for "Plant", 20 Nov probe): "(first)" tries a letter at a time
+        for (const seed of wantFirst ? ["a", "e", "i", "o", "p", "1"] : []) {
+          if (await opt.count().catch(() => 0)) break;
+          await search.fill(seed).catch(() => {});
+          for (const until = Date.now() + 3_000; Date.now() < until && !(await opt.count().catch(() => 0)); await s.page.waitForTimeout(300));
+        }
         if (await opt.count().catch(() => 0)) await opt.click({ timeout: 5_000 }).then(() => (typed = true)).catch(() => {});
         else {
           // The case's value is another company's master data ("Plant Name (LOC-0001)" on PROCOL DEMO, 13 Nov):
@@ -1801,7 +1815,7 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
           // check (expect_sheet_cell) still reads what was typed against what is shown.
           await search.fill("").catch(() => {});
           await s.page.waitForTimeout(800);
-          const any = select.locator("[role='option'], .ant-select-dropdown-menu-item, li").filter({ visible: true }).first();
+          const any = select.locator(OPTS).filter({ visible: true }).first();
           const first = ((await any.innerText().catch(() => "")) || "").trim();
           if (first && (await any.click({ timeout: 5_000 }).then(() => true).catch(() => false))) {
             typed = true;
@@ -1818,13 +1832,18 @@ async function runStep(s: RunState, step: PlanStep): Promise<string | undefined>
           s.typedCells[key] = { typed: value, shown, locked: false };
           return `row ${rowNo} "${a.column}": the list offers nothing matching "${value}" — the cell shows "${shown}"`;
         }
+      } else if (wantFirst) {
+        // "(first)" is a pick from a list, never text to type
+        await s.page.keyboard.press("Escape").catch(() => {});
+        const shown = cellText((await td.innerText().catch(() => "")) || "");
+        return `row ${rowNo} "${a.column}": no list opened to pick the first option from — the cell shows "${shown}"`;
       } else if (await editor().count().catch(() => 0)) {
         await (clearing ? editor().fill("", { timeout: 5_000 }) : editor().fill(value, { timeout: 5_000 })).then(() => (typed = true)).catch(() => {});
       }
       if (!typed && !locked && clearing) {
         await td.click({ timeout: 5_000 }).catch(() => {});
         await s.page.keyboard.press("Backspace").then(() => (typed = true)).catch(() => {});
-      } else if (!typed && !locked) {
+      } else if (!typed && !locked && !wantFirst) {
         // Some cells take keystrokes straight away (the grid opens its editor on the first key).
         await td.click({ timeout: 5_000 }).catch(() => {});
         await s.page.keyboard.type(value, { delay: 30 }).then(() => (typed = true)).catch(() => {});

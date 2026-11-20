@@ -124,7 +124,7 @@ export function report(s: Session): Report {
   const bugs: Report["bugs"] = [];
   const tally: Record<string, number> = {};
   // every run of each case, in order: the re-run history a bug's confirmation is read from
-  const history = new Map<string, Array<{ status: string; runId: string; event?: { key: string; label: string }; ownEvent: boolean }>>();
+  const history = new Map<string, Seen[]>();
   for (const id of ids) {
     const r = loadSheetRun(id);
     if (!r) continue;
@@ -133,7 +133,7 @@ export function report(s: Session): Report {
       t[c.status] = (t[c.status] ?? 0) + 1;
       latest[c.id] = { id: c.id, status: c.status, why: c.why, runId: r.id };
       // a case with no start state creates its own event in the browser, so each run of it is on a new one
-      if (!/^Not run$/.test(c.status)) history.set(c.id, [...(history.get(c.id) ?? []), { status: c.status, runId: r.id, event: c.event ?? eventInWords(c.steps), ownEvent: !c.startedFrom }]);
+      if (!/^Not run$/.test(c.status)) history.set(c.id, [...(history.get(c.id) ?? []), { status: c.status, runId: r.id, event: c.event ?? eventInWords(c.steps), ownEvent: !c.startedFrom, at: c.failedStep }]);
       if (c.bug) bugs.push({ caseId: c.id, title: c.bug.title, severity: (c.bug as any).severity, whatHappened: (c.bug as any).whatHappened, expected: (c.bug as any).expected, runId: r.id, event: (c.event ?? eventInWords(c.steps))?.label, repeat: { state: "once", words: "" } });
     }
     runs.push({ id: r.id, startedAt: r.startedAt, endedAt: r.endedAt, status: r.status, total: r.total, tally: t, report: `/api/sheets/report?run=${r.id}`, workbook: `/api/sheets/export?run=${r.id}` });
@@ -158,7 +158,8 @@ function eventInWords(steps: Array<{ detail?: string }>): Seen["event"] {
   const id = steps.map((x) => x.detail?.match(/\b(?:published as|project) ((?=[A-Za-z]*\d)[A-Za-z0-9]{6,12})\b/)?.[1]).filter((x): x is string => !!x).at(-1);
   return id ? { key: id, label: `project ${id}` } : undefined;
 }
-export type Seen = { status: string; runId: string; event?: { key: string; label: string }; ownEvent: boolean };
+/** one run of a case; `at` is the plan step it failed at (a repeat counts only when it failed at the same one) */
+export type Seen = { status: string; runId: string; event?: { key: string; label: string }; ownEvent: boolean; at?: string };
 /** two runs were on different events: both events known and different, or the case makes its own each time */
 function fresh(a: Seen, b: Seen): boolean {
   if (a.event && b.event) return a.event.key !== b.event.key;
@@ -168,7 +169,11 @@ export function repeatOf(h: Seen[]): Repeat {
   const fails = h.filter((x) => x.status === "Fail");
   const last = fails.at(-1);
   if (!last || fails.length < 2) return { state: "once", words: "Failed once. Run it again on a fresh event before reporting it." };
-  const other = fails.slice(0, -1).reverse().find((x) => fresh(x, last));
+  // the same way = at the same step: a case that failed at Publish, then at the first check, is two problems, not
+  // one confirmed (20 Nov: SSR-001 read "confirmed" on exactly that)
+  const sameWay = fails.slice(0, -1).filter((x) => !x.at || !last.at || x.at === last.at);
+  if (!sameWay.length) return { state: "once", words: `Failed again on a fresh event, but at a different step (${fails.at(-2)?.at ?? "?"}, then ${last.at ?? "?"}): not the same problem. Run it again before reporting it.` };
+  const other = sameWay.reverse().find((x) => fresh(x, last));
   if (other) return { state: "confirmed", words: `Failed the same way on a fresh event: ${other.event?.label ?? `the event of ${other.runId}`}, then ${last.event?.label ?? `the event of ${last.runId}`}.` };
   return { state: "same event", words: `Failed ${fails.length} times, but on the same event${last.event ? ` (${last.event.label})` : ""}; run it again on a fresh event.` };
 }

@@ -169,3 +169,8 @@ test("a Fail is confirmed only by a second Fail on a different event (23 Nov pla
   // a case that creates its own event in the browser is on a new one every run, even when no project page was reached
   assert.equal(repeatOf([{ status: "Fail", runId: "r1", ownEvent: true }, { status: "Fail", runId: "r2", ownEvent: true }]).state, "confirmed");
 });
+test("a second Fail at a different step does not confirm the first (20 Nov, SSR-001)", async () => {
+  const { repeatOf } = await import("../src/session/execution.js");
+  assert.equal(repeatOf([{ status: "Fail", runId: "r1", ownEvent: true, at: "publish" }, { status: "Fail", runId: "r2", ownEvent: true, at: "expect_visible" }]).state, "once");
+  assert.equal(repeatOf([{ status: "Fail", runId: "r1", ownEvent: true, at: "publish" }, { status: "Fail", runId: "r2", ownEvent: true, at: "publish" }]).state, "confirmed");
+});
