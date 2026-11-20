@@ -71,23 +71,32 @@ The three code directories must stay siblings: the platform imports `procol test
 
 ## Setup
 
-Step-by-step for a new teammate, including where the `.env` files come from: [`docs/SETUP.md`](docs/SETUP.md).
+**Full step-by-step guide for a new tester — accounts, repo and branch, tools, `.env` files, VPN, first run,
+rules: [`docs/SETUP-ALL-IN-ONE.md`](docs/SETUP-ALL-IN-ONE.md).** The short version:
 
-Requires Node 24 and PostgreSQL 17 with pgvector (macOS: `brew install postgresql@17 pgvector`,
-then `brew services start postgresql@17`).
+The team trunk is the **`demo`** branch of `animeshsharma-svg/spine.ai` (`main` is old). Requires Node 24,
+PostgreSQL 17 with pgvector (macOS: `brew install postgresql@17 pgvector`, then
+`brew services start postgresql@17`), Python 3 with `openpyxl` + `pillow` for the sheet builders, and the
+Pritunl VPN for Procol's read-only database.
 
 ```bash
+# get the code — Procol's own repos are cloned INSIDE (git-ignored, read-only)
+git clone -b demo https://github.com/animeshsharma-svg/spine.ai.git procol && cd procol
+git clone https://github.com/Procol-Tech/procol-backend.git
+git clone https://github.com/Procol-Tech/procol-client-dashboard.git
+
 # install
 cd prototype && npm install
 cd "../procol test" && npm install
-cd ../procol-ui-tests && npm install && npx playwright install chromium
+cd ../procol-ui-tests && npm install && npx playwright install chromium && cd ..
 
-# configure — copy the examples and fill them in (values are shared out of band, never committed)
+# configure — copy the examples and fill them in (values come through a password manager, never committed)
 cp prototype/.env.example prototype/.env
 cp "procol test/.env.example" "procol test/.env"
 cp procol-ui-tests/.env.example procol-ui-tests/.env
 
 # spine.ai's own database (memory, run history, product model) — SPINE_DB_URL in prototype/.env
+/opt/homebrew/opt/postgresql@17/bin/createdb spine
 cd prototype && npm run db:migrate
 
 # build the memory, then start the dashboard on http://localhost:4300
@@ -99,8 +108,9 @@ npm run serve
 |---|---|---|
 | `SPINE_DB_URL` | `prototype/.env` | spine.ai's own Postgres. The platform still runs without it (file fallbacks). |
 | `SLINGRING_API_KEY` | `prototype/.env` | Procol's AI gateway. Groq / Gemini keys are optional fallbacks. |
-| `DATABASE_URL` | `procol test/.env` | Procol's UAT database — **read-only** (SELECT only). |
-| `CLIENTA_OTP`, … | `procol test/.env`, `procol-ui-tests/.env` | UAT sign-in codes (per-company codes are otherwise looked up). |
+| `DATABASE_URL` | `procol test/.env`, `procol-ui-tests/.env` | Procol's UAT database — **read-only** (SELECT only), reachable only on the VPN. |
+| `CLIENTA_*` | `procol test/.env` | UAT API base, app key/secret, test buyer phone, QA vendor email. |
+| `CLIENTA_OTP`, `CLIENTA_VENDOR_OTP` | `procol test/.env`, `procol-ui-tests/.env` | UAT sign-in codes (otherwise looked up from the database). |
 
 ## Running it
 
@@ -134,7 +144,8 @@ QA test vendors. Nothing deletes or changes real data, and Procol's database is 
 
 ## Working on it
 
-* Branch from `main`, keep commits small, and run `npm run ci:check` before pushing — CI runs the same
+* Branch from `demo` (the trunk; never push to `main`), open pull requests into `demo`, keep commits small,
+  and run `npm run ci:check` before pushing — CI runs the same
   checks (typecheck, catalog freshness, case-data schema, migrations, unit tests, no secrets).
 * Never commit `.env`, `.auth/`, run outputs (`data/runs`, `data/matrix`, …) or Procol's repositories;
   `.gitignore` covers all of them.

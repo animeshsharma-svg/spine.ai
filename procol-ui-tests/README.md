@@ -17,6 +17,8 @@ green against `clientA` (`cpanel.ag-ri.in` → `sec-api.ag-ri.in`).
 
 ## Quick start
 
+First-time setup for the whole platform (accounts, `.env` values, VPN): [`../docs/SETUP-ALL-IN-ONE.md`](../docs/SETUP-ALL-IN-ONE.md).
+
 ```bash
 npm install
 npx playwright install chromium
