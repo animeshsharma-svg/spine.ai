@@ -131,3 +131,20 @@ Later (13 Nov, night): the vendor revoke call found (`PATCH /bids/update_bid_sta
 A12 = `npx tsx scripts/eval-generation.ts --sheet gen-<session> --gold <hand-written xlsx>` — for each of the tester's 66 cases, the 3 nearest generated cases go to a judge (full / partly / none); report in `data/runs/evals/` (git-ignored). Reading: volume does not move recall; the misses are setup rows (PRA-SET), the run's own bug-hunt cases (PRA-EXT) and existing behaviour of the PR list the PRD never restates (Assign disabled for partly-used items, other list actions, notification read state). Next lever: ground generation in the existing screen's behaviour (the code rules cover events, not the PR list). Error-guessing now cites the HubSpot open defects (2 cited in run 5; 0 → 16 cases after batching).
 
 **Aanya:** merge prompt `docs/Prompt_for_Aanya_Merge_2026-11-20.md` — everything of hers not on `demo`, from any date (branches, unpushed commits, stashes, untracked/ignored source, other checkouts, the two never-committed modules).
+
+## 2026-11-20 (afternoon) — Animesh: Monday's plan done early — fresh-event re-run, session Bugs page, two dry runs
+
+**Re-run on a fresh event.** Every sheet case now records the event it ran on (the start state, else the project it published). The session report labels each standing bug: *confirmed* (failed again at the same step on a different event), *failed once*, or *failed twice on one event*; a case that failed and then passed on a fresh event is *flaky*. Proven live: SSR-006 failed on project a1pra2da, passed on Z2tna2dj → flaky, not a bug. A second Fail at a different step does not confirm the first (it did, once, before the fix).
+
+**Bugs page from the session.** The session's Bugs button opens `#/bugs?run=<all its runs>`. The Bugs page knew a sheet case by its id alone; every session numbers from GEN-001 (and SSR ids repeat across sheet versions), so one session's pass hid another session's bug — 6 were hidden. Now known by sheet + id.
+
+**Dry run 1** (`s-mwoil08tzliw`): 9/10 steps, 75 min. **Dry run 2** (`s-mwoq33yw0tsk`, after the fixes): **11/11 steps, 45 min** — environment, PRD card (6 questions asked on screen, 15 left on the card), sanity on one flow, 11 cases in 5 sections each with its basis, the tester's sheet merged (1 added, 2 duplicates of catalog cases kept out, shown apart), approve, P0–P1 run (3 Pass, 3 Partly checked, 1 Fail, 5 queued for the night), the Bugs page showing exactly the session's bug, the re-run on a fresh event.
+
+**Every Fail the dry runs produced was ours** — all fixed, all marked NOT A BUG on the Bugs page with the reason:
+- Delivery location on the single-stage sheet: "(first)" was *typed* into the combobox (its list renders late and searches only once a letter is typed); the cell looked filled and Publish went nowhere for 17 minutes. Probed live, fixed; SSR-001 now publishes (WmRna2dj) in under 5 min.
+- "the test product" (the generator's placeholder) was typed literally and found DEMO's real "Test product", which has no location → now means "no product named".
+- "Publish with no vendor allowed" (SSR-005): the product had put Test007-001 on → a no-vendor case now takes every participant off first.
+- "Event Type empty" (SSR-012): a button read as a form field; "(1)" counter labels the compiler guessed; a publish that went nowhere with no word from the app; "click Create Event, expect the create screen" when eRFX opens a menu (SSR-011) → none of these is a product Fail any more; stored plans now go through the plan repairs too.
+- The Review screen got no basis and no case ids per section — every generated case would have shown under "From your sheet". Fixed.
+
+**Still open for the demo:** a case whose plan fails twice can be re-planned by the runner's second opinion into something odd (SSR-011's went back to the events list); a P0–P1 run is ~35 min for 7 cases, so the demo shows a run already done plus one live case. One unexplained 26-minute wait for the browser slot (since then the dry-run script logs the slot holder; it did not recur).
