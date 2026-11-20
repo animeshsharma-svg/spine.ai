@@ -10,9 +10,12 @@ no-OTP DB login, database-as-oracle). Runs for **₹0** — no paid API required
 
 ## Run it
 
+First-time setup (accounts, `.env` files, VPN, database): [`../docs/SETUP-ALL-IN-ONE.md`](../docs/SETUP-ALL-IN-ONE.md).
+
 ```bash
 cd prototype
 npm install
+cp .env.example .env # then fill it in — values come through a password manager
 npm run serve        # → http://localhost:4300
 ```
 
@@ -36,14 +39,14 @@ Open the URL, keep **PROCOL DEMO (198678)**, and click **Run QA**.
 | `npm run check:catalog` | Verify the flow catalog matches the real registry. |
 | `npm run typecheck` | TypeScript check. |
 
-## Enable the LLM (optional, free)
+## Enable the LLM
 
-1. Get a free key at <https://console.groq.com>.
-2. Create `prototype/.env` with: `GROQ_API_KEY=your_key_here`
-3. Restart `npm run serve`. The provider badge turns green and the agents'
-   reasoning becomes LLM-written. Decisions and results are already real either way.
+1. Put the team's `SLINGRING_API_KEY` (Procol's AI gateway) in `prototype/.env` — it is the primary model and
+   the memory's embedder. `GROQ_API_KEY` / `GOOGLE_API_KEY` are optional fallbacks.
+2. Rebuild the memory (`npm run rag:build`) and restart `npm run serve`.
 
-Provider is one setting in `config/settings.ts` (`AI.provider`) — swap to Claude later.
+Without any key the platform runs in a deterministic fallback mode. Pass/fail never depends on the model.
+Providers and models are set in `config/settings.ts` (section 4, AI provider).
 
 ## How it's built (the 6 layers)
 

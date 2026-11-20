@@ -18,8 +18,9 @@ npm install
 npx playwright install
 ```
 
-No `.env` required — the config ships with working sandbox values (see
-`src/config.ts`). Override the active client via env if you like:
+Standalone, no `.env` is required — the config ships with working sandbox values (see
+`src/config.ts`). Inside spine.ai the team uses a `.env` (copy `.env.example`; values come through a
+password manager) — full setup: [`../docs/SETUP-ALL-IN-ONE.md`](../docs/SETUP-ALL-IN-ONE.md). Override the active client via env if you like:
 
 ```bash
 ACTIVE_CLIENT=clientA npm test      # default
