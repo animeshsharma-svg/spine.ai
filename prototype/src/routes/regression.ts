@@ -14,7 +14,7 @@ import { activeSheetRun, listSheetRuns, runSheetCases } from "../checks/sheetRun
 import { sheetPrep } from "../checks/sheetCases.js";
 import { restorePendingSettings } from "../checks/companySettings.js";
 
-const COLUMNS = ["key", "id", "module", "feature", "stage", "layer", "priority", "kind", "title", "state", "needs", "runnable", "source"] as const;
+const COLUMNS = ["key", "id", "module", "feature", "stage", "layer", "priority", "kind", "title", "state", "needs", "runnable", "source", "prev", "part"] as const;
 
 export const handle: RouteHandler = async (ctx) => {
   if (!ctx.path.startsWith("/api/regression")) return false;
