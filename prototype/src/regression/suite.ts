@@ -19,6 +19,7 @@
  *
  * The display rows are plain; a RUN row keeps the exact request of an API case (the compiler needs it).
  */
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -378,6 +379,8 @@ export function plainText(raw: string): string {
   // a company setting is named as a person would read it: the setting “Lock vendors addition in event creation”
   t = t.replace(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g, (m) => (keep.has(m) ? `the setting “${m[0].toUpperCase()}${m.slice(1).replace(/_/g, " ")}”` : m.replace(/_/g, " ")));
   t = t.replace(/\b(the setting )+the setting/g, "the setting");
+  // an engineer's constant (VENDOR_URL, BUYER_EMAIL) is said as words; a QA_ test name stays as typed on screen
+  t = t.replace(/\b(?!QA_)[A-Z]{2,}(?:_[A-Z0-9]+)+\b/g, (m) => `the ${m.toLowerCase().replace(/_/g, " ")}`);
   t = simplify(t);
   // the code's own names (Api::IntakeRequestsController#create, params[:title].blank?, a "guard at the top of …") say
   // nothing to a tester: the clause that carries them goes
@@ -642,6 +645,8 @@ export function buildSuite(): Suite {
   }
   for (const c of allCases()) { if (seen.has(c.id)) continue; seen.add(c.id); cases.push(...splitFlow(fromCatalog(c))); }
   for (const c of apiLibrary()) { if (!c?.id || seen.has(c.id)) continue; seen.add(c.id); cases.push(fromApi(c)); }
+  const rewritten = applyRewrites(cases);
+  if (rewritten) console.log(`[regression] ${rewritten} case(s) shown in the model's rewrite`);
   // the chain, with the count of cases resting on each node
   const count = new Map<string, number>();
   for (const c of cases) if (c.needs) count.set(c.needs, (count.get(c.needs) ?? 0) + 1);
@@ -663,6 +668,25 @@ export function buildSuite(): Suite {
   writeFileSync(SUITE_FILE, JSON.stringify(suite));
   cache = suite;
   return suite;
+}
+
+/** the model's rewrites of the terse cases (scripts/regression-rewrite.ts), shown when the case's text is still the one they were written for */
+const REWRITES_FILE = join(DATA, "regression-rewrites.json");
+function applyRewrites(cases: SuiteCase[]): number {
+  if (!existsSync(REWRITES_FILE)) return 0;
+  let have: Record<string, { sig: string; steps: string[]; expected: string; preconditions?: string }> = {};
+  try { have = JSON.parse(readFileSync(REWRITES_FILE, "utf8")); } catch { return 0; }
+  let n = 0;
+  for (const c of cases) {
+    const r = have[c.key];
+    if (!r) continue;
+    const sig = createHash("sha1").update([c.title, c.preconditions, ...c.steps, c.expected].join("\n")).digest("hex").slice(0, 12);
+    if (r.sig !== sig) continue;
+    // the model's words go through the same plain-words pass as everything else (a token it kept from the source)
+    c.steps = r.steps.map(plainText); c.expected = plainText(r.expected); if (r.preconditions) c.preconditions = plainText(r.preconditions);
+    n++;
+  }
+  return n;
 }
 
 let cache: Suite | null = null;
