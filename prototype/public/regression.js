@@ -138,7 +138,7 @@
     const picked = pickedCases();
     el.innerHTML = `${listHtml()}${panelHtml(picked)}${S.drawer ? drawerHtml() : ""}`;
     const ctx = q("#rg-ctx");
-    if (ctx) ctx.innerHTML = `<span class="rg-ctx">The regression suite: ${fmt(S.suite.counts.total)} cases · ${fmt(S.suite.counts.ui)} UI · ${fmt(S.suite.counts.api)} API${S.suite.counts.split ? ` · ${fmt(S.suite.counts.split)} long flows cut into one case per stage` : ""} · built ${h(new Date(S.suite.builtAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))} · <button type="button" class="pl-link" data-act="rebuild"${S.rebuilding ? " disabled" : ""}>${S.rebuilding ? "Reading the stores…" : "Read the stores again"}</button></span>`;
+    if (ctx) ctx.innerHTML = `<span class="rg-ctx">The regression suite: ${fmt(S.suite.counts.total)} cases · ${fmt(S.suite.counts.ui)} UI · ${fmt(S.suite.counts.api)} API${S.suite.counts.split ? ` · ${fmt(S.suite.counts.split)} long flows cut into one case per stage` : ""} · <button type="button" class="pl-link" data-act="rebuild"${S.rebuilding ? " disabled" : ""}>${S.rebuilding ? "Reading the stores…" : "Read the stores again"}</button></span>`;
     wire(el);
   }
 

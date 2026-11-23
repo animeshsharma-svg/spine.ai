@@ -2436,7 +2436,7 @@ function runInstruction(mode, built = null, { noBuilder = false } = {}) {
       lines: [
         dc.keys.length
           ? "Switch to UI and send it again."
-          : `Name its id, or tick it on Run tests. Decathlon's cases: ${dc.flows.map((f) => String(f.label).split(" · ")[0]).join(", ") || "none loaded yet"}.`,
+          : `Name its id, or tick it on the Regression suite. Decathlon's cases: ${dc.flows.map((f) => String(f.label).split(" · ")[0]).join(", ") || "none loaded yet"}.`,
       ],
     });
     window.spineSession?.idle();

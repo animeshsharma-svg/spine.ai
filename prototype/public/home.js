@@ -563,7 +563,7 @@
     // app.js draws the Run tests count; this only says what the number is.
     const plan = q$('.nav-item[data-view="plan"]');
     const n = plan?.querySelector(".nav-badge")?.textContent;
-    if (n) plan.setAttribute("aria-label", `Run tests, ${n} feature${n === "1" ? "" : "s"} ticked`);
+    if (n) plan.setAttribute("aria-label", `Regression suite, ${n} feature${n === "1" ? "" : "s"} ticked`);
     else plan?.removeAttribute("aria-label");
   }
 
