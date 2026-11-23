@@ -19,14 +19,14 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chat } from "../src/ai/llm.js";
-import { loadSuite, type SuiteCase } from "../src/regression/suite.js";
+import { buildSuite, type SuiteCase } from "../src/regression/suite.js";
 import { STYLE_GUIDE } from "../src/agents/caseStyle.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT = join(here, "..", "data", "regression-rewrites.json");
 const DRY = process.argv.includes("--dry");
 const LIMIT = Number(process.argv[process.argv.indexOf("--limit") + 1]) || 0;
-const BATCH = 8;
+const BATCH = Number(process.env.REWRITE_BATCH) || 8;
 const IN_FLIGHT = 4;
 let warned = false;
 
@@ -69,14 +69,15 @@ async function rewriteBatch(cases: SuiteCase[]): Promise<Record<string, Rewrite>
     if (!c || !Array.isArray(r.steps) || !r.steps.length || typeof r.expected !== "string" || !r.expected.trim()) continue;
     const steps = r.steps.map((s: unknown) => String(s).replace(/^\d+[.)]\s*/, "").trim()).filter(Boolean);
     // the model must not pad: more than three times the steps, or a step that names a code word, is refused
-    if (steps.length > c.steps.length * 3 + 2 || steps.some((s: string) => /\b(GET|POST|PATCH|PUT|DELETE)\b|\/[a-z_]+\/|\bjson\b|\bpayload\b|\buuid\b/i.test(s))) continue;
+    if (steps.length > c.steps.length * 4 + 3 || steps.some((s: string) => /\b(GET|POST|PATCH|PUT|DELETE)\b|\/[a-z_]+\/|\bjson\b|\bpayload\b|\buuid\b/i.test(s))) continue;
     out[c.key] = { sig: sigOf(c), steps, expected: String(r.expected).trim(), ...(typeof r.preconditions === "string" && r.preconditions.trim() && r.preconditions.trim() !== "-" ? { preconditions: r.preconditions.trim() } : {}), at: new Date().toISOString() };
   }
   return out;
 }
 
 async function main() {
-  const suite = loadSuite();
+  // the cases in their OWN words: a rewrite is judged and keyed by the source text, never by an earlier rewrite
+  const suite = buildSuite({ write: false, rewrites: false });
   const have: Record<string, Rewrite> = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : {};
   const todo = suite.cases.filter((c) => isTerse(c) && have[c.key]?.sig !== sigOf(c));
   const by: Record<string, number> = {};

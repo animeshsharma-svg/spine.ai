@@ -628,7 +628,8 @@ export function splitFlow(c: SuiteCase): SuiteCase[] {
 }
 
 // ── build, keep, serve ───────────────────────────────────────────────────────
-export function buildSuite(): Suite {
+/** `rewrites: false` keeps every case's own words (the rewrite script judges and keys by them); `write: false` keeps the file as it is */
+export function buildSuite(opts: { write?: boolean; rewrites?: boolean } = {}): Suite {
   const cases: SuiteCase[] = [];
   const seen = new Set<string>();
   // a sheet id used again in another sheet (SSR-001 in every version of a session's sheet, GEN-001 in every session)
@@ -645,7 +646,7 @@ export function buildSuite(): Suite {
   }
   for (const c of allCases()) { if (seen.has(c.id)) continue; seen.add(c.id); cases.push(...splitFlow(fromCatalog(c))); }
   for (const c of apiLibrary()) { if (!c?.id || seen.has(c.id)) continue; seen.add(c.id); cases.push(fromApi(c)); }
-  const rewritten = applyRewrites(cases);
+  const rewritten = opts.rewrites === false ? 0 : applyRewrites(cases);
   if (rewritten) console.log(`[regression] ${rewritten} case(s) shown in the model's rewrite`);
   // the chain, with the count of cases resting on each node
   const count = new Map<string, number>();
@@ -664,9 +665,11 @@ export function buildSuite(): Suite {
     builtAt: new Date().toISOString(), modules, setup, cases,
     counts: { total: cases.length, ui: cases.filter((c) => c.layer === "ui").length, api: cases.filter((c) => c.layer === "api").length, split: new Set(cases.filter((c) => c.part).map((c) => c.key.replace(/·\d+$/, ""))).size, bySource: tally((c) => c.source), byRunnable: tally((c) => c.runnable), byStage: tally((c) => (c.stage < 0 ? "none" : STAGES[c.stage])), byPriority: tally((c) => c.priority) },
   };
-  mkdirSync(dirname(SUITE_FILE), { recursive: true });
-  writeFileSync(SUITE_FILE, JSON.stringify(suite));
-  cache = suite;
+  if (opts.write !== false) {
+    mkdirSync(dirname(SUITE_FILE), { recursive: true });
+    writeFileSync(SUITE_FILE, JSON.stringify(suite));
+    cache = suite;
+  }
   return suite;
 }
 
