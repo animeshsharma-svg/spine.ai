@@ -61,7 +61,7 @@ let runStopRequested = false;
 // plan = Plan a run (public/plan.js), which replaced API automation and UI automation
 // sessions = every run kept, as sessions (public/sessions.js), which replaced Reports
 // bugs = Bugs (public/bugs.js), which replaced the bug sheet; stuck = its Stuck points and steps still needed; sheets = Test sheets
-const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys", "cases", "prd", "guided", "reports", "sessions", "bugs", "stuck", "crosscheck", "product", "matrix", "success", "history", "screens", "sheets"];
+const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys", "cases", "prd", "guided", "reports", "sessions", "bugs", "stuck", "crosscheck", "product", "matrix", "success", "history", "screens", "sheets", "regression"];
 
 /**
  * Old addresses that now live elsewhere: the hash is rewritten, so a bookmark

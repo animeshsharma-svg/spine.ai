@@ -395,7 +395,7 @@ function screenFor(c: SheetCase, state: UiState): string {
   return "summary";
 }
 /** What the pre-conditions say the event is, when they describe one in words. */
-function stateFromWords(pre: string): UiState | null {
+export function stateFromWords(pre: string): UiState | null {
   const t = pre.toLowerCase();
   if (/^(-|the buyer can create events|the buyer can see purchase requisitions)/.test(t.trim()) || !t.trim()) return null;
   if (!/\b(event|rfq|auction|project|stage|proposal|award|bid|quote)/.test(t)) return null;
