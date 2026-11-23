@@ -79,8 +79,16 @@
 
   // ── the chain ────────────────────────────────────────────────────────────
   const chain = (needs) => { const out = []; let n = needs; while (n && S.setup.has(n) && !out.includes(n)) { out.push(n); n = S.setup.get(n).needs; } return out; };
-  function tick(key) { const c = S.byKey.get(key); if (!c) return; S.picked.add(key); for (const n of chain(c.needs)) S.picked.add(n); }
-  function untick(key) { S.picked.delete(key); sweep(); }
+  function tick(key) {
+    let c = S.byKey.get(key);
+    while (c) { S.picked.add(c.key); for (const n of chain(c.needs)) S.picked.add(n); c = c.prev ? S.byKey.get(c.prev) : null; }
+  }
+  function untick(key) {
+    S.picked.delete(key);
+    // the parts that continue from it cannot stand without it
+    for (let grew = true; grew;) { grew = false; for (const k of [...S.picked]) { const c = S.byKey.get(k); if (c?.prev && !S.picked.has(c.prev)) { S.picked.delete(k); grew = true; } } }
+    sweep();
+  }
   function tickSetup(id) { S.pinned.add(id); S.picked.add(id); for (const n of chain(S.setup.get(id)?.needs)) S.picked.add(n); }
   function untickSetup(id) {
     // the node and every node built from it; then every case resting on any of them
@@ -130,7 +138,7 @@
     const picked = pickedCases();
     el.innerHTML = `${listHtml()}${panelHtml(picked)}${S.drawer ? drawerHtml() : ""}`;
     const ctx = q("#rg-ctx");
-    if (ctx) ctx.innerHTML = `<span class="rg-ctx">${fmt(S.suite.counts.total)} cases · ${fmt(S.suite.counts.ui)} UI · ${fmt(S.suite.counts.api)} API · built ${h(new Date(S.suite.builtAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))} · <button type="button" class="pl-link" data-act="rebuild"${S.rebuilding ? " disabled" : ""}>${S.rebuilding ? "Reading the stores…" : "Read the stores again"}</button></span>`;
+    if (ctx) ctx.innerHTML = `<span class="rg-ctx">The regression suite: ${fmt(S.suite.counts.total)} cases · ${fmt(S.suite.counts.ui)} UI · ${fmt(S.suite.counts.api)} API${S.suite.counts.split ? ` · ${fmt(S.suite.counts.split)} long flows cut into one case per stage` : ""} · built ${h(new Date(S.suite.builtAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))} · <button type="button" class="pl-link" data-act="rebuild"${S.rebuilding ? " disabled" : ""}>${S.rebuilding ? "Reading the stores…" : "Read the stores again"}</button></span>`;
     wire(el);
   }
 
@@ -188,14 +196,14 @@
 
   function caseHtml(c) {
     const [label, cls, why] = RUN[c.runnable] || RUN.compile;
-    const from = c.needs && S.setup.get(c.needs) ? S.setup.get(c.needs).label : "";
+    const from = c.prev ? `continues from part ${c.part.n - 1} (${h(S.byKey.get(c.prev)?.part?.what || "")})` : c.needs && S.setup.get(c.needs) ? S.setup.get(c.needs).label : "";
     return (
-      `<div class="rg-case${S.picked.has(c.key) ? " is-on" : ""}">` +
+      `<div class="rg-case${S.picked.has(c.key) ? " is-on" : ""}${c.part ? ` rg-part${c.part.n === 1 ? " rg-part-first" : ""}${c.part.n === c.part.of ? " rg-part-last" : ""}` : ""}">` +
         `<input type="checkbox" class="pl-cb" data-key="${h(c.key)}"${S.picked.has(c.key) ? " checked" : ""} aria-label="Tick ${h(c.id)}" />` +
-        `<code class="rg-id">${h(c.id)}</code>` +
+        `<code class="rg-id">${h(c.id)}</code>${c.part ? `<span class="rg-partn" title="One stage of a longer flow: the parts run in order, each continuing from the one before">${c.part.n} of ${c.part.of}</span>` : ""}` +
         `<button type="button" class="rg-title" data-open="${h(c.key)}">${h(c.title)}</button>` +
         `<span class="rg-pills"><span class="rg-pill ${c.layer}">${c.layer.toUpperCase()}</span><span class="rg-pill p${c.priority.slice(1)}" title="${h(PRI_WORD[c.priority])}">${h(c.priority)}</span>${c.kind !== "Positive" ? `<span class="rg-pill kind">${h(c.kind)}</span>` : ""}<span class="rg-pill stage">${h(stageWord(c.stage))}</span><span class="pl-tag ${cls}" title="${h(why)}">${h(label)}</span></span>` +
-        (from ? `<span class="rg-from" title="The event this case starts from; ticking the case ticks it too">starts from: ${h(from)}</span>` : "") +
+        (from ? `<span class="rg-from" title="${c.prev ? "Ticking this part ticks the parts before it" : "The event this case starts from; ticking the case ticks it too"}">${c.prev ? from : `starts from: ${h(from)}`}</span>` : "") +
       `</div>`
     );
   }
@@ -345,7 +353,7 @@
     el.querySelector("[data-act=run]")?.addEventListener("click", startRun);
   }
 
-  function route() { if (location.hash.startsWith("#/regression")) load(false); }
+  function route() { if (/^#\/(regression|run-tests)\b/.test(location.hash)) load(false); }
   window.addEventListener("hashchange", route);
   route();
 })();

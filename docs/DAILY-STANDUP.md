@@ -148,3 +148,15 @@ A12 = `npx tsx scripts/eval-generation.ts --sheet gen-<session> --gold <hand-wri
 - The Review screen got no basis and no case ids per section — every generated case would have shown under "From your sheet". Fixed.
 
 **Still open for the demo:** a case whose plan fails twice can be re-planned by the runner's second opinion into something odd (SSR-011's went back to the events list); a P0–P1 run is ~35 min for 7 cases, so the demo shows a run already done plus one live case. One unexplained 26-minute wait for the browser slot (since then the dry-run script logs the slot holder; it did not recur).
+
+## 2026-11-23 — Animesh: Run tests is now the regression suite
+
+**Run tests (`#/run-tests` → `#/regression`) now shows every test case the platform holds**, module by module in the order a buyer walks the product (Intake → PR → Sourcing events → … → PO, then the set-up groups), UI and API side by side, in plain words: 12,779 cases from the written catalog (7,312), the team's sheets (3,507, every sheet version and session kept) and the API case library (1,568). Each case shows its stage on the flow (Draft → Publish → Bid → Evaluate → Award → PO), what it starts from, and what a run can do with it today (runs now 5.8k, part checked 2.2k, compiles at run time 1.4k, needs a step, later, manual, not-in-the-product specs 296). Search and filters across all of it; a click opens the case in full.
+
+**One case per stage.** 235 cases that walked the whole journey in one go (create → publish → bid → award → PO) are cut into 627 parts, one stage each, that continue from one another — a part's pre-condition names the state the part before it reached, in the words the runner builds by API, so each part runs alone too. A refusal case (a greyed Publish) is not cut.
+
+**Ticking follows the flow.** The set-up events form a chain (draft → live → bid → two bids → closed → proposal → awarded …). Ticking a case ticks the chain it rests on and the parts before it — nothing else; a case that does not depend on it is never pulled in. Unticking a set-up event or a part unticks everything resting on it. A run adds only the direct set-up's own sheet case (SRC-SET-001 for a live RFQ, -004 closed, -009 draft …), set-up first, then the stages in order, P0 first.
+
+**Proved live on PROCOL DEMO** from the page (server :4340, `spine-regression`): run `sheet-mwswl78g` — API-SHT-001 *Fail* (a draft event with quantity 0 was accepted, twice on fresh records — worth a look), SSR-006 *Partly checked* (154 s). The Bugs page link, the report and the workbook come back on the panel, with each bug's plain write-up.
+
+Build: `npx tsx scripts/regression-build.ts` (1.8 s, `data/regression/suite.json`, git-ignored, built on first use); "Read the stores again" on the page rebuilds. The feature-level page it replaced is still at `#/features`.

@@ -71,7 +71,8 @@ const VIEWS = ["home", "welcome", "login", "plan", "run", "api", "ui", "journeys
  * loadHistory() still writes into it.
  */
 // The plan page is "Run tests" at #/run-tests now; every older address for it lands there.
-const REDIRECTS = { api: "run-tests", ui: "run-tests", plan: "run-tests", "plan-api": "run-tests", "plan-ui": "run-tests", reports: "sessions" };
+// Run tests is the regression suite (23 Nov); the feature-level page it replaced answers at #/features.
+const REDIRECTS = { api: "regression", ui: "regression", plan: "regression", "plan-api": "regression", "plan-ui": "regression", "run-tests": "regression", reports: "sessions" };
 const DEFAULT_VIEW = "home";
 
 /**
@@ -89,7 +90,7 @@ const HIDDEN_VIEWS = { journeys: "cases" };
  */
 // "run-tests" is the plan view under its new name (its view id, badge and active state stay "plan").
 // "s" is the guided testing session (public/session-guided.js): #/s the list, #/s/<id> one session — additive, agreed day 1.
-const VIEW_ALIASES = { session: "run", "run-tests": "plan", s: "guided" };
+const VIEW_ALIASES = { session: "run", features: "plan", s: "guided" };
 
 function currentView() {
   // "#/login?next=…" names the view "login": a query after the name is not part of it.

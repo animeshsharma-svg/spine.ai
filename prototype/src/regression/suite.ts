@@ -57,6 +57,9 @@ export interface SuiteCase {
   state: UiState | null;
   /** the set-up node this case rests on (SETUP:<state>), or null when it starts from nothing */
   needs: string | null;
+  /** a case cut into one part per stage of the flow: the part before this one (its key), and which part this is */
+  prev?: string;
+  part?: { n: number; of: number; what: string };
   runnable: Runnable;
   role: string;
   preconditions: string;
@@ -86,7 +89,7 @@ export interface Suite {
   modules: SuiteModule[];
   setup: SetupNode[];
   cases: SuiteCase[];
-  counts: { total: number; ui: number; api: number; bySource: Record<string, number>; byRunnable: Record<string, number>; byStage: Record<string, number>; byPriority: Record<string, number> };
+  counts: { total: number; ui: number; api: number; split: number; bySource: Record<string, number>; byRunnable: Record<string, number>; byStage: Record<string, number>; byPriority: Record<string, number> };
 }
 
 // ── the set-up chain ─────────────────────────────────────────────────────────
@@ -372,7 +375,7 @@ export function plainText(raw: string): string {
   t = t.replace(/\berror\.code\b/g, "error code");
   const keep = settingKeys();
   t = t.replace(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g, (m) => (keep.has(m) ? m : m.replace(/_/g, " ")));
-  t = t.replace(/\bQA_Platform_?/g, "");
+  t = t.replace(/\bQA_Platform_(?=[a-z])/g, "");
   // the code's own names (Api::IntakeRequestsController#create, params[:title].blank?, a "guard at the top of …") say
   // nothing to a tester: the clause that carries them goes
   t = t.replace(/\s*(?:from|by|in|at|via)\s+the\s+[^;]*?(?:::|#[a-z_]+\b|\[:|\.blank\?|\bguard\b)[^;]*?(?=;|\.\s|\.$|$)/g, "");
@@ -495,6 +498,84 @@ function fromApi(c: TestCaseRecord): SuiteCase {
   };
 }
 
+// ── one case per stage of the flow ───────────────────────────────────────────
+/**
+ * A case that walks the whole journey in one go (create the event → publish → the vendor bids → award) is cut
+ * at each stage ACTION into parts that continue from each other: part 1 builds the draft, part 2 publishes it,
+ * part 3 bids… Each part is a case of its own — its pre-condition names the state the part before it reached, in
+ * the words the runner builds by API, so it runs alone too — and `prev` ties it to the part before, so ticking
+ * part 3 ticks parts 1 and 2. Only a case that CREATES its event is cut; a case that opens an existing event and
+ * does one thing is already one stage. A stage word that is not an action (a greyed "Publish" button, "how will
+ * you award the event?") is not a cut.
+ */
+const CUTS: Array<[number, RegExp, RegExp | null]> = [
+  [5, /\b(generate|create|release|open)\b.{0,30}\b(purchase order|\bPO\b)|\bpurchase order (is )?(generated|created|released)/i, null],
+  [4, /\b(start awarding|create (the |a )?proposal|award (the |a |this )?(line|quantity|quantities|vendor|event|rfq|it|\d)|submit (the )?(award|proposal)|click "?(award|start awarding|create proposal))/i, /award (option|rule|type)|how will you award|awarding rule/i],
+  [3, /\b(master qcs|evaluate the|compare the (bids|quotes)|score the|open .{0,20}evaluation\b(?! time))/i, /evaluation time/i],
+  [2, /\b(place|places|submit|submits|enter|enters|put in|add|adds|make|makes|type|types)\b.{0,40}\b(bid|quote|offer|price per unit|vendor's price)\b|\bsurrogate bid|\bvendor portal\b|\bas (the )?vendor\b.{0,30}\b(bid|quote)|\b(quote|quotes|bid|bids)\s+(?:₹\s*)?\d|\bvendor [abc]\b.{0,30}\b(quote|quotes|bid|bids)\b/i, /reject(ed)? bid|rejected bids|bid masking|no bids?\b|counter/i],
+  [1, /\b(click|press|hit|choose|select)\b.{0,25}\bpublish|\bpublish(es)? (the |it\b|this |and )/i, /grey|disabled|cannot|can't|refus|not (be )?published|blocked|without|mouse over|hover|tooltip/i],
+];
+const CREATES = /\b(create event|create screen|single[- ]stage|erfx|new event|create (a |an |the )?.{0,30}(rfq|rfp|auction|event|project)|create the draft)/i;
+const LOGIN = /\b(log in|sign in|login|logs in|signs in)\b/i;
+function cutAt(step: string): number | null {
+  for (const [stage, re, not] of CUTS) if (re.test(step) && !(not && not.test(step))) return stage;
+  return null;
+}
+/** the state a part leaves behind, in the words the runner builds from, and what the part is called */
+const REACHED: Record<number, { state: UiState; pre: string; expected: string; what: string }> = {
+  0: { state: "draft", pre: "A draft event saved and not published, with its template, line items and invited vendors as the part before set them.", expected: "The event is saved with everything the steps set, still a draft (not published).", what: "Build the event" },
+  1: { state: "live", pre: "A live event (published) with the QA vendors invited and no bid yet, as the part before left it.", expected: "The event is published: its project page opens and the status reads Live.", what: "Publish" },
+  2: { state: "bid", pre: "A live event where Vendor A has quoted, as the part before left it.", expected: "The bid is placed and shows on the Responses tab with its price.", what: "The bid" },
+  3: { state: "closed_two_bids", pre: "A closed event where Vendor A quoted 100 and Vendor B quoted 90 (bidding over), as the part before left it.", expected: "Master QCS shows the bids ranked, the lowest first.", what: "Evaluate" },
+  4: { state: "awarded", pre: "An awarded event (its proposal submitted), as the part before left it.", expected: "The award is made: the proposal shows the awarded quantities and goes for approval or becomes final.", what: "Award" },
+  5: { state: "awarded", pre: "An awarded event with its PO generated, as the part before left it.", expected: "The purchase order exists with the awarded lines.", what: "Purchase order" },
+};
+export function splitFlow(c: SuiteCase): SuiteCase[] {
+  if (c.layer !== "ui" || c.steps.length < 4 || !c.steps.some((st) => CREATES.test(st))) return [c];
+  // a case ABOUT a refused or greyed-out publish is one stage: the publish is the check, not a step on
+  const aboutRefusal = /grey|disabled|refus|cannot publish|not (be )?published|blocked|tooltip/i.test(`${c.title} ${c.expected}`);
+  const parts: Array<{ stage: number; steps: string[] }> = [];
+  let cur: { stage: number; steps: string[] } = { stage: 0, steps: [] };
+  const actions = (p: { steps: string[] }) => p.steps.filter((st) => !LOGIN.test(st)).length;
+  let held: string | null = null; // a sign-in just before a cut belongs to the next part
+  for (const st of c.steps) {
+    if (LOGIN.test(st)) { if (held) cur.steps.push(held); held = st; continue; }
+    let at = cutAt(st);
+    if (at === 1 && aboutRefusal) at = null;
+    // building the draft takes several steps before a cut makes sense; publishing is one click, so a bid or an
+    // evaluation right after it starts its own part
+    const enough = cur.stage === 0 ? actions(cur) >= 2 : actions(cur) >= 1;
+    if (at !== null && at > cur.stage && enough) { parts.push(cur); cur = { stage: at, steps: held ? [held, st] : [st] }; }
+    else { if (held) cur.steps.push(held); cur.steps.push(st); if (at !== null && at > cur.stage && actions(cur) === 1) cur.stage = at; }
+    held = null;
+  }
+  if (held) cur.steps.push(held);
+  parts.push(cur);
+  if (parts.length < 2) return [c];
+  const login = c.steps.find((st) => LOGIN.test(st));
+  const of = parts.length;
+  return parts.map((p, i) => {
+    let before = i ? REACHED[parts[i - 1].stage] : null;
+    // an Evaluate / Award / PO part after a Bid part starts from the bidding CLOSED with both quotes in, not a live bid
+    if (before && p.stage >= 3 && parts[i - 1].stage <= 2) before = { ...REACHED[3], pre: "A closed event where Vendor A quoted 100 and Vendor B quoted 90 (bidding over), as the parts before left it." };
+    const last = i === of - 1;
+    const what = last ? (REACHED[p.stage]?.what ?? "Finish") : REACHED[p.stage]?.what ?? "Build the event";
+    const steps = i && login && !p.steps.some((st) => LOGIN.test(st)) ? [login, ...p.steps] : p.steps;
+    return {
+      ...c,
+      key: `${c.key}·${i + 1}`, id: `${c.id}·${i + 1}`,
+      title: `${c.title} — ${i + 1} of ${of}: ${what}`,
+      stage: p.stage, steps,
+      preconditions: before ? before.pre : c.preconditions,
+      expected: last ? c.expected : (REACHED[p.stage]?.expected ?? "The step goes through and the event is as the steps left it."),
+      state: before ? before.state : c.state,
+      needs: i ? null : c.needs,
+      ...(i ? { prev: `${c.key}·${i}` } : {}),
+      part: { n: i + 1, of, what },
+    };
+  });
+}
+
 // ── build, keep, serve ───────────────────────────────────────────────────────
 export function buildSuite(): Suite {
   const cases: SuiteCase[] = [];
@@ -509,9 +590,9 @@ export function buildSuite(): Suite {
     const sc = fromSheet(c);
     if (seen.has(c.id)) sc.key = `${c.id}@${c.sheet}`;
     seen.add(c.id);
-    cases.push(sc);
+    cases.push(...splitFlow(sc));
   }
-  for (const c of allCases()) { if (seen.has(c.id)) continue; seen.add(c.id); cases.push(fromCatalog(c)); }
+  for (const c of allCases()) { if (seen.has(c.id)) continue; seen.add(c.id); cases.push(...splitFlow(fromCatalog(c))); }
   for (const c of apiLibrary()) { if (!c?.id || seen.has(c.id)) continue; seen.add(c.id); cases.push(fromApi(c)); }
   // the chain, with the count of cases resting on each node
   const count = new Map<string, number>();
@@ -528,7 +609,7 @@ export function buildSuite(): Suite {
   const tally = (f: (c: SuiteCase) => string) => { const o: Record<string, number> = {}; for (const c of cases) o[f(c)] = (o[f(c)] ?? 0) + 1; return o; };
   const suite: Suite = {
     builtAt: new Date().toISOString(), modules, setup, cases,
-    counts: { total: cases.length, ui: cases.filter((c) => c.layer === "ui").length, api: cases.filter((c) => c.layer === "api").length, bySource: tally((c) => c.source), byRunnable: tally((c) => c.runnable), byStage: tally((c) => (c.stage < 0 ? "none" : STAGES[c.stage])), byPriority: tally((c) => c.priority) },
+    counts: { total: cases.length, ui: cases.filter((c) => c.layer === "ui").length, api: cases.filter((c) => c.layer === "api").length, split: new Set(cases.filter((c) => c.part).map((c) => c.key.replace(/·\d+$/, ""))).size, bySource: tally((c) => c.source), byRunnable: tally((c) => c.runnable), byStage: tally((c) => (c.stage < 0 ? "none" : STAGES[c.stage])), byPriority: tally((c) => c.priority) },
   };
   mkdirSync(dirname(SUITE_FILE), { recursive: true });
   writeFileSync(SUITE_FILE, JSON.stringify(suite));
@@ -570,6 +651,8 @@ export function runOrder(ids: string[]): { ids: string[]; setupCases: string[]; 
   }
   for (const sc of setupCases) { const c = byId.get(sc.toUpperCase()); if (c && !picked.includes(c)) picked.push(c); }
   const PR: Record<Priority, number> = { P0: 0, P1: 1, P2: 2, P3: 3 };
+  // a part's parts before it run first, whether or not they were ticked (a part continues from them)
+  for (const c of [...picked]) { let p = c.prev; while (p) { const b = byId.get(p.toUpperCase()); if (b && !picked.includes(b)) picked.push(b); p = b?.prev; } }
   picked.sort((a, b) => (a.stage < 0 ? 9 : a.stage) - (b.stage < 0 ? 9 : b.stage) || depth(node.get(a.needs ?? "")) - depth(node.get(b.needs ?? "")) || (setupCases.has(b.id) ? 1 : 0) - (setupCases.has(a.id) ? 1 : 0) || PR[a.priority] - PR[b.priority] || a.id.localeCompare(b.id));
   return { ids: picked.map((c) => c.key), setupCases: [...setupCases], unknown };
 }
@@ -579,8 +662,9 @@ export function runRow(key: string): SheetCase | null {
   const sc = suiteCase(key);
   if (!sc) return null;
   const want = sc.id.toUpperCase();
-  if (sc.source === "sheet") return sheetCases().find((c) => c.id.toUpperCase() === want && c.sheet === sc.from) ?? sheetCases().find((c) => c.id.toUpperCase() === want) ?? null;
   const P: Record<Priority, string> = { P0: "Critical", P1: "High", P2: "Medium", P3: "Low" };
+  if (sc.part) return { id: sc.id, sheet: "regression", module: sc.module, scenario: sc.from, title: sc.title, role: sc.role, portal: /vendor/i.test(sc.role) ? "Vendor portal" : "Buyer portal", preconditions: sc.preconditions, configs: sc.configs, testData: sc.testData, steps: sc.steps, expected: sc.expected, priority: P[sc.priority], testType: sc.kind, status: "Not Run", layer: sc.layer };
+  if (sc.source === "sheet") return sheetCases().find((c) => c.id.toUpperCase() === want && c.sheet === sc.from) ?? sheetCases().find((c) => c.id.toUpperCase() === want) ?? null;
   if (sc.source === "api") {
     const rec = apiLibrary().find((c) => c.id.toUpperCase() === want);
     const steps = rec
