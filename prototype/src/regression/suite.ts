@@ -374,8 +374,11 @@ export function plainText(raw: string): string {
   t = t.replace(/\b(4\d\d|5\d\d)\b(?=\s*(?:with|and|,|\.|$))/g, (m) => (Number(m) >= 500 ? `server error ${m}` : `error ${m}`));
   t = t.replace(/\berror\.code\b/g, "error code");
   const keep = settingKeys();
-  t = t.replace(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g, (m) => (keep.has(m) ? m : m.replace(/_/g, " ")));
   t = t.replace(/\bQA_Platform_(?=[a-z])/g, "");
+  // a company setting is named as a person would read it: the setting “Lock vendors addition in event creation”
+  t = t.replace(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g, (m) => (keep.has(m) ? `the setting “${m[0].toUpperCase()}${m.slice(1).replace(/_/g, " ")}”` : m.replace(/_/g, " ")));
+  t = t.replace(/\b(the setting )+the setting/g, "the setting");
+  t = simplify(t);
   // the code's own names (Api::IntakeRequestsController#create, params[:title].blank?, a "guard at the top of …") say
   // nothing to a tester: the clause that carries them goes
   t = t.replace(/\s*(?:from|by|in|at|via)\s+the\s+[^;]*?(?:::|#[a-z_]+\b|\[:|\.blank\?|\bguard\b)[^;]*?(?=;|\.\s|\.$|$)/g, "");
@@ -383,6 +386,50 @@ export function plainText(raw: string): string {
   t = t.replace(/[ \t]+/g, " ").replace(/\s+([,.;:])/g, "$1").replace(/\s+\./g, ".").trim();
   return t ? t[0].toUpperCase() + t.slice(1) : t;
 }
+/**
+ * THE WORDS A PERSON USES (23 Nov 2026): the suite is read by anyone on the team, so what the engineers wrote for
+ * each other is said the way the screens say it — the app answers, it refuses, it accepts; a record, not a row;
+ * text, not a string; the event, not its uuid. Only the display text: a run keeps the exact request.
+ */
+type Rewrite = string | ((...m: string[]) => string);
+const PLACEHOLDERS: Array<[RegExp, Rewrite]> = [
+  [/\{\{?\s*stamp\s*\}?\}/gi, "a unique name"], [/\{\{?\s*(prItemId|prItem|purchaseRequestItemId)\s*\}?\}/gi, "the PR line"],
+  [/\{\{?\s*(eventGroupUuid|eventGroupId|eventId)\s*\}?\}/gi, "the event"], [/\{\{?\s*(tradeUuid|tradeId|stageUuid)\s*\}?\}/gi, "the stage"],
+  [/\{\{?\s*(vendorCompanyId|vendorId|sellerCompanyId)\s*\}?\}/gi, "the vendor"], [/\{\{?\s*(bidUuid|bidId)\s*\}?\}/gi, "the bid"],
+  [/\{\{?\s*(proposalUuid|proposalId)\s*\}?\}/gi, "the proposal"], [/\{\{?\s*(productId|productUuid)\s*\}?\}/gi, "the product"],
+  [/\{\{?\s*(excel ?data|file ?data|data)\s*\}?\}/gi, "the file"], [/\{\{?\s*([A-Za-z_ ]+?)\s*\}?\}/g, (_m: string, k: string) => `the ${k.replace(/[_]+/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase().replace(/\b(uuid|id)\b/g, "").trim() || "value"}`],
+];
+const WORDS: Array<[RegExp, Rewrite]> = [
+  // a request body pasted into a step, and the code's own file paths and method names, say nothing to a tester
+  [/\{\s*"[^{}]{20,}\}(\s*\.)?/g, "the details the case gives$1"], [/\s*\((?:app|lib|config|spec)\/[^)]*\)/g, ""], [/\b[a-z_]+#[a-z_]+\b/g, ""],
+  [/\bthe app response\b/gi, "the app's answer"], [/\bshows the response\b/gi, "shows the app's answer"],
+  [/\bwalking the API journey\b/gi, "going through the API flow"], [/\bin the API journey\b/gi, "through the API"], [/\bthe API journey\b/gi, "the API flow"],
+  [/\b(no|a|an|one|the|new|draft|every|each|that|this) ([A-Za-z][a-z]+(?: [a-z]+)*) rows?\b/g, "$1 $2"], [/\b(db|database|audit) rows?\b/gi, "record"],
+  [/\b(the|its|app's|an?) (API )?response\b/gi, "$1 answer"], [/\bresponse (body|code|status)\b/gi, "answer"], [/\b(request|json) body\b/gi, "details sent"], [/\bpayload\b/gi, "details sent"],
+  [/\bstatus code\b/gi, "answer"], [/\bendpoints?\b/gi, "call"], [/\bassert(s|ed|ing)? that\b/gi, "check that"], [/\bassert(s|ed|ing)?\b/gi, "check"],
+  [/\buuids?\b/gi, "id"], [/\bevent group\b/gi, "event"], [/\b(a |the )?string\b/gi, "$1text"], [/\bintegers?\b/gi, "whole number"], [/\bbooleans?\b/gi, "yes or no"],
+  [/\barrays?\b/gi, "list"], [/\bnull\b/gi, "empty"], [/\bJSON\b/g, "data"], [/\bparams?\b|\bparameters?\b/gi, "values"], [/\bbackend\b/gi, "the app"], [/\bfrontend\b/gi, "the screen"],
+  [/\b(the )?(db|database)\b/gi, "the app's records"], [/\bbase64 (the )?/gi, "attach the "], [/\bfixtures?\b/gi, "test file"], [/\bVR_QA_TOKEN\b/g, "the QA login"],
+  [/\bHTTP\b ?/g, ""], [/\b5xx\b/g, "a server error"], [/\b4xx\b/g, "a refusal"], [/\b(2xx|200 OK)\b/g, "accepted"],
+  [/\ba refusal \(error \d{3}\) with error code \d+ \(([^)]+)\)/g, "it is refused with the message “$1”"], [/\ba refusal \(error \d{3}\)/g, "it is refused"],
+  [/\ban accepted answer \(\d{3}\)/g, "it is accepted"], [/\ba server error \(\d{3}\)/g, "the app shows a server error"],
+  [/\b(?:an? )?(?:typed |untyped )?(4\d\d)\s*\(([^)]+)\)/gi, "refused with the message “$2”"], [/\b(a |an )?(typed|untyped) (4\d\d|5\d\d)\b/g, (m: string) => (/5\d\d/.test(m) ? "a server error" : "a refusal")],
+  [/\berror (4\d\d)\b/g, "a refusal"], [/\bserver error (5\d\d)\b/g, "server error"], [/\bstatus (\d{3})\b/g, (m: string, c: string) => (Number(c) >= 500 ? "a server error" : Number(c) >= 400 ? "a refusal" : "accepted")],
+  [/\b([a-z]+(?: [a-z]+)?)\[\]\.([a-z]+(?: [a-z]+)*)/g, "a $1 entry's $2"], [/\b([a-z]+(?: [a-z]+)?)\[\]/g, "the $1 list"], [/\b([a-z]{3,})\.([a-z]{3,})\.([a-z]{3,})\b/g, "the $1's $2 $3"], [/\b([a-z]{3,})\.([a-z]{3,})\b(?!\.)/g, "the $1's $2"],
+  [/\b([A-Z][a-z]+(?:[A-Z][a-z]+)+)\b/g, (m: string) => m.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase()],
+  [/\b([a-z]+(?: [a-z]+)?) rows? (is|are|was|were|exists?|remains?|gets?) (created|inserted|added|saved|written|deleted|removed|left)\b/gi, "$1 $2 $3"], [/\bis inserted\b/g, "is created"],
+  [/^The app refuses it: It is refused/, "It is refused"], [/\bjson\b/gi, "data"], [/\b(every|each|this|that|one|no) (API )?responses?\b/gi, "$1 answer"], [/\bAPI responses?\b/g, "the app's answers"],
+  [/\b[\w.-]*\/[\w./-]*\/([\w-]+\.(?:pdf|xlsx|xls|csv|png|jpg|txt|docx))\b/gi, "the test file $1"], [/\btest file: the test file\b/g, "test file"],
+  [/\bA (?=[aeiouAEIOU][a-z])/g, "An "], [/\ba (?=[aeiou][a-z])/g, "an "],
+  [/\bthe the\b/g, "the"], [/\ba the\b/g, "the"], [/\bthe an?\b/g, "the"],
+];
+function simplify(raw: string): string {
+  let t = raw;
+  for (const [re, to] of PLACEHOLDERS) t = typeof to === "string" ? t.replace(re, to) : t.replace(re, to);
+  for (const [re, to] of WORDS) t = typeof to === "string" ? t.replace(re, to) : t.replace(re, to);
+  return t.replace(/[ \t]+/g, " ").replace(/\s+([,.;:])/g, "$1").trim();
+}
+
 /** a catalog case's one-string steps as numbered actions */
 export function splitSteps(s: string): string[] {
   const t = plainText(s);
@@ -491,7 +538,8 @@ function fromApi(c: TestCaseRecord): SuiteCase {
   const state = stateFromWords(`${c.preconditions ?? ""} ${c.title.replace(/_/g, " ")}`);
   const kind: Kind = c.expected === "reject" ? "Negative" : /limit|boundary|edge|max|min|empty|duplicate/i.test(c.title) ? "Edge" : "Positive";
   const steps = (c.steps ?? []).length ? (c.steps ?? []).map((s) => plainText(s).replace(/^\d+[.)]\s*/, "")) : [`${callWords(c.method, c.path)[0].toUpperCase()}${callWords(c.method, c.path).slice(1)} with the request the case gives.`, "Look at the app's answer."];
-  const expected = c.expected === "reject" ? `The app refuses it: ${plainText(c.expectedResult)}` : c.expected === "no-5xx" ? `The app answers without a server error: ${plainText(c.expectedResult)}` : plainText(c.expectedResult);
+  const said = plainText(c.expectedResult);
+  const expected = c.expected === "reject" ? (/^(it is|the app) refus/i.test(said) ? said : `The app refuses it: ${said}`) : c.expected === "no-5xx" ? (/server error/i.test(said) ? said : `The app answers without a server error: ${said}`) : said;
   return {
     key: c.id, id: c.id, source: "api", from: c.feature, module, feature, stage: stageFor(module, state, text), layer: "api", priority: toPriority(c.priority), kind, title: plainTitle(c.title), state, needs: state ? setupId(state) : null, runnable: "now",
     role: /vendor/i.test(c.preconditions ?? "") && !/buyer/i.test(c.preconditions ?? "") ? "Vendor" : "Buyer", preconditions: plainText(c.preconditions ?? "") || "-", configs: "None", testData: "-", steps, expected, why: plainText(c.rationale ?? ""),
